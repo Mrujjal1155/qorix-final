@@ -54,8 +54,10 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
   if (!sup) return { ok: false, reason: "Supplier record not found" };
   if (!sup.is_enabled) return { ok: false, reason: `Supplier “${sup.name ?? sup.key}” is disabled in admin` };
 
+  // Advisory only: some supplier balance endpoints under-report (or return 0)
+  // even when the API wallet is funded, so never block the purchase on it —
+  // the supplier API itself is the authority and rejects unfunded orders.
   const pre = await supplierPreflight(sup, Number(order.total ?? 0));
-  if (!pre.ok) return { ok: false, reason: pre.reason };
 
   try {
     const { supplierOrder } = await import("@/lib/suppliers/api.server");
@@ -65,6 +67,7 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
       Number(order.quantity ?? 1),
       `qorix-retry-${order.id}-${Date.now()}`,
     );
+
     if (!res.items.length)
       return {
         ok: false,
