@@ -3950,18 +3950,28 @@ async function fulfillCheckout(chatId: number, meta: CoMeta, methodKey: string, 
   if (serialQueue.length) {
     const totalItems = serialQueue.reduce((a, q) => a + q.items.length, 0);
     text += `\n🎁 <b>${totalItems} item(s) are being sent one by one below.</b>\n`;
-    void (async () => {
-      for (const q of serialQueue) {
-        for (let i = 0; i < q.items.length; i++) {
-          await sendMessage(
-            chatId,
-            `📦 <b>${escapeHtml(q.name)} — ${i + 1} of ${q.items.length}</b>` +
-              (q.orderNo ? `\nOrder #${q.orderNo}` : "") +
-              `\n<pre>${escapeHtml(q.items[i]!)}</pre>`,
+    // Keep the request alive until every credential has reached Telegram.
+    // A detached promise is cancelled when the Cloudflare request finishes,
+    // which previously meant that a 5-item MailReader order often sent only
+    // the first item even though all five were stored on the order.
+    for (const q of serialQueue) {
+      for (let i = 0; i < q.items.length; i++) {
+        const item = q.items[i];
+        if (!item) continue;
+        const sent = await sendMessage(
+          chatId,
+          `📦 <b>${escapeHtml(q.name)} — ${i + 1} of ${q.items.length}</b>` +
+            (q.orderNo ? `\nOrder #${q.orderNo}` : "") +
+            `\n<pre>${escapeHtml(item)}</pre>`,
+        );
+        if (!sent.ok) {
+          console.error(
+            `Telegram delivery item ${i + 1}/${q.items.length} failed for order ${q.orderNo ?? "unknown"}:`,
+            sent.description ?? "Unknown Telegram error",
           );
         }
       }
-    })();
+    }
   }
   if (pending)
     text +=
