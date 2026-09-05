@@ -811,6 +811,22 @@ export function formatDeliveryItem(input: any): string {
   return lines.join("\n");
 }
 
+/**
+ * Pick the first non-empty delivery shape without letting an empty `items: []`
+ * hide a populated `delivery` field. Supplier APIs variously return one item,
+ * an array, or nested arrays; flatten only arrays so credential objects remain
+ * intact as one delivered item.
+ */
+function firstDeliveryItems(...candidates: any[]): any[] {
+  for (const candidate of candidates) {
+    if (candidate == null || candidate === "") continue;
+    const values = Array.isArray(candidate) ? candidate.flat(Infinity) : [candidate];
+    const usable = values.filter((value) => value != null && (typeof value !== "string" || value.trim()));
+    if (usable.length) return usable;
+  }
+  return [];
+}
+
 /** Place an order at the supplier. Returns delivered item strings. */
 export async function supplierOrder(
   s: SupplierRow,
@@ -842,34 +858,26 @@ export async function supplierOrder(
   const order = (j.order ?? j.result ?? j.data?.order ?? (typeof j.data === "object" ? j.data : null) ?? j) as any;
   const del = canboso ? (j.delivery ?? {}) : null;
   const rawItems: any[] = canboso
-    ? (del.items ??
-        del.accounts ??
-        del.keys ??
-        del.credentials ??
-        (del.content ? [del.content] : null) ??
-        (del.text ? [del.text] : null) ??
-        [])
-    : order.items ??
-    // MailReader returns the delivered payload as `delivery_items`.
-    order.delivery_items ??
-    j.delivery_items ??
-    // MailReader (current API) returns it as a top-level `delivery` array/string.
-    (Array.isArray(order.delivery) && order.delivery.length ? order.delivery : null) ??
-    (Array.isArray(j.delivery) && j.delivery.length ? j.delivery : null) ??
-    (typeof order.delivery === "string" && order.delivery.trim() ? [order.delivery] : null) ??
-    (typeof j.delivery === "string" && j.delivery.trim() ? [j.delivery] : null) ??
-    order.keys ??
-    order.credentials ??
-    order.delivered_items ??
-    order.delivered ??
-    order.accounts ??
-    j.items ??
-    j.keys ??
-    // Vexoran returns the delivered payload as a plain string in `data`.
-    (typeof order.data === "string" && order.data.trim() ? [order.data] : null) ??
-    (typeof j.data === "string" && j.data.trim() ? [j.data] : null) ??
-    (typeof order.content === "string" && order.content.trim() ? [order.content] : null) ??
-    [];
+    ? firstDeliveryItems(del.items, del.accounts, del.keys, del.credentials, del.content, del.text)
+    : firstDeliveryItems(
+        order.items,
+        // MailReader uses both of these shapes across API versions.
+        order.delivery_items,
+        j.delivery_items,
+        order.delivery,
+        j.delivery,
+        order.keys,
+        order.credentials,
+        order.delivered_items,
+        order.delivered,
+        order.accounts,
+        j.items,
+        j.keys,
+        // Vexoran returns the delivered payload as a plain string in `data`.
+        typeof order.data === "string" ? order.data : null,
+        typeof j.data === "string" ? j.data : null,
+        order.content,
+      );
 
   const items = rawItems.map(formatDeliveryItem).filter(Boolean);
   const code = order.code ?? order.order_code ?? order.reference ?? order.order_id ?? order.id ?? j.code ?? null;
@@ -906,8 +914,18 @@ export async function supplierOrder(
   if (!items.length && code && !action && !canboso) {
     const detail = await call(s, `/v1/orders/${encodeURIComponent(String(code))}`);
     const detailOrder = detail.order ?? detail.result ?? detail.data?.order ?? detail.data ?? detail;
-    const detailItems: any[] =
-      detailOrder.items ?? detailOrder.keys ?? detailOrder.credentials ?? detailOrder.delivered_items ?? detailOrder.accounts ?? [];
+    const detailItems = firstDeliveryItems(
+      detailOrder.items,
+      detailOrder.delivery_items,
+      detailOrder.delivery,
+      detailOrder.keys,
+      detailOrder.credentials,
+      detailOrder.delivered_items,
+      detailOrder.delivered,
+      detailOrder.accounts,
+      detailOrder.content,
+      detailOrder.data,
+    );
     return {
       code: String(code),
       items: detailItems.map(formatDeliveryItem).filter(Boolean),
