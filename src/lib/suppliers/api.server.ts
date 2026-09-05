@@ -853,6 +853,11 @@ export async function supplierOrder(
     // MailReader returns the delivered payload as `delivery_items`.
     order.delivery_items ??
     j.delivery_items ??
+    // MailReader (current API) returns it as a top-level `delivery` array/string.
+    (Array.isArray(order.delivery) && order.delivery.length ? order.delivery : null) ??
+    (Array.isArray(j.delivery) && j.delivery.length ? j.delivery : null) ??
+    (typeof order.delivery === "string" && order.delivery.trim() ? [order.delivery] : null) ??
+    (typeof j.delivery === "string" && j.delivery.trim() ? [j.delivery] : null) ??
     order.keys ??
     order.credentials ??
     order.delivered_items ??
@@ -865,6 +870,7 @@ export async function supplierOrder(
     (typeof j.data === "string" && j.data.trim() ? [j.data] : null) ??
     (typeof order.content === "string" && order.content.trim() ? [order.content] : null) ??
     [];
+
   const items = rawItems.map(formatDeliveryItem).filter(Boolean);
   const code = order.code ?? order.order_code ?? order.reference ?? order.order_id ?? order.id ?? j.code ?? null;
 
