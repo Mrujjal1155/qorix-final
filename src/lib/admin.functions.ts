@@ -260,10 +260,23 @@ export const saveProduct = createServerFn({ method: "POST" })
       details: (rest.details ?? []).filter((d) => d && (d.label?.trim() || d.value?.trim())),
       telegram_custom_emoji_id: rest.telegram_custom_emoji_id || null,
     };
-    const { error } = id
-      ? await sb.from("products").update(row).eq("id", id)
-      : await sb.from("products").insert(row);
+    if (id) {
+      const { error } = await sb.from("products").update(row).eq("id", id);
+      if (error) throw new Error(error.message);
+      return { ok: true };
+    }
+    const { data: created, error } = await sb.from("products").insert(row).select("*").maybeSingle();
     if (error) throw new Error(error.message);
+    // A brand-new live product gets the NEW PRODUCT card in the channel and in
+    // every bot chat, exactly like an auto-listed supplier product.
+    if (created && (created as any).is_active !== false) {
+      try {
+        const { announceNewProduct } = await import("@/lib/bot/engine.server");
+        await announceNewProduct(created);
+      } catch (e) {
+        console.error("new-product announce failed:", e);
+      }
+    }
     return { ok: true };
   });
 
@@ -272,8 +285,18 @@ export const deleteProduct = createServerFn({ method: "POST" })
   .inputValidator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const { error } = await (context as any).supabase.from("products").delete().eq("id", data.id);
+    const sb = (context as any).supabase;
+    const { data: existing } = await sb.from("products").select("*").eq("id", data.id).maybeSingle();
+    const { error } = await sb.from("products").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
+    if (existing && (existing as any).is_active !== false) {
+      try {
+        const { announceProductRemoved } = await import("@/lib/bot/engine.server");
+        await announceProductRemoved(existing);
+      } catch (e) {
+        console.error("removed-product announce failed:", e);
+      }
+    }
     return { ok: true };
   });
 

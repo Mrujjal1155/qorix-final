@@ -2198,6 +2198,32 @@ export async function announceLowStock(
   return { channel: channel.sent, dmSent: dm.sent, dmTotal: dm.total, dmComplete: dm.complete, dmCursor: dm.nextCursor };
 }
 
+/**
+ * "REMOVED" card — posted when an admin deletes a product that was live.
+ * Uses the same channel + bot DM fan-out as the other stock cards.
+ */
+export async function announceProductRemoved(product: any) {
+  const s = await getSettings();
+  if ((s["announce_removed"] ?? "on").toLowerCase() === "off") return;
+  const title = s["announce_removed_title"] || "🗑️ REMOVED";
+  const footer = s["announce_removed_footer"] || "This product is no longer available in the store.";
+  const line = "──────────────────────";
+  const text =
+    `<b>${escapeHtml(title)}</b>\n${line}\n\n` +
+    `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
+    `<i>${escapeHtml(footer)}</i>`;
+  await postToChannel(s, text).catch((error) => {
+    console.error("Removed-product channel delivery failed:", error);
+    return { sent: false };
+  });
+  await dmAllBotUsers(s, text).catch((error) => {
+    console.error("Removed-product DM delivery failed:", error);
+  });
+}
+
+
+
+
 
 
 

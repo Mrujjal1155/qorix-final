@@ -12,4 +12,6 @@
 - [x] Refresh open storefront stock automatically
 - [x] Bound Telegram fan-out and persist progress across automatic runs
 - [x] Batch listed-product updates to stay below Cloudflare request limits
-- [x] Add a Cloudflare scheduled fallback so stock and prices refresh without admin clicks
+- [x] Add a Cloudflare scheduled fallback so stock and prices refresh without admin clicks- [x] Send up to 6 stock cards per supplier per run and drain all four suppliers in parallel
+- [x] Retry stalled alert claims after 45s instead of 120s
+- [x] Announce admin-added products and admin-removed products to channel + bot DMs
