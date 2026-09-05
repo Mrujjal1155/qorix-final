@@ -12,3 +12,10 @@ Allow: /
 
 User-agent: *
 Allow: /
+Disallow: /admin
+Disallow: /account
+Disallow: /auth
+Disallow: /reseller/start
+Disallow: /reseller/panel
+
+Sitemap: https://qorixlab.com/sitemap.xml

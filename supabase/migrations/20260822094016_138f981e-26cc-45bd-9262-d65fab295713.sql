@@ -1,0 +1,1 @@
+DELETE FROM public.bot_users WHERE telegram_id = 999001;

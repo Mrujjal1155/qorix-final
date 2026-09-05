@@ -7,6 +7,10 @@ type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
 
+type ExecutionContext = {
+  waitUntil: (promise: Promise<unknown>) => void;
+};
+
 let serverEntryPromise: Promise<ServerEntry> | undefined;
 
 async function getServerEntry(): Promise<ServerEntry> {
@@ -47,6 +51,13 @@ function isH3SwallowedErrorBody(body: string): boolean {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      // Keep the Telegram webhook registered without any manual step.
+      try {
+        const { ensureWebhookOnce } = await import("./lib/bot/ensure-webhook.server");
+        ensureWebhookOnce();
+      } catch (error) {
+        console.error("Webhook ensure skipped:", error);
+      }
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
@@ -57,5 +68,12 @@ export default {
         headers: { "content-type": "text/html; charset=utf-8" },
       });
     }
+  },
+  scheduled(_controller: unknown, _env: unknown, ctx: ExecutionContext) {
+    ctx.waitUntil(
+      import("./lib/suppliers/sync.server")
+        .then(({ maybeAutoSyncSuppliers }) => maybeAutoSyncSuppliers())
+        .catch((error) => console.error("Scheduled supplier sync failed:", error)),
+    );
   },
 };

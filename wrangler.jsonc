@@ -1,0 +1,33 @@
+{
+  // Cloudflare Workers deploy config for the built app (dist/).
+  // Build first:  bun run build
+  // Deploy:       bunx wrangler deploy
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "happy-tales-network",
+  "main": "dist/server/index.mjs",
+  "compatibility_date": "2025-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "dist/client",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
+  "routes": [
+    { "pattern": "qorixlab.com", "custom_domain": true },
+    { "pattern": "www.qorixlab.com", "custom_domain": true }
+  ],
+  "vars": {
+    "SITE_URL": "https://qorixlab.com",
+    "PRODUCTION_SITE_URL": "https://qorixlab.com",
+    // Public Supabase values (safe to commit). The private service-role key must
+    // be added as a Secret in the Worker settings, never here.
+    "SUPABASE_URL": "https://zohumyfxfhyzwjzxjdzi.supabase.co",
+    "SUPABASE_PROJECT_ID": "zohumyfxfhyzwjzxjdzi",
+    "SUPABASE_PUBLISHABLE_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpvaHVteWZ4Zmh5endqenhqZHppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODczODgyMTgsImV4cCI6MjEwMjk2NDIxOH0.OvZ2-7yIREIXqZfJM3lHiYdYC6SoAhdSpV8A0UMdQgc"
+  }
+}
