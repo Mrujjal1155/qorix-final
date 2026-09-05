@@ -93,6 +93,8 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
     }
     return { ok: true, items: res.items };
   } catch (e) {
-    return { ok: false, reason: e instanceof Error ? e.message : String(e) };
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, reason: pre.ok ? msg : `${msg} — ${pre.reason}` };
   }
+
 }
