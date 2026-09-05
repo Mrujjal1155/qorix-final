@@ -54,8 +54,10 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
   if (!sup) return { ok: false, reason: "Supplier record not found" };
   if (!sup.is_enabled) return { ok: false, reason: `Supplier “${sup.name ?? sup.key}” is disabled in admin` };
 
+  // Advisory only: some supplier balance endpoints under-report (or return 0)
+  // even when the API wallet is funded, so never block the purchase on it —
+  // the supplier API itself is the authority and rejects unfunded orders.
   const pre = await supplierPreflight(sup, Number(order.total ?? 0));
-  if (!pre.ok) return { ok: false, reason: pre.reason };
 
   try {
     const { supplierOrder } = await import("@/lib/suppliers/api.server");
@@ -65,6 +67,7 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
       Number(order.quantity ?? 1),
       `qorix-retry-${order.id}-${Date.now()}`,
     );
+
     if (!res.items.length)
       return {
         ok: false,
@@ -74,22 +77,31 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
     const content = res.items.join("\n---\n");
     await db.from("orders").update({ status: "completed", delivered_content: content }).eq("id", order.id);
 
+    // The purchase is already paid for and stored — a Telegram hiccup must not
+    // report the delivery as failed.
     if (order.telegram_id) {
-      const { sendMessage } = await import("@/lib/telegram.server");
-      await sendMessage(
-        order.telegram_id,
-        `✅ <b>Order #${order.order_no}</b> delivered!\n${order.quantity}× ${esc(order.product_name)}\n` +
-          `Sending <b>${res.items.length}</b> item(s) below 👇`,
-      );
-      for (let i = 0; i < res.items.length; i++) {
+      try {
+        const { sendMessage } = await import("@/lib/telegram.server");
         await sendMessage(
           order.telegram_id,
-          `📦 <b>${esc(order.product_name)} — ${i + 1} of ${res.items.length}</b>\n<pre>${esc(res.items[i]!)}</pre>`,
+          `✅ <b>Order #${order.order_no}</b> delivered!\n${order.quantity}× ${esc(order.product_name)}\n` +
+            `Sending <b>${res.items.length}</b> item(s) below 👇`,
         );
+        for (let i = 0; i < res.items.length; i++) {
+          await sendMessage(
+            order.telegram_id,
+            `📦 <b>${esc(order.product_name)} — ${i + 1} of ${res.items.length}</b>\n<pre>${esc(res.items[i]!)}</pre>`,
+          );
+        }
+      } catch (sendErr) {
+        console.error("Delivery saved but Telegram send failed:", sendErr);
       }
     }
+
     return { ok: true, items: res.items };
   } catch (e) {
-    return { ok: false, reason: e instanceof Error ? e.message : String(e) };
+    const msg = e instanceof Error ? e.message : String(e);
+    return { ok: false, reason: pre.ok ? msg : `${msg} — ${pre.reason}` };
   }
+
 }

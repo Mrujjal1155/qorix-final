@@ -3812,11 +3812,10 @@ async function fulfillCheckout(chatId: number, meta: CoMeta, methodKey: string, 
         if (!sup) autoFailReason = "Supplier record not found";
         else if (!sup.is_enabled) autoFailReason = `Supplier “${sup.name ?? sup.code}” is disabled in admin`;
         else {
-          // The supplier's own API wallet pays for this — check it before ordering so
-          // the admin gets the real reason instead of a generic failure.
+          // Advisory only — several supplier balance endpoints report 0/stale
+          // values even for funded wallets, so never block delivery on it.
           const pre = await supplierPreflight(sup, Number(p.price) * l.qty);
-          if (!pre.ok) autoFailReason = pre.reason ?? "Supplier balance too low";
-          else {
+          try {
             const res = await supplierOrder(
               sup as any,
               String(p.supplier_external_id),
@@ -3830,8 +3829,12 @@ async function fulfillCheckout(chatId: number, meta: CoMeta, methodKey: string, 
             } else {
               autoFailReason = `Supplier accepted the order but returned no items${res.code ? ` (ref ${res.code})` : ""}`;
             }
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            autoFailReason = pre.ok ? msg : `${msg} — ${pre.reason}`;
           }
         }
+
       } catch (error) {
         autoFailReason = error instanceof Error ? error.message : String(error);
         console.error("Supplier order failed:", error);
