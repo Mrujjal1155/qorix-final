@@ -1,0 +1,15 @@
+# Roadmap
+
+- [x] Verify 15-second supplier sync reaches qorixlab.com successfully
+- [x] Ensure only already-ON products send restock and low-stock alerts to group and bot
+- [x] Normalize Vexoran, Canboso, and MailReader stock identifiers/counts
+- [x] Treat products omitted from a complete supplier catalogue as sold out
+- [x] Keep failed Telegram alerts queued and deliver channel/bot independently
+- [x] Verify live supplier sync state, queue/log, TypeScript check, and build
+- [ ] Verify the corrected Telegram delivery after the next Cloudflare deployment
+- [x] Prevent duplicate stock alerts across overlapping sync requests
+- [x] Alert below 5 units (4 or fewer), while keeping sold-out transitions distinct
+- [x] Refresh open storefront stock automatically
+- [x] Bound Telegram fan-out and persist progress across automatic runs
+- [x] Batch listed-product updates to stay below Cloudflare request limits
+- [x] Add a Cloudflare scheduled fallback so stock and prices refresh without admin clicks

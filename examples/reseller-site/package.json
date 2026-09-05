@@ -1,0 +1,12 @@
+{
+  "name": "qorix-reseller-starter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Ready-made storefront + Telegram bot starter for QORIX reseller API",
+  "scripts": {
+    "start": "node --env-file=.env server.mjs",
+    "bot": "node --env-file=.env telegram-bot.mjs"
+  },
+  "engines": { "node": ">=20" }
+}

@@ -10,33 +10,675 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as AdminRouteRouteImport } from './routes/admin/route'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as FaqRouteImport } from './routes/faq'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as RefundRouteImport } from './routes/refund'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as TermsRouteImport } from './routes/terms'
+import { Route as TrackRouteImport } from './routes/track'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
+import { Route as AdminCodesRouteImport } from './routes/admin/codes'
+import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
+import { Route as AdminPaymentsRouteImport } from './routes/admin/payments'
+import { Route as AdminProductsRouteImport } from './routes/admin/products'
+import { Route as AdminResellersRouteImport } from './routes/admin/resellers'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminSiteRouteImport } from './routes/admin/site'
+import { Route as AdminSuppliersRouteImport } from './routes/admin/suppliers'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminWebhookRouteImport } from './routes/admin/webhook'
+import { Route as OrderConfirmationRouteImport } from './routes/order.confirmation'
+import { Route as ResellerIndexRouteImport } from './routes/reseller.index'
+import { Route as ResellerDocsRouteImport } from './routes/reseller.docs'
+import { Route as ResellerStartRouteImport } from './routes/reseller.start'
+import { Route as StoreIndexRouteImport } from './routes/store.index'
+import { Route as StoreIdRouteImport } from './routes/store.$id'
+import { Route as AuthenticatedAccountIndexRouteImport } from './routes/_authenticated/account.index'
+import { Route as AuthenticatedAccountOrdersRouteImport } from './routes/_authenticated/account.orders'
+import { Route as AuthenticatedAccountProfileRouteImport } from './routes/_authenticated/account.profile'
+import { Route as AuthenticatedAccountReferralsRouteImport } from './routes/_authenticated/account.referrals'
+import { Route as AuthenticatedResellerPanelRouteImport } from './routes/_authenticated/reseller.panel'
+import { Route as ApiAdminImageUploadRouteImport } from './routes/api/admin/image-upload'
+import { Route as ApiPublicBinanceAutoVerifyRouteImport } from './routes/api/public/binance/auto-verify'
+import { Route as ApiPublicPaykoriReturnRouteImport } from './routes/api/public/paykori/return'
+import { Route as ApiPublicPaykoriWebhookRouteImport } from './routes/api/public/paykori/webhook'
+import { Route as ApiPublicProductImageIdRouteImport } from './routes/api/public/product-image/$id'
+import { Route as ApiPublicSuppliersSyncRouteImport } from './routes/api/public/suppliers/sync'
+import { Route as ApiPublicTelegramRegisterRouteImport } from './routes/api/public/telegram/register'
+import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
+import { Route as ApiPublicOrderFileTokenNameRouteImport } from './routes/api/public/order-file/$token/$name'
+import { Route as ApiPublicResellerV1MeRouteImport } from './routes/api/public/reseller/v1/me'
+import { Route as ApiPublicResellerV1OrdersRouteImport } from './routes/api/public/reseller/v1/orders'
+import { Route as ApiPublicResellerV1ProductsRouteImport } from './routes/api/public/reseller/v1/products'
+import { Route as ApiPublicResellerV1TransactionsRouteImport } from './routes/api/public/reseller/v1/transactions'
+import { Route as ApiPublicResellerV1OrdersIdRouteImport } from './routes/api/public/reseller/v1/orders.$id'
+import { Route as ApiPublicResellerV1ProductsIdRouteImport } from './routes/api/public/reseller/v1/products.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRouteRoute = AdminRouteRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RefundRoute = RefundRouteImport.update({
+  id: '/refund',
+  path: '/refund',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TrackRoute = TrackRouteImport.update({
+  id: '/track',
+  path: '/track',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminCodesRoute = AdminCodesRouteImport.update({
+  id: '/codes',
+  path: '/codes',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminOrdersRoute = AdminOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
+  id: '/payments',
+  path: '/payments',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminProductsRoute = AdminProductsRouteImport.update({
+  id: '/products',
+  path: '/products',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminResellersRoute = AdminResellersRouteImport.update({
+  id: '/resellers',
+  path: '/resellers',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminSiteRoute = AdminSiteRouteImport.update({
+  id: '/site',
+  path: '/site',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminSuppliersRoute = AdminSuppliersRouteImport.update({
+  id: '/suppliers',
+  path: '/suppliers',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminWebhookRoute = AdminWebhookRouteImport.update({
+  id: '/webhook',
+  path: '/webhook',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const OrderConfirmationRoute = OrderConfirmationRouteImport.update({
+  id: '/order/confirmation',
+  path: '/order/confirmation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResellerIndexRoute = ResellerIndexRouteImport.update({
+  id: '/reseller/',
+  path: '/reseller/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResellerDocsRoute = ResellerDocsRouteImport.update({
+  id: '/reseller/docs',
+  path: '/reseller/docs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResellerStartRoute = ResellerStartRouteImport.update({
+  id: '/reseller/start',
+  path: '/reseller/start',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StoreIndexRoute = StoreIndexRouteImport.update({
+  id: '/store/',
+  path: '/store/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StoreIdRoute = StoreIdRouteImport.update({
+  id: '/store/$id',
+  path: '/store/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedAccountIndexRoute =
+  AuthenticatedAccountIndexRouteImport.update({
+    id: '/account/',
+    path: '/account/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAccountOrdersRoute =
+  AuthenticatedAccountOrdersRouteImport.update({
+    id: '/account/orders',
+    path: '/account/orders',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAccountProfileRoute =
+  AuthenticatedAccountProfileRouteImport.update({
+    id: '/account/profile',
+    path: '/account/profile',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedAccountReferralsRoute =
+  AuthenticatedAccountReferralsRouteImport.update({
+    id: '/account/referrals',
+    path: '/account/referrals',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedResellerPanelRoute =
+  AuthenticatedResellerPanelRouteImport.update({
+    id: '/reseller/panel',
+    path: '/reseller/panel',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const ApiAdminImageUploadRoute = ApiAdminImageUploadRouteImport.update({
+  id: '/api/admin/image-upload',
+  path: '/api/admin/image-upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicBinanceAutoVerifyRoute =
+  ApiPublicBinanceAutoVerifyRouteImport.update({
+    id: '/api/public/binance/auto-verify',
+    path: '/api/public/binance/auto-verify',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicPaykoriReturnRoute = ApiPublicPaykoriReturnRouteImport.update({
+  id: '/api/public/paykori/return',
+  path: '/api/public/paykori/return',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicPaykoriWebhookRoute = ApiPublicPaykoriWebhookRouteImport.update({
+  id: '/api/public/paykori/webhook',
+  path: '/api/public/paykori/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicProductImageIdRoute = ApiPublicProductImageIdRouteImport.update({
+  id: '/api/public/product-image/$id',
+  path: '/api/public/product-image/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSuppliersSyncRoute = ApiPublicSuppliersSyncRouteImport.update({
+  id: '/api/public/suppliers/sync',
+  path: '/api/public/suppliers/sync',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicTelegramRegisterRoute =
+  ApiPublicTelegramRegisterRouteImport.update({
+    id: '/api/public/telegram/register',
+    path: '/api/public/telegram/register',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicTelegramWebhookRoute =
+  ApiPublicTelegramWebhookRouteImport.update({
+    id: '/api/public/telegram/webhook',
+    path: '/api/public/telegram/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicOrderFileTokenNameRoute =
+  ApiPublicOrderFileTokenNameRouteImport.update({
+    id: '/api/public/order-file/$token/$name',
+    path: '/api/public/order-file/$token/$name',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicResellerV1MeRoute = ApiPublicResellerV1MeRouteImport.update({
+  id: '/api/public/reseller/v1/me',
+  path: '/api/public/reseller/v1/me',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicResellerV1OrdersRoute =
+  ApiPublicResellerV1OrdersRouteImport.update({
+    id: '/api/public/reseller/v1/orders',
+    path: '/api/public/reseller/v1/orders',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicResellerV1ProductsRoute =
+  ApiPublicResellerV1ProductsRouteImport.update({
+    id: '/api/public/reseller/v1/products',
+    path: '/api/public/reseller/v1/products',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicResellerV1TransactionsRoute =
+  ApiPublicResellerV1TransactionsRouteImport.update({
+    id: '/api/public/reseller/v1/transactions',
+    path: '/api/public/reseller/v1/transactions',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicResellerV1OrdersIdRoute =
+  ApiPublicResellerV1OrdersIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => ApiPublicResellerV1OrdersRoute,
+  } as any)
+const ApiPublicResellerV1ProductsIdRoute =
+  ApiPublicResellerV1ProductsIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => ApiPublicResellerV1ProductsRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/about': typeof AboutRoute
+  '/auth': typeof AuthRoute
+  '/checkout': typeof CheckoutRoute
+  '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
+  '/privacy': typeof PrivacyRoute
+  '/refund': typeof RefundRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
+  '/track': typeof TrackRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/codes': typeof AdminCodesRoute
+  '/admin/orders': typeof AdminOrdersRoute
+  '/admin/payments': typeof AdminPaymentsRoute
+  '/admin/products': typeof AdminProductsRoute
+  '/admin/resellers': typeof AdminResellersRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/site': typeof AdminSiteRoute
+  '/admin/suppliers': typeof AdminSuppliersRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/webhook': typeof AdminWebhookRoute
+  '/order/confirmation': typeof OrderConfirmationRoute
+  '/reseller/docs': typeof ResellerDocsRoute
+  '/reseller/start': typeof ResellerStartRoute
+  '/store/$id': typeof StoreIdRoute
+  '/admin/': typeof AdminIndexRoute
+  '/reseller/': typeof ResellerIndexRoute
+  '/store/': typeof StoreIndexRoute
+  '/account/orders': typeof AuthenticatedAccountOrdersRoute
+  '/account/profile': typeof AuthenticatedAccountProfileRoute
+  '/account/referrals': typeof AuthenticatedAccountReferralsRoute
+  '/reseller/panel': typeof AuthenticatedResellerPanelRoute
+  '/api/admin/image-upload': typeof ApiAdminImageUploadRoute
+  '/account/': typeof AuthenticatedAccountIndexRoute
+  '/api/public/binance/auto-verify': typeof ApiPublicBinanceAutoVerifyRoute
+  '/api/public/paykori/return': typeof ApiPublicPaykoriReturnRoute
+  '/api/public/paykori/webhook': typeof ApiPublicPaykoriWebhookRoute
+  '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
+  '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
+  '/api/public/telegram/register': typeof ApiPublicTelegramRegisterRoute
+  '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/order-file/$token/$name': typeof ApiPublicOrderFileTokenNameRoute
+  '/api/public/reseller/v1/me': typeof ApiPublicResellerV1MeRoute
+  '/api/public/reseller/v1/orders': typeof ApiPublicResellerV1OrdersRouteWithChildren
+  '/api/public/reseller/v1/products': typeof ApiPublicResellerV1ProductsRouteWithChildren
+  '/api/public/reseller/v1/transactions': typeof ApiPublicResellerV1TransactionsRoute
+  '/api/public/reseller/v1/orders/$id': typeof ApiPublicResellerV1OrdersIdRoute
+  '/api/public/reseller/v1/products/$id': typeof ApiPublicResellerV1ProductsIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/auth': typeof AuthRoute
+  '/checkout': typeof CheckoutRoute
+  '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
+  '/privacy': typeof PrivacyRoute
+  '/refund': typeof RefundRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
+  '/track': typeof TrackRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/codes': typeof AdminCodesRoute
+  '/admin/orders': typeof AdminOrdersRoute
+  '/admin/payments': typeof AdminPaymentsRoute
+  '/admin/products': typeof AdminProductsRoute
+  '/admin/resellers': typeof AdminResellersRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/site': typeof AdminSiteRoute
+  '/admin/suppliers': typeof AdminSuppliersRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/webhook': typeof AdminWebhookRoute
+  '/order/confirmation': typeof OrderConfirmationRoute
+  '/reseller/docs': typeof ResellerDocsRoute
+  '/reseller/start': typeof ResellerStartRoute
+  '/store/$id': typeof StoreIdRoute
+  '/admin': typeof AdminIndexRoute
+  '/reseller': typeof ResellerIndexRoute
+  '/store': typeof StoreIndexRoute
+  '/account/orders': typeof AuthenticatedAccountOrdersRoute
+  '/account/profile': typeof AuthenticatedAccountProfileRoute
+  '/account/referrals': typeof AuthenticatedAccountReferralsRoute
+  '/reseller/panel': typeof AuthenticatedResellerPanelRoute
+  '/api/admin/image-upload': typeof ApiAdminImageUploadRoute
+  '/account': typeof AuthenticatedAccountIndexRoute
+  '/api/public/binance/auto-verify': typeof ApiPublicBinanceAutoVerifyRoute
+  '/api/public/paykori/return': typeof ApiPublicPaykoriReturnRoute
+  '/api/public/paykori/webhook': typeof ApiPublicPaykoriWebhookRoute
+  '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
+  '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
+  '/api/public/telegram/register': typeof ApiPublicTelegramRegisterRoute
+  '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/order-file/$token/$name': typeof ApiPublicOrderFileTokenNameRoute
+  '/api/public/reseller/v1/me': typeof ApiPublicResellerV1MeRoute
+  '/api/public/reseller/v1/orders': typeof ApiPublicResellerV1OrdersRouteWithChildren
+  '/api/public/reseller/v1/products': typeof ApiPublicResellerV1ProductsRouteWithChildren
+  '/api/public/reseller/v1/transactions': typeof ApiPublicResellerV1TransactionsRoute
+  '/api/public/reseller/v1/orders/$id': typeof ApiPublicResellerV1OrdersIdRoute
+  '/api/public/reseller/v1/products/$id': typeof ApiPublicResellerV1ProductsIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/admin': typeof AdminRouteRouteWithChildren
+  '/about': typeof AboutRoute
+  '/auth': typeof AuthRoute
+  '/checkout': typeof CheckoutRoute
+  '/contact': typeof ContactRoute
+  '/faq': typeof FaqRoute
+  '/privacy': typeof PrivacyRoute
+  '/refund': typeof RefundRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
+  '/track': typeof TrackRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/codes': typeof AdminCodesRoute
+  '/admin/orders': typeof AdminOrdersRoute
+  '/admin/payments': typeof AdminPaymentsRoute
+  '/admin/products': typeof AdminProductsRoute
+  '/admin/resellers': typeof AdminResellersRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/site': typeof AdminSiteRoute
+  '/admin/suppliers': typeof AdminSuppliersRoute
+  '/admin/users': typeof AdminUsersRoute
+  '/admin/webhook': typeof AdminWebhookRoute
+  '/order/confirmation': typeof OrderConfirmationRoute
+  '/reseller/docs': typeof ResellerDocsRoute
+  '/reseller/start': typeof ResellerStartRoute
+  '/store/$id': typeof StoreIdRoute
+  '/admin/': typeof AdminIndexRoute
+  '/reseller/': typeof ResellerIndexRoute
+  '/store/': typeof StoreIndexRoute
+  '/_authenticated/account/orders': typeof AuthenticatedAccountOrdersRoute
+  '/_authenticated/account/profile': typeof AuthenticatedAccountProfileRoute
+  '/_authenticated/account/referrals': typeof AuthenticatedAccountReferralsRoute
+  '/_authenticated/reseller/panel': typeof AuthenticatedResellerPanelRoute
+  '/api/admin/image-upload': typeof ApiAdminImageUploadRoute
+  '/_authenticated/account/': typeof AuthenticatedAccountIndexRoute
+  '/api/public/binance/auto-verify': typeof ApiPublicBinanceAutoVerifyRoute
+  '/api/public/paykori/return': typeof ApiPublicPaykoriReturnRoute
+  '/api/public/paykori/webhook': typeof ApiPublicPaykoriWebhookRoute
+  '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
+  '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
+  '/api/public/telegram/register': typeof ApiPublicTelegramRegisterRoute
+  '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
+  '/api/public/order-file/$token/$name': typeof ApiPublicOrderFileTokenNameRoute
+  '/api/public/reseller/v1/me': typeof ApiPublicResellerV1MeRoute
+  '/api/public/reseller/v1/orders': typeof ApiPublicResellerV1OrdersRouteWithChildren
+  '/api/public/reseller/v1/products': typeof ApiPublicResellerV1ProductsRouteWithChildren
+  '/api/public/reseller/v1/transactions': typeof ApiPublicResellerV1TransactionsRoute
+  '/api/public/reseller/v1/orders/$id': typeof ApiPublicResellerV1OrdersIdRoute
+  '/api/public/reseller/v1/products/$id': typeof ApiPublicResellerV1ProductsIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/about'
+    | '/auth'
+    | '/checkout'
+    | '/contact'
+    | '/faq'
+    | '/privacy'
+    | '/refund'
+    | '/sitemap.xml'
+    | '/terms'
+    | '/track'
+    | '/admin/analytics'
+    | '/admin/codes'
+    | '/admin/orders'
+    | '/admin/payments'
+    | '/admin/products'
+    | '/admin/resellers'
+    | '/admin/settings'
+    | '/admin/site'
+    | '/admin/suppliers'
+    | '/admin/users'
+    | '/admin/webhook'
+    | '/order/confirmation'
+    | '/reseller/docs'
+    | '/reseller/start'
+    | '/store/$id'
+    | '/admin/'
+    | '/reseller/'
+    | '/store/'
+    | '/account/orders'
+    | '/account/profile'
+    | '/account/referrals'
+    | '/reseller/panel'
+    | '/api/admin/image-upload'
+    | '/account/'
+    | '/api/public/binance/auto-verify'
+    | '/api/public/paykori/return'
+    | '/api/public/paykori/webhook'
+    | '/api/public/product-image/$id'
+    | '/api/public/suppliers/sync'
+    | '/api/public/telegram/register'
+    | '/api/public/telegram/webhook'
+    | '/api/public/order-file/$token/$name'
+    | '/api/public/reseller/v1/me'
+    | '/api/public/reseller/v1/orders'
+    | '/api/public/reseller/v1/products'
+    | '/api/public/reseller/v1/transactions'
+    | '/api/public/reseller/v1/orders/$id'
+    | '/api/public/reseller/v1/products/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/about'
+    | '/auth'
+    | '/checkout'
+    | '/contact'
+    | '/faq'
+    | '/privacy'
+    | '/refund'
+    | '/sitemap.xml'
+    | '/terms'
+    | '/track'
+    | '/admin/analytics'
+    | '/admin/codes'
+    | '/admin/orders'
+    | '/admin/payments'
+    | '/admin/products'
+    | '/admin/resellers'
+    | '/admin/settings'
+    | '/admin/site'
+    | '/admin/suppliers'
+    | '/admin/users'
+    | '/admin/webhook'
+    | '/order/confirmation'
+    | '/reseller/docs'
+    | '/reseller/start'
+    | '/store/$id'
+    | '/admin'
+    | '/reseller'
+    | '/store'
+    | '/account/orders'
+    | '/account/profile'
+    | '/account/referrals'
+    | '/reseller/panel'
+    | '/api/admin/image-upload'
+    | '/account'
+    | '/api/public/binance/auto-verify'
+    | '/api/public/paykori/return'
+    | '/api/public/paykori/webhook'
+    | '/api/public/product-image/$id'
+    | '/api/public/suppliers/sync'
+    | '/api/public/telegram/register'
+    | '/api/public/telegram/webhook'
+    | '/api/public/order-file/$token/$name'
+    | '/api/public/reseller/v1/me'
+    | '/api/public/reseller/v1/orders'
+    | '/api/public/reseller/v1/products'
+    | '/api/public/reseller/v1/transactions'
+    | '/api/public/reseller/v1/orders/$id'
+    | '/api/public/reseller/v1/products/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/admin'
+    | '/about'
+    | '/auth'
+    | '/checkout'
+    | '/contact'
+    | '/faq'
+    | '/privacy'
+    | '/refund'
+    | '/sitemap.xml'
+    | '/terms'
+    | '/track'
+    | '/admin/analytics'
+    | '/admin/codes'
+    | '/admin/orders'
+    | '/admin/payments'
+    | '/admin/products'
+    | '/admin/resellers'
+    | '/admin/settings'
+    | '/admin/site'
+    | '/admin/suppliers'
+    | '/admin/users'
+    | '/admin/webhook'
+    | '/order/confirmation'
+    | '/reseller/docs'
+    | '/reseller/start'
+    | '/store/$id'
+    | '/admin/'
+    | '/reseller/'
+    | '/store/'
+    | '/_authenticated/account/orders'
+    | '/_authenticated/account/profile'
+    | '/_authenticated/account/referrals'
+    | '/_authenticated/reseller/panel'
+    | '/api/admin/image-upload'
+    | '/_authenticated/account/'
+    | '/api/public/binance/auto-verify'
+    | '/api/public/paykori/return'
+    | '/api/public/paykori/webhook'
+    | '/api/public/product-image/$id'
+    | '/api/public/suppliers/sync'
+    | '/api/public/telegram/register'
+    | '/api/public/telegram/webhook'
+    | '/api/public/order-file/$token/$name'
+    | '/api/public/reseller/v1/me'
+    | '/api/public/reseller/v1/orders'
+    | '/api/public/reseller/v1/products'
+    | '/api/public/reseller/v1/transactions'
+    | '/api/public/reseller/v1/orders/$id'
+    | '/api/public/reseller/v1/products/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AdminRouteRoute: typeof AdminRouteRouteWithChildren
+  AboutRoute: typeof AboutRoute
+  AuthRoute: typeof AuthRoute
+  CheckoutRoute: typeof CheckoutRoute
+  ContactRoute: typeof ContactRoute
+  FaqRoute: typeof FaqRoute
+  PrivacyRoute: typeof PrivacyRoute
+  RefundRoute: typeof RefundRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
+  TrackRoute: typeof TrackRoute
+  OrderConfirmationRoute: typeof OrderConfirmationRoute
+  ResellerDocsRoute: typeof ResellerDocsRoute
+  ResellerStartRoute: typeof ResellerStartRoute
+  StoreIdRoute: typeof StoreIdRoute
+  ResellerIndexRoute: typeof ResellerIndexRoute
+  StoreIndexRoute: typeof StoreIndexRoute
+  ApiAdminImageUploadRoute: typeof ApiAdminImageUploadRoute
+  ApiPublicBinanceAutoVerifyRoute: typeof ApiPublicBinanceAutoVerifyRoute
+  ApiPublicPaykoriReturnRoute: typeof ApiPublicPaykoriReturnRoute
+  ApiPublicPaykoriWebhookRoute: typeof ApiPublicPaykoriWebhookRoute
+  ApiPublicProductImageIdRoute: typeof ApiPublicProductImageIdRoute
+  ApiPublicSuppliersSyncRoute: typeof ApiPublicSuppliersSyncRoute
+  ApiPublicTelegramRegisterRoute: typeof ApiPublicTelegramRegisterRoute
+  ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
+  ApiPublicOrderFileTokenNameRoute: typeof ApiPublicOrderFileTokenNameRoute
+  ApiPublicResellerV1MeRoute: typeof ApiPublicResellerV1MeRoute
+  ApiPublicResellerV1OrdersRoute: typeof ApiPublicResellerV1OrdersRouteWithChildren
+  ApiPublicResellerV1ProductsRoute: typeof ApiPublicResellerV1ProductsRouteWithChildren
+  ApiPublicResellerV1TransactionsRoute: typeof ApiPublicResellerV1TransactionsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +690,474 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/refund': {
+      id: '/refund'
+      path: '/refund'
+      fullPath: '/refund'
+      preLoaderRoute: typeof RefundRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/track': {
+      id: '/track'
+      path: '/track'
+      fullPath: '/track'
+      preLoaderRoute: typeof TrackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/analytics': {
+      id: '/admin/analytics'
+      path: '/analytics'
+      fullPath: '/admin/analytics'
+      preLoaderRoute: typeof AdminAnalyticsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/codes': {
+      id: '/admin/codes'
+      path: '/codes'
+      fullPath: '/admin/codes'
+      preLoaderRoute: typeof AdminCodesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/orders': {
+      id: '/admin/orders'
+      path: '/orders'
+      fullPath: '/admin/orders'
+      preLoaderRoute: typeof AdminOrdersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/payments': {
+      id: '/admin/payments'
+      path: '/payments'
+      fullPath: '/admin/payments'
+      preLoaderRoute: typeof AdminPaymentsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/products': {
+      id: '/admin/products'
+      path: '/products'
+      fullPath: '/admin/products'
+      preLoaderRoute: typeof AdminProductsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/resellers': {
+      id: '/admin/resellers'
+      path: '/resellers'
+      fullPath: '/admin/resellers'
+      preLoaderRoute: typeof AdminResellersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/site': {
+      id: '/admin/site'
+      path: '/site'
+      fullPath: '/admin/site'
+      preLoaderRoute: typeof AdminSiteRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/suppliers': {
+      id: '/admin/suppliers'
+      path: '/suppliers'
+      fullPath: '/admin/suppliers'
+      preLoaderRoute: typeof AdminSuppliersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/webhook': {
+      id: '/admin/webhook'
+      path: '/webhook'
+      fullPath: '/admin/webhook'
+      preLoaderRoute: typeof AdminWebhookRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/order/confirmation': {
+      id: '/order/confirmation'
+      path: '/order/confirmation'
+      fullPath: '/order/confirmation'
+      preLoaderRoute: typeof OrderConfirmationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reseller/': {
+      id: '/reseller/'
+      path: '/reseller'
+      fullPath: '/reseller/'
+      preLoaderRoute: typeof ResellerIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reseller/docs': {
+      id: '/reseller/docs'
+      path: '/reseller/docs'
+      fullPath: '/reseller/docs'
+      preLoaderRoute: typeof ResellerDocsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reseller/start': {
+      id: '/reseller/start'
+      path: '/reseller/start'
+      fullPath: '/reseller/start'
+      preLoaderRoute: typeof ResellerStartRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/store/': {
+      id: '/store/'
+      path: '/store'
+      fullPath: '/store/'
+      preLoaderRoute: typeof StoreIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/store/$id': {
+      id: '/store/$id'
+      path: '/store/$id'
+      fullPath: '/store/$id'
+      preLoaderRoute: typeof StoreIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/account/': {
+      id: '/_authenticated/account/'
+      path: '/account'
+      fullPath: '/account/'
+      preLoaderRoute: typeof AuthenticatedAccountIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/account/orders': {
+      id: '/_authenticated/account/orders'
+      path: '/account/orders'
+      fullPath: '/account/orders'
+      preLoaderRoute: typeof AuthenticatedAccountOrdersRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/account/profile': {
+      id: '/_authenticated/account/profile'
+      path: '/account/profile'
+      fullPath: '/account/profile'
+      preLoaderRoute: typeof AuthenticatedAccountProfileRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/account/referrals': {
+      id: '/_authenticated/account/referrals'
+      path: '/account/referrals'
+      fullPath: '/account/referrals'
+      preLoaderRoute: typeof AuthenticatedAccountReferralsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/reseller/panel': {
+      id: '/_authenticated/reseller/panel'
+      path: '/reseller/panel'
+      fullPath: '/reseller/panel'
+      preLoaderRoute: typeof AuthenticatedResellerPanelRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/admin/image-upload': {
+      id: '/api/admin/image-upload'
+      path: '/api/admin/image-upload'
+      fullPath: '/api/admin/image-upload'
+      preLoaderRoute: typeof ApiAdminImageUploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/binance/auto-verify': {
+      id: '/api/public/binance/auto-verify'
+      path: '/api/public/binance/auto-verify'
+      fullPath: '/api/public/binance/auto-verify'
+      preLoaderRoute: typeof ApiPublicBinanceAutoVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/paykori/return': {
+      id: '/api/public/paykori/return'
+      path: '/api/public/paykori/return'
+      fullPath: '/api/public/paykori/return'
+      preLoaderRoute: typeof ApiPublicPaykoriReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/paykori/webhook': {
+      id: '/api/public/paykori/webhook'
+      path: '/api/public/paykori/webhook'
+      fullPath: '/api/public/paykori/webhook'
+      preLoaderRoute: typeof ApiPublicPaykoriWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/product-image/$id': {
+      id: '/api/public/product-image/$id'
+      path: '/api/public/product-image/$id'
+      fullPath: '/api/public/product-image/$id'
+      preLoaderRoute: typeof ApiPublicProductImageIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/suppliers/sync': {
+      id: '/api/public/suppliers/sync'
+      path: '/api/public/suppliers/sync'
+      fullPath: '/api/public/suppliers/sync'
+      preLoaderRoute: typeof ApiPublicSuppliersSyncRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/telegram/register': {
+      id: '/api/public/telegram/register'
+      path: '/api/public/telegram/register'
+      fullPath: '/api/public/telegram/register'
+      preLoaderRoute: typeof ApiPublicTelegramRegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/telegram/webhook': {
+      id: '/api/public/telegram/webhook'
+      path: '/api/public/telegram/webhook'
+      fullPath: '/api/public/telegram/webhook'
+      preLoaderRoute: typeof ApiPublicTelegramWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/order-file/$token/$name': {
+      id: '/api/public/order-file/$token/$name'
+      path: '/api/public/order-file/$token/$name'
+      fullPath: '/api/public/order-file/$token/$name'
+      preLoaderRoute: typeof ApiPublicOrderFileTokenNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/reseller/v1/me': {
+      id: '/api/public/reseller/v1/me'
+      path: '/api/public/reseller/v1/me'
+      fullPath: '/api/public/reseller/v1/me'
+      preLoaderRoute: typeof ApiPublicResellerV1MeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/reseller/v1/orders': {
+      id: '/api/public/reseller/v1/orders'
+      path: '/api/public/reseller/v1/orders'
+      fullPath: '/api/public/reseller/v1/orders'
+      preLoaderRoute: typeof ApiPublicResellerV1OrdersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/reseller/v1/products': {
+      id: '/api/public/reseller/v1/products'
+      path: '/api/public/reseller/v1/products'
+      fullPath: '/api/public/reseller/v1/products'
+      preLoaderRoute: typeof ApiPublicResellerV1ProductsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/reseller/v1/transactions': {
+      id: '/api/public/reseller/v1/transactions'
+      path: '/api/public/reseller/v1/transactions'
+      fullPath: '/api/public/reseller/v1/transactions'
+      preLoaderRoute: typeof ApiPublicResellerV1TransactionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/reseller/v1/orders/$id': {
+      id: '/api/public/reseller/v1/orders/$id'
+      path: '/$id'
+      fullPath: '/api/public/reseller/v1/orders/$id'
+      preLoaderRoute: typeof ApiPublicResellerV1OrdersIdRouteImport
+      parentRoute: typeof ApiPublicResellerV1OrdersRoute
+    }
+    '/api/public/reseller/v1/products/$id': {
+      id: '/api/public/reseller/v1/products/$id'
+      path: '/$id'
+      fullPath: '/api/public/reseller/v1/products/$id'
+      preLoaderRoute: typeof ApiPublicResellerV1ProductsIdRouteImport
+      parentRoute: typeof ApiPublicResellerV1ProductsRoute
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAccountOrdersRoute: typeof AuthenticatedAccountOrdersRoute
+  AuthenticatedAccountProfileRoute: typeof AuthenticatedAccountProfileRoute
+  AuthenticatedAccountReferralsRoute: typeof AuthenticatedAccountReferralsRoute
+  AuthenticatedResellerPanelRoute: typeof AuthenticatedResellerPanelRoute
+  AuthenticatedAccountIndexRoute: typeof AuthenticatedAccountIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAccountOrdersRoute: AuthenticatedAccountOrdersRoute,
+  AuthenticatedAccountProfileRoute: AuthenticatedAccountProfileRoute,
+  AuthenticatedAccountReferralsRoute: AuthenticatedAccountReferralsRoute,
+  AuthenticatedResellerPanelRoute: AuthenticatedResellerPanelRoute,
+  AuthenticatedAccountIndexRoute: AuthenticatedAccountIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
+interface AdminRouteRouteChildren {
+  AdminAnalyticsRoute: typeof AdminAnalyticsRoute
+  AdminCodesRoute: typeof AdminCodesRoute
+  AdminOrdersRoute: typeof AdminOrdersRoute
+  AdminPaymentsRoute: typeof AdminPaymentsRoute
+  AdminProductsRoute: typeof AdminProductsRoute
+  AdminResellersRoute: typeof AdminResellersRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminSiteRoute: typeof AdminSiteRoute
+  AdminSuppliersRoute: typeof AdminSuppliersRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  AdminWebhookRoute: typeof AdminWebhookRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteRouteChildren: AdminRouteRouteChildren = {
+  AdminAnalyticsRoute: AdminAnalyticsRoute,
+  AdminCodesRoute: AdminCodesRoute,
+  AdminOrdersRoute: AdminOrdersRoute,
+  AdminPaymentsRoute: AdminPaymentsRoute,
+  AdminProductsRoute: AdminProductsRoute,
+  AdminResellersRoute: AdminResellersRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminSiteRoute: AdminSiteRoute,
+  AdminSuppliersRoute: AdminSuppliersRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  AdminWebhookRoute: AdminWebhookRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
+  AdminRouteRouteChildren,
+)
+
+interface ApiPublicResellerV1OrdersRouteChildren {
+  ApiPublicResellerV1OrdersIdRoute: typeof ApiPublicResellerV1OrdersIdRoute
+}
+
+const ApiPublicResellerV1OrdersRouteChildren: ApiPublicResellerV1OrdersRouteChildren =
+  {
+    ApiPublicResellerV1OrdersIdRoute: ApiPublicResellerV1OrdersIdRoute,
+  }
+
+const ApiPublicResellerV1OrdersRouteWithChildren =
+  ApiPublicResellerV1OrdersRoute._addFileChildren(
+    ApiPublicResellerV1OrdersRouteChildren,
+  )
+
+interface ApiPublicResellerV1ProductsRouteChildren {
+  ApiPublicResellerV1ProductsIdRoute: typeof ApiPublicResellerV1ProductsIdRoute
+}
+
+const ApiPublicResellerV1ProductsRouteChildren: ApiPublicResellerV1ProductsRouteChildren =
+  {
+    ApiPublicResellerV1ProductsIdRoute: ApiPublicResellerV1ProductsIdRoute,
+  }
+
+const ApiPublicResellerV1ProductsRouteWithChildren =
+  ApiPublicResellerV1ProductsRoute._addFileChildren(
+    ApiPublicResellerV1ProductsRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AdminRouteRoute: AdminRouteRouteWithChildren,
+  AboutRoute: AboutRoute,
+  AuthRoute: AuthRoute,
+  CheckoutRoute: CheckoutRoute,
+  ContactRoute: ContactRoute,
+  FaqRoute: FaqRoute,
+  PrivacyRoute: PrivacyRoute,
+  RefundRoute: RefundRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
+  TrackRoute: TrackRoute,
+  OrderConfirmationRoute: OrderConfirmationRoute,
+  ResellerDocsRoute: ResellerDocsRoute,
+  ResellerStartRoute: ResellerStartRoute,
+  StoreIdRoute: StoreIdRoute,
+  ResellerIndexRoute: ResellerIndexRoute,
+  StoreIndexRoute: StoreIndexRoute,
+  ApiAdminImageUploadRoute: ApiAdminImageUploadRoute,
+  ApiPublicBinanceAutoVerifyRoute: ApiPublicBinanceAutoVerifyRoute,
+  ApiPublicPaykoriReturnRoute: ApiPublicPaykoriReturnRoute,
+  ApiPublicPaykoriWebhookRoute: ApiPublicPaykoriWebhookRoute,
+  ApiPublicProductImageIdRoute: ApiPublicProductImageIdRoute,
+  ApiPublicSuppliersSyncRoute: ApiPublicSuppliersSyncRoute,
+  ApiPublicTelegramRegisterRoute: ApiPublicTelegramRegisterRoute,
+  ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
+  ApiPublicOrderFileTokenNameRoute: ApiPublicOrderFileTokenNameRoute,
+  ApiPublicResellerV1MeRoute: ApiPublicResellerV1MeRoute,
+  ApiPublicResellerV1OrdersRoute: ApiPublicResellerV1OrdersRouteWithChildren,
+  ApiPublicResellerV1ProductsRoute:
+    ApiPublicResellerV1ProductsRouteWithChildren,
+  ApiPublicResellerV1TransactionsRoute: ApiPublicResellerV1TransactionsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

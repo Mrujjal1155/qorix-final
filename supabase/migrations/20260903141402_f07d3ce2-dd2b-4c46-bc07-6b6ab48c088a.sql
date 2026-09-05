@@ -1,0 +1,2 @@
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS featured_rank integer NOT NULL DEFAULT 0;
+CREATE INDEX IF NOT EXISTS products_featured_rank_idx ON public.products (featured_rank) WHERE featured_rank > 0;
