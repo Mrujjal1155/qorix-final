@@ -279,15 +279,15 @@ export async function purchase(
       else {
         const { supplierOrder } = await import("@/lib/suppliers/api.server");
         const { supplierPreflight } = await import("@/lib/suppliers/fulfil.server");
-        const pre = await supplierPreflight(sup, Number(p.price) * qty);
-        if (!pre.ok) failReason = "Supplier is temporarily out of balance";
-        else {
-          const res = await supplierOrder(sup as any, String(p.supplier_external_id), qty, `qorix-api-${reserved.id}`);
-          if (res.items.length) {
-            delivered = res.items.join("\n---\n");
-            status = "completed";
-          } else failReason = "Supplier returned no items";
-        }
+        // Advisory only — supplier balance endpoints can report 0 for funded
+        // wallets, so let the supplier API itself accept or reject the order.
+        await supplierPreflight(sup, Number(p.price) * qty);
+        const res = await supplierOrder(sup as any, String(p.supplier_external_id), qty, `qorix-api-${reserved.id}`);
+        if (res.items.length) {
+          delivered = res.items.join("\n---\n");
+          status = "completed";
+        } else failReason = "Supplier returned no items";
+
       }
     } else if (p.delivery_type === "auto") {
       // Atomic claim so two API calls can never be sold the same item.
