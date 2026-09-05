@@ -73,8 +73,8 @@ type NotifyItem =
 const QUEUE_PREFIX = "supplier_notify_queue:";
 const NOTIFY_LOG_KEY = "supplier_notify_log";
 /** How many cards one sync run sends before the rest waits for the next run. */
-const NOTIFY_PER_RUN = 1;
-const DM_PER_RUN = 40;
+const NOTIFY_PER_RUN = 6;
+const DM_PER_RUN = 60;
 
 async function readJsonSetting(sb: any, key: string): Promise<any[]> {
   const { data } = await sb.from("bot_settings").select("value").eq("key", key).maybeSingle();
