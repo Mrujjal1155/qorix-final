@@ -120,7 +120,9 @@ async function claimNotification(sb: any, eventId: string): Promise<DeliveryClai
   }
   if (old.status === "delivered") return "delivered";
   const claimedAt = Date.parse(old.at ?? "");
-  if (old.status === "sending" && Number.isFinite(claimedAt) && Date.now() - claimedAt < 120_000) return "busy";
+  // A run that was cut off mid-send leaves a stale "sending" marker behind.
+  // Keep the window short so the next tick retries instead of going silent.
+  if (old.status === "sending" && Number.isFinite(claimedAt) && Date.now() - claimedAt < 45_000) return "busy";
 
   const value = JSON.stringify({ status: "sending", at: new Date().toISOString() });
   if (!row) {
