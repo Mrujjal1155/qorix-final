@@ -584,11 +584,15 @@ export async function syncAllSuppliers() {
   // Delivery is deliberately separate from catalogue writes. Each supplier
   // advances at most one card and 40 DMs per automatic run, with its cursor
   // persisted in the queue for the next tick.
-  for (const supplier of sups ?? []) {
-    await drainNotifications(db, supplier.id).catch((error) =>
-      console.error(`Supplier notifications failed for ${supplier.name}:`, error),
-    );
-  }
+  // All four suppliers drain side by side so one slow API never delays the
+  // other suppliers' stock alerts.
+  await Promise.allSettled(
+    (sups ?? []).map((supplier: any) =>
+      drainNotifications(db, supplier.id).catch((error) =>
+        console.error(`Supplier notifications failed for ${supplier.name}:`, error),
+      ),
+    ),
+  );
 
   await db
     .from("bot_settings")
