@@ -77,20 +77,27 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
     const content = res.items.join("\n---\n");
     await db.from("orders").update({ status: "completed", delivered_content: content }).eq("id", order.id);
 
+    // The purchase is already paid for and stored — a Telegram hiccup must not
+    // report the delivery as failed.
     if (order.telegram_id) {
-      const { sendMessage } = await import("@/lib/telegram.server");
-      await sendMessage(
-        order.telegram_id,
-        `✅ <b>Order #${order.order_no}</b> delivered!\n${order.quantity}× ${esc(order.product_name)}\n` +
-          `Sending <b>${res.items.length}</b> item(s) below 👇`,
-      );
-      for (let i = 0; i < res.items.length; i++) {
+      try {
+        const { sendMessage } = await import("@/lib/telegram.server");
         await sendMessage(
           order.telegram_id,
-          `📦 <b>${esc(order.product_name)} — ${i + 1} of ${res.items.length}</b>\n<pre>${esc(res.items[i]!)}</pre>`,
+          `✅ <b>Order #${order.order_no}</b> delivered!\n${order.quantity}× ${esc(order.product_name)}\n` +
+            `Sending <b>${res.items.length}</b> item(s) below 👇`,
         );
+        for (let i = 0; i < res.items.length; i++) {
+          await sendMessage(
+            order.telegram_id,
+            `📦 <b>${esc(order.product_name)} — ${i + 1} of ${res.items.length}</b>\n<pre>${esc(res.items[i]!)}</pre>`,
+          );
+        }
+      } catch (sendErr) {
+        console.error("Delivery saved but Telegram send failed:", sendErr);
       }
     }
+
     return { ok: true, items: res.items };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
