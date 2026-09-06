@@ -99,7 +99,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Premium AI tools, streaming and productivity subscriptions with instant delivery — on the website and our Telegram bot.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { property: "og:image", content: "https://qorixlab.com/og-image.png" },
+      { name: "twitter:image", content: "https://qorixlab.com/og-image.png" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
       {
