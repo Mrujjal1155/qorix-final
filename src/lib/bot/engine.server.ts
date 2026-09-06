@@ -3340,18 +3340,33 @@ async function admUserView(targetId: number) {
  * Supplier-imported catalogues can be hundreds of rows, so every picker is
  * paginated and searchable instead of showing only the first 20-30 rows.
  * ------------------------------------------------------------------- */
-type PickKind = "icon" | "detail" | "stock";
+type PickKind = "icon" | "iconoff" | "detail" | "stock";
 const PICK_PAGE_SIZE = 30;
 function pickQuery(state: any, kind: PickKind): string {
   return String(state?.adm_pick_q?.[kind] ?? "");
 }
 
-const PICK_CFG: Record<PickKind, { pick: string; page: string; title: string; hint: string; activeOnly?: boolean }> = {
+const PICK_CFG: Record<
+  PickKind,
+  { pick: string; page: string; title: string; hint: string; activeOnly?: boolean; inactiveOnly?: boolean }
+> = {
   icon: {
     pick: "adm:ip:",
     page: "adm:pgi:",
-    title: "🎨 <b>Product icons</b>",
-    hint: "Pick a product, then send the icon you want.\nA normal emoji or a <b>Telegram Premium custom emoji</b> both work.",
+    title: "🎨 <b>Active product icons</b>",
+    hint:
+      "Only products that are <b>ON</b> (live on the site &amp; bot).\n" +
+      "Pick a product, then send the icon — normal emoji or <b>Telegram Premium custom emoji</b>.",
+    activeOnly: true,
+  },
+  iconoff: {
+    pick: "adm:ip:",
+    page: "adm:pgio:",
+    title: "🗂 <b>Inactive product icons</b>",
+    hint:
+      "Only products that are <b>OFF</b> (hidden from the site &amp; bot).\n" +
+      "Change these whenever you have time — normal emoji or <b>Premium custom emoji</b> both work.",
+    inactiveOnly: true,
   },
   detail: {
     pick: "adm:pd:",
@@ -3376,6 +3391,8 @@ async function admPickView(kind: PickKind, page = 0, q = "") {
     .select("id,name,emoji,telegram_custom_emoji_id,supplier_id", { count: "exact" })
     .is("owner_reseller_id", null);
   if (cfg.activeOnly) query = query.eq("is_active", true);
+  if (cfg.inactiveOnly) query = query.eq("is_active", false);
+
   if (q) query = query.ilike("name", `%${q}%`);
   const { data, count } = await query.order("sort_order").order("name").range(from, from + PICK_PAGE_SIZE - 1);
   const total = Number(count ?? 0);
