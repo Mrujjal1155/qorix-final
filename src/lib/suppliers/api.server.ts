@@ -1055,7 +1055,25 @@ export function extraDetailsFromRaw(raw: any, depth = 0): ProductDetailRow[] {
     seen.add(key);
     rows.push({ label, value });
   };
+
+  if (depth === 0) {
+    // Buyer-facing versions of the numeric fields the supplier bot also shows.
+    const num = (key: string) => {
+      const value = Number((raw as any)[key]);
+      return Number.isFinite(value) ? value : null;
+    };
+    const sold = num("sold_total");
+    if (sold != null && sold > 0) push("Total sold", String(sold));
+    const units = num("units_per_item");
+    if (units != null && units > 1) push("Units per item", String(units));
+    const maxQty = num("max_qty") ?? num("maximum_quantity") ?? num("max_quantity");
+    if (maxQty != null && maxQty > 0) push("Max per order", String(maxQty));
+    const minQty = num("min_qty") ?? num("minimum_quantity") ?? num("min_quantity");
+    if (minQty != null && minQty > 1) push("Min per order", String(minQty));
+  }
+
   for (const [key, value] of Object.entries(raw)) {
+
     if (SKIP_DETAIL_KEYS.has(keyName(key))) continue;
     if (value == null || value === "") continue;
     if (value && typeof value === "object" && !Array.isArray(value)) {
