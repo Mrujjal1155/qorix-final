@@ -691,6 +691,10 @@ export async function supplierProducts(s: SupplierRow): Promise<SupplierProduct[
       // while others expose it as a boolean. Preserve both dialects.
       const availableCount = typeof p.available === "number" ? p.available : undefined;
       const soldOut = (action && typeof p.available === "boolean" && !p.available) || p.in_stock === false;
+      // Service products (Vexoran `requires_stock: false`) carry `stock: null`
+      // and are always sellable — treating that null as 0 wrongly showed them
+      // as sold out on the site and in the bot.
+      const unlimited = p.requires_stock === false && p.available !== false;
       const bulkMin = Array.isArray(p.bulk_discounts) && p.bulk_discounts[0]?.min_qty;
       const rawId = p.id ?? p.product_id ?? p.productId ?? p.item_id ?? p.uuid ?? p.external_product_id ?? p.sku ?? p.code;
       if (rawId == null || String(rawId).trim() === "") {
@@ -707,26 +711,29 @@ export async function supplierProducts(s: SupplierRow): Promise<SupplierProduct[
             : Number(p.price ?? p.unit_price ?? p.base_price ?? p.wholesale_price ?? p.reseller_price ?? p.cost ?? p.cost_price ?? 0),
         stock: soldOut
           ? 0
-          : Math.max(
-              0,
-              Number(
-                p.stock ??
-                  p.available_stock ??
-                  p.stock_count ??
-                  p.inventory ??
-                  p.inventory_count ??
-                  p.qty ??
-                  availableCount ??
-                  p.quantity ??
-                  p.stock_quantity ??
-                  0,
-              ) || 0,
-            ),
+          : unlimited
+            ? 9999
+            : Math.max(
+                0,
+                Number(
+                  p.stock ??
+                    p.available_stock ??
+                    p.stock_count ??
+                    p.inventory ??
+                    p.inventory_count ??
+                    p.qty ??
+                    availableCount ??
+                    p.quantity ??
+                    p.stock_quantity ??
+                    0,
+                ) || 0,
+              ),
         currency: String(p.currency ?? p.currency_code ?? (action ? "USDT" : "USD")),
         min_qty: Number(p.min_qty ?? p.minimum_quantity ?? p.min_quantity ?? bulkMin ?? 1),
         raw: p,
       }];
     });
+
 }
 
 const ITEM_LABELS: Record<string, string> = {
