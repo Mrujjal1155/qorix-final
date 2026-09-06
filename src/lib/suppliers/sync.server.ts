@@ -325,6 +325,7 @@ export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, 
   const restockPosts: Array<{ product_id: string; qty: number; stock: number; event_id: string }> = [];
   const lowPosts: Array<{ product_id: string; stock: number; event_id: string }> = [];
   const newPosts: Array<{ product_id: string; event_id: string }> = [];
+  const pricePosts: Array<{ product_id: string; old_price: number; new_price: number; event_id: string }> = [];
   const newListings: Array<{ external_id: string; remote: any }> = [];
   const productUpdates: Array<{ id: string; patch: Record<string, unknown> }> = [];
 
