@@ -4337,7 +4337,13 @@ async function toggleStockAlert(chatId: number, productId: string) {
 export async function notifyRestock(
   productId: string,
   addedQty = 0,
-  delivery?: { channelSent?: boolean; dmAfter?: number; dmLimit?: number },
+  delivery?: {
+    channelSent?: boolean;
+    dmAfter?: number;
+    dmLimit?: number;
+    beforeChannelSend?: () => Promise<void>;
+    beforeDmSend?: (cursor: number) => Promise<void>;
+  },
 ) {
     const { data: p } = await db.from("products").select("*").eq("id", productId).maybeSingle();
     if (!p) throw new Error("Linked product no longer exists");
