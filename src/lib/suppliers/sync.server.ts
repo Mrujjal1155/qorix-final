@@ -264,7 +264,22 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
       }
 
       let delivery: { channel?: boolean; dmComplete?: boolean; dmCursor?: number } | undefined;
-      const progress = { channelSent: item.channel_sent ?? false, dmAfter: item.dm_cursor ?? 0, dmLimit: DM_PER_RUN };
+      const progress = {
+        channelSent: item.channel_sent ?? false,
+        dmAfter: item.dm_cursor ?? 0,
+        dmLimit: DM_PER_RUN,
+        // Persist each successful stage before continuing. Previously this was
+        // saved only after the whole channel + DM fan-out returned, so a worker
+        // timeout retried the event from the beginning and produced duplicates.
+        onChannelSent: async () => {
+          item.channel_sent = true;
+          await keepWith({ channel_sent: true });
+        },
+        onDmProgress: async (cursor: number) => {
+          item.dm_cursor = cursor;
+          await keepWith({ channel_sent: true, dm_cursor: cursor });
+        },
+      };
       if (item.t === "restock") {
         delivery = await notifyRestock(item.product_id, item.qty, progress);
       } else {
