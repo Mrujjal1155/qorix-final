@@ -92,7 +92,6 @@ const STATS_KEY = "supplier_sync_stats";
 const CUTOVER_KEY = "supplier_alert_cutover_at";
 /** Per product+kind announcement cooldown, kills the 0→N→0 catalogue churn. */
 const RECENT_KEY = "supplier_notify_recent";
-const COOLDOWN_MS = 30 * 60_000;
 /** A queued card older than this is no longer "live" — drop it silently. */
 const STALE_MS = 10 * 60_000;
 /**
