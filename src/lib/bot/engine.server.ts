@@ -2992,8 +2992,9 @@ async function handleMessage(msg: any) {
             `✅ ${UI_ELEMENTS[uiKey as keyof typeof UI_ELEMENTS].label} icon updated → ${preview}\n\nSaved value: <code>${escapeHtml(value || "(empty)")}</code>\n\n${v.text}`,
             v.kb,
           );
+          await premiumEmojiNote(chatId, value);
           return;
-        } else {
+
           const value = raw === "-" ? "" : raw.slice(0, 40);
           await saveIconSetting(`ui_text_${uiKey}`, value);
           const v = await admUiItemView(uiKey);
