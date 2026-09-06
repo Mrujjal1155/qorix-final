@@ -834,6 +834,30 @@ function firstDeliveryItems(...candidates: any[]): any[] {
   return [];
 }
 
+/**
+ * Some suppliers (Vexoran `data`) return every purchased unit inside ONE
+ * newline-joined string. Split it back into one entry per unit so the buyer
+ * receives exactly as many items as they paid for, in the supplier's own
+ * order and formatting.
+ */
+export function splitBulkDelivery(items: string[], qty: number): string[] {
+  if (qty <= 1 || items.length !== 1) return items;
+  const text = items[0] ?? "";
+  const blocks = text
+    .split(/\n\s*\n/)
+    .map((b) => b.trim())
+    .filter(Boolean);
+  if (blocks.length === qty) return blocks;
+  const lines = text
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (lines.length === qty) return lines;
+  return items;
+}
+
+
+
 /** Place an order at the supplier. Returns delivered item strings. */
 export async function supplierOrder(
   s: SupplierRow,
