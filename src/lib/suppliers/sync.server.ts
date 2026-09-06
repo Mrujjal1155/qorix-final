@@ -489,7 +489,10 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
       // Only overwrite the rich fields when the supplier actually sent them —
       // otherwise a sparse sync response would wipe the banner/notes the admin
       // (or an earlier, richer response) already stored.
-      if (d.image_url) productPatch.image_url = d.image_url;
+      // Admin-uploaded banner always wins: only take the supplier image when
+      // the product still has no image of its own.
+      const currentImage = productsById.get(String(prev.product_id))?.image_url ?? null;
+      if (d.image_url && !currentImage) productPatch.image_url = d.image_url;
       if (d.delivery_time) productPatch.delivery_time = d.delivery_time;
       if (d.important_note) productPatch.important_note = d.important_note;
       if (d.quick_guide) productPatch.quick_guide = d.quick_guide;
