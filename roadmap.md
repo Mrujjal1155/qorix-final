@@ -24,3 +24,11 @@
 - [x] Qamify (api.qamify.site) reseller API audit: full product details synced (description verbatim, Total sold / Max per order / Units per item), reseller-private fields hidden, details now shown in bot card too, multi-item delivery verified live (order RA-6BB7CFD5E9, 2 items).
 
 - [x] Vexoran API audit: service products (no stock tracking) no longer show sold out, bulk delivery split into one entry per unit, push webhook receiver /api/public/suppliers/webhook + admin "Realtime" button.
+
+## Supplier audit — MailReader (done 2026-09-06)
+- Verified live against docs: Bearer auth, ?action=products/balance/order, 23 products mapped.
+- Fixed bug: products without bulk_discounts got min_qty=0 (false ?? 1 → false); now falls back to 1.
+- detailsFromRaw maps description + delivery_instruction (guide) + delivery_media (image); no supplier images sent, uploaded images preserved.
+- splitBulkDelivery verified for MailReader newline-joined multi-item delivery (1 line per unit & blank-line blocks).
+- DB verified: 4 active site products with images/desc/guide; catalogue 25 rows; stock syncing.
+- tsgo + build OK.
