@@ -934,8 +934,12 @@ export async function supplierOrder(
             ? [formatDeliveryItem(payload)]
             : [];
         if (found.length) {
-          return { code: mine?.order_id ? String(mine.order_id) : code ? String(code) : null, items: found };
+          return {
+            code: mine?.order_id ? String(mine.order_id) : code ? String(code) : null,
+            items: splitBulkDelivery(found, qty),
+          };
         }
+
         if (mine && ["failed", "cancelled", "refunded"].includes(String(mine.status ?? ""))) break;
       } catch {
         /* keep retrying; a lookup failure must not lose the order reference */
