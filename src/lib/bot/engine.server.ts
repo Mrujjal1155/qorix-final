@@ -2187,16 +2187,19 @@ export async function announceNewProduct(
 ) {
   const s = await getSettings();
   if ((s["announce_new"] ?? "on").toLowerCase() === "off") return;
-  const title = s["announce_new_title"] || "🆕 NEW PRODUCT";
-  const footer = s["announce_new_footer"] || "Freshly added to the store — grab it while stock lasts.";
-  const line = "──────────────────────";
+  const title = s["announce_new_title"] || "JUST ADDED";
+  const footer = s["announce_new_footer"] || "First come, first served — early buyers get the best stock.";
+  const line = "━━━━━━━━━━━━━━━━";
   const stock = Number(product?.supplier_stock ?? product?.stock ?? 0);
   const text =
-    `<b>${escapeHtml(title)}</b>\n${line}\n\n` +
+    `${alertIcon(s, "new")} <b>${escapeHtml(title)}</b>\n${line}\n\n` +
     `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
-    `💎 <b>Price</b>  ${money(product?.price)}\n` +
-    (stock > 0 ? `📈 <b>Available</b>  ${stock} in stock\n` : "") +
+    `${alertIcon(s, "spark")} Brand new in the store.\n` +
+    `${alertIcon(s, "price")} <b>Price</b>  ${money(product?.price)}\n` +
+    (stock > 0 ? `${alertIcon(s, "stock")} <b>In stock</b>  ${stock} ready\n` : "") +
+    `${alertIcon(s, "delivery")} <b>Delivery</b>  instant &amp; automatic\n` +
     `\n<i>${escapeHtml(footer)}</i>`;
+
   const banner = bannerFor(product, s);
   if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
