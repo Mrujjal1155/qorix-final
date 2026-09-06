@@ -32,3 +32,9 @@
 - splitBulkDelivery verified for MailReader newline-joined multi-item delivery (1 line per unit & blank-line blocks).
 - DB verified: 4 active site products with images/desc/guide; catalogue 25 rows; stock syncing.
 - tsgo + build OK.
+
+## Supplier API parity audits
+- [x] Qamify — endpoints/auth/details/delivery verified
+- [x] Vexoran — service stock, delivery split, push webhook receiver + admin Realtime button
+- [x] MailReader — min_qty default fix, 23 products live-verified
+- [x] Canboso (FatBunny Hub) — 217 products live-verified; emoji slug guard; customer_email forwarded for slot products
