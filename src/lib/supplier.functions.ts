@@ -89,10 +89,11 @@ export const listSupplierAlerts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertSupplierAdmin(context);
-    const { readAlerts, maybeAutoSyncSuppliers } = await import("@/lib/suppliers/sync.server");
-    // The admin bell polls this — run the throttled sync first so new supplier
-    // stock shows up (and gets announced) without pressing anything.
-    await maybeAutoSyncSuppliers().catch(() => ({ skipped: true }));
+    const { readAlerts } = await import("@/lib/suppliers/sync.server");
+    // The admin bell polls this. The sync itself runs in its own invocation —
+    // doing it here burned the request's CPU budget and produced Error 1102.
+    const { kickSupplierSync } = await import("@/lib/suppliers/kick.server");
+    kickSupplierSync();
     return await readAlerts();
   });
 

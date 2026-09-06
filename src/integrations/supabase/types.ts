@@ -780,6 +780,11 @@ export type Database = {
           support_contact: string | null
           updated_at: string
           user_id: string | null
+          webhook_events: string
+          webhook_last_at: string | null
+          webhook_last_status: string | null
+          webhook_secret: string | null
+          webhook_url: string | null
         }
         Insert: {
           allow_bot?: boolean
@@ -801,6 +806,11 @@ export type Database = {
           support_contact?: string | null
           updated_at?: string
           user_id?: string | null
+          webhook_events?: string
+          webhook_last_at?: string | null
+          webhook_last_status?: string | null
+          webhook_secret?: string | null
+          webhook_url?: string | null
         }
         Update: {
           allow_bot?: boolean
@@ -822,6 +832,11 @@ export type Database = {
           support_contact?: string | null
           updated_at?: string
           user_id?: string | null
+          webhook_events?: string
+          webhook_last_at?: string | null
+          webhook_last_status?: string | null
+          webhook_secret?: string | null
+          webhook_url?: string | null
         }
         Relationships: []
       }

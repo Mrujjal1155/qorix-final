@@ -28,11 +28,11 @@ async function anonSupabase() {
 }
 
 export const listStorefront = createServerFn({ method: "GET" }).handler(async () => {
-  // Any storefront visit also keeps supplier catalogues fresh (throttled).
-  void (async () => {
-    const { maybeAutoSyncSuppliers } = await import("@/lib/suppliers/sync.server");
-    await maybeAutoSyncSuppliers();
-  })().catch(() => {});
+  // Keep supplier catalogues fresh, but NEVER inside this request: the sync is
+  // pinged as a separate worker invocation so a storefront visit can never hit
+  // Cloudflare's per-request CPU limit (Error 1102).
+  const { kickSupplierSync } = await import("@/lib/suppliers/kick.server");
+  kickSupplierSync();
 
   const sb = await anonSupabase();
   const [cats, prods, hero] = await Promise.all([
@@ -54,7 +54,11 @@ export const listStorefront = createServerFn({ method: "GET" }).handler(async ()
   const counts: Record<string, number> = {};
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: stock } = await supabaseAdmin.from("stock_items").select("product_id").eq("is_sold", false);
+    const { data: stock } = await supabaseAdmin
+      .from("stock_items")
+      .select("product_id")
+      .eq("is_sold", false)
+      .limit(5000);
     for (const s of stock ?? []) counts[s.product_id as string] = (counts[s.product_id as string] ?? 0) + 1;
   } catch (e) {
     console.error("[storefront] stock counts unavailable:", e);

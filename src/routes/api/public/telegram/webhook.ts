@@ -66,13 +66,14 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
           console.error(`Telegram update failed [update_id=${String(update.update_id ?? "unknown")}]:`, error),
         );
 
-        // Keep supplier catalogues fresh (throttled to once every 10 minutes)
-        // so new stock lands in the shop and the channel automatically.
-        const autoSync = (async () => {
-          const { maybeAutoSyncSuppliers } = await import("@/lib/suppliers/sync.server");
-          await maybeAutoSyncSuppliers();
-        })().catch((error) => console.error("Supplier auto-sync failed:", error));
-        void autoSync;
+        // Keep supplier catalogues fresh without spending this request's CPU
+        // budget on it — the sync runs in its own worker invocation.
+        try {
+          const { kickSupplierSync } = await import("@/lib/suppliers/kick.server");
+          kickSupplierSync();
+        } catch (error) {
+          console.error("Supplier auto-sync ping failed:", error);
+        }
 
         await Promise.allSettled([handle, track]);
         return Response.json({ ok: true });
