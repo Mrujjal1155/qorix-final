@@ -1153,8 +1153,23 @@ async function productView(productId: string) {
       `<blockquote expandable>${uiIconHtml(settings, "prod_guide")} <b>${escapeHtml(uiText(settings, "prod_guide"))}</b>\n` +
       `${guide}</blockquote>\n\n`;
 
+  // Same supplier detail rows the website product page shows, so both surfaces
+  // present identical product information.
+  const detailRows = Array.isArray((p as any).details)
+    ? ((p as any).details as any[])
+        .map((d) => ({ label: String(d?.label ?? "").trim(), value: String(d?.value ?? "").trim() }))
+        .filter((d) => d.label && d.value)
+        .slice(0, 12)
+    : [];
+  if (detailRows.length)
+    text +=
+      `<blockquote expandable>` +
+      detailRows.map((d) => `• <b>${escapeHtml(d.label)}:</b> ${escapeHtml(d.value)}`).join("\n") +
+      `</blockquote>\n\n`;
+
   if (String(p.delivery_time ?? "").trim())
     text += `${uiTag(settings, "prod_delivery")}: <b>${escapeHtml(String(p.delivery_time).trim())}</b>\n\n`;
+
 
   text +=
     p.delivery_type === "manual"
