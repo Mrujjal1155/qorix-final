@@ -2994,6 +2994,8 @@ async function handleMessage(msg: any) {
           );
           await premiumEmojiNote(chatId, value);
           return;
+        } else {
+
 
           const value = raw === "-" ? "" : raw.slice(0, 40);
           await saveIconSetting(`ui_text_${uiKey}`, value);
