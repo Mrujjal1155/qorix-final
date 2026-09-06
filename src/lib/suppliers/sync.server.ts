@@ -812,8 +812,16 @@ export async function maybeAutoSyncSuppliers(minutes = 2) {
     // Throttled for catalogue polling, but pending Telegram cards must never
     // wait for the next window — deliver them on every tick.
     const delivery = await drainAllNotifications(db).catch(() => ({ sent: 0, failed: 1 }));
-    return { skipped: true, ...delivery };
+    // Suppliers that push changes to us (Vexoran-style webhooks) are already
+    // realtime. The rest have no push API at all, so they only look realtime
+    // if we keep polling them on every tick instead of once per window.
+    const fast = await fastPollPushlessSuppliers(db).catch((error) => {
+      console.error("Fast poll failed:", error);
+      return { polled: 0 };
+    });
+    return { skipped: true, ...delivery, ...fast };
   }
+
 
   // Claim the slot immediately (acts as a lock for concurrent requests).
   await db
