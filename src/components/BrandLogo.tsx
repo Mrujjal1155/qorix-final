@@ -42,14 +42,7 @@ export function BrandLogo({
   }, [src]);
 
   const label = (name ?? "").trim();
-  const effective = src ?? cached;
+  const effective = src ?? cached ?? bundledLogo;
 
-  if (!effective) {
-    return (
-      <span className={cn("font-extrabold tracking-tight text-foreground", textClassName)}>
-        {label}
-      </span>
-    );
-  }
-  return <img src={effective} alt={label ? `${label} logo` : "Site logo"} className={className} />;
+  return <img src={effective} alt={label ? `${label} logo` : "QORIX STORE logo"} className={className} />;
 }
