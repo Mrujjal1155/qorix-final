@@ -3686,6 +3686,24 @@ async function admPageIconView() {
   };
 }
 
+/** Icons used inside stock / price alert cards — Premium emoji supported. */
+async function admAlertIconView() {
+  const settings = await getSettings();
+  const kb: Button[][] = (Object.keys(ALERT_ICONS) as AlertIconKey[]).map((key) => {
+    const parsed = parseIconValue(settings[`alert_icon_${key}`] ?? "", ALERT_ICONS[key][0]);
+    return [{ text: `${parsed.glyph} ${ALERT_ICONS[key][1]}`.trim(), callback_data: `adm:ai:${key}` }];
+  });
+  kb.push(ADM_BACK[0]!);
+  return {
+    text:
+      "🚨 <b>Alert icons</b>\n\nThese icons are used in the stock, restock, sold-out and price alert cards " +
+      "sent to the channel and to bot users.\n" +
+      "Pick one, then send a normal emoji or a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.",
+    kb,
+  };
+}
+
+
 /* ------------------------------- every button + tag of every page (UI kit) */
 
 const UI_GROUP_LABEL: Record<string, string> = {
