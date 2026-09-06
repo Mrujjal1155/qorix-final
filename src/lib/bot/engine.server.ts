@@ -1095,7 +1095,8 @@ function countdown(iso?: string | null) {
 
 async function productView(productId: string) {
   const { data: p } = await db.from("products").select("*").eq("id", productId).maybeSingle();
-  if (!p) return null;
+  // Products switched off in admin are hidden from the bot, exactly like the website.
+  if (!p || p.is_active === false || p.owner_reseller_id) return null;
   const [{ count }, { count: soldCount }] = await Promise.all([
     db
       .from("stock_items")
@@ -1224,6 +1225,7 @@ async function cartDetails(user: any) {
   const { data: products } = await db
     .from("products")
     .select("*")
+    .eq("is_active", true)
     .in(
       "id",
       cart.map((l) => l.product_id),
@@ -3802,7 +3804,7 @@ type CoMeta = { items: CartLine[]; coupon?: Coupon | null; summary?: string; tot
 
 async function coTotals(meta: CoMeta, chatId?: number) {
   const ids = meta.items.map((i) => i.product_id);
-  const { data: products } = await db.from("products").select("*").in("id", ids);
+  const { data: products } = await db.from("products").select("*").eq("is_active", true).in("id", ids);
   const lines = meta.items
     .map((i) => {
       const p = (products ?? []).find((x: any) => x.id === i.product_id);
@@ -4347,6 +4349,8 @@ export async function notifyRestock(
 ) {
     const { data: p } = await db.from("products").select("*").eq("id", productId).maybeSingle();
     if (!p) throw new Error("Linked product no longer exists");
+    // Switched-off products are hidden everywhere, so no alerts go out for them.
+    if (p.is_active === false) return;
     const settings = await getSettings();
 
     // Public channel post — runs even when nobody subscribed to the alert.
