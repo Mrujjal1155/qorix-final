@@ -581,9 +581,11 @@ export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, 
           supplier_fixed: s.markup_fixed ?? null,
         });
         const d = detailsFromRaw(p.raw);
-        // Canboso sends a per-product `emoji` the supplier bot displays next
-        // to the name — mirror it so our bot/site card matches theirs.
-        const rawEmoji = typeof (p.raw as any)?.emoji === "string" ? (p.raw as any).emoji.trim() : "";
+        // Canboso sends a per-product `emoji`, but as a slug ("claude",
+        // "chatgpt", "none"), not a glyph — only adopt it when it is an
+        // actual emoji character, otherwise keep the default icon.
+        const rawEmojiValue = typeof (p.raw as any)?.emoji === "string" ? (p.raw as any).emoji.trim() : "";
+        const rawEmoji = /[^\x00-\x7F]/u.test(rawEmojiValue) ? rawEmojiValue : "";
         const productRow: any = {
           name: p.name,
           description: d.description ?? (d.quick_guide || d.important_note ? null : p.description),
