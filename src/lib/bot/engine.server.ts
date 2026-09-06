@@ -2128,7 +2128,11 @@ export async function announceRestock(
     banner,
     skipDm,
     delivery
-      ? { after: delivery.dmAfter ?? 0, limit: delivery.dmLimit ?? 40, beforeSend: delivery.beforeDmSend }
+      ? {
+          after: delivery.dmAfter ?? 0,
+          limit: delivery.dmLimit ?? 40,
+          ...(delivery.beforeDmSend ? { beforeSend: delivery.beforeDmSend } : {}),
+        }
       : undefined,
   );
   return { channel: channel.sent, dmSent: dm.sent, dmTotal: dm.total, dmComplete: dm.complete, dmCursor: dm.nextCursor };
@@ -2178,7 +2182,11 @@ export async function announceNewProduct(
     banner,
     new Set(),
     delivery
-      ? { after: delivery.dmAfter ?? 0, limit: delivery.dmLimit ?? 40, beforeSend: delivery.beforeDmSend }
+      ? {
+          after: delivery.dmAfter ?? 0,
+          limit: delivery.dmLimit ?? 40,
+          ...(delivery.beforeDmSend ? { beforeSend: delivery.beforeDmSend } : {}),
+        }
       : undefined,
   );
   return { channel: channel.sent, dmSent: dm.sent, dmTotal: dm.total, dmComplete: dm.complete, dmCursor: dm.nextCursor };
@@ -2233,7 +2241,11 @@ export async function announceLowStock(
     banner,
     new Set(),
     delivery
-      ? { after: delivery.dmAfter ?? 0, limit: delivery.dmLimit ?? 40, beforeSend: delivery.beforeDmSend }
+      ? {
+          after: delivery.dmAfter ?? 0,
+          limit: delivery.dmLimit ?? 40,
+          ...(delivery.beforeDmSend ? { beforeSend: delivery.beforeDmSend } : {}),
+        }
       : undefined,
   );
   return { channel: channel.sent, dmSent: dm.sent, dmTotal: dm.total, dmComplete: dm.complete, dmCursor: dm.nextCursor };
@@ -2292,7 +2304,11 @@ export async function announcePriceChange(
     banner,
     new Set(),
     delivery
-      ? { after: delivery.dmAfter ?? 0, limit: delivery.dmLimit ?? 40, beforeSend: delivery.beforeDmSend }
+      ? {
+          after: delivery.dmAfter ?? 0,
+          limit: delivery.dmLimit ?? 40,
+          ...(delivery.beforeDmSend ? { beforeSend: delivery.beforeDmSend } : {}),
+        }
       : undefined,
   );
   return { channel: channel.sent, dmSent: dm.sent, dmTotal: dm.total, dmComplete: dm.complete, dmCursor: dm.nextCursor };
