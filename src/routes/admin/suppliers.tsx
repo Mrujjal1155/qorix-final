@@ -139,6 +139,8 @@ function SuppliersPage() {
 
       {view === "suppliers" && (
         <>
+      <SyncHealthCard />
+
       <Card className="mb-4">
         <CardHeader>
           <CardTitle>Connections</CardTitle>
