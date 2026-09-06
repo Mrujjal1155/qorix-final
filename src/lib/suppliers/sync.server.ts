@@ -65,16 +65,36 @@ export async function clearAlerts() {
 
 /* ----------------------------------------------- notification queue + log */
 
+type NotifyBase = {
+  event_id: string;
+  product_id: string;
+  channel_sent?: boolean;
+  dm_cursor?: number;
+  /** Failed attempts so far — drives the backoff below. */
+  tries?: number;
+  /** Epoch ms before which this card must not be retried. */
+  next_at?: number;
+};
+
 type NotifyItem =
-  | { t: "restock"; product_id: string; qty: number; event_id: string; channel_sent?: boolean; dm_cursor?: number }
-  | { t: "low"; product_id: string; stock: number; event_id: string; channel_sent?: boolean; dm_cursor?: number }
-  | { t: "new"; product_id: string; event_id: string; channel_sent?: boolean; dm_cursor?: number };
+  | ({ t: "restock"; qty: number } & NotifyBase)
+  | ({ t: "low"; stock: number } & NotifyBase)
+  | ({ t: "new" } & NotifyBase)
+  | ({ t: "price"; old_price: number; new_price: number } & NotifyBase);
 
 const QUEUE_PREFIX = "supplier_notify_queue:";
 const NOTIFY_LOG_KEY = "supplier_notify_log";
-/** How many cards one sync run sends before the rest waits for the next run. */
-const NOTIFY_PER_RUN = 6;
-const DM_PER_RUN = 60;
+const STATS_KEY = "supplier_sync_stats";
+/**
+ * Telegram work is bounded per run so a single invocation can never exceed the
+ * Cloudflare subrequest/CPU budget — that is what used to kill the whole run
+ * (queues stayed full for hours and no card was ever delivered).
+ * Worst case per run: CARDS_PER_RUN * (1 channel post + DM_PER_RUN DMs).
+ */
+const CARDS_PER_RUN = 4;
+const DM_PER_RUN = 25;
+/** Give up (and log) after this many failed attempts for one event. */
+const MAX_TRIES = 8;
 
 async function readJsonSetting(sb: any, key: string): Promise<any[]> {
   const { data } = await sb.from("bot_settings").select("value").eq("key", key).maybeSingle();
@@ -91,13 +111,25 @@ async function writeJsonSetting(sb: any, key: string, value: any[]) {
   if (error) throw new Error(`Could not save notification queue: ${error.message}`);
 }
 
-/** Append pending alerts for one supplier, de-duplicated per product+kind. */
+async function writeJsonValue(sb: any, key: string, value: unknown) {
+  await sb.from("bot_settings").upsert({ key, value: JSON.stringify(value) }, { onConflict: "key" });
+}
+
+async function appendLog(sb: any, entries: any[]) {
+  if (!entries.length) return;
+  const prev = await readJsonSetting(sb, NOTIFY_LOG_KEY);
+  await writeJsonSetting(sb, NOTIFY_LOG_KEY, [...entries.reverse(), ...prev].slice(0, 60));
+}
+
+/** Append pending alerts for one supplier, de-duplicated per event id. */
 async function enqueueNotifications(sb: any, supplierId: string, items: NotifyItem[]) {
   if (!items.length) return;
   const key = QUEUE_PREFIX + supplierId;
   const current = (await readJsonSetting(sb, key)) as NotifyItem[];
   const merged = new Map<string, NotifyItem>();
-  for (const it of [...current, ...items]) merged.set(it.event_id || `${it.t}:${it.product_id}`, it);
+  // Existing entries win: they may already carry delivery progress (cursor).
+  for (const it of items) merged.set(it.event_id, it);
+  for (const it of current) merged.set(it.event_id, it);
   await writeJsonSetting(sb, key, Array.from(merged.values()).slice(0, 200));
 }
 
@@ -151,79 +183,121 @@ async function finishNotification(sb: any, eventId: string, delivered: boolean, 
   if (saveError) throw new Error(`Could not finish notification: ${saveError.message}`);
 }
 
-/**
- * Send the queued restock / low-stock cards to the channel and every bot user.
- * Only listed (admin-approved) products ever reach this queue. Every attempt is
- * recorded in `supplier_notify_log` so failures are visible in the admin panel.
- */
-async function drainNotifications(sb: any, supplierId: string) {
-  const key = QUEUE_PREFIX + supplierId;
-  const queue = (await readJsonSetting(sb, key)) as NotifyItem[];
-  if (!queue.length) return;
-  const batch = queue.slice(0, NOTIFY_PER_RUN);
-  const rest = queue.slice(NOTIFY_PER_RUN);
+/** Exponential backoff (capped) so a broken Telegram config is not hammered. */
+function backoffMs(tries: number) {
+  return Math.min(15 * 60_000, 30_000 * 2 ** Math.max(0, tries - 1));
+}
 
-  const { notifyRestock, announceLowStock, announceNewProduct } = await import("@/lib/bot/engine.server");
+/**
+ * Send queued cards for one supplier to the channel and to bot users.
+ * The queue is rewritten to the database after EVERY card, so a run that is cut
+ * short by the platform never loses (or repeats) delivered work.
+ */
+async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: number }) {
+  const key = QUEUE_PREFIX + supplierId;
+  let queue = (await readJsonSetting(sb, key)) as NotifyItem[];
+  if (!queue.length) return { sent: 0, failed: 0 };
+
+  const { notifyRestock, announceLowStock, announceNewProduct, announcePriceChange } = await import(
+    "@/lib/bot/engine.server"
+  );
   const log: any[] = [];
-  const failed: NotifyItem[] = [];
-  for (const item of batch) {
-    const eventId = item.event_id || `${supplierId}:${item.t}:${item.product_id}:${item.t === "low" ? item.stock : item.t === "restock" ? item.qty : "new"}`;
+  let sent = 0;
+  let failed = 0;
+
+  while (budget.cards > 0) {
+    const now = Date.now();
+    const index = queue.findIndex((item) => !item.next_at || item.next_at <= now);
+    if (index < 0) break;
+    const item = queue[index]!;
+    budget.cards -= 1;
+
+    const remove = async () => {
+      queue = queue.filter((q) => q.event_id !== item.event_id);
+      await writeJsonSetting(sb, key, queue);
+    };
+    const keepWith = async (patch: Partial<NotifyItem>) => {
+      queue = queue.map((q) => (q.event_id === item.event_id ? ({ ...q, ...patch } as NotifyItem) : q));
+      await writeJsonSetting(sb, key, queue);
+    };
+
     try {
-      const claim = await claimNotification(sb, eventId);
-      if (claim === "delivered") continue;
-      if (claim === "busy") {
-        failed.push(item);
+      const claim = await claimNotification(sb, item.event_id);
+      if (claim === "delivered") {
+        await remove();
         continue;
       }
+      if (claim === "busy") {
+        await keepWith({ next_at: now + 30_000 });
+        continue;
+      }
+
       let delivery: { channel?: boolean; dmComplete?: boolean; dmCursor?: number } | undefined;
+      const progress = { channelSent: item.channel_sent ?? false, dmAfter: item.dm_cursor ?? 0, dmLimit: DM_PER_RUN };
       if (item.t === "restock") {
-        delivery = await notifyRestock(item.product_id, item.qty, {
-          channelSent: item.channel_sent ?? false,
-          dmAfter: item.dm_cursor ?? 0,
-          dmLimit: DM_PER_RUN,
-        });
-      } else if (item.t === "low") {
-        const { data: prod } = await sb.from("products").select("*").eq("id", item.product_id).maybeSingle();
-        if (!prod) throw new Error("Linked product no longer exists");
-        delivery = await announceLowStock(prod, item.stock, {
-          channelSent: item.channel_sent ?? false,
-          dmAfter: item.dm_cursor ?? 0,
-          dmLimit: DM_PER_RUN,
-        });
+        delivery = await notifyRestock(item.product_id, item.qty, progress);
       } else {
         const { data: prod } = await sb.from("products").select("*").eq("id", item.product_id).maybeSingle();
         if (!prod) throw new Error("Linked product no longer exists");
-        delivery = await announceNewProduct(prod, {
-          channelSent: item.channel_sent ?? false,
-          dmAfter: item.dm_cursor ?? 0,
-          dmLimit: DM_PER_RUN,
-        });
+        if (item.t === "low") delivery = await announceLowStock(prod, item.stock, progress);
+        else if (item.t === "price") delivery = await announcePriceChange(prod, item.old_price, item.new_price, progress);
+        else delivery = await announceNewProduct(prod, progress);
       }
-      if (!delivery?.dmComplete) {
-        failed.push({ ...item, channel_sent: true, dm_cursor: delivery?.dmCursor ?? item.dm_cursor ?? 0 });
-        await finishNotification(sb, eventId, false, "Bot-user delivery continues on the next automatic run");
+
+      if (delivery && !delivery.dmComplete) {
+        // Channel post is done; bot DMs continue on the next tick from the cursor.
+        await keepWith({ channel_sent: true, dm_cursor: delivery.dmCursor ?? item.dm_cursor ?? 0, next_at: 0, tries: 0 });
+        await finishNotification(sb, item.event_id, false, "Bot-user delivery continues on the next automatic run");
         continue;
       }
+
+      await finishNotification(sb, item.event_id, true);
+      await remove();
+      sent += 1;
       log.push({ at: new Date().toISOString(), kind: item.t, product_id: item.product_id, ok: true });
-      await finishNotification(sb, eventId, true);
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      console.error("Supplier alert failed:", item, message);
-      await finishNotification(sb, eventId, false, message).catch(() => {});
-      failed.push(item);
-      log.push({ at: new Date().toISOString(), kind: item.t, product_id: item.product_id, ok: false, error: message });
+      failed += 1;
+      console.error("Supplier alert failed:", item.event_id, message);
+      await finishNotification(sb, item.event_id, false, message).catch(() => {});
+      const tries = (item.tries ?? 0) + 1;
+      if (tries >= MAX_TRIES) {
+        await remove();
+        log.push({ at: new Date().toISOString(), kind: item.t, product_id: item.product_id, ok: false, dropped: true, error: message });
+      } else {
+        await keepWith({ tries, next_at: Date.now() + backoffMs(tries) });
+        log.push({ at: new Date().toISOString(), kind: item.t, product_id: item.product_id, ok: false, tries, error: message });
+      }
     }
   }
-  // Remove successful cards only after delivery. Failed cards stay queued and
-  // are retried by the next supplier sync instead of being lost forever.
-  const retry = new Map<string, NotifyItem>();
-  for (const item of [...rest, ...failed]) retry.set(item.event_id || `${item.t}:${item.product_id}`, item);
-  await writeJsonSetting(sb, key, Array.from(retry.values()).slice(0, 200));
-  if (log.length) {
-    const prev = await readJsonSetting(sb, NOTIFY_LOG_KEY);
-    await writeJsonSetting(sb, NOTIFY_LOG_KEY, [...log.reverse(), ...prev].slice(0, 40));
-  }
+
+  await appendLog(sb, log);
+  return { sent, failed };
 }
+
+/**
+ * Deliver pending cards for every supplier. Runs sequentially with a shared
+ * budget so the whole invocation stays far below the platform request limit.
+ */
+export async function drainAllNotifications(sb?: any) {
+  const db = sb ?? (await adminDb());
+  const { data: sups } = await db.from("suppliers").select("id,name").eq("is_enabled", true);
+  const budget = { cards: CARDS_PER_RUN };
+  let sent = 0;
+  let failed = 0;
+  for (const supplier of sups ?? []) {
+    if (budget.cards <= 0) break;
+    try {
+      const res = await drainSupplierQueue(db, (supplier as any).id, budget);
+      sent += res.sent;
+      failed += res.failed;
+    } catch (error) {
+      console.error(`Supplier notifications failed for ${(supplier as any).name}:`, error);
+    }
+  }
+  return { sent, failed };
+}
+
 
 
 /**
