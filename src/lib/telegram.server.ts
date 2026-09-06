@@ -4,6 +4,18 @@
 
 export type TgResult = { ok: boolean; result?: any; description?: string };
 
+/**
+ * True when Telegram rejected a message that contained a Premium custom emoji
+ * and we had to resend it with plain glyphs. Only bots that own a Fragment
+ * username may send custom emoji, so this tells the admin why their Premium
+ * icon is stored but still displayed as a normal emoji.
+ */
+let customEmojiBlocked = false;
+export function isCustomEmojiBlocked() {
+  return customEmojiBlocked;
+}
+
+
 export async function tg(method: string, body: Record<string, unknown> = {}): Promise<TgResult> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const connKey = process.env["TELEGRAM_API_KEY"];
