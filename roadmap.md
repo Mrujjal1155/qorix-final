@@ -23,6 +23,7 @@
 - [x] Cut over supplier alerts to a clean live-only baseline and purge all historical queues/logs
 - [x] Stop treating temporarily omitted catalogue rows as sold out/restocked
 - [x] Serialize each supplier's cron/webhook sync and deduplicate admin alerts by transition
+- [x] Checkpoint each Telegram channel/DM recipient before sending so worker retries cannot duplicate supplier alerts
 
 - [x] Qamify (api.qamify.site) reseller API audit: full product details synced (description verbatim, Total sold / Max per order / Units per item), reseller-private fields hidden, details now shown in bot card too, multi-item delivery verified live (order RA-6BB7CFD5E9, 2 items).
 

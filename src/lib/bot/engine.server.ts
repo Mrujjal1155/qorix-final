@@ -2009,7 +2009,7 @@ async function dmAllBotUsers(
   kb?: Button[][],
   photo?: string | null,
   skip: Set<number> = new Set(),
-  page?: { after: number; limit: number },
+  page?: { after: number; limit: number; beforeSend?: (cursor: number) => Promise<void> },
 ) {
   if ((settings["announce_dm"] ?? "on").toLowerCase() === "off") {
     return { sent: 0, total: 0, complete: true, nextCursor: page?.after ?? 0 };
@@ -2032,18 +2032,17 @@ async function dmAllBotUsers(
   const complete = !page || eligible.length <= page.limit;
   const targets = page ? eligible.slice(0, page.limit) : eligible;
   let sent = 0;
-  for (let i = 0; i < targets.length; i += 20) {
-    const results = await Promise.allSettled(
-      targets.slice(i, i + 20).map(async (u: any) => {
-        if (photo) {
-          const photoResult = await sendPhoto(u.telegram_id, photo, text, kb);
-          if (photoResult.ok) return true;
-        }
-        return (await sendMessage(u.telegram_id, text, kb)).ok;
-      }),
-    );
-    sent += results.filter((result) => result.status === "fulfilled" && result.value).length;
-    if (i + 20 < targets.length) await new Promise((r) => setTimeout(r, 1_000));
+  for (const user of targets) {
+    // Telegram has no idempotency key for sendMessage/sendPhoto. Reserve this
+    // recipient before the API call so a worker restart can never DM them twice.
+    if (page?.beforeSend) await page.beforeSend(Number(user.telegram_id));
+    let delivered = false;
+    if (photo) {
+      const photoResult = await sendPhoto(user.telegram_id, photo, text, kb);
+      delivered = photoResult.ok;
+    }
+    if (!delivered) delivered = (await sendMessage(user.telegram_id, text, kb)).ok;
+    if (delivered) sent += 1;
   }
   return {
     sent,
@@ -2088,7 +2087,13 @@ export async function announceRestock(
   addedQty: number,
   available: number,
   skipDm: Set<number> = new Set(),
-  delivery?: { channelSent?: boolean; dmAfter?: number; dmLimit?: number },
+  delivery?: {
+    channelSent?: boolean;
+    dmAfter?: number;
+    dmLimit?: number;
+    beforeChannelSend?: () => Promise<void>;
+    beforeDmSend?: (cursor: number) => Promise<void>;
+  },
 ) {
   const s = await getSettings();
   if ((s["announce_restock"] ?? "on").toLowerCase() === "off") return;
@@ -2107,6 +2112,7 @@ export async function announceRestock(
     `<i>${escapeHtml(footer)}</i>`;
   const kb = await channelProductButton(s, product);
   const banner = bannerFor(product, s);
+  if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
     ? { sent: true }
     : await postToChannel(s, text, kb, banner).catch((error) => {
@@ -2121,7 +2127,13 @@ export async function announceRestock(
     dmKb,
     banner,
     skipDm,
-    delivery ? { after: delivery.dmAfter ?? 0, limit: delivery.dmLimit ?? 40 } : undefined,
+    delivery
+      ? {
+          after: delivery.dmAfter ?? 0,
+          limit: delivery.dmLimit ?? 40,
+          ...(delivery.beforeDmSend ? { beforeSend: delivery.beforeDmSend } : {}),
+        }
+      : undefined,
   );
   return { channel: channel.sent, dmSent: dm.sent, dmTotal: dm.total, dmComplete: dm.complete, dmCursor: dm.nextCursor };
 }
@@ -2133,7 +2145,13 @@ export async function announceRestock(
  */
 export async function announceNewProduct(
   product: any,
-  delivery?: { channelSent?: boolean; dmAfter?: number; dmLimit?: number },
+  delivery?: {
+    channelSent?: boolean;
+    dmAfter?: number;
+    dmLimit?: number;
+    beforeChannelSend?: () => Promise<void>;
+    beforeDmSend?: (cursor: number) => Promise<void>;
+  },
 ) {
   const s = await getSettings();
   if ((s["announce_new"] ?? "on").toLowerCase() === "off") return;
@@ -2148,6 +2166,7 @@ export async function announceNewProduct(
     (stock > 0 ? `📈 <b>Available</b>  ${stock} in stock\n` : "") +
     `\n<i>${escapeHtml(footer)}</i>`;
   const banner = bannerFor(product, s);
+  if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
     ? { sent: true }
     : await postToChannel(s, text, await channelProductButton(s, product), banner).catch((error) => {
@@ -2162,7 +2181,13 @@ export async function announceNewProduct(
     dmKb,
     banner,
     new Set(),
-    delivery ? { after: delivery.dmAfter ?? 0, limit: delivery.dmLimit ?? 40 } : undefined,
+    delivery
+      ? {
+          after: delivery.dmAfter ?? 0,
+          limit: delivery.dmLimit ?? 40,
+          ...(delivery.beforeDmSend ? { beforeSend: delivery.beforeDmSend } : {}),
+        }
+      : undefined,
   );
   return { channel: channel.sent, dmSent: dm.sent, dmTotal: dm.total, dmComplete: dm.complete, dmCursor: dm.nextCursor };
 }
@@ -2175,7 +2200,13 @@ export async function announceNewProduct(
 export async function announceLowStock(
   product: any,
   available: number,
-  delivery?: { channelSent?: boolean; dmAfter?: number; dmLimit?: number },
+  delivery?: {
+    channelSent?: boolean;
+    dmAfter?: number;
+    dmLimit?: number;
+    beforeChannelSend?: () => Promise<void>;
+    beforeDmSend?: (cursor: number) => Promise<void>;
+  },
 ) {
   const s = await getSettings();
   if ((s["announce_low"] ?? "on").toLowerCase() === "off") return;
@@ -2194,6 +2225,7 @@ export async function announceLowStock(
     (out ? `📉 <b>Available</b>  none left\n` : `📉 <b>Available</b>  only ${available} left\n`) +
     `\n<i>${escapeHtml(footer)}</i>`;
   const banner = bannerFor(product, s);
+  if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
     ? { sent: true }
     : await postToChannel(s, text, await channelProductButton(s, product), banner).catch((error) => {
@@ -2208,7 +2240,13 @@ export async function announceLowStock(
     dmKb,
     banner,
     new Set(),
-    delivery ? { after: delivery.dmAfter ?? 0, limit: delivery.dmLimit ?? 40 } : undefined,
+    delivery
+      ? {
+          after: delivery.dmAfter ?? 0,
+          limit: delivery.dmLimit ?? 40,
+          ...(delivery.beforeDmSend ? { beforeSend: delivery.beforeDmSend } : {}),
+        }
+      : undefined,
   );
   return { channel: channel.sent, dmSent: dm.sent, dmTotal: dm.total, dmComplete: dm.complete, dmCursor: dm.nextCursor };
 }
@@ -2222,7 +2260,13 @@ export async function announcePriceChange(
   product: any,
   oldPrice: number,
   newPrice: number,
-  delivery?: { channelSent?: boolean; dmAfter?: number; dmLimit?: number },
+  delivery?: {
+    channelSent?: boolean;
+    dmAfter?: number;
+    dmLimit?: number;
+    beforeChannelSend?: () => Promise<void>;
+    beforeDmSend?: (cursor: number) => Promise<void>;
+  },
 ) {
   const s = await getSettings();
   if ((s["announce_price"] ?? "on").toLowerCase() === "off") return { channel: true, dmComplete: true, dmCursor: 0 };
@@ -2244,6 +2288,7 @@ export async function announcePriceChange(
     `✅ <b>Now</b>  ${money(newPrice)}\n` +
     `\n<i>${escapeHtml(footer)}</i>`;
   const banner = bannerFor(product, s);
+  if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
     ? { sent: true }
     : await postToChannel(s, text, await channelProductButton(s, product), banner).catch((error) => {
@@ -2258,7 +2303,13 @@ export async function announcePriceChange(
     dmKb,
     banner,
     new Set(),
-    delivery ? { after: delivery.dmAfter ?? 0, limit: delivery.dmLimit ?? 40 } : undefined,
+    delivery
+      ? {
+          after: delivery.dmAfter ?? 0,
+          limit: delivery.dmLimit ?? 40,
+          ...(delivery.beforeDmSend ? { beforeSend: delivery.beforeDmSend } : {}),
+        }
+      : undefined,
   );
   return { channel: channel.sent, dmSent: dm.sent, dmTotal: dm.total, dmComplete: dm.complete, dmCursor: dm.nextCursor };
 }
