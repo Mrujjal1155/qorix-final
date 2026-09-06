@@ -288,3 +288,34 @@ export const updateSupplierProduct = createServerFn({ method: "POST" })
     return { ok: true, price };
   });
 
+
+/**
+ * Admin monitoring: last sync result, pending alert queue depth and the most
+ * recent Telegram delivery attempts (success + failure with the real error).
+ */
+export const supplierSyncHealth = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const sb = (context as any).supabase;
+    await assertSupplierAdmin(context);
+    const { data } = await sb.from("bot_settings").select("key,value");
+    const rows = (data ?? []) as Array<{ key: string; value: string | null }>;
+    const get = (key: string) => rows.find((r) => r.key === key)?.value ?? "";
+    const parse = (value: string, fallback: any) => {
+      try {
+        return JSON.parse(value || "null") ?? fallback;
+      } catch {
+        return fallback;
+      }
+    };
+    const pending = rows
+      .filter((r) => r.key.startsWith("supplier_notify_queue:"))
+      .reduce((sum, r) => sum + (parse(r.value ?? "[]", []) as any[]).length, 0);
+    return {
+      stats: parse(get("supplier_sync_stats"), null),
+      last_sync: get("supplier_last_autosync") || null,
+      last_success: get("supplier_last_successful_sync") || null,
+      pending,
+      log: (parse(get("supplier_notify_log"), []) as any[]).slice(0, 12),
+    };
+  });
