@@ -87,6 +87,7 @@ type NotifyItem =
 const QUEUE_PREFIX = "supplier_notify_queue:";
 const NOTIFY_LOG_KEY = "supplier_notify_log";
 const STATS_KEY = "supplier_sync_stats";
+const CUTOVER_KEY = "supplier_alert_cutover_at";
 /** Per product+kind announcement cooldown, kills the 0→N→0 catalogue churn. */
 const RECENT_KEY = "supplier_notify_recent";
 const COOLDOWN_MS = 30 * 60_000;
@@ -233,7 +234,9 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
   // Anything that sat in the queue too long is history, not news. Drop it
   // (counted as done) so the channel only ever shows live supplier activity.
   const startedAt = Date.now();
-  const stale = queue.filter((item) => item.at != null && startedAt - Number(item.at) > STALE_MS);
+  // Legacy queue entries did not carry `at`; they are old by definition and
+  // must never survive a live-only cutover forever.
+  const stale = queue.filter((item) => !Number.isFinite(Number(item.at)) || startedAt - Number(item.at) > STALE_MS);
   if (stale.length) {
     queue = queue.filter((item) => !stale.includes(item));
     await writeJsonSetting(sb, key, queue);
@@ -443,6 +446,8 @@ export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, 
 
     const nowIn = Number(p.stock ?? 0) > 0;
     const grew = Number(p.stock ?? 0) > Number(prev.stock ?? 0);
+    // Stable for overlapping cron/webhook runs that read the same snapshot.
+    // The delivery claim then guarantees exactly one Telegram announcement.
     const transitionId = `${s.id}:${p.external_id}:${prev.last_synced_at ?? "initial"}:${Number(prev.stock ?? 0)}:${Number(p.stock ?? 0)}`;
 
     if (prev.is_listed && prev.product_id) {
@@ -527,28 +532,10 @@ export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, 
     }
   }
 
-  // Several suppliers omit sold-out products from their catalogue response
-  // instead of returning them with stock=0. Treat a missing item from a
-  // successful full catalogue snapshot as sold out; otherwise its old positive
-  // stock remains forever and its next appearance can never be a true restock.
-  const missingListed = (existing ?? []).filter(
-    (prev: any) =>
-      prev.is_listed &&
-      prev.product_id &&
-      Number(prev.stock ?? 0) > 0 &&
-      !remoteIds.has(String(prev.external_id)),
-  );
-  for (const prev of missingListed) {
-    lowPosts.push({
-      product_id: prev.product_id,
-      stock: 0,
-      event_id: `low:${s.id}:${prev.external_id}:${prev.last_synced_at ?? "initial"}:${Number(prev.stock ?? 0)}:0`,
-    });
-    productUpdates.push({
-      id: prev.product_id,
-      patch: { supplier_stock: 0, is_active: Boolean(s["is_enabled"]) },
-    });
-  }
+  // Never infer stock=0 from an omitted catalogue row. Supplier APIs can return
+  // partial pages or temporarily omit products; treating that as sold out made
+  // the next healthy response look like a fresh restock and caused the same old
+  // cards to repeat. Explicit stock=0 values are still handled above.
 
   // Persist detected events BEFORE the snapshot is overwritten. If this run is
   // cut short afterwards, the transition is already queued instead of lost
@@ -564,19 +551,6 @@ export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, 
       event_id: pp.event_id,
     })),
   ]);
-
-  // Mark every omitted catalogue row as observed and out of stock. This keeps
-  // the supplier snapshot coherent and lets a later reappearance compare 0→N.
-  const missingIds = (existing ?? [])
-    .filter((prev: any) => !remoteIds.has(String(prev.external_id)) && Number(prev.stock ?? 0) !== 0)
-    .map((prev: any) => prev.id);
-  for (let i = 0; i < missingIds.length; i += 200) {
-    const { error } = await sb
-      .from("supplier_products")
-      .update({ stock: 0, last_synced_at: now })
-      .in("id", missingIds.slice(i, i + 200));
-    if (error) throw new Error(`Could not mark missing ${s.name} products sold out: ${error.message}`);
-  }
 
   // Batched catalogue write (chunked so one payload never gets too large).
   for (let i = 0; i < rowsToWrite.length; i += 200) {
@@ -830,4 +804,67 @@ export async function maybeAutoSyncSuppliers(minutes = 2) {
     .upsert({ key: "supplier_last_autosync", value: new Date().toISOString() }, { onConflict: "key" });
 
   return await syncAllSuppliers();
+}
+
+/**
+ * Discard every pre-cutover alert and take a clean supplier snapshot. This is
+ * intentionally separate from normal sync so operational cleanup never sends
+ * historical cards while rebuilding the baseline.
+ */
+export async function resetSupplierAlertBaseline(sb?: any) {
+  const db = sb ?? (await adminDb());
+  const cutover = new Date().toISOString();
+  const { data: suppliers } = await db.from("suppliers").select("*").eq("is_enabled", true);
+
+  const queueKeys = (suppliers ?? []).map((supplier: any) => QUEUE_PREFIX + String(supplier.id));
+  const settings = [
+    { key: ALERTS_KEY, value: "[]" },
+    { key: NOTIFY_LOG_KEY, value: "[]" },
+    { key: RECENT_KEY, value: "[]" },
+    { key: CUTOVER_KEY, value: cutover },
+    ...queueKeys.map((key: string) => ({ key, value: "[]" })),
+  ];
+  const { error: clearError } = await db.from("bot_settings").upsert(settings, { onConflict: "key" });
+  if (clearError) throw new Error(`Could not clear old supplier alerts: ${clearError.message}`);
+
+  // Snapshot silently: refresh catalogue rows and linked product stock without
+  // producing admin-feed or Telegram events from pre-cutover differences.
+  for (const supplier of suppliers ?? []) {
+    const remote = await supplierProducts(supplier as any);
+    const uniqueRemote = Array.from(
+      new Map(remote.filter((p) => p.external_id != null).map((p) => [String(p.external_id), p])).values(),
+    );
+    const rows = uniqueRemote.map((p) => ({
+      supplier_id: (supplier as any).id,
+      external_id: p.external_id,
+      name: p.name,
+      description: p.description,
+      cost_price: p.cost_price,
+      stock: p.stock,
+      currency: p.currency,
+      min_qty: p.min_qty,
+      raw: p.raw,
+      last_synced_at: cutover,
+    }));
+    for (let i = 0; i < rows.length; i += 200) {
+      const { error } = await db.from("supplier_products").upsert(rows.slice(i, i + 200), {
+        onConflict: "supplier_id,external_id",
+      });
+      if (error) throw new Error(`Could not reset ${String((supplier as any).name)} baseline: ${error.message}`);
+    }
+
+    const { data: links } = await db
+      .from("supplier_products")
+      .select("product_id,external_id")
+      .eq("supplier_id", (supplier as any).id)
+      .not("product_id", "is", null);
+    const stockByExternal = new Map(uniqueRemote.map((p) => [String(p.external_id), Number(p.stock)]));
+    for (const link of links ?? []) {
+      const stock = stockByExternal.get(String((link as any).external_id));
+      if (stock == null) continue;
+      await db.from("products").update({ supplier_stock: stock }).eq("id", (link as any).product_id);
+    }
+  }
+
+  return { ok: true, cutover, suppliers: (suppliers ?? []).length };
 }
