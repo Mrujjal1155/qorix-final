@@ -20,6 +20,9 @@
 - [x] Announce real price changes (drop by default, rises optional)
 - [x] Retry alerts with exponential backoff and drop after 8 failures with a log
 - [x] Admin auto-sync health panel (last run, waiting alerts, recent delivery log)
+- [x] Cut over supplier alerts to a clean live-only baseline and purge all historical queues/logs
+- [x] Stop treating temporarily omitted catalogue rows as sold out/restocked
+- [x] Serialize each supplier's cron/webhook sync and deduplicate admin alerts by transition
 
 - [x] Qamify (api.qamify.site) reseller API audit: full product details synced (description verbatim, Total sold / Max per order / Units per item), reseller-private fields hidden, details now shown in bot card too, multi-item delivery verified live (order RA-6BB7CFD5E9, 2 items).
 
