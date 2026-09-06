@@ -74,6 +74,8 @@ type NotifyBase = {
   tries?: number;
   /** Epoch ms before which this card must not be retried. */
   next_at?: number;
+  /** Epoch ms the event was detected — anything older than STALE_MS is dropped. */
+  at?: number;
 };
 
 type NotifyItem =
@@ -85,6 +87,11 @@ type NotifyItem =
 const QUEUE_PREFIX = "supplier_notify_queue:";
 const NOTIFY_LOG_KEY = "supplier_notify_log";
 const STATS_KEY = "supplier_sync_stats";
+/** Per product+kind announcement cooldown, kills the 0→N→0 catalogue churn. */
+const RECENT_KEY = "supplier_notify_recent";
+const COOLDOWN_MS = 30 * 60_000;
+/** A queued card older than this is no longer "live" — drop it silently. */
+const STALE_MS = 10 * 60_000;
 /**
  * Telegram work is bounded per run so a single invocation can never exceed the
  * Cloudflare subrequest/CPU budget — that is what used to kill the whole run
@@ -95,6 +102,7 @@ const CARDS_PER_RUN = 4;
 const DM_PER_RUN = 25;
 /** Give up (and log) after this many failed attempts for one event. */
 const MAX_TRIES = 8;
+
 
 async function readJsonSetting(sb: any, key: string): Promise<any[]> {
   const { data } = await sb.from("bot_settings").select("value").eq("key", key).maybeSingle();
@@ -121,17 +129,41 @@ async function appendLog(sb: any, entries: any[]) {
   await writeJsonSetting(sb, NOTIFY_LOG_KEY, [...entries.reverse(), ...prev].slice(0, 60));
 }
 
-/** Append pending alerts for one supplier, de-duplicated per event id. */
+/**
+ * Append pending alerts for one supplier, de-duplicated per event id AND per
+ * product+kind cooldown. Supplier catalogues regularly drop and re-add the same
+ * item (paging gaps, short outages); without the cooldown every such flap
+ * produced another "restock"/"sold out" card for stock that never changed.
+ */
 async function enqueueNotifications(sb: any, supplierId: string, items: NotifyItem[]) {
   if (!items.length) return;
+  const now = Date.now();
+  const recentRows = (await readJsonSetting(sb, RECENT_KEY)) as Array<{ k: string; at: number }>;
+  const recent = new Map<string, number>();
+  for (const r of recentRows) if (r && typeof r.k === "string" && now - Number(r.at) < COOLDOWN_MS) recent.set(r.k, Number(r.at));
+
+  const fresh = items.filter((it) => {
+    const k = `${it.t}:${it.product_id}`;
+    if (recent.has(k)) return false;
+    recent.set(k, now);
+    return true;
+  });
+  if (!fresh.length) return;
+
   const key = QUEUE_PREFIX + supplierId;
   const current = (await readJsonSetting(sb, key)) as NotifyItem[];
   const merged = new Map<string, NotifyItem>();
   // Existing entries win: they may already carry delivery progress (cursor).
-  for (const it of items) merged.set(it.event_id, it);
+  for (const it of fresh) merged.set(it.event_id, { ...it, at: now });
   for (const it of current) merged.set(it.event_id, it);
   await writeJsonSetting(sb, key, Array.from(merged.values()).slice(0, 200));
+  await writeJsonSetting(
+    sb,
+    RECENT_KEY,
+    Array.from(recent.entries()).map(([k, at]) => ({ k, at })),
+  );
 }
+
 
 type DeliveryClaim = "claimed" | "delivered" | "busy";
 
@@ -198,6 +230,17 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
   let queue = (await readJsonSetting(sb, key)) as NotifyItem[];
   if (!queue.length) return { sent: 0, failed: 0 };
 
+  // Anything that sat in the queue too long is history, not news. Drop it
+  // (counted as done) so the channel only ever shows live supplier activity.
+  const startedAt = Date.now();
+  const stale = queue.filter((item) => item.at != null && startedAt - Number(item.at) > STALE_MS);
+  if (stale.length) {
+    queue = queue.filter((item) => !stale.includes(item));
+    await writeJsonSetting(sb, key, queue);
+    for (const item of stale) await finishNotification(sb, item.event_id, true).catch(() => {});
+  }
+  if (!queue.length) return { sent: 0, failed: 0 };
+
   const { notifyRestock, announceLowStock, announceNewProduct, announcePriceChange } = await import(
     "@/lib/bot/engine.server"
   );
@@ -211,6 +254,7 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
     if (index < 0) break;
     const item = queue[index]!;
     budget.cards -= 1;
+
 
     const remove = async () => {
       queue = queue.filter((q) => q.event_id !== item.event_id);
