@@ -3023,6 +3023,29 @@ async function handleMessage(msg: any) {
       );
       return;
     }
+    case "adm_alert_icon": {
+      state.awaiting = null;
+      const alertKey = String(state.adm_alert_icon ?? "") as AlertIconKey;
+      await setState(chatId, state);
+      if (!(await isAdmin(chatId)) || !(alertKey in ALERT_ICONS)) return;
+      const raw = text.trim();
+      const customEmojiId = raw === "-" ? "" : customEmojiIdFromMessage(msg);
+      const value = raw === "-" ? "" : iconValue(customEmojiId, raw);
+      try {
+        await saveIconSetting(`alert_icon_${alertKey}`, value);
+      } catch (e) {
+        await say(chatId, saveFailText(e), ADM_BACK);
+        return;
+      }
+      await say(
+        chatId,
+        `✅ ${ALERT_ICONS[alertKey][1]} updated → ${iconPreviewHtml(value, ALERT_ICONS[alertKey][0])}`,
+        [[{ text: "🚨 More alert icons", callback_data: "adm:alerticons" }], ADM_BACK[0]!],
+      );
+      return;
+    }
+
+
 
     case "np_name": {
       if (!(await isAdmin(chatId))) return;
