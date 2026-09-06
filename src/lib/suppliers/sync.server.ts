@@ -489,7 +489,10 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
       // Only overwrite the rich fields when the supplier actually sent them —
       // otherwise a sparse sync response would wipe the banner/notes the admin
       // (or an earlier, richer response) already stored.
-      if (d.image_url) productPatch.image_url = d.image_url;
+      // Admin-uploaded banner always wins: only take the supplier image when
+      // the product still has no image of its own.
+      const currentImage = productsById.get(String(prev.product_id))?.image_url ?? null;
+      if (d.image_url && !currentImage) productPatch.image_url = d.image_url;
       if (d.delivery_time) productPatch.delivery_time = d.delivery_time;
       if (d.important_note) productPatch.important_note = d.important_note;
       if (d.quick_guide) productPatch.quick_guide = d.quick_guide;
@@ -645,15 +648,19 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
         // look the row up, then update or insert.
         const { data: existingProd } = await sb
           .from("products")
-          .select("id")
+          .select("id,image_url")
           .eq("supplier_id", s.id)
           .eq("supplier_external_id", String(p.external_id))
           .maybeSingle();
         let created: any = null;
         if ((existingProd as any)?.id) {
+          // Keep the banner the admin uploaded — never replace it with the
+          // supplier's own image on a re-sync.
+          const patch = { ...productRow };
+          if ((existingProd as any).image_url) delete patch.image_url;
           const { data: upd } = await sb
             .from("products")
-            .update(productRow)
+            .update(patch)
             .eq("id", (existingProd as any).id)
             .select("*")
             .maybeSingle();
