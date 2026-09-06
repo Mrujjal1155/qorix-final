@@ -195,10 +195,40 @@ function iconValue(customEmojiId: string, raw: string) {
 }
 
 function customEmojiIdFromMessage(msg: any): string {
-  const entity = [...(msg.entities ?? []), ...(msg.caption_entities ?? [])]
+  const entity = [...(msg?.entities ?? []), ...(msg?.caption_entities ?? [])]
     .find((item: any) => item?.type === "custom_emoji" && item?.custom_emoji_id);
-  return String(entity?.custom_emoji_id ?? "");
+  const fromEntity = String(entity?.custom_emoji_id ?? "");
+  if (fromEntity) return fromEntity;
+  // A Premium emoji forwarded/sent as a sticker carries the id on the sticker.
+  const sticker = msg?.sticker;
+  if (sticker?.custom_emoji_id) return String(sticker.custom_emoji_id);
+  return "";
 }
+
+/**
+ * Normalizes any way an admin can send an icon:
+ * - plain emoji text
+ * - Premium custom emoji inside the text (entities)
+ * - Premium emoji sent as a sticker (no text at all)
+ * - a pasted numeric custom-emoji id
+ */
+function readIconInput(msg: any, text: string, fallbackGlyph: string) {
+  const raw = (text ?? "").trim();
+  if (raw === "-") return { reset: true, empty: false, value: "" };
+  const customId = customEmojiIdFromMessage(msg);
+  const stickerGlyph = String(msg?.sticker?.emoji ?? "").trim();
+  // Admin pasted only the numeric id.
+  if (!customId && /^\d{8,}$/.test(raw)) {
+    return { reset: false, empty: false, value: iconValue(raw, fallbackGlyph) };
+  }
+  const glyph = raw || stickerGlyph || (customId ? fallbackGlyph : "");
+  if (!customId && !glyph) return { reset: false, empty: true, value: "" };
+  return { reset: false, empty: false, value: iconValue(customId, glyph) };
+}
+
+const ICON_INPUT_HELP =
+  "❌ I could not read an icon there.\n\nSend a normal emoji, a Telegram Premium custom emoji (typing it or sending it as a sticker), or its numeric emoji id. Send <code>-</code> to reset.";
+
 
 /* ------------------------------------------------- perf: caches & deferral */
 
