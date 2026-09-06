@@ -430,6 +430,19 @@ export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, 
       if (extra.length) productPatch.details = extra;
       productUpdates.push({ id: prev.product_id, patch: productPatch });
 
+      // Real selling-price change on a live product → its own card. Compared
+      // against the stored product price, so repeating the same catalogue
+      // response never re-announces the same price.
+      const livePrice = Number(productsById.get(String(prev.product_id))?.price ?? NaN);
+      if (Number.isFinite(livePrice) && Math.abs(livePrice - Number(price)) >= 0.01) {
+        pricePosts.push({
+          product_id: prev.product_id,
+          old_price: livePrice,
+          new_price: Number(price),
+          event_id: `price:${s.id}:${p.external_id}:${livePrice}:${Number(price)}`,
+        });
+      }
+
 
       // Announce when the product comes back from zero AND when the supplier
       // tops up an already-listed product, so the channel gets live updates.
