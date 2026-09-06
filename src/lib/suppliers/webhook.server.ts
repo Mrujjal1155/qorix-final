@@ -39,7 +39,10 @@ export async function ensureSupplierWebhook(
 ): Promise<{ ok: boolean; message: string }> {
   const api = await import("./api.server");
   if (!api.supplierSupportsWebhooks(s)) {
-    return { ok: false, message: "This supplier has no webhook API — polling stays active." };
+    return {
+      ok: true,
+      message: "This supplier has no push API — automatic 15s stock checks stay on, no action needed.",
+    };
   }
 
   const id = String((s as any).id);
