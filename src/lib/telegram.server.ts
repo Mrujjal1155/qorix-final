@@ -90,6 +90,11 @@ function hasCustomEmoji(body: Record<string, unknown>): boolean {
   );
 }
 
+function isCustomEmojiError(json: TgResult): boolean {
+  const d = String(json?.description ?? "").toLowerCase();
+  return d.includes("custom emoji") || d.includes("custom_emoji");
+}
+
 function stripCustomEmoji(body: Record<string, unknown>): Record<string, unknown> {
   const out = { ...body };
   for (const k of ["text", "caption"]) {
