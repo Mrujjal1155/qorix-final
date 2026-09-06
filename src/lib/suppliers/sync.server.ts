@@ -271,11 +271,11 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
         // Persist each successful stage before continuing. Previously this was
         // saved only after the whole channel + DM fan-out returned, so a worker
         // timeout retried the event from the beginning and produced duplicates.
-        onChannelSent: async () => {
+        beforeChannelSend: async () => {
           item.channel_sent = true;
           await keepWith({ channel_sent: true });
         },
-        onDmProgress: async (cursor: number) => {
+        beforeDmSend: async (cursor: number) => {
           item.dm_cursor = cursor;
           await keepWith({ channel_sent: true, dm_cursor: cursor });
         },

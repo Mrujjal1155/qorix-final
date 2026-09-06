@@ -2009,7 +2009,7 @@ async function dmAllBotUsers(
   kb?: Button[][],
   photo?: string | null,
   skip: Set<number> = new Set(),
-  page?: { after: number; limit: number; onProgress?: (cursor: number) => Promise<void> },
+  page?: { after: number; limit: number; beforeSend?: (cursor: number) => Promise<void> },
 ) {
   if ((settings["announce_dm"] ?? "on").toLowerCase() === "off") {
     return { sent: 0, total: 0, complete: true, nextCursor: page?.after ?? 0 };
@@ -2033,6 +2033,9 @@ async function dmAllBotUsers(
   const targets = page ? eligible.slice(0, page.limit) : eligible;
   let sent = 0;
   for (const user of targets) {
+    // Telegram has no idempotency key for sendMessage/sendPhoto. Reserve this
+    // recipient before the API call so a worker restart can never DM them twice.
+    if (page?.beforeSend) await page.beforeSend(Number(user.telegram_id));
     let delivered = false;
     if (photo) {
       const photoResult = await sendPhoto(user.telegram_id, photo, text, kb);
@@ -2040,10 +2043,6 @@ async function dmAllBotUsers(
     }
     if (!delivered) delivered = (await sendMessage(user.telegram_id, text, kb)).ok;
     if (delivered) sent += 1;
-    // Checkpoint every recipient immediately. If Cloudflare stops this job
-    // before the whole page finishes, the next run resumes after this user
-    // instead of sending the same announcement to them again.
-    if (page?.onProgress) await page.onProgress(Number(user.telegram_id));
   }
   return {
     sent,
@@ -2092,8 +2091,8 @@ export async function announceRestock(
     channelSent?: boolean;
     dmAfter?: number;
     dmLimit?: number;
-    onChannelSent?: () => Promise<void>;
-    onDmProgress?: (cursor: number) => Promise<void>;
+    beforeChannelSend?: () => Promise<void>;
+    beforeDmSend?: (cursor: number) => Promise<void>;
   },
 ) {
   const s = await getSettings();
@@ -2113,6 +2112,7 @@ export async function announceRestock(
     `<i>${escapeHtml(footer)}</i>`;
   const kb = await channelProductButton(s, product);
   const banner = bannerFor(product, s);
+  if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
     ? { sent: true }
     : await postToChannel(s, text, kb, banner).catch((error) => {
@@ -2120,7 +2120,6 @@ export async function announceRestock(
         return { sent: false, reason: error instanceof Error ? error.message : String(error) };
       });
   if (!channel.sent) throw new Error(channel.reason ?? "Restock channel delivery failed");
-  if (!delivery?.channelSent && delivery?.onChannelSent) await delivery.onChannelSent();
   const dmKb: Button[][] = [[uiBtn(s, "prod_restock_view", `p:${product?.id}`)]];
   const dm = await dmAllBotUsers(
     s,
@@ -2129,7 +2128,7 @@ export async function announceRestock(
     banner,
     skipDm,
     delivery
-      ? { after: delivery.dmAfter ?? 0, limit: delivery.dmLimit ?? 40, onProgress: delivery.onDmProgress }
+      ? { after: delivery.dmAfter ?? 0, limit: delivery.dmLimit ?? 40, beforeSend: delivery.beforeDmSend }
       : undefined,
   );
   return { channel: channel.sent, dmSent: dm.sent, dmTotal: dm.total, dmComplete: dm.complete, dmCursor: dm.nextCursor };
@@ -2146,8 +2145,8 @@ export async function announceNewProduct(
     channelSent?: boolean;
     dmAfter?: number;
     dmLimit?: number;
-    onChannelSent?: () => Promise<void>;
-    onDmProgress?: (cursor: number) => Promise<void>;
+    beforeChannelSend?: () => Promise<void>;
+    beforeDmSend?: (cursor: number) => Promise<void>;
   },
 ) {
   const s = await getSettings();
@@ -2163,6 +2162,7 @@ export async function announceNewProduct(
     (stock > 0 ? `📈 <b>Available</b>  ${stock} in stock\n` : "") +
     `\n<i>${escapeHtml(footer)}</i>`;
   const banner = bannerFor(product, s);
+  if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
     ? { sent: true }
     : await postToChannel(s, text, await channelProductButton(s, product), banner).catch((error) => {
@@ -2170,7 +2170,6 @@ export async function announceNewProduct(
         return { sent: false, reason: error instanceof Error ? error.message : String(error) };
       });
   if (!channel.sent) throw new Error(channel.reason ?? "New-product channel delivery failed");
-  if (!delivery?.channelSent && delivery?.onChannelSent) await delivery.onChannelSent();
   const dmKb: Button[][] = [[uiBtn(s, "prod_restock_view", `p:${product?.id}`)]];
   const dm = await dmAllBotUsers(
     s,
@@ -2179,7 +2178,7 @@ export async function announceNewProduct(
     banner,
     new Set(),
     delivery
-      ? { after: delivery.dmAfter ?? 0, limit: delivery.dmLimit ?? 40, onProgress: delivery.onDmProgress }
+      ? { after: delivery.dmAfter ?? 0, limit: delivery.dmLimit ?? 40, beforeSend: delivery.beforeDmSend }
       : undefined,
   );
   return { channel: channel.sent, dmSent: dm.sent, dmTotal: dm.total, dmComplete: dm.complete, dmCursor: dm.nextCursor };
@@ -2197,8 +2196,8 @@ export async function announceLowStock(
     channelSent?: boolean;
     dmAfter?: number;
     dmLimit?: number;
-    onChannelSent?: () => Promise<void>;
-    onDmProgress?: (cursor: number) => Promise<void>;
+    beforeChannelSend?: () => Promise<void>;
+    beforeDmSend?: (cursor: number) => Promise<void>;
   },
 ) {
   const s = await getSettings();
@@ -2218,6 +2217,7 @@ export async function announceLowStock(
     (out ? `📉 <b>Available</b>  none left\n` : `📉 <b>Available</b>  only ${available} left\n`) +
     `\n<i>${escapeHtml(footer)}</i>`;
   const banner = bannerFor(product, s);
+  if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
     ? { sent: true }
     : await postToChannel(s, text, await channelProductButton(s, product), banner).catch((error) => {
@@ -2225,7 +2225,6 @@ export async function announceLowStock(
         return { sent: false, reason: error instanceof Error ? error.message : String(error) };
       });
   if (!channel.sent) throw new Error(channel.reason ?? "Low-stock channel delivery failed");
-  if (!delivery?.channelSent && delivery?.onChannelSent) await delivery.onChannelSent();
   const dmKb: Button[][] = [[uiBtn(s, "prod_restock_view", `p:${product?.id}`)]];
   const dm = await dmAllBotUsers(
     s,
@@ -2234,7 +2233,7 @@ export async function announceLowStock(
     banner,
     new Set(),
     delivery
-      ? { after: delivery.dmAfter ?? 0, limit: delivery.dmLimit ?? 40, onProgress: delivery.onDmProgress }
+      ? { after: delivery.dmAfter ?? 0, limit: delivery.dmLimit ?? 40, beforeSend: delivery.beforeDmSend }
       : undefined,
   );
   return { channel: channel.sent, dmSent: dm.sent, dmTotal: dm.total, dmComplete: dm.complete, dmCursor: dm.nextCursor };
@@ -2253,8 +2252,8 @@ export async function announcePriceChange(
     channelSent?: boolean;
     dmAfter?: number;
     dmLimit?: number;
-    onChannelSent?: () => Promise<void>;
-    onDmProgress?: (cursor: number) => Promise<void>;
+    beforeChannelSend?: () => Promise<void>;
+    beforeDmSend?: (cursor: number) => Promise<void>;
   },
 ) {
   const s = await getSettings();
@@ -2277,6 +2276,7 @@ export async function announcePriceChange(
     `✅ <b>Now</b>  ${money(newPrice)}\n` +
     `\n<i>${escapeHtml(footer)}</i>`;
   const banner = bannerFor(product, s);
+  if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
     ? { sent: true }
     : await postToChannel(s, text, await channelProductButton(s, product), banner).catch((error) => {
@@ -2284,7 +2284,6 @@ export async function announcePriceChange(
         return { sent: false, reason: error instanceof Error ? error.message : String(error) };
       });
   if (!channel.sent) throw new Error((channel as any).reason ?? "Price-change channel delivery failed");
-  if (!delivery?.channelSent && delivery?.onChannelSent) await delivery.onChannelSent();
   const dmKb: Button[][] = [[uiBtn(s, "prod_restock_view", `p:${product?.id}`)]];
   const dm = await dmAllBotUsers(
     s,
@@ -2293,7 +2292,7 @@ export async function announcePriceChange(
     banner,
     new Set(),
     delivery
-      ? { after: delivery.dmAfter ?? 0, limit: delivery.dmLimit ?? 40, onProgress: delivery.onDmProgress }
+      ? { after: delivery.dmAfter ?? 0, limit: delivery.dmLimit ?? 40, beforeSend: delivery.beforeDmSend }
       : undefined,
   );
   return { channel: channel.sent, dmSent: dm.sent, dmTotal: dm.total, dmComplete: dm.complete, dmCursor: dm.nextCursor };
