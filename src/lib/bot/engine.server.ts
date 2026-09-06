@@ -2199,6 +2199,56 @@ export async function announceLowStock(
 }
 
 /**
+ * "PRICE DROP" / "PRICE UPDATE" card — posted when a listed product's selling
+ * price actually changes. Toggle with `announce_price` (default ON); price
+ * rises can be silenced separately with `announce_price_up` (default OFF).
+ */
+export async function announcePriceChange(
+  product: any,
+  oldPrice: number,
+  newPrice: number,
+  delivery?: { channelSent?: boolean; dmAfter?: number; dmLimit?: number },
+) {
+  const s = await getSettings();
+  if ((s["announce_price"] ?? "on").toLowerCase() === "off") return { channel: true, dmComplete: true, dmCursor: 0 };
+  const down = Number(newPrice) < Number(oldPrice);
+  if (!down && (s["announce_price_up"] ?? "off").toLowerCase() !== "on") {
+    return { channel: true, dmComplete: true, dmCursor: 0 };
+  }
+  const title = down
+    ? s["announce_price_down_title"] || "💸 PRICE DROP"
+    : s["announce_price_up_title"] || "📈 PRICE UPDATE";
+  const footer = down
+    ? s["announce_price_down_footer"] || "New lower price — limited time while stock lasts."
+    : s["announce_price_up_footer"] || "The price for this product has been updated.";
+  const line = "──────────────────────";
+  const text =
+    `<b>${escapeHtml(title)}</b>\n${line}\n\n` +
+    `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
+    `💎 <b>Was</b>  <s>${money(oldPrice)}</s>\n` +
+    `✅ <b>Now</b>  ${money(newPrice)}\n` +
+    `\n<i>${escapeHtml(footer)}</i>`;
+  const banner = bannerFor(product, s);
+  const channel = delivery?.channelSent
+    ? { sent: true }
+    : await postToChannel(s, text, await channelProductButton(s, product), banner).catch((error) => {
+        console.error("Price-change channel delivery failed:", error);
+        return { sent: false, reason: error instanceof Error ? error.message : String(error) };
+      });
+  if (!channel.sent) throw new Error((channel as any).reason ?? "Price-change channel delivery failed");
+  const dmKb: Button[][] = [[uiBtn(s, "prod_restock_view", `p:${product?.id}`)]];
+  const dm = await dmAllBotUsers(
+    s,
+    text,
+    dmKb,
+    banner,
+    new Set(),
+    delivery ? { after: delivery.dmAfter ?? 0, limit: delivery.dmLimit ?? 40 } : undefined,
+  );
+  return { channel: channel.sent, dmSent: dm.sent, dmTotal: dm.total, dmComplete: dm.complete, dmCursor: dm.nextCursor };
+}
+
+/**
  * "REMOVED" card — posted when an admin deletes a product that was live.
  * Uses the same channel + bot DM fan-out as the other stock cards.
  */

@@ -50,6 +50,7 @@ import { Route as ApiPublicBinanceAutoVerifyRouteImport } from './routes/api/pub
 import { Route as ApiPublicPaykoriReturnRouteImport } from './routes/api/public/paykori/return'
 import { Route as ApiPublicPaykoriWebhookRouteImport } from './routes/api/public/paykori/webhook'
 import { Route as ApiPublicProductImageIdRouteImport } from './routes/api/public/product-image/$id'
+import { Route as ApiPublicSuppliersNotifyRouteImport } from './routes/api/public/suppliers/notify'
 import { Route as ApiPublicSuppliersSyncRouteImport } from './routes/api/public/suppliers/sync'
 import { Route as ApiPublicTelegramRegisterRouteImport } from './routes/api/public/telegram/register'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
@@ -271,6 +272,12 @@ const ApiPublicProductImageIdRoute = ApiPublicProductImageIdRouteImport.update({
   path: '/api/public/product-image/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSuppliersNotifyRoute =
+  ApiPublicSuppliersNotifyRouteImport.update({
+    id: '/api/public/suppliers/notify',
+    path: '/api/public/suppliers/notify',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicSuppliersSyncRoute = ApiPublicSuppliersSyncRouteImport.update({
   id: '/api/public/suppliers/sync',
   path: '/api/public/suppliers/sync',
@@ -371,6 +378,7 @@ export interface FileRoutesByFullPath {
   '/api/public/paykori/return': typeof ApiPublicPaykoriReturnRoute
   '/api/public/paykori/webhook': typeof ApiPublicPaykoriWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
+  '/api/public/suppliers/notify': typeof ApiPublicSuppliersNotifyRoute
   '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
   '/api/public/telegram/register': typeof ApiPublicTelegramRegisterRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -422,6 +430,7 @@ export interface FileRoutesByTo {
   '/api/public/paykori/return': typeof ApiPublicPaykoriReturnRoute
   '/api/public/paykori/webhook': typeof ApiPublicPaykoriWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
+  '/api/public/suppliers/notify': typeof ApiPublicSuppliersNotifyRoute
   '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
   '/api/public/telegram/register': typeof ApiPublicTelegramRegisterRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -476,6 +485,7 @@ export interface FileRoutesById {
   '/api/public/paykori/return': typeof ApiPublicPaykoriReturnRoute
   '/api/public/paykori/webhook': typeof ApiPublicPaykoriWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
+  '/api/public/suppliers/notify': typeof ApiPublicSuppliersNotifyRoute
   '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
   '/api/public/telegram/register': typeof ApiPublicTelegramRegisterRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
@@ -530,6 +540,7 @@ export interface FileRouteTypes {
     | '/api/public/paykori/return'
     | '/api/public/paykori/webhook'
     | '/api/public/product-image/$id'
+    | '/api/public/suppliers/notify'
     | '/api/public/suppliers/sync'
     | '/api/public/telegram/register'
     | '/api/public/telegram/webhook'
@@ -581,6 +592,7 @@ export interface FileRouteTypes {
     | '/api/public/paykori/return'
     | '/api/public/paykori/webhook'
     | '/api/public/product-image/$id'
+    | '/api/public/suppliers/notify'
     | '/api/public/suppliers/sync'
     | '/api/public/telegram/register'
     | '/api/public/telegram/webhook'
@@ -634,6 +646,7 @@ export interface FileRouteTypes {
     | '/api/public/paykori/return'
     | '/api/public/paykori/webhook'
     | '/api/public/product-image/$id'
+    | '/api/public/suppliers/notify'
     | '/api/public/suppliers/sync'
     | '/api/public/telegram/register'
     | '/api/public/telegram/webhook'
@@ -671,6 +684,7 @@ export interface RootRouteChildren {
   ApiPublicPaykoriReturnRoute: typeof ApiPublicPaykoriReturnRoute
   ApiPublicPaykoriWebhookRoute: typeof ApiPublicPaykoriWebhookRoute
   ApiPublicProductImageIdRoute: typeof ApiPublicProductImageIdRoute
+  ApiPublicSuppliersNotifyRoute: typeof ApiPublicSuppliersNotifyRoute
   ApiPublicSuppliersSyncRoute: typeof ApiPublicSuppliersSyncRoute
   ApiPublicTelegramRegisterRoute: typeof ApiPublicTelegramRegisterRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
@@ -970,6 +984,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicProductImageIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/suppliers/notify': {
+      id: '/api/public/suppliers/notify'
+      path: '/api/public/suppliers/notify'
+      fullPath: '/api/public/suppliers/notify'
+      preLoaderRoute: typeof ApiPublicSuppliersNotifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/suppliers/sync': {
       id: '/api/public/suppliers/sync'
       path: '/api/public/suppliers/sync'
@@ -1149,6 +1170,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicPaykoriReturnRoute: ApiPublicPaykoriReturnRoute,
   ApiPublicPaykoriWebhookRoute: ApiPublicPaykoriWebhookRoute,
   ApiPublicProductImageIdRoute: ApiPublicProductImageIdRoute,
+  ApiPublicSuppliersNotifyRoute: ApiPublicSuppliersNotifyRoute,
   ApiPublicSuppliersSyncRoute: ApiPublicSuppliersSyncRoute,
   ApiPublicTelegramRegisterRoute: ApiPublicTelegramRegisterRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,

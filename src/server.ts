@@ -72,7 +72,14 @@ export default {
   scheduled(_controller: unknown, _env: unknown, ctx: ExecutionContext) {
     ctx.waitUntil(
       import("./lib/suppliers/sync.server")
-        .then(({ maybeAutoSyncSuppliers }) => maybeAutoSyncSuppliers())
+        .then(async ({ drainAllNotifications, maybeAutoSyncSuppliers }) => {
+          // Pending Telegram cards go out first: they must never be delayed by
+          // a slow supplier catalogue call in the same invocation.
+          await drainAllNotifications().catch((error) =>
+            console.error("Scheduled alert delivery failed:", error),
+          );
+          await maybeAutoSyncSuppliers();
+        })
         .catch((error) => console.error("Scheduled supplier sync failed:", error)),
     );
   },
