@@ -3134,13 +3134,14 @@ async function handleMessage(msg: any) {
     }
     case "np_icon": {
       if (!(await isAdmin(chatId))) return;
-      const raw = text.trim();
-      const customEmojiId = raw === "-" ? "" : customEmojiIdFromMessage(msg);
+      const npInput = readIconInput(msg, text, "📦");
+      const npIcon = parseIconValue(npInput.value, "📦");
       state.np = {
         ...(state.np ?? {}),
-        icon: raw === "-" || !raw ? "📦" : raw.slice(0, 16),
-        custom_emoji_id: customEmojiId || "",
+        icon: npIcon.glyph || "📦",
+        custom_emoji_id: npIcon.customId || "",
       };
+
       state.awaiting = "np_desc";
       await setState(chatId, state);
       await say(chatId, "🆕 <b>Step 4/6</b>\n\nSend a short <b>description</b>, or <code>-</code> to skip.", [
