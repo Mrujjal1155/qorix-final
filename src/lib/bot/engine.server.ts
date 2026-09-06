@@ -3038,6 +3038,7 @@ async function handleMessage(msg: any) {
         p ? `✅ Icon updated: ${customEmojiId ? `<tg-emoji emoji-id="${customEmojiId}">${escapeHtml(icon)}</tg-emoji>` : escapeHtml(icon)} <b>${escapeHtml(p.name)}</b>` : "❌ Product not found.",
         [[{ text: "🎨 More icons", callback_data: "adm:icons" }], ADM_BACK[0]!],
       );
+      await premiumEmojiNote(chatId, input.value);
       return;
     }
     case "adm_menu_icon": {
@@ -3063,6 +3064,7 @@ async function handleMessage(msg: any) {
         `✅ ${MENU_ICONS[menuKey][1]} icon updated → ${iconPreviewHtml(value, MENU_ICONS[menuKey][0])}`,
         [[{ text: "🎨 More menu icons", callback_data: "adm:menuicons" }], ADM_BACK[0]!],
       );
+      await premiumEmojiNote(chatId, value);
       return;
     }
     case "adm_page_icon": {
@@ -3091,6 +3093,7 @@ async function handleMessage(msg: any) {
           ADM_BACK[0]!,
         ],
       );
+      await premiumEmojiNote(chatId, value);
       return;
     }
     case "adm_alert_icon": {
@@ -3116,6 +3119,7 @@ async function handleMessage(msg: any) {
         `✅ ${ALERT_ICONS[alertKey][1]} updated → ${iconPreviewHtml(value, ALERT_ICONS[alertKey][0])}`,
         [[{ text: "🚨 More alert icons", callback_data: "adm:alerticons" }], ADM_BACK[0]!],
       );
+      await premiumEmojiNote(chatId, value);
       return;
     }
 
