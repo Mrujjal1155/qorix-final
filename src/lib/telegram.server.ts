@@ -62,10 +62,11 @@ export async function tg(method: string, body: Record<string, unknown> = {}): Pr
     json = retry.json;
   }
 
-  // Custom emoji (<tg-emoji>) is only allowed for bots that bought a username
-  // on Fragment. Every other bot gets a 400 and the message is never delivered,
-  // so retry once with the plain fallback glyphs instead of failing silently.
-  if ((!res.ok || json.ok === false) && hasCustomEmoji(body)) {
+  // Only strip the Premium icons when Telegram explicitly complains about the
+  // custom emoji itself. Any other error (flood, bad entity, chat problem) must
+  // NOT downgrade the message — that is what made premium icons randomly show
+  // up as plain emoji before.
+  if ((!res.ok || json.ok === false) && hasCustomEmoji(body) && isCustomEmojiError(json)) {
     const retry = await post(stripCustomEmoji(body));
     if (retry.json?.ok) customEmojiBlocked = true;
     res = retry.res;
@@ -87,6 +88,11 @@ function hasCustomEmoji(body: Record<string, unknown>): boolean {
   return ["text", "caption"].some(
     (k) => typeof body[k] === "string" && /<tg-emoji/i.test(body[k] as string),
   );
+}
+
+function isCustomEmojiError(json: TgResult): boolean {
+  const d = String(json?.description ?? "").toLowerCase();
+  return d.includes("custom emoji") || d.includes("custom_emoji");
 }
 
 function stripCustomEmoji(body: Record<string, unknown>): Record<string, unknown> {
