@@ -625,6 +625,39 @@ export async function supplierPing(s: SupplierRow) {
   return { ok: true as const, status: String(j.status ?? "active") };
 }
 
+/** Does this supplier expose the push-webhook API (Vexoran-style ?action=webhooks)? */
+export function supplierSupportsWebhooks(s: SupplierRow) {
+  return isActionDialect(s) && !isMailReader(s);
+}
+
+/** Registered push endpoints at the supplier (secret masked). */
+export async function supplierWebhooks(s: SupplierRow) {
+  const j = await call(s, actionPath("webhooks"));
+  return {
+    webhooks: (j.webhooks ?? []) as any[],
+    max_endpoints: Number(j.max_endpoints ?? 3),
+    events_available: (j.events_available ?? []) as string[],
+  };
+}
+
+/** Register a push endpoint. The signing secret is only returned once. */
+export async function supplierRegisterWebhook(s: SupplierRow, url: string, events: string[], name = "qorix") {
+  const j = await call(s, actionPath("webhooks"), { method: "POST", body: { url, events, name } });
+  const hook = j.webhook ?? j.endpoint ?? j;
+  return {
+    id: String(hook.id ?? hook.endpoint_id ?? ""),
+    secret: String(hook.secret ?? j.secret ?? ""),
+    url: String(hook.url ?? url),
+  };
+}
+
+/** Remove a push endpoint (used before re-registering with a new URL). */
+export async function supplierDeleteWebhook(s: SupplierRow, endpointId: string) {
+  return await call(s, actionPath("webhooks", "&op=delete"), { method: "POST", body: { endpoint_id: endpointId } });
+}
+
+
+
 export async function supplierBalance(s: SupplierRow) {
   const j = isCanboso(s)
     ? await callAny(s, CANBOSO_ME_PATHS)
