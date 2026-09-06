@@ -230,6 +230,17 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
   let queue = (await readJsonSetting(sb, key)) as NotifyItem[];
   if (!queue.length) return { sent: 0, failed: 0 };
 
+  // Anything that sat in the queue too long is history, not news. Drop it
+  // (counted as done) so the channel only ever shows live supplier activity.
+  const startedAt = Date.now();
+  const stale = queue.filter((item) => item.at != null && startedAt - Number(item.at) > STALE_MS);
+  if (stale.length) {
+    queue = queue.filter((item) => !stale.includes(item));
+    await writeJsonSetting(sb, key, queue);
+    for (const item of stale) await finishNotification(sb, item.event_id, true).catch(() => {});
+  }
+  if (!queue.length) return { sent: 0, failed: 0 };
+
   const { notifyRestock, announceLowStock, announceNewProduct, announcePriceChange } = await import(
     "@/lib/bot/engine.server"
   );
@@ -243,6 +254,7 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
     if (index < 0) break;
     const item = queue[index]!;
     budget.cards -= 1;
+
 
     const remove = async () => {
       queue = queue.filter((q) => q.event_id !== item.event_id);
