@@ -8,6 +8,7 @@ import {
   saveSupplier,
   syncSupplier,
   testSupplier,
+  supplierSyncHealth,
   updateSupplierProduct,
 } from "@/lib/supplier.functions";
 import { getCatalogue, listBotProducts, normalizeFeatured, setFeaturedRank } from "@/lib/admin.functions";
@@ -624,6 +625,73 @@ function BotProductsPanel() {
             )}
           </tbody>
         </table>
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Live health of the automatic supplier sync + Telegram alert queue. */
+function SyncHealthCard() {
+  const fetchHealth = useServerFn(supplierSyncHealth);
+  const { data } = useQuery({
+    queryKey: ["supplier-sync-health"],
+    queryFn: () => fetchHealth(),
+    refetchInterval: 15_000,
+  });
+  const stats = (data as any)?.stats;
+  const ago = (iso?: string | null) => {
+    if (!iso) return "never";
+    const secs = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
+    return secs < 90 ? `${secs}s ago` : `${Math.round(secs / 60)}m ago`;
+  };
+  const stale = data?.last_success ? Date.now() - Date.parse(data.last_success) > 10 * 60_000 : true;
+
+  return (
+    <Card className="mb-4">
+      <CardHeader className="flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <CardTitle>Auto-sync health</CardTitle>
+        <Badge variant={stale ? "destructive" : "secondary"}>{stale ? "Needs attention" : "Healthy"}</Badge>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        <div className="grid gap-3 sm:grid-cols-4">
+          <div>
+            <div className="text-muted-foreground">Last run</div>
+            <div className="font-medium">{ago(data?.last_sync)}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground">Last clean run</div>
+            <div className="font-medium">{ago(data?.last_success)}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground">Alerts waiting</div>
+            <div className="font-medium">{data?.pending ?? 0}</div>
+          </div>
+          <div>
+            <div className="text-muted-foreground">Products checked</div>
+            <div className="font-medium">{stats?.checked ?? 0}</div>
+          </div>
+        </div>
+        {stats && (
+          <div className="text-muted-foreground">
+            Last run: {stats.new_products ?? 0} new · {stats.restocks ?? 0} restock · {stats.price_changes ?? 0} price ·{" "}
+            {stats.low_or_out ?? 0} low/out · {stats.telegram_sent ?? 0} alerts sent
+            {stats.telegram_failed ? ` · ${stats.telegram_failed} failed` : ""}
+          </div>
+        )}
+        {stats?.last_error && <div className="text-destructive">Last error: {String(stats.last_error)}</div>}
+        {Boolean(data?.log?.length) && (
+          <div className="space-y-1">
+            {(data!.log as any[]).slice(0, 6).map((entry, i) => (
+              <div key={i} className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                <span>{new Date(entry.at).toLocaleTimeString()}</span>
+                <span>{entry.kind}</span>
+                <span className={entry.ok ? "text-foreground" : "text-destructive"}>
+                  {entry.ok ? "delivered" : entry.error || "failed"}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
