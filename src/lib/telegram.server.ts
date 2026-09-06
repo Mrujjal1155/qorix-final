@@ -55,9 +55,13 @@ export async function tg(method: string, body: Record<string, unknown> = {}): Pr
   // so retry once with the plain fallback glyphs instead of failing silently.
   if ((!res.ok || json.ok === false) && hasCustomEmoji(body)) {
     const retry = await post(stripCustomEmoji(body));
+    if (retry.json?.ok) customEmojiBlocked = true;
     res = retry.res;
     json = retry.json;
+  } else if (json.ok && hasCustomEmoji(body)) {
+    customEmojiBlocked = false;
   }
+
 
   if (!res.ok || json.ok === false) {
     console.error(`Telegram ${method} failed [${res.status}]:`, JSON.stringify(json));
