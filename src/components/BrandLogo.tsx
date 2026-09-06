@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
 import bundledLogo from "@/assets/qorix-shop-logo-new.png";
 
 const LOGO_CACHE_KEY = "qorix_brand_logo_url";
