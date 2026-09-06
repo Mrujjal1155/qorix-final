@@ -3192,8 +3192,13 @@ export function adminKeyboard(): Button[][] {
       { text: "➕ Add balance", callback_data: "adm:addbal" },
     ],
     [
-      { text: "🎨 Product icons", callback_data: "adm:icons" },
+      { text: "🎨 Active product icons", callback_data: "adm:icons" },
+      { text: "🗂 Inactive product icons", callback_data: "adm:iconsoff" },
+    ],
+    [
+      { text: "🚨 Alert icons", callback_data: "adm:alerticons" },
       { text: "🧩 Menu icons", callback_data: "adm:menuicons" },
+
     ],
     [
       { text: "💳 Payment icons", callback_data: "adm:paymenticons" },
