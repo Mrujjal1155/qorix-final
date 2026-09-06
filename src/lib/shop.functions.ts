@@ -54,7 +54,11 @@ export const listStorefront = createServerFn({ method: "GET" }).handler(async ()
   const counts: Record<string, number> = {};
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: stock } = await supabaseAdmin.from("stock_items").select("product_id").eq("is_sold", false);
+    const { data: stock } = await supabaseAdmin
+      .from("stock_items")
+      .select("product_id")
+      .eq("is_sold", false)
+      .limit(5000);
     for (const s of stock ?? []) counts[s.product_id as string] = (counts[s.product_id as string] ?? 0) + 1;
   } catch (e) {
     console.error("[storefront] stock counts unavailable:", e);
