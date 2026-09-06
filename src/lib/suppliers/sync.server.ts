@@ -648,15 +648,19 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
         // look the row up, then update or insert.
         const { data: existingProd } = await sb
           .from("products")
-          .select("id")
+          .select("id,image_url")
           .eq("supplier_id", s.id)
           .eq("supplier_external_id", String(p.external_id))
           .maybeSingle();
         let created: any = null;
         if ((existingProd as any)?.id) {
+          // Keep the banner the admin uploaded — never replace it with the
+          // supplier's own image on a re-sync.
+          const patch = { ...productRow };
+          if ((existingProd as any).image_url) delete patch.image_url;
           const { data: upd } = await sb
             .from("products")
-            .update(productRow)
+            .update(patch)
             .eq("id", (existingProd as any).id)
             .select("*")
             .maybeSingle();
