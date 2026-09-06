@@ -640,16 +640,13 @@ export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, 
     }
   }
 
-  // Group / channel + bot DM posts for products we actually sell.
-  // Queued so a run that hits the platform time limit never loses an alert:
-  // whatever is left over goes out on the next sync (every 15s).
-  await enqueueNotifications(sb, s.id, [
-    ...restockPosts.map((r) => ({ t: "restock" as const, product_id: r.product_id, qty: r.qty, event_id: r.event_id })),
-    ...lowPosts.map((l) => ({ t: "low" as const, product_id: l.product_id, stock: l.stock, event_id: l.event_id })),
-    ...newPosts.map((n) => ({ t: "new" as const, product_id: n.product_id, event_id: n.event_id })),
-  ]);
-
-
+  // Newly auto-listed products are queued here (they only exist after the
+  // product rows above were created). Stock/price events were queued earlier.
+  await enqueueNotifications(
+    sb,
+    s.id,
+    newPosts.map((n) => ({ t: "new" as const, product_id: n.product_id, event_id: n.event_id })),
+  );
 
   const added = alerts.filter((a) => a.kind === "new").length;
   const restocked = restockPosts.length;
@@ -663,6 +660,9 @@ export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, 
     message: `Synced ${uniqueRemote.length} products${added ? ` · ${added} new` : ""}${restocked ? ` · ${restocked} restocked` : ""}`,
     added,
     restocked,
+    checked: uniqueRemote.length,
+    priceChanges: pricePosts.length,
+    lowOrOut: lowPosts.length,
   };
 }
 
