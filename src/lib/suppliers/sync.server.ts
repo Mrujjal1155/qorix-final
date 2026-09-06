@@ -129,17 +129,41 @@ async function appendLog(sb: any, entries: any[]) {
   await writeJsonSetting(sb, NOTIFY_LOG_KEY, [...entries.reverse(), ...prev].slice(0, 60));
 }
 
-/** Append pending alerts for one supplier, de-duplicated per event id. */
+/**
+ * Append pending alerts for one supplier, de-duplicated per event id AND per
+ * product+kind cooldown. Supplier catalogues regularly drop and re-add the same
+ * item (paging gaps, short outages); without the cooldown every such flap
+ * produced another "restock"/"sold out" card for stock that never changed.
+ */
 async function enqueueNotifications(sb: any, supplierId: string, items: NotifyItem[]) {
   if (!items.length) return;
+  const now = Date.now();
+  const recentRows = (await readJsonSetting(sb, RECENT_KEY)) as Array<{ k: string; at: number }>;
+  const recent = new Map<string, number>();
+  for (const r of recentRows) if (r && typeof r.k === "string" && now - Number(r.at) < COOLDOWN_MS) recent.set(r.k, Number(r.at));
+
+  const fresh = items.filter((it) => {
+    const k = `${it.t}:${it.product_id}`;
+    if (recent.has(k)) return false;
+    recent.set(k, now);
+    return true;
+  });
+  if (!fresh.length) return;
+
   const key = QUEUE_PREFIX + supplierId;
   const current = (await readJsonSetting(sb, key)) as NotifyItem[];
   const merged = new Map<string, NotifyItem>();
   // Existing entries win: they may already carry delivery progress (cursor).
-  for (const it of items) merged.set(it.event_id, it);
+  for (const it of fresh) merged.set(it.event_id, { ...it, at: now });
   for (const it of current) merged.set(it.event_id, it);
   await writeJsonSetting(sb, key, Array.from(merged.values()).slice(0, 200));
+  await writeJsonSetting(
+    sb,
+    RECENT_KEY,
+    Array.from(recent.entries()).map(([k, at]) => ({ k, at })),
+  );
 }
+
 
 type DeliveryClaim = "claimed" | "delivered" | "busy";
 
