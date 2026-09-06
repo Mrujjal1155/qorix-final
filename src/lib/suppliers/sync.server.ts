@@ -427,8 +427,10 @@ export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, 
       if (d.delivery_time) productPatch.delivery_time = d.delivery_time;
       if (d.important_note) productPatch.important_note = d.important_note;
       if (d.quick_guide) productPatch.quick_guide = d.quick_guide;
-      const extra = extraDetailsFromRaw(p.raw);
-      if (extra.length) productPatch.details = extra;
+      // Always rewrite the detail rows so fields the supplier stopped sending
+      // (or fields we no longer publish) disappear on the next sync.
+      productPatch.details = extraDetailsFromRaw(p.raw);
+
       productUpdates.push({ id: prev.product_id, patch: productPatch });
 
       // Real selling-price change on a live product → its own card. Compared
