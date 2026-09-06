@@ -84,14 +84,21 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "QORIX STORE — Premium Digital Products" },
+      {
+        name: "description",
+        content:
+          "QORIX STORE — premium AI tools, streaming and productivity subscriptions with instant delivery. Order on the website or directly from our Telegram bot.",
+      },
+      { name: "author", content: "QORIX STORE" },
+      { property: "og:title", content: "QORIX STORE — Premium Digital Products" },
+      {
+        property: "og:description",
+        content:
+          "Premium AI tools, streaming and productivity subscriptions with instant delivery — on the website and our Telegram bot.",
+      },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:card", content: "summary" },
     ],
     links: [
       {
@@ -99,6 +106,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/favicon.png", type: "image/png" },
+      { rel: "apple-touch-icon", href: "/favicon.png" },
+      { rel: "shortcut icon", href: "/favicon.ico" },
     ],
   }),
   shellComponent: RootShell,
