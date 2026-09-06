@@ -2316,18 +2316,23 @@ export async function announcePriceChange(
     return { channel: true, dmComplete: true, dmCursor: 0 };
   }
   const title = down
-    ? s["announce_price_down_title"] || "💸 PRICE DROP"
-    : s["announce_price_up_title"] || "📈 PRICE UPDATE";
+    ? s["announce_price_down_title"] || "PRICE DROP"
+    : s["announce_price_up_title"] || "PRICE UPDATE";
   const footer = down
-    ? s["announce_price_down_footer"] || "New lower price — limited time while stock lasts."
-    : s["announce_price_up_footer"] || "The price for this product has been updated.";
-  const line = "──────────────────────";
+    ? s["announce_price_down_footer"] || "Limited-time pricing — it can go back up as soon as supply tightens."
+    : s["announce_price_up_footer"] || "Pricing for this product has just been updated.";
+  const line = "━━━━━━━━━━━━━━━━";
+  const saved = Math.max(0, Number(oldPrice) - Number(newPrice));
+  const percent = Number(oldPrice) > 0 ? Math.round((saved / Number(oldPrice)) * 100) : 0;
   const text =
-    `<b>${escapeHtml(title)}</b>\n${line}\n\n` +
+    `${alertIcon(s, down ? "price_down" : "price_up")} <b>${escapeHtml(title)}</b>\n${line}\n\n` +
     `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
-    `💎 <b>Was</b>  <s>${money(oldPrice)}</s>\n` +
-    `✅ <b>Now</b>  ${money(newPrice)}\n` +
+    `${alertIcon(s, "price")} <b>Was</b>  <s>${money(oldPrice)}</s>\n` +
+    `${alertIcon(s, "spark")} <b>Now</b>  ${money(newPrice)}\n` +
+    (down && saved > 0 ? `${alertIcon(s, "save")} <b>You save</b>  ${money(saved)}${percent > 0 ? ` (${percent}% off)` : ""}\n` : "") +
+    `${alertIcon(s, "delivery")} <b>Delivery</b>  instant &amp; automatic\n` +
     `\n<i>${escapeHtml(footer)}</i>`;
+
   const banner = bannerFor(product, s);
   if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
