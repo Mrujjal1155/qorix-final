@@ -3024,9 +3024,13 @@ async function handleMessage(msg: any) {
       const menuKey = String(state.adm_menu_icon ?? "") as MenuIconKey;
       await setState(chatId, state);
       if (!(await isAdmin(chatId)) || !(menuKey in MENU_ICONS)) return;
-      const raw = text.trim();
-      const customEmojiId = raw === "-" ? "" : customEmojiIdFromMessage(msg);
-      const value = raw === "-" ? "" : iconValue(customEmojiId, raw);
+      const menuInput = readIconInput(msg, text, MENU_ICONS[menuKey][0]);
+      if (menuInput.empty) {
+        await say(chatId, ICON_INPUT_HELP, ADM_BACK);
+        return;
+      }
+      const value = menuInput.value;
+
       try {
         await saveIconSetting(`menu_icon_${menuKey}`, value);
       } catch (e) {
