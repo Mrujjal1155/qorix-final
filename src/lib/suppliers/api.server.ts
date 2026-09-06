@@ -1018,8 +1018,19 @@ const SKIP_DETAIL_KEYS = new Set(
     "bulk_discount_percent",
     "unit_price",
     "discount_percent",
+    // Reseller-private accounting from the Qamify-style API — never public.
+    "unit_price_cents",
+    "your_sold_qty",
+    "your_sold_spent",
+    "your_sold_spent_cents",
+    "reseller_price_cents",
+    "your_price_cents",
+    // Presented through the curated rows below instead of the raw key name.
+    "sold_total",
+    "units_per_item",
   ].map(keyName),
 );
+
 
 function humanLabel(key: string) {
   return key
