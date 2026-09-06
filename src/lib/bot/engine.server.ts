@@ -4349,6 +4349,8 @@ export async function notifyRestock(
 ) {
     const { data: p } = await db.from("products").select("*").eq("id", productId).maybeSingle();
     if (!p) throw new Error("Linked product no longer exists");
+    // Switched-off products are hidden everywhere, so no alerts go out for them.
+    if (p.is_active === false) return;
     const settings = await getSettings();
 
     // Public channel post — runs even when nobody subscribed to the alert.
