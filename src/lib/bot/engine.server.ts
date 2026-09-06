@@ -122,6 +122,34 @@ export function pageIconHtml(settings: Record<string, string>, key: PageIconKey)
   return parsed.customId ? `<tg-emoji emoji-id="${parsed.customId}">${glyph}</tg-emoji>` : glyph;
 }
 
+/**
+ * Icons used inside the stock / price alert cards. Admin can replace every one
+ * of them with a Telegram Premium custom emoji from /admin → Alert icons.
+ */
+const ALERT_ICONS = {
+  restock: ["🔥", "Back in stock badge"],
+  new: ["🆕", "New product badge"],
+  low: ["🚨", "Almost gone badge"],
+  out: ["⛔", "Sold out badge"],
+  price_down: ["💸", "Price drop badge"],
+  price_up: ["📈", "Price update badge"],
+  price: ["🏷", "Price line"],
+  stock: ["📦", "Stock line"],
+  spark: ["⚡", "Highlight line"],
+  delivery: ["⏱", "Delivery line"],
+  bell: ["🔔", "Notify line"],
+  save: ["💰", "You save line"],
+} as const;
+
+type AlertIconKey = keyof typeof ALERT_ICONS;
+
+/** HTML for an alert icon (Premium custom emoji when configured). */
+function alertIcon(settings: Record<string, string>, key: AlertIconKey) {
+  const [fallback] = ALERT_ICONS[key];
+  const parsed = parseIconValue(settings[`alert_icon_${key}`] ?? "", fallback);
+  const glyph = escapeHtml(parsed.glyph);
+  return parsed.customId ? `<tg-emoji emoji-id="${parsed.customId}">${glyph}</tg-emoji>` : glyph;
+}
 
 
 /**
@@ -2099,19 +2127,21 @@ export async function announceRestock(
 ) {
   const s = await getSettings();
   if ((s["announce_restock"] ?? "on").toLowerCase() === "off") return;
-  const title = s["announce_restock_title"] || "🔥 BACK IN STOCK";
+  const title = s["announce_restock_title"] || "BACK IN STOCK";
   const footer =
-    s["announce_restock_footer"] || "Back by popular demand — order now before it runs out again.";
-  const line = "──────────────────────";
+    s["announce_restock_footer"] || "Restocked units go fast — lock yours in before they're gone again.";
+  const line = "━━━━━━━━━━━━━━━━";
   const text =
-    `<b>${escapeHtml(title)}</b>\n${line}\n\n` +
+    `${alertIcon(s, "restock")} <b>${escapeHtml(title)}</b>\n${line}\n\n` +
     `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
     (addedQty > 0
-      ? `➕ Freshly restocked — <b>${addedQty}</b> new item(s) now available.\n\n`
-      : `➕ Now available again.\n\n`) +
-    `💎 <b>Price</b>  ${money(product?.price)}\n` +
-    `📈 <b>Available</b>  ${available} in stock\n\n` +
+      ? `${alertIcon(s, "spark")} <b>${addedQty}</b> fresh unit(s) just landed.\n`
+      : `${alertIcon(s, "spark")} Available again right now.\n`) +
+    `${alertIcon(s, "price")} <b>Price</b>  ${money(product?.price)}\n` +
+    `${alertIcon(s, "stock")} <b>In stock</b>  ${available} ready\n` +
+    `${alertIcon(s, "delivery")} <b>Delivery</b>  instant &amp; automatic\n\n` +
     `<i>${escapeHtml(footer)}</i>`;
+
   const kb = await channelProductButton(s, product);
   const banner = bannerFor(product, s);
   if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
@@ -2157,16 +2187,19 @@ export async function announceNewProduct(
 ) {
   const s = await getSettings();
   if ((s["announce_new"] ?? "on").toLowerCase() === "off") return;
-  const title = s["announce_new_title"] || "🆕 NEW PRODUCT";
-  const footer = s["announce_new_footer"] || "Freshly added to the store — grab it while stock lasts.";
-  const line = "──────────────────────";
+  const title = s["announce_new_title"] || "JUST ADDED";
+  const footer = s["announce_new_footer"] || "First come, first served — early buyers get the best stock.";
+  const line = "━━━━━━━━━━━━━━━━";
   const stock = Number(product?.supplier_stock ?? product?.stock ?? 0);
   const text =
-    `<b>${escapeHtml(title)}</b>\n${line}\n\n` +
+    `${alertIcon(s, "new")} <b>${escapeHtml(title)}</b>\n${line}\n\n` +
     `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
-    `💎 <b>Price</b>  ${money(product?.price)}\n` +
-    (stock > 0 ? `📈 <b>Available</b>  ${stock} in stock\n` : "") +
+    `${alertIcon(s, "spark")} Brand new in the store.\n` +
+    `${alertIcon(s, "price")} <b>Price</b>  ${money(product?.price)}\n` +
+    (stock > 0 ? `${alertIcon(s, "stock")} <b>In stock</b>  ${stock} ready\n` : "") +
+    `${alertIcon(s, "delivery")} <b>Delivery</b>  instant &amp; automatic\n` +
     `\n<i>${escapeHtml(footer)}</i>`;
+
   const banner = bannerFor(product, s);
   if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
@@ -2214,18 +2247,24 @@ export async function announceLowStock(
   if ((s["announce_low"] ?? "on").toLowerCase() === "off") return;
   const out = available <= 0;
   const title = out
-    ? s["announce_out_title"] || "⛔ OUT OF STOCK"
-    : s["announce_low_title"] || "⚠️ LOW STOCK";
+    ? s["announce_out_title"] || "SOLD OUT"
+    : s["announce_low_title"] || "ALMOST GONE";
   const footer = out
-    ? s["announce_out_footer"] || "Sold out for now — we will post again the moment it is back."
-    : s["announce_low_footer"] || "Almost gone — order now before it sells out.";
-  const line = "──────────────────────";
+    ? s["announce_out_footer"] || "Sold out for now — you'll be the first to know the moment it returns."
+    : s["announce_low_footer"] || "This is your final chance — secure it before it's gone for good.";
+  const line = "━━━━━━━━━━━━━━━━";
   const text =
-    `<b>${escapeHtml(title)}</b>\n${line}\n\n` +
+    `${alertIcon(s, out ? "out" : "low")} <b>${escapeHtml(title)}</b>\n${line}\n\n` +
     `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
-    `💎 <b>Price</b>  ${money(product?.price)}\n` +
-    (out ? `📉 <b>Available</b>  none left\n` : `📉 <b>Available</b>  only ${available} left\n`) +
+    (out
+      ? `${alertIcon(s, "stock")} <b>Stock</b>  none left\n`
+      : `${alertIcon(s, "stock")} <b>Only ${available} left</b> in stock\n`) +
+    `${alertIcon(s, "price")} <b>Price</b>  ${money(product?.price)}\n` +
+    (out
+      ? `${alertIcon(s, "bell")} We'll post again the second it's restocked\n`
+      : `${alertIcon(s, "delivery")} <b>Delivery</b>  instant &amp; automatic\n`) +
     `\n<i>${escapeHtml(footer)}</i>`;
+
   const banner = bannerFor(product, s);
   if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
@@ -2277,18 +2316,23 @@ export async function announcePriceChange(
     return { channel: true, dmComplete: true, dmCursor: 0 };
   }
   const title = down
-    ? s["announce_price_down_title"] || "💸 PRICE DROP"
-    : s["announce_price_up_title"] || "📈 PRICE UPDATE";
+    ? s["announce_price_down_title"] || "PRICE DROP"
+    : s["announce_price_up_title"] || "PRICE UPDATE";
   const footer = down
-    ? s["announce_price_down_footer"] || "New lower price — limited time while stock lasts."
-    : s["announce_price_up_footer"] || "The price for this product has been updated.";
-  const line = "──────────────────────";
+    ? s["announce_price_down_footer"] || "Limited-time pricing — it can go back up as soon as supply tightens."
+    : s["announce_price_up_footer"] || "Pricing for this product has just been updated.";
+  const line = "━━━━━━━━━━━━━━━━";
+  const saved = Math.max(0, Number(oldPrice) - Number(newPrice));
+  const percent = Number(oldPrice) > 0 ? Math.round((saved / Number(oldPrice)) * 100) : 0;
   const text =
-    `<b>${escapeHtml(title)}</b>\n${line}\n\n` +
+    `${alertIcon(s, down ? "price_down" : "price_up")} <b>${escapeHtml(title)}</b>\n${line}\n\n` +
     `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
-    `💎 <b>Was</b>  <s>${money(oldPrice)}</s>\n` +
-    `✅ <b>Now</b>  ${money(newPrice)}\n` +
+    `${alertIcon(s, "price")} <b>Was</b>  <s>${money(oldPrice)}</s>\n` +
+    `${alertIcon(s, "spark")} <b>Now</b>  ${money(newPrice)}\n` +
+    (down && saved > 0 ? `${alertIcon(s, "save")} <b>You save</b>  ${money(saved)}${percent > 0 ? ` (${percent}% off)` : ""}\n` : "") +
+    `${alertIcon(s, "delivery")} <b>Delivery</b>  instant &amp; automatic\n` +
     `\n<i>${escapeHtml(footer)}</i>`;
+
   const banner = bannerFor(product, s);
   if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
@@ -2979,6 +3023,29 @@ async function handleMessage(msg: any) {
       );
       return;
     }
+    case "adm_alert_icon": {
+      state.awaiting = null;
+      const alertKey = String(state.adm_alert_icon ?? "") as AlertIconKey;
+      await setState(chatId, state);
+      if (!(await isAdmin(chatId)) || !(alertKey in ALERT_ICONS)) return;
+      const raw = text.trim();
+      const customEmojiId = raw === "-" ? "" : customEmojiIdFromMessage(msg);
+      const value = raw === "-" ? "" : iconValue(customEmojiId, raw);
+      try {
+        await saveIconSetting(`alert_icon_${alertKey}`, value);
+      } catch (e) {
+        await say(chatId, saveFailText(e), ADM_BACK);
+        return;
+      }
+      await say(
+        chatId,
+        `✅ ${ALERT_ICONS[alertKey][1]} updated → ${iconPreviewHtml(value, ALERT_ICONS[alertKey][0])}`,
+        [[{ text: "🚨 More alert icons", callback_data: "adm:alerticons" }], ADM_BACK[0]!],
+      );
+      return;
+    }
+
+
 
     case "np_name": {
       if (!(await isAdmin(chatId))) return;
@@ -3148,8 +3215,13 @@ export function adminKeyboard(): Button[][] {
       { text: "➕ Add balance", callback_data: "adm:addbal" },
     ],
     [
-      { text: "🎨 Product icons", callback_data: "adm:icons" },
+      { text: "🎨 Active product icons", callback_data: "adm:icons" },
+      { text: "🗂 Inactive product icons", callback_data: "adm:iconsoff" },
+    ],
+    [
+      { text: "🚨 Alert icons", callback_data: "adm:alerticons" },
       { text: "🧩 Menu icons", callback_data: "adm:menuicons" },
+
     ],
     [
       { text: "💳 Payment icons", callback_data: "adm:paymenticons" },
@@ -3296,18 +3368,33 @@ async function admUserView(targetId: number) {
  * Supplier-imported catalogues can be hundreds of rows, so every picker is
  * paginated and searchable instead of showing only the first 20-30 rows.
  * ------------------------------------------------------------------- */
-type PickKind = "icon" | "detail" | "stock";
+type PickKind = "icon" | "iconoff" | "detail" | "stock";
 const PICK_PAGE_SIZE = 30;
 function pickQuery(state: any, kind: PickKind): string {
   return String(state?.adm_pick_q?.[kind] ?? "");
 }
 
-const PICK_CFG: Record<PickKind, { pick: string; page: string; title: string; hint: string; activeOnly?: boolean }> = {
+const PICK_CFG: Record<
+  PickKind,
+  { pick: string; page: string; title: string; hint: string; activeOnly?: boolean; inactiveOnly?: boolean }
+> = {
   icon: {
     pick: "adm:ip:",
     page: "adm:pgi:",
-    title: "🎨 <b>Product icons</b>",
-    hint: "Pick a product, then send the icon you want.\nA normal emoji or a <b>Telegram Premium custom emoji</b> both work.",
+    title: "🎨 <b>Active product icons</b>",
+    hint:
+      "Only products that are <b>ON</b> (live on the site &amp; bot).\n" +
+      "Pick a product, then send the icon — normal emoji or <b>Telegram Premium custom emoji</b>.",
+    activeOnly: true,
+  },
+  iconoff: {
+    pick: "adm:ip:",
+    page: "adm:pgio:",
+    title: "🗂 <b>Inactive product icons</b>",
+    hint:
+      "Only products that are <b>OFF</b> (hidden from the site &amp; bot).\n" +
+      "Change these whenever you have time — normal emoji or <b>Premium custom emoji</b> both work.",
+    inactiveOnly: true,
   },
   detail: {
     pick: "adm:pd:",
@@ -3332,6 +3419,8 @@ async function admPickView(kind: PickKind, page = 0, q = "") {
     .select("id,name,emoji,telegram_custom_emoji_id,supplier_id", { count: "exact" })
     .is("owner_reseller_id", null);
   if (cfg.activeOnly) query = query.eq("is_active", true);
+  if (cfg.inactiveOnly) query = query.eq("is_active", false);
+
   if (q) query = query.ilike("name", `%${q}%`);
   const { data, count } = await query.order("sort_order").order("name").range(from, from + PICK_PAGE_SIZE - 1);
   const total = Number(count ?? 0);
@@ -3619,6 +3708,24 @@ async function admPageIconView() {
     kb,
   };
 }
+
+/** Icons used inside stock / price alert cards — Premium emoji supported. */
+async function admAlertIconView() {
+  const settings = await getSettings();
+  const kb: Button[][] = (Object.keys(ALERT_ICONS) as AlertIconKey[]).map((key) => {
+    const parsed = parseIconValue(settings[`alert_icon_${key}`] ?? "", ALERT_ICONS[key][0]);
+    return [{ text: `${parsed.glyph} ${ALERT_ICONS[key][1]}`.trim(), callback_data: `adm:ai:${key}` }];
+  });
+  kb.push(ADM_BACK[0]!);
+  return {
+    text:
+      "🚨 <b>Alert icons</b>\n\nThese icons are used in the stock, restock, sold-out and price alert cards " +
+      "sent to the channel and to bot users.\n" +
+      "Pick one, then send a normal emoji or a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.",
+    kb,
+  };
+}
+
 
 /* ------------------------------- every button + tag of every page (UI kit) */
 
@@ -5088,10 +5195,36 @@ async function handleCallback(cq: any) {
     } else if (action === "icons") {
       const v = await admPickView("icon", 0, pickQuery(st, "icon"));
       await edit(v.text, v.kb);
-    } else if (action.startsWith("pgi:") || action.startsWith("pgd:") || action.startsWith("pgs:")) {
-      const kind: PickKind = action.startsWith("pgi:") ? "icon" : action.startsWith("pgd:") ? "detail" : "stock";
+    } else if (action === "iconsoff") {
+      const v = await admPickView("iconoff", 0, pickQuery(st, "iconoff"));
+      await edit(v.text, v.kb);
+    } else if (action === "alerticons") {
+      const v = await admAlertIconView();
+      await edit(v.text, v.kb);
+    } else if (action.startsWith("ai:")) {
+      const alertKey = arg as AlertIconKey;
+      if (!(alertKey in ALERT_ICONS)) return;
+      await setState(chatId, { ...st, awaiting: "adm_alert_icon", adm_alert_icon: alertKey });
+      await say(
+        chatId,
+        `🚨 Send the new icon for <b>${ALERT_ICONS[alertKey][1]}</b>.\n\nNormal emoji or Telegram Premium custom emoji both work. Send <code>-</code> to reset.`,
+      );
+    } else if (
+      action.startsWith("pgi:") ||
+      action.startsWith("pgio:") ||
+      action.startsWith("pgd:") ||
+      action.startsWith("pgs:")
+    ) {
+      const kind: PickKind = action.startsWith("pgio:")
+        ? "iconoff"
+        : action.startsWith("pgi:")
+          ? "icon"
+          : action.startsWith("pgd:")
+            ? "detail"
+            : "stock";
       const v = await admPickView(kind, Number(arg) || 0, pickQuery(st, kind));
       await edit(v.text, v.kb);
+
     } else if (action.startsWith("fnd:")) {
       const kind = arg as PickKind;
       if (!(kind in PICK_CFG)) return;
