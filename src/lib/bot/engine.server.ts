@@ -3077,9 +3077,13 @@ async function handleMessage(msg: any) {
       const alertKey = String(state.adm_alert_icon ?? "") as AlertIconKey;
       await setState(chatId, state);
       if (!(await isAdmin(chatId)) || !(alertKey in ALERT_ICONS)) return;
-      const raw = text.trim();
-      const customEmojiId = raw === "-" ? "" : customEmojiIdFromMessage(msg);
-      const value = raw === "-" ? "" : iconValue(customEmojiId, raw);
+      const alertInput = readIconInput(msg, text, ALERT_ICONS[alertKey][0]);
+      if (alertInput.empty) {
+        await say(chatId, ICON_INPUT_HELP, ADM_BACK);
+        return;
+      }
+      const value = alertInput.value;
+
       try {
         await saveIconSetting(`alert_icon_${alertKey}`, value);
       } catch (e) {
