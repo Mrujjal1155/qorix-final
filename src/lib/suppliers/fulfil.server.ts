@@ -66,6 +66,7 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
       String(product.supplier_external_id),
       Number(order.quantity ?? 1),
       `qorix-retry-${order.id}-${Date.now()}`,
+      { customerEmail: (order as any).customer_email ?? null },
     );
 
     if (!res.items.length)

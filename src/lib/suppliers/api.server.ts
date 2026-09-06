@@ -899,6 +899,7 @@ export async function supplierOrder(
   externalId: string,
   qty: number,
   idempotencyKey: string,
+  opts: { customerEmail?: string | null } = {},
 ): Promise<{ code: string | null; items: string[] }> {
   const canboso = isCanboso(s);
   // Canboso requires an Idempotency-Key header of 8-128 chars.
@@ -910,8 +911,14 @@ export async function supplierOrder(
     ? await call(s, "/api/v2/telegram-buyer/purchase", {
         method: "POST",
         headers: { "Idempotency-Key": idemKey },
-        // Documented body: { key, product_id, quantity }. Extra fields are rejected.
-        body: { product_id: externalId, quantity: qty },
+        // Documented body: { key, product_id, quantity, customer_email?, slot_months? }.
+        // Slot products (purchaseRequirements.customerEmail) are rejected
+        // without the buyer's email, so forward it whenever the caller has one.
+        body: {
+          product_id: externalId,
+          quantity: qty,
+          ...(opts.customerEmail ? { customer_email: opts.customerEmail } : {}),
+        },
       })
     : await call(s, isActionDialect(s) ? actionPath("order") : "/v1/orders", {
         method: "POST",
