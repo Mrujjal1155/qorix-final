@@ -74,6 +74,8 @@ type NotifyBase = {
   tries?: number;
   /** Epoch ms before which this card must not be retried. */
   next_at?: number;
+  /** Epoch ms the event was detected — anything older than STALE_MS is dropped. */
+  at?: number;
 };
 
 type NotifyItem =
@@ -85,6 +87,11 @@ type NotifyItem =
 const QUEUE_PREFIX = "supplier_notify_queue:";
 const NOTIFY_LOG_KEY = "supplier_notify_log";
 const STATS_KEY = "supplier_sync_stats";
+/** Per product+kind announcement cooldown, kills the 0→N→0 catalogue churn. */
+const RECENT_KEY = "supplier_notify_recent";
+const COOLDOWN_MS = 30 * 60_000;
+/** A queued card older than this is no longer "live" — drop it silently. */
+const STALE_MS = 10 * 60_000;
 /**
  * Telegram work is bounded per run so a single invocation can never exceed the
  * Cloudflare subrequest/CPU budget — that is what used to kill the whole run
@@ -95,6 +102,7 @@ const CARDS_PER_RUN = 4;
 const DM_PER_RUN = 25;
 /** Give up (and log) after this many failed attempts for one event. */
 const MAX_TRIES = 8;
+
 
 async function readJsonSetting(sb: any, key: string): Promise<any[]> {
   const { data } = await sb.from("bot_settings").select("value").eq("key", key).maybeSingle();
