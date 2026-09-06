@@ -319,3 +319,50 @@ export const supplierSyncHealth = createServerFn({ method: "GET" })
       log: (parse(get("supplier_notify_log"), []) as any[]).slice(0, 12),
     };
   });
+
+/**
+ * Register (or refresh) the supplier's push webhook so stock/price changes
+ * arrive instantly instead of on the next polling tick. `origin` comes from the
+ * admin's browser so the endpoint always points at the site they are using.
+ */
+export const configureSupplierWebhook = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; origin: string }) => d)
+  .handler(async ({ data, context }) => {
+    const sb = (context as any).supabase;
+    await assertSupplierAdmin(context);
+    const { data: s } = await sb.from("suppliers").select("*").eq("id", data.id).maybeSingle();
+    if (!s) throw new Error("Supplier not found");
+
+    const api = await import("@/lib/suppliers/api.server");
+    if (!api.supplierSupportsWebhooks(s)) {
+      return { ok: false, message: "This supplier has no webhook API — polling stays active." };
+    }
+    const origin = String(data.origin || "").replace(/\/$/, "");
+    if (!/^https:\/\//i.test(origin)) {
+      return { ok: false, message: "Webhooks need an https site URL (open the published site and retry)." };
+    }
+    const url = `${origin}/api/public/suppliers/webhook?s=${s.id}`;
+    const events = ["product.price_changed", "product.stock_changed", "order.delivered"];
+
+    try {
+      // Drop any endpoint we registered before (URL or secret may have changed).
+      const existing = await api.supplierWebhooks(s).catch(() => ({ webhooks: [] as any[] }));
+      for (const w of existing.webhooks ?? []) {
+        if (String(w?.url ?? "").includes("/api/public/suppliers/webhook")) {
+          await api.supplierDeleteWebhook(s, String(w.id)).catch(() => {});
+        }
+      }
+      const created = await api.supplierRegisterWebhook(s, url, events);
+      if (!created.secret) {
+        return { ok: false, message: "Supplier did not return a signing secret — try again." };
+      }
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await (supabaseAdmin as any)
+        .from("bot_settings")
+        .upsert({ key: `supplier_webhook_secret:${s.id}`, value: created.secret }, { onConflict: "key" });
+      return { ok: true, message: `Realtime alerts on · ${url}` };
+    } catch (e) {
+      return { ok: false, message: e instanceof Error ? e.message : "Webhook setup failed" };
+    }
+  });
