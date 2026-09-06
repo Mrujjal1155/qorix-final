@@ -886,8 +886,9 @@ export async function supplierOrder(
         order.content,
       );
 
-  const items = rawItems.map(formatDeliveryItem).filter(Boolean);
+  const items = splitBulkDelivery(rawItems.map(formatDeliveryItem).filter(Boolean), qty);
   const code = order.code ?? order.order_code ?? order.reference ?? order.order_id ?? order.id ?? j.code ?? null;
+
 
   // Action-dialect (Vexoran): the POST may only acknowledge the order, so read
   // the delivered payload back from ?action=orders using our external_order_id.
