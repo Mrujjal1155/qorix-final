@@ -728,7 +728,9 @@ export async function supplierProducts(s: SupplierRow): Promise<SupplierProduct[
       // and are always sellable — treating that null as 0 wrongly showed them
       // as sold out on the site and in the bot.
       const unlimited = p.requires_stock === false && p.available !== false;
-      const bulkMin = Array.isArray(p.bulk_discounts) && p.bulk_discounts[0]?.min_qty;
+      const bulkMin = Array.isArray(p.bulk_discounts) && p.bulk_discounts.length
+        ? Number(p.bulk_discounts[0]?.min_qty) || undefined
+        : undefined;
       const rawId = p.id ?? p.product_id ?? p.productId ?? p.item_id ?? p.uuid ?? p.external_product_id ?? p.sku ?? p.code;
       if (rawId == null || String(rawId).trim() === "") {
         supplierLog("skip-product-without-id", { supplier: s.key, name: String(p.name ?? p.title ?? "Product") });
