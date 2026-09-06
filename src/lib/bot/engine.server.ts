@@ -2993,9 +2993,15 @@ async function handleMessage(msg: any) {
       const productId = String(state.adm_product ?? "");
       await setState(chatId, state);
       if (!(await isAdmin(chatId))) return;
-      const raw = text.trim();
-      const customEmojiId = raw === "-" ? "" : customEmojiIdFromMessage(msg);
-      const icon = raw === "-" || !raw ? "📦" : raw.slice(0, 16);
+      const input = readIconInput(msg, text, "📦");
+      if (input.empty) {
+        await say(chatId, ICON_INPUT_HELP, ADM_BACK);
+        return;
+      }
+      const parsedIcon = parseIconValue(input.value, "📦");
+      const customEmojiId = parsedIcon.customId;
+      const icon = parsedIcon.glyph || "📦";
+
       const { data: p, error: pErr } = await db
         .from("products")
         .update({ emoji: icon, telegram_custom_emoji_id: customEmojiId || null })
