@@ -504,6 +504,21 @@ export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, 
     });
   }
 
+  // Persist detected events BEFORE the snapshot is overwritten. If this run is
+  // cut short afterwards, the transition is already queued instead of lost
+  // forever (the old snapshot would otherwise be gone with no card sent).
+  await enqueueNotifications(sb, s.id, [
+    ...restockPosts.map((r) => ({ t: "restock" as const, product_id: r.product_id, qty: r.qty, event_id: r.event_id })),
+    ...lowPosts.map((l) => ({ t: "low" as const, product_id: l.product_id, stock: l.stock, event_id: l.event_id })),
+    ...pricePosts.map((pp) => ({
+      t: "price" as const,
+      product_id: pp.product_id,
+      old_price: pp.old_price,
+      new_price: pp.new_price,
+      event_id: pp.event_id,
+    })),
+  ]);
+
   // Mark every omitted catalogue row as observed and out of stock. This keeps
   // the supplier snapshot coherent and lets a later reappearance compare 0→N.
   const missingIds = (existing ?? [])
