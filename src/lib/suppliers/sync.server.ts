@@ -581,6 +581,11 @@ export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, 
           supplier_fixed: s.markup_fixed ?? null,
         });
         const d = detailsFromRaw(p.raw);
+        // Canboso sends a per-product `emoji`, but as a slug ("claude",
+        // "chatgpt", "none"), not a glyph — only adopt it when it is an
+        // actual emoji character, otherwise keep the default icon.
+        const rawEmojiValue = typeof (p.raw as any)?.emoji === "string" ? (p.raw as any).emoji.trim() : "";
+        const rawEmoji = /[^\x00-\x7F]/u.test(rawEmojiValue) ? rawEmojiValue : "";
         const productRow: any = {
           name: p.name,
           description: d.description ?? (d.quick_guide || d.important_note ? null : p.description),
@@ -590,8 +595,8 @@ export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, 
           supplier_external_id: String(p.external_id),
           supplier_stock: p.stock,
           is_active: Boolean(s["is_enabled"]),
-          emoji: icon.glyph || "📦",
-          telegram_custom_emoji_id: icon.customId || null,
+          emoji: rawEmoji || icon.glyph || "📦",
+          telegram_custom_emoji_id: rawEmoji ? null : icon.customId || null,
         };
         if (d.image_url) productRow.image_url = d.image_url;
         if (d.delivery_time) productRow.delivery_time = d.delivery_time;

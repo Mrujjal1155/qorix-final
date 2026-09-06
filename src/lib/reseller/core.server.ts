@@ -282,7 +282,9 @@ export async function purchase(
         // Advisory only — supplier balance endpoints can report 0 for funded
         // wallets, so let the supplier API itself accept or reject the order.
         await supplierPreflight(sup, Number(p.price) * qty);
-        const res = await supplierOrder(sup as any, String(p.supplier_external_id), qty, `qorix-api-${reserved.id}`);
+        const res = await supplierOrder(sup as any, String(p.supplier_external_id), qty, `qorix-api-${reserved.id}`, {
+          customerEmail: input.customer_email ?? null,
+        });
         if (res.items.length) {
           delivered = res.items.join("\n---\n");
           status = "completed";
