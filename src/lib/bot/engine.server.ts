@@ -1225,6 +1225,7 @@ async function cartDetails(user: any) {
   const { data: products } = await db
     .from("products")
     .select("*")
+    .eq("is_active", true)
     .in(
       "id",
       cart.map((l) => l.product_id),
