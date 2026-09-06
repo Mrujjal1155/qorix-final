@@ -132,22 +132,43 @@ async function appendLog(sb: any, entries: any[]) {
 }
 
 /**
- * Append pending alerts for one supplier, de-duplicated per event id AND per
- * product+kind cooldown. Supplier catalogues regularly drop and re-add the same
- * item (paging gaps, short outages); without the cooldown every such flap
- * produced another "restock"/"sold out" card for stock that never changed.
+ * Append pending alerts for one supplier, de-duplicated per event id AND
+ * against the delivery ledger. Every supplier goes through this same path, so
+ * an event that was already announced (channel + bot) can never be queued a
+ * second time — even when a later run still sees the old snapshot because the
+ * catalogue write was cut short.
  */
 async function enqueueNotifications(sb: any, supplierId: string, items: NotifyItem[]) {
   if (!items.length) return;
   const now = Date.now();
   const key = QUEUE_PREFIX + supplierId;
   const current = (await readJsonSetting(sb, key)) as NotifyItem[];
+
+  // Drop anything the ledger already marked delivered.
+  const ids = Array.from(new Set(items.map((it) => `supplier_notify_delivery:${it.event_id}`)));
+  const done = new Set<string>();
+  for (let i = 0; i < ids.length; i += 100) {
+    const { data } = await sb.from("bot_settings").select("key,value").in("key", ids.slice(i, i + 100));
+    for (const row of data ?? []) {
+      let status = "";
+      try {
+        status = String(JSON.parse(String((row as any).value || "{}"))?.status ?? "");
+      } catch {
+        status = "";
+      }
+      if (status === "delivered" || status === "sending") done.add(String((row as any).key).split(":").slice(1).join(":"));
+    }
+  }
+  const fresh = items.filter((it) => !done.has(it.event_id));
+  if (!fresh.length && !current.length) return;
+
   const merged = new Map<string, NotifyItem>();
   // Existing entries win: they may already carry delivery progress (cursor).
-  for (const it of items) merged.set(it.event_id, { ...it, at: now });
+  for (const it of fresh) merged.set(it.event_id, { ...it, at: now });
   for (const it of current) merged.set(it.event_id, it);
   await writeJsonSetting(sb, key, Array.from(merged.values()).slice(0, 200));
 }
+
 
 
 type DeliveryClaim = "claimed" | "delivered" | "busy";
