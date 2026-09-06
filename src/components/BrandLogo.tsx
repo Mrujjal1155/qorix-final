@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
-import { cn } from "@/lib/utils";
+import bundledLogo from "@/assets/qorix-shop-logo-new.png";
 
 const LOGO_CACHE_KEY = "qorix_brand_logo_url";
 
 /**
  * Renders the current site logo. The last known logo URL is cached in
  * localStorage, so while fresh content loads we instantly show the real
- * current logo instead of flashing the brand name. Only when no logo has
- * ever been seen do we fall back to the brand wordmark.
+ * current logo. Before any logo has loaded (or if none is configured) we
+ * show the bundled QORIX STORE logo — never a placeholder or blank flash.
  */
 export function BrandLogo({
   src,
@@ -41,14 +41,7 @@ export function BrandLogo({
   }, [src]);
 
   const label = (name ?? "").trim();
-  const effective = src ?? cached;
+  const effective = src ?? cached ?? bundledLogo;
 
-  if (!effective) {
-    return (
-      <span className={cn("font-extrabold tracking-tight text-foreground", textClassName)}>
-        {label}
-      </span>
-    );
-  }
-  return <img src={effective} alt={label ? `${label} logo` : "Site logo"} className={className} />;
+  return <img src={effective} alt={label ? `${label} logo` : "QORIX STORE logo"} className={className} />;
 }
