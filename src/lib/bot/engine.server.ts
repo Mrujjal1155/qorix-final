@@ -3804,7 +3804,7 @@ type CoMeta = { items: CartLine[]; coupon?: Coupon | null; summary?: string; tot
 
 async function coTotals(meta: CoMeta, chatId?: number) {
   const ids = meta.items.map((i) => i.product_id);
-  const { data: products } = await db.from("products").select("*").in("id", ids);
+  const { data: products } = await db.from("products").select("*").eq("is_active", true).in("id", ids);
   const lines = meta.items
     .map((i) => {
       const p = (products ?? []).find((x: any) => x.id === i.product_id);
