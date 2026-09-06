@@ -730,6 +730,19 @@ export async function syncAllSuppliers() {
     return { sent: 0, failed: 1 };
   });
 
+  // Keep push webhooks registered on their own — no admin button needed. The
+  // helper is a no-op unless the endpoint is missing, moved or unverified.
+  {
+    const { ensureSupplierWebhook } = await import("./webhook.server");
+    await Promise.allSettled(
+      (sups ?? []).map((s: any) =>
+        ensureSupplierWebhook(db, s).catch((error) => {
+          console.error(`Webhook registration failed for ${s.name}:`, error);
+        }),
+      ),
+    );
+  }
+
   let added = 0;
   let restocked = 0;
   let checked = 0;
@@ -740,6 +753,7 @@ export async function syncAllSuppliers() {
   // Suppliers run side by side so one slow API can't push a single run past the
   // 15s schedule interval.
   const results = await Promise.allSettled((sups ?? []).map((s: any) => syncSupplierCore(db, s)));
+
   for (const r of results) {
     if (r.status === "fulfilled" && r.value.ok) {
       added += r.value.added;
