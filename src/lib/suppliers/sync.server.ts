@@ -301,10 +301,10 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
           await keepWith({ channel_sent: true, dm_cursor: cursor });
         },
       };
+      const { data: prod } = await sb.from("products").select("*").eq("id", item.product_id).maybeSingle();
       if (item.t === "restock") {
         delivery = await notifyRestock(item.product_id, item.qty, progress);
       } else {
-        const { data: prod } = await sb.from("products").select("*").eq("id", item.product_id).maybeSingle();
         if (!prod) throw new Error("Linked product no longer exists");
         if (item.t === "low") delivery = await announceLowStock(prod, item.stock, progress);
         else if (item.t === "price") delivery = await announcePriceChange(prod, item.old_price, item.new_price, progress);
@@ -321,7 +321,24 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
       await finishNotification(sb, item.event_id, true);
       await remove();
       sent += 1;
+      // Same event, same moment: push it to every reseller webhook too.
+      if (prod && (prod as any).is_active !== false) {
+        const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
+        const stockNow = Number((prod as any).supplier_stock ?? 0);
+        await pushResellerEvent(
+          item.t === "low" && stockNow <= 0 ? "out" : (item.t as any),
+          prod,
+          item.t === "restock"
+            ? { added: item.qty }
+            : item.t === "low"
+              ? { stock: item.stock }
+              : item.t === "price"
+                ? { old_retail_price: item.old_price, new_retail_price: item.new_price }
+                : {},
+        );
+      }
       log.push({ at: new Date().toISOString(), kind: item.t, product_id: item.product_id, ok: true });
+
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       failed += 1;

@@ -166,6 +166,10 @@ export type PanelState =
         bot_username: string;
         support_contact: string;
         markup_percent: number;
+        webhook_url: string;
+        webhook_secret: string;
+        webhook_last_status: string;
+        webhook_last_at: string | null;
       };
       stats: {
         orders: number;
@@ -347,6 +351,10 @@ export const getResellerPanel = createServerFn({ method: "GET" })
         bot_username: reseller.bot_username ?? "",
         support_contact: reseller.support_contact ?? "",
         markup_percent: Number(reseller.markup_percent ?? 25),
+        webhook_url: (reseller as any).webhook_url ?? "",
+        webhook_secret: (reseller as any).webhook_secret ?? "",
+        webhook_last_status: (reseller as any).webhook_last_status ?? "",
+        webhook_last_at: (reseller as any).webhook_last_at ?? null,
       },
       stats,
       myProducts,
@@ -407,6 +415,47 @@ export const updateMySiteSettings = createServerFn({ method: "POST" })
     const { error } = await db.from("resellers").update(patch).eq("id", reseller.id);
     if (error) throw new Error(error.message);
     return { ok: true, ...patch };
+  });
+
+/**
+ * Reseller registers the URL that should receive live stock / price events.
+ * Every alert our Telegram channel gets is POSTed there at the same moment.
+ */
+export const updateMyWebhook = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { webhook_url?: string; regenerate_secret?: boolean }) => d)
+  .handler(async ({ data, context }) => {
+    const { db, reseller } = await resolveReseller(context as any);
+    if (!reseller) throw new Error("No reseller account linked to this login");
+
+    const raw = String(data.webhook_url ?? "").trim();
+    let url: string | null = null;
+    if (raw) {
+      try {
+        const parsed = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+        if (parsed.protocol !== "https:") throw new Error("bad");
+        url = parsed.toString();
+      } catch {
+        throw new Error("Enter a valid https URL, e.g. https://mystore.com/api/qorix-stock");
+      }
+    }
+
+    const patch: Record<string, unknown> = { webhook_url: url };
+    if (data.regenerate_secret || (url && !(reseller as any).webhook_secret)) {
+      patch["webhook_secret"] = newKey().replace(/[^a-zA-Z0-9]/g, "").slice(0, 48);
+    }
+    const { error } = await db.from("resellers").update(patch).eq("id", reseller.id);
+    if (error) throw new Error(error.message);
+    const { data: row } = await db
+      .from("resellers")
+      .select("webhook_url,webhook_secret")
+      .eq("id", reseller.id)
+      .maybeSingle();
+    return {
+      ok: true,
+      webhook_url: (row as any)?.webhook_url ?? "",
+      webhook_secret: (row as any)?.webhook_secret ?? "",
+    };
   });
 
 /** Reseller submits a balance top-up request for the admin to review. */

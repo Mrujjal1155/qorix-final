@@ -26,6 +26,7 @@ import {
   rotateMyApiKey,
   startAutoTopUp,
   updateMySiteSettings,
+  updateMyWebhook,
 } from "@/lib/reseller-portal.functions";
 import { priceTag } from "@/components/StoreShell";
 import { ResellerShell, type ResellerTab } from "@/components/ResellerShell";
@@ -870,6 +871,10 @@ function SiteSettingsPanel({
   onSaved: () => void;
 }) {
   const save = useServerFn(updateMySiteSettings);
+  const saveHook = useServerFn(updateMyWebhook);
+  const [hookUrl, setHookUrl] = useState(reseller.webhook_url);
+  const [hookSecret, setHookSecret] = useState(reseller.webhook_secret);
+  const [hookBusy, setHookBusy] = useState(false);
   const [siteUrl, setSiteUrl] = useState(reseller.site_url);
   const [siteName, setSiteName] = useState(reseller.site_name);
   const [botUsername, setBotUsername] = useState(reseller.bot_username);
@@ -962,6 +967,92 @@ npm run bot      # telegram bot${reseller.bot_username ? ` -> @${reseller.bot_us
               </Button>
             ) : null}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card/70">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Globe className="size-4 text-primary" /> Live stock alerts (webhook)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Give us one https address and we send a message there the moment a product is restocked, runs low, sells
+            out, changes price, is added or is switched off. No polling needed — your site and bot stay in sync in real
+            time.
+          </p>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="rs-hook">Notification URL</Label>
+              <Input
+                id="rs-hook"
+                placeholder="https://mystore.com/api/qorix-stock"
+                value={hookUrl}
+                onChange={(e) => setHookUrl(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="rs-hook-secret">Signing secret</Label>
+              <Input id="rs-hook-secret" readOnly value={hookSecret} placeholder="Saved after you add a URL" />
+              <p className="text-xs text-muted-foreground">
+                Every request carries <code>x-qorix-signature</code> — an HMAC-SHA256 of the body with this secret.
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              size="sm"
+              disabled={hookBusy}
+              onClick={async () => {
+                setHookBusy(true);
+                try {
+                  const res = await saveHook({ data: { webhook_url: hookUrl } });
+                  setHookUrl(res.webhook_url);
+                  setHookSecret(res.webhook_secret);
+                  toast.success(res.webhook_url ? "Live alerts enabled" : "Live alerts turned off");
+                  onSaved();
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Failed to save");
+                } finally {
+                  setHookBusy(false);
+                }
+              }}
+            >
+              Save webhook
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={hookBusy || !hookUrl}
+              onClick={async () => {
+                setHookBusy(true);
+                try {
+                  const res = await saveHook({ data: { webhook_url: hookUrl, regenerate_secret: true } });
+                  setHookSecret(res.webhook_secret);
+                  toast.success("New secret generated");
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Failed to save");
+                } finally {
+                  setHookBusy(false);
+                }
+              }}
+            >
+              New secret
+            </Button>
+            {reseller.webhook_last_status ? (
+              <span className="text-xs text-muted-foreground">
+                Last delivery: {reseller.webhook_last_status}
+                {reseller.webhook_last_at ? ` · ${new Date(reseller.webhook_last_at).toLocaleString()}` : ""}
+              </span>
+            ) : null}
+          </div>
+          <pre className="overflow-x-auto rounded-lg bg-muted p-3 font-mono text-xs">{`POST ${hookUrl || "https://mystore.com/api/qorix-stock"}
+{
+  "event": "restock" | "new" | "low" | "out" | "price" | "removed",
+  "at": "2026-01-01T12:00:00.000Z",
+  "product": { "id": "...", "name": "...", "price": 4.5, "stock": 12, "in_stock": true }
+}`}</pre>
         </CardContent>
       </Card>
 

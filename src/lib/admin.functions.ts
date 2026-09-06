@@ -261,10 +261,20 @@ export const saveProduct = createServerFn({ method: "POST" })
       telegram_custom_emoji_id: rest.telegram_custom_emoji_id || null,
     };
     if (id) {
-      const { error } = await sb.from("products").update(row).eq("id", id);
+      const { data: before } = await sb.from("products").select("is_active").eq("id", id).maybeSingle();
+      const { data: updated, error } = await sb.from("products").update(row).eq("id", id).select("*").maybeSingle();
       if (error) throw new Error(error.message);
+      // Turning a product ON/OFF is pushed to reseller webhooks immediately so
+      // their sites and bots only ever show what is live here.
+      const was = (before as any)?.is_active !== false;
+      const now = (updated as any)?.is_active !== false;
+      if (updated && was !== now) {
+        const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
+        await pushResellerEvent(now ? "new" : "removed", updated);
+      }
       return { ok: true };
     }
+
     const { data: created, error } = await sb.from("products").insert(row).select("*").maybeSingle();
     if (error) throw new Error(error.message);
     // A brand-new live product gets the NEW PRODUCT card in the channel and in
@@ -276,6 +286,10 @@ export const saveProduct = createServerFn({ method: "POST" })
       } catch (e) {
         console.error("new-product announce failed:", e);
       }
+    }
+    if (created) {
+      const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
+      await pushResellerEvent((created as any).is_active === false ? "removed" : "new", created);
     }
     return { ok: true };
   });
@@ -296,6 +310,10 @@ export const deleteProduct = createServerFn({ method: "POST" })
       } catch (e) {
         console.error("removed-product announce failed:", e);
       }
+    }
+    if (existing) {
+      const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
+      await pushResellerEvent("removed", existing);
     }
     return { ok: true };
   });

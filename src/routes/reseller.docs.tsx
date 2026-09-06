@@ -192,6 +192,26 @@ x-api-key: YOUR_API_KEY`}</Code>
               <code className="font-mono">bot</code> or <code className="font-mono">all</code> and filters the catalogue
               to the categories allowed for that channel.
             </p>
+            <p>
+              Only products that are <b>switched on</b> in our store are returned or purchasable. A product that is off
+              (or removed) is invisible to the API — it appears the moment we turn it on, in real time.
+            </p>
+            <p>
+              <b>Live stock webhook.</b> Add a notification URL in your reseller panel and we POST every stock event to
+              it at the same moment it goes out on Telegram:{" "}
+              <code className="font-mono">restock</code>, <code className="font-mono">new</code>,{" "}
+              <code className="font-mono">low</code>, <code className="font-mono">out</code>,{" "}
+              <code className="font-mono">price</code>, <code className="font-mono">removed</code>. Each request carries{" "}
+              <code className="font-mono">x-qorix-event</code>, <code className="font-mono">x-qorix-timestamp</code> and{" "}
+              <code className="font-mono">x-qorix-signature</code> (HMAC-SHA256 of the raw body with your signing
+              secret). Verify the signature, then update your own catalogue.
+            </p>
+            <Code>{`{
+  "event": "restock",
+  "at": "2026-01-01T12:00:00.000Z",
+  "added": 5,
+  "product": { "id": "…", "name": "…", "price": 4.5, "stock": 12, "in_stock": true }
+}`}</Code>
           </Section>
 
           <Section id="products" title="4. List products">
