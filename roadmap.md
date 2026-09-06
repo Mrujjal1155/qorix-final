@@ -22,3 +22,5 @@
 - [x] Admin auto-sync health panel (last run, waiting alerts, recent delivery log)
 
 - [x] Qamify (api.qamify.site) reseller API audit: full product details synced (description verbatim, Total sold / Max per order / Units per item), reseller-private fields hidden, details now shown in bot card too, multi-item delivery verified live (order RA-6BB7CFD5E9, 2 items).
+
+- [x] Vexoran API audit: service products (no stock tracking) no longer show sold out, bulk delivery split into one entry per unit, push webhook receiver /api/public/suppliers/webhook + admin "Realtime" button.

@@ -10,6 +10,7 @@ import {
   testSupplier,
   supplierSyncHealth,
   updateSupplierProduct,
+  configureSupplierWebhook,
 } from "@/lib/supplier.functions";
 import { getCatalogue, listBotProducts, normalizeFeatured, setFeaturedRank } from "@/lib/admin.functions";
 import { AdminShell, money } from "@/components/AdminShell";
@@ -46,6 +47,7 @@ function SuppliersPage() {
   const test = useServerFn(testSupplier);
   const sync = useServerFn(syncSupplier);
   const update = useServerFn(updateSupplierProduct);
+  const setupWebhook = useServerFn(configureSupplierWebhook);
 
   const { data: suppliers } = useQuery({ queryKey: ["suppliers"], queryFn: () => fetchSuppliers() });
   const [active, setActive] = useState<string>("");
@@ -109,6 +111,18 @@ function SuppliersPage() {
       refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Sync failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onRealtime() {
+    setBusy(true);
+    try {
+      const r = await setupWebhook({ data: { id: supplierId, origin: window.location.origin } });
+      r.ok ? toast.success(r.message) : toast.error(r.message);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Realtime setup failed");
     } finally {
       setBusy(false);
     }
@@ -295,6 +309,9 @@ function SuppliersPage() {
               <div className="flex items-end gap-2">
                 <Button variant="outline" disabled={busy} onClick={onTest}>
                   Test
+                </Button>
+                <Button variant="outline" disabled={busy} onClick={onRealtime}>
+                  Realtime
                 </Button>
                 <Button disabled={busy} onClick={onSync}>
                   Sync catalogue

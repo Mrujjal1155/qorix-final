@@ -625,6 +625,39 @@ export async function supplierPing(s: SupplierRow) {
   return { ok: true as const, status: String(j.status ?? "active") };
 }
 
+/** Does this supplier expose the push-webhook API (Vexoran-style ?action=webhooks)? */
+export function supplierSupportsWebhooks(s: SupplierRow) {
+  return isActionDialect(s) && !isMailReader(s);
+}
+
+/** Registered push endpoints at the supplier (secret masked). */
+export async function supplierWebhooks(s: SupplierRow) {
+  const j = await call(s, actionPath("webhooks"));
+  return {
+    webhooks: (j.webhooks ?? []) as any[],
+    max_endpoints: Number(j.max_endpoints ?? 3),
+    events_available: (j.events_available ?? []) as string[],
+  };
+}
+
+/** Register a push endpoint. The signing secret is only returned once. */
+export async function supplierRegisterWebhook(s: SupplierRow, url: string, events: string[], name = "qorix") {
+  const j = await call(s, actionPath("webhooks"), { method: "POST", body: { url, events, name } });
+  const hook = j.webhook ?? j.endpoint ?? j;
+  return {
+    id: String(hook.id ?? hook.endpoint_id ?? ""),
+    secret: String(hook.secret ?? j.secret ?? ""),
+    url: String(hook.url ?? url),
+  };
+}
+
+/** Remove a push endpoint (used before re-registering with a new URL). */
+export async function supplierDeleteWebhook(s: SupplierRow, endpointId: string) {
+  return await call(s, actionPath("webhooks", "&op=delete"), { method: "POST", body: { endpoint_id: endpointId } });
+}
+
+
+
 export async function supplierBalance(s: SupplierRow) {
   const j = isCanboso(s)
     ? await callAny(s, CANBOSO_ME_PATHS)
@@ -691,6 +724,10 @@ export async function supplierProducts(s: SupplierRow): Promise<SupplierProduct[
       // while others expose it as a boolean. Preserve both dialects.
       const availableCount = typeof p.available === "number" ? p.available : undefined;
       const soldOut = (action && typeof p.available === "boolean" && !p.available) || p.in_stock === false;
+      // Service products (Vexoran `requires_stock: false`) carry `stock: null`
+      // and are always sellable — treating that null as 0 wrongly showed them
+      // as sold out on the site and in the bot.
+      const unlimited = p.requires_stock === false && p.available !== false;
       const bulkMin = Array.isArray(p.bulk_discounts) && p.bulk_discounts[0]?.min_qty;
       const rawId = p.id ?? p.product_id ?? p.productId ?? p.item_id ?? p.uuid ?? p.external_product_id ?? p.sku ?? p.code;
       if (rawId == null || String(rawId).trim() === "") {
@@ -707,26 +744,29 @@ export async function supplierProducts(s: SupplierRow): Promise<SupplierProduct[
             : Number(p.price ?? p.unit_price ?? p.base_price ?? p.wholesale_price ?? p.reseller_price ?? p.cost ?? p.cost_price ?? 0),
         stock: soldOut
           ? 0
-          : Math.max(
-              0,
-              Number(
-                p.stock ??
-                  p.available_stock ??
-                  p.stock_count ??
-                  p.inventory ??
-                  p.inventory_count ??
-                  p.qty ??
-                  availableCount ??
-                  p.quantity ??
-                  p.stock_quantity ??
-                  0,
-              ) || 0,
-            ),
+          : unlimited
+            ? 9999
+            : Math.max(
+                0,
+                Number(
+                  p.stock ??
+                    p.available_stock ??
+                    p.stock_count ??
+                    p.inventory ??
+                    p.inventory_count ??
+                    p.qty ??
+                    availableCount ??
+                    p.quantity ??
+                    p.stock_quantity ??
+                    0,
+                ) || 0,
+              ),
         currency: String(p.currency ?? p.currency_code ?? (action ? "USDT" : "USD")),
         min_qty: Number(p.min_qty ?? p.minimum_quantity ?? p.min_quantity ?? bulkMin ?? 1),
         raw: p,
       }];
     });
+
 }
 
 const ITEM_LABELS: Record<string, string> = {
@@ -827,6 +867,30 @@ function firstDeliveryItems(...candidates: any[]): any[] {
   return [];
 }
 
+/**
+ * Some suppliers (Vexoran `data`) return every purchased unit inside ONE
+ * newline-joined string. Split it back into one entry per unit so the buyer
+ * receives exactly as many items as they paid for, in the supplier's own
+ * order and formatting.
+ */
+export function splitBulkDelivery(items: string[], qty: number): string[] {
+  if (qty <= 1 || items.length !== 1) return items;
+  const text = items[0] ?? "";
+  const blocks = text
+    .split(/\n\s*\n/)
+    .map((b) => b.trim())
+    .filter(Boolean);
+  if (blocks.length === qty) return blocks;
+  const lines = text
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+  if (lines.length === qty) return lines;
+  return items;
+}
+
+
+
 /** Place an order at the supplier. Returns delivered item strings. */
 export async function supplierOrder(
   s: SupplierRow,
@@ -879,8 +943,9 @@ export async function supplierOrder(
         order.content,
       );
 
-  const items = rawItems.map(formatDeliveryItem).filter(Boolean);
+  const items = splitBulkDelivery(rawItems.map(formatDeliveryItem).filter(Boolean), qty);
   const code = order.code ?? order.order_code ?? order.reference ?? order.order_id ?? order.id ?? j.code ?? null;
+
 
   // Action-dialect (Vexoran): the POST may only acknowledge the order, so read
   // the delivered payload back from ?action=orders using our external_order_id.
@@ -902,8 +967,12 @@ export async function supplierOrder(
             ? [formatDeliveryItem(payload)]
             : [];
         if (found.length) {
-          return { code: mine?.order_id ? String(mine.order_id) : code ? String(code) : null, items: found };
+          return {
+            code: mine?.order_id ? String(mine.order_id) : code ? String(code) : null,
+            items: splitBulkDelivery(found, qty),
+          };
         }
+
         if (mine && ["failed", "cancelled", "refunded"].includes(String(mine.status ?? ""))) break;
       } catch {
         /* keep retrying; a lookup failure must not lose the order reference */
