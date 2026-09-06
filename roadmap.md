@@ -15,3 +15,8 @@
 - [x] Add a Cloudflare scheduled fallback so stock and prices refresh without admin clicks- [x] Send up to 6 stock cards per supplier per run and drain all four suppliers in parallel
 - [x] Retry stalled alert claims after 45s instead of 120s
 - [x] Announce admin-added products and admin-removed products to channel + bot DMs
+- [x] Deliver queued Telegram alerts before catalogue polling on every tick
+- [x] Queue stock/price events before the snapshot write so no transition is lost
+- [x] Announce real price changes (drop by default, rises optional)
+- [x] Retry alerts with exponential backoff and drop after 8 failures with a log
+- [x] Admin auto-sync health panel (last run, waiting alerts, recent delivery log)
