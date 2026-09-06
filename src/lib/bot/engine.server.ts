@@ -2247,18 +2247,24 @@ export async function announceLowStock(
   if ((s["announce_low"] ?? "on").toLowerCase() === "off") return;
   const out = available <= 0;
   const title = out
-    ? s["announce_out_title"] || "⛔ OUT OF STOCK"
-    : s["announce_low_title"] || "⚠️ LOW STOCK";
+    ? s["announce_out_title"] || "SOLD OUT"
+    : s["announce_low_title"] || "ALMOST GONE";
   const footer = out
-    ? s["announce_out_footer"] || "Sold out for now — we will post again the moment it is back."
-    : s["announce_low_footer"] || "Almost gone — order now before it sells out.";
-  const line = "──────────────────────";
+    ? s["announce_out_footer"] || "Sold out for now — you'll be the first to know the moment it returns."
+    : s["announce_low_footer"] || "This is your final chance — secure it before it's gone for good.";
+  const line = "━━━━━━━━━━━━━━━━";
   const text =
-    `<b>${escapeHtml(title)}</b>\n${line}\n\n` +
+    `${alertIcon(s, out ? "out" : "low")} <b>${escapeHtml(title)}</b>\n${line}\n\n` +
     `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
-    `💎 <b>Price</b>  ${money(product?.price)}\n` +
-    (out ? `📉 <b>Available</b>  none left\n` : `📉 <b>Available</b>  only ${available} left\n`) +
+    (out
+      ? `${alertIcon(s, "stock")} <b>Stock</b>  none left\n`
+      : `${alertIcon(s, "stock")} <b>Only ${available} left</b> in stock\n`) +
+    `${alertIcon(s, "price")} <b>Price</b>  ${money(product?.price)}\n` +
+    (out
+      ? `${alertIcon(s, "bell")} We'll post again the second it's restocked\n`
+      : `${alertIcon(s, "delivery")} <b>Delivery</b>  instant &amp; automatic\n`) +
     `\n<i>${escapeHtml(footer)}</i>`;
+
   const banner = bannerFor(product, s);
   if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
