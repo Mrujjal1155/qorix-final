@@ -2959,8 +2959,13 @@ async function handleMessage(msg: any) {
       const raw = text.trim();
       try {
         if (mode === "adm_ui_icon") {
-          const customEmojiId = raw === "-" ? "" : customEmojiIdFromMessage(msg);
-          const value = raw === "-" ? "" : iconValue(customEmojiId, raw);
+          const input = readIconInput(msg, text, UI_ELEMENTS[uiKey as keyof typeof UI_ELEMENTS].icon);
+          if (input.empty) {
+            await say(chatId, ICON_INPUT_HELP, ADM_BACK);
+            return;
+          }
+          const value = input.value;
+
           await saveIconSetting(`ui_icon_${uiKey}`, value);
           const preview = iconPreviewHtml(value, UI_ELEMENTS[uiKey as keyof typeof UI_ELEMENTS].icon);
           const v = await admUiItemView(uiKey);
