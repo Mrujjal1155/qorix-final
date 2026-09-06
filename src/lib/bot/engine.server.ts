@@ -3049,9 +3049,13 @@ async function handleMessage(msg: any) {
       const pageKey = String(state.adm_page_icon ?? "") as PageIconKey;
       await setState(chatId, state);
       if (!(await isAdmin(chatId)) || !(pageKey in PAGE_ICONS)) return;
-      const raw = text.trim();
-      const customEmojiId = raw === "-" ? "" : customEmojiIdFromMessage(msg);
-      const value = raw === "-" ? "" : iconValue(customEmojiId, raw);
+      const pageInput = readIconInput(msg, text, PAGE_ICONS[pageKey][0]);
+      if (pageInput.empty) {
+        await say(chatId, ICON_INPUT_HELP, ADM_BACK);
+        return;
+      }
+      const value = pageInput.value;
+
       try {
         await saveIconSetting(`page_icon_${pageKey}`, value);
       } catch (e) {
