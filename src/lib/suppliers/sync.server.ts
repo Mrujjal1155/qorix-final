@@ -597,8 +597,8 @@ export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, 
         if (d.delivery_time) productRow.delivery_time = d.delivery_time;
         if (d.important_note) productRow.important_note = d.important_note;
         if (d.quick_guide) productRow.quick_guide = d.quick_guide;
-        const extra = extraDetailsFromRaw(p.raw);
-        if (extra.length) productRow.details = extra;
+        productRow.details = extraDetailsFromRaw(p.raw);
+
 
         // products only has a PARTIAL unique index on
         // (supplier_id, supplier_external_id), so ON CONFLICT cannot be used:
