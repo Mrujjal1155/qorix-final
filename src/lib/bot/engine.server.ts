@@ -315,8 +315,8 @@ async function premiumEmojiNote(chatId: number, value: string) {
   if (!isCustomEmojiBlocked()) return;
   await sendMessage(
     chatId,
-    "ℹ️ <b>Saved</b> — but Telegram is not letting this bot display Premium custom emoji, so it shows the normal emoji instead.\n\n" +
-      "Only bots that own a username bought on Fragment may send Premium emoji. Buy a username on fragment.com and assign it to this bot, then the saved Premium icons appear everywhere automatically.",
+    "ℹ️ <b>Saved.</b> Telegram rejected this custom emoji in the last message, so it was shown as a normal emoji there. " +
+      "Try another Premium emoji — the saved icon is used everywhere it is allowed.",
   );
 }
 
