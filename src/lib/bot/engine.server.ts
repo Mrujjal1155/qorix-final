@@ -1095,7 +1095,8 @@ function countdown(iso?: string | null) {
 
 async function productView(productId: string) {
   const { data: p } = await db.from("products").select("*").eq("id", productId).maybeSingle();
-  if (!p) return null;
+  // Products switched off in admin are hidden from the bot, exactly like the website.
+  if (!p || p.is_active === false || p.owner_reseller_id) return null;
   const [{ count }, { count: soldCount }] = await Promise.all([
     db
       .from("stock_items")
