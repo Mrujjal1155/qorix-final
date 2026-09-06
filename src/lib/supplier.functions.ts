@@ -334,35 +334,12 @@ export const configureSupplierWebhook = createServerFn({ method: "POST" })
     const { data: s } = await sb.from("suppliers").select("*").eq("id", data.id).maybeSingle();
     if (!s) throw new Error("Supplier not found");
 
-    const api = await import("@/lib/suppliers/api.server");
-    if (!api.supplierSupportsWebhooks(s)) {
-      return { ok: false, message: "This supplier has no webhook API — polling stays active." };
-    }
-    const origin = String(data.origin || "").replace(/\/$/, "");
-    if (!/^https:\/\//i.test(origin)) {
-      return { ok: false, message: "Webhooks need an https site URL (open the published site and retry)." };
-    }
-    const url = `${origin}/api/public/suppliers/webhook?s=${s.id}`;
-    const events = ["product.price_changed", "product.stock_changed", "order.delivered"];
-
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { ensureSupplierWebhook } = await import("@/lib/suppliers/webhook.server");
     try {
-      // Drop any endpoint we registered before (URL or secret may have changed).
-      const existing = await api.supplierWebhooks(s).catch(() => ({ webhooks: [] as any[] }));
-      for (const w of existing.webhooks ?? []) {
-        if (String(w?.url ?? "").includes("/api/public/suppliers/webhook")) {
-          await api.supplierDeleteWebhook(s, String(w.id)).catch(() => {});
-        }
-      }
-      const created = await api.supplierRegisterWebhook(s, url, events);
-      if (!created.secret) {
-        return { ok: false, message: "Supplier did not return a signing secret — try again." };
-      }
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      await (supabaseAdmin as any)
-        .from("bot_settings")
-        .upsert({ key: `supplier_webhook_secret:${s.id}`, value: created.secret }, { onConflict: "key" });
-      return { ok: true, message: `Realtime alerts on · ${url}` };
+      return await ensureSupplierWebhook(supabaseAdmin as any, s, { origin: data.origin, force: true });
     } catch (e) {
       return { ok: false, message: e instanceof Error ? e.message : "Webhook setup failed" };
     }
   });
+
