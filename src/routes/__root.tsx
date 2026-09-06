@@ -16,6 +16,7 @@ import { THEME_INIT_SCRIPT } from "@/components/theme";
 import { PrefsProvider } from "@/lib/prefs";
 import { I18nProvider, useT } from "@/lib/i18n";
 import { ReferralCapture } from "@/components/ReferralCapture";
+import { BrandHead } from "@/components/BrandHead";
 
 
 function NotFoundComponent() {
@@ -98,7 +99,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Premium AI tools, streaming and productivity subscriptions with instant delivery — on the website and our Telegram bot.",
       },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
+      { property: "og:image", content: "https://qorixlab.com/og-image.png" },
+      { name: "twitter:image", content: "https://qorixlab.com/og-image.png" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
       {
@@ -141,6 +144,7 @@ function RootComponent() {
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
         <Outlet />
         <ReferralCapture />
+        <BrandHead />
         <Toaster />
         </PrefsProvider>
       </I18nProvider>

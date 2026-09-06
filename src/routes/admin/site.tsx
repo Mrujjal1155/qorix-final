@@ -34,7 +34,7 @@ type Field = { key: string; label: string; hint?: string; long?: boolean; image?
 const GROUPS: { title: string; desc: string; icon: LucideIcon; fields: Field[] }[] = [
   {
     title: "Brand",
-    desc: "Site name, logo and footer tagline.",
+    desc: "Site name, logo, favicon, share image and footer tagline.",
     icon: Sparkles,
     fields: [
       { key: "site_brand_name", label: "Brand name" },
@@ -42,7 +42,25 @@ const GROUPS: { title: string; desc: string; icon: LucideIcon; fields: Field[] }
       {
         key: "site_brand_logo",
         label: "Site logo (header + footer)",
-        hint: "Once uploaded, this logo is used everywhere. Leave empty for the default QORIX logo. Best size: 400×120 px PNG (transparent).",
+        hint: "Used everywhere once uploaded. Leave empty for the default QORIX logo. Best size: 400×120 px PNG (transparent), under 300KB.",
+        image: true,
+      },
+      {
+        key: "site_favicon",
+        label: "Favicon (browser tab icon)",
+        hint: "Square icon shown in the browser tab. Best size: 512×512 px PNG (transparent), min 256×256. Leave empty for the default QORIX favicon.",
+        image: true,
+      },
+      {
+        key: "site_apple_icon",
+        label: "Apple touch icon (iOS home screen)",
+        hint: "Square icon, no transparency needed. Best size: 180×180 px PNG (512×512 also fine). Leave empty to reuse the favicon.",
+        image: true,
+      },
+      {
+        key: "site_og_image",
+        label: "Social share image (OG image)",
+        hint: "Preview card shown on Facebook / WhatsApp / Telegram / X. Exact size: 1200×630 px PNG or JPG, under 1MB. Leave empty for the default QORIX share image.",
         image: true,
       },
       { key: "site_tagline", label: "Footer tagline", long: true },

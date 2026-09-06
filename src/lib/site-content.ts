@@ -44,6 +44,9 @@ export const SITE_DEFAULTS: Record<string, string> = {
   site_whatsapp: "https://wa.me/8801860036852",
   site_whatsapp_icon: "", // optional image URL for the floating WhatsApp button
   site_brand_logo: "", // optional uploaded logo (empty = bundled QORIX logo)
+  site_favicon: "", // browser tab icon (empty = bundled QORIX favicon)
+  site_apple_icon: "", // iOS home-screen icon (empty = favicon)
+  site_og_image: "", // social share image (empty = bundled QORIX share image)
   site_show_scrolltop: "1",
 
   // ── Pages (all editable from /admin/site) ─────────────────────────
