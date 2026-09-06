@@ -5172,10 +5172,36 @@ async function handleCallback(cq: any) {
     } else if (action === "icons") {
       const v = await admPickView("icon", 0, pickQuery(st, "icon"));
       await edit(v.text, v.kb);
-    } else if (action.startsWith("pgi:") || action.startsWith("pgd:") || action.startsWith("pgs:")) {
-      const kind: PickKind = action.startsWith("pgi:") ? "icon" : action.startsWith("pgd:") ? "detail" : "stock";
+    } else if (action === "iconsoff") {
+      const v = await admPickView("iconoff", 0, pickQuery(st, "iconoff"));
+      await edit(v.text, v.kb);
+    } else if (action === "alerticons") {
+      const v = await admAlertIconView();
+      await edit(v.text, v.kb);
+    } else if (action.startsWith("ai:")) {
+      const alertKey = arg as AlertIconKey;
+      if (!(alertKey in ALERT_ICONS)) return;
+      await setState(chatId, { ...st, awaiting: "adm_alert_icon", adm_alert_icon: alertKey });
+      await say(
+        chatId,
+        `🚨 Send the new icon for <b>${ALERT_ICONS[alertKey][1]}</b>.\n\nNormal emoji or Telegram Premium custom emoji both work. Send <code>-</code> to reset.`,
+      );
+    } else if (
+      action.startsWith("pgi:") ||
+      action.startsWith("pgio:") ||
+      action.startsWith("pgd:") ||
+      action.startsWith("pgs:")
+    ) {
+      const kind: PickKind = action.startsWith("pgio:")
+        ? "iconoff"
+        : action.startsWith("pgi:")
+          ? "icon"
+          : action.startsWith("pgd:")
+            ? "detail"
+            : "stock";
       const v = await admPickView(kind, Number(arg) || 0, pickQuery(st, kind));
       await edit(v.text, v.kb);
+
     } else if (action.startsWith("fnd:")) {
       const kind = arg as PickKind;
       if (!(kind in PICK_CFG)) return;
