@@ -670,37 +670,66 @@ export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, 
 export async function syncAllSuppliers() {
   const db = await adminDb();
   const { data: sups } = await db.from("suppliers").select("*").eq("is_enabled", true);
+
+  // Delivery FIRST. Catalogue polling is the heavy part of a run; when it used
+  // to go first, a slow supplier API could eat the whole invocation and the
+  // queued Telegram cards were never sent (queues sat full for hours).
+  const delivery = await drainAllNotifications(db).catch((error) => {
+    console.error("Notification drain failed:", error);
+    return { sent: 0, failed: 1 };
+  });
+
   let added = 0;
   let restocked = 0;
+  let checked = 0;
+  let priceChanges = 0;
+  let lowOrOut = 0;
+  let failedSuppliers = 0;
+  let lastError = "";
   // Suppliers run side by side so one slow API can't push a single run past the
   // 15s schedule interval.
   const results = await Promise.allSettled((sups ?? []).map((s: any) => syncSupplierCore(db, s)));
   for (const r of results) {
-    if (r.status === "fulfilled") {
+    if (r.status === "fulfilled" && r.value.ok) {
       added += r.value.added;
       restocked += r.value.restocked;
+      checked += (r.value as any).checked ?? 0;
+      priceChanges += (r.value as any).priceChanges ?? 0;
+      lowOrOut += (r.value as any).lowOrOut ?? 0;
     } else {
-      console.error("Supplier sync crashed:", r.reason);
+      failedSuppliers += 1;
+      lastError =
+        r.status === "fulfilled"
+          ? String((r.value as any).message ?? "Sync failed")
+          : r.reason instanceof Error
+            ? r.reason.message
+            : String(r.reason);
+      console.error("Supplier sync crashed:", lastError);
     }
   }
 
-  // Delivery is deliberately separate from catalogue writes. Each supplier
-  // advances at most one card and 40 DMs per automatic run, with its cursor
-  // persisted in the queue for the next tick.
-  // All four suppliers drain side by side so one slow API never delays the
-  // other suppliers' stock alerts.
-  await Promise.allSettled(
-    (sups ?? []).map((supplier: any) =>
-      drainNotifications(db, supplier.id).catch((error) =>
-        console.error(`Supplier notifications failed for ${supplier.name}:`, error),
-      ),
-    ),
-  );
+  const finishedAt = new Date().toISOString();
+  await writeJsonValue(db, STATS_KEY, {
+    at: finishedAt,
+    suppliers: (sups ?? []).length,
+    failed_suppliers: failedSuppliers,
+    checked,
+    new_products: added,
+    restocks: restocked,
+    price_changes: priceChanges,
+    low_or_out: lowOrOut,
+    telegram_sent: delivery.sent,
+    telegram_failed: delivery.failed,
+    last_error: lastError || null,
+  });
 
-  await db
-    .from("bot_settings")
-    .upsert({ key: "supplier_last_autosync", value: new Date().toISOString() }, { onConflict: "key" });
-  return { ok: true, suppliers: (sups ?? []).length, added, restocked };
+  await db.from("bot_settings").upsert({ key: "supplier_last_autosync", value: finishedAt }, { onConflict: "key" });
+  if (!failedSuppliers) {
+    await db
+      .from("bot_settings")
+      .upsert({ key: "supplier_last_successful_sync", value: finishedAt }, { onConflict: "key" });
+  }
+  return { ok: true, suppliers: (sups ?? []).length, added, restocked, ...delivery };
 }
 
 /**
@@ -723,7 +752,12 @@ export async function maybeAutoSyncSuppliers(minutes = 2) {
   const every = Number.isFinite(configured) && configured > 0 ? configured : minutes;
 
   const last = Date.parse(map["supplier_last_autosync"] || "");
-  if (Number.isFinite(last) && Date.now() - last < every * 60_000) return { skipped: true };
+  if (Number.isFinite(last) && Date.now() - last < every * 60_000) {
+    // Throttled for catalogue polling, but pending Telegram cards must never
+    // wait for the next window — deliver them on every tick.
+    const delivery = await drainAllNotifications(db).catch(() => ({ sent: 0, failed: 1 }));
+    return { skipped: true, ...delivery };
+  }
 
   // Claim the slot immediately (acts as a lock for concurrent requests).
   await db
