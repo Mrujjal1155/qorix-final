@@ -56,7 +56,9 @@ export async function pushAlerts(items: SupplierAlert[], client?: any) {
   } catch {
     current = [];
   }
-  await writeAlerts([...items, ...current], db);
+  const merged = new Map<string, SupplierAlert>();
+  for (const item of [...items, ...current]) if (!merged.has(item.id)) merged.set(item.id, item);
+  await writeAlerts(Array.from(merged.values()), db);
 }
 
 export async function clearAlerts() {
@@ -139,30 +141,13 @@ async function appendLog(sb: any, entries: any[]) {
 async function enqueueNotifications(sb: any, supplierId: string, items: NotifyItem[]) {
   if (!items.length) return;
   const now = Date.now();
-  const recentRows = (await readJsonSetting(sb, RECENT_KEY)) as Array<{ k: string; at: number }>;
-  const recent = new Map<string, number>();
-  for (const r of recentRows) if (r && typeof r.k === "string" && now - Number(r.at) < COOLDOWN_MS) recent.set(r.k, Number(r.at));
-
-  const fresh = items.filter((it) => {
-    const k = `${it.t}:${it.product_id}`;
-    if (recent.has(k)) return false;
-    recent.set(k, now);
-    return true;
-  });
-  if (!fresh.length) return;
-
   const key = QUEUE_PREFIX + supplierId;
   const current = (await readJsonSetting(sb, key)) as NotifyItem[];
   const merged = new Map<string, NotifyItem>();
   // Existing entries win: they may already carry delivery progress (cursor).
-  for (const it of fresh) merged.set(it.event_id, { ...it, at: now });
+  for (const it of items) merged.set(it.event_id, { ...it, at: now });
   for (const it of current) merged.set(it.event_id, it);
   await writeJsonSetting(sb, key, Array.from(merged.values()).slice(0, 200));
-  await writeJsonSetting(
-    sb,
-    RECENT_KEY,
-    Array.from(recent.entries()).map(([k, at]) => ({ k, at })),
-  );
 }
 
 
@@ -351,7 +336,42 @@ export async function drainAllNotifications(sb?: any) {
  * Pull one supplier's catalogue, update listed products and return what changed.
  * `sb` may be the admin client or an authenticated admin session client.
  */
+async function claimSupplierSync(sb: any, supplierId: string) {
+  const key = `supplier_sync_lock:${supplierId}`;
+  const { data: row } = await sb.from("bot_settings").select("value").eq("key", key).maybeSingle();
+  const oldValue = String(row?.value ?? "");
+  const oldAt = Date.parse(oldValue);
+  if (Number.isFinite(oldAt) && Date.now() - oldAt < 45_000) return false;
+  const value = new Date().toISOString();
+  if (!row) {
+    const { error } = await sb.from("bot_settings").insert({ key, value });
+    return !error;
+  }
+  const { data: claimed } = await sb
+    .from("bot_settings")
+    .update({ value })
+    .eq("key", key)
+    .eq("value", oldValue)
+    .select("key")
+    .maybeSingle();
+  return Boolean(claimed);
+}
+
+async function releaseSupplierSync(sb: any, supplierId: string) {
+  await sb.from("bot_settings").update({ value: "" }).eq("key", `supplier_sync_lock:${supplierId}`);
+}
+
 export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, any>) {
+  const claimed = await claimSupplierSync(sb, String(s.id));
+  if (!claimed) return { ok: true, message: "Sync already running", added: 0, restocked: 0, checked: 0, priceChanges: 0, lowOrOut: 0 };
+  try {
+    return await syncSupplierCoreUnlocked(sb, s);
+  } finally {
+    await releaseSupplierSync(sb, String(s.id));
+  }
+}
+
+async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string, any>) {
   let remote;
   try {
     remote = await supplierProducts(s);
@@ -401,8 +421,6 @@ export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, 
   const uniqueRemote = Array.from(
     new Map(remote.filter((p) => p.external_id != null).map((p) => [String(p.external_id), p])).values(),
   );
-  const remoteIds = new Set(uniqueRemote.map((p) => String(p.external_id)));
-
   // Every supplier row is written in a few batched upserts instead of one
   // request per product — a 250-item catalogue used to need 250 round trips,
   // which made a single sync run longer than the 15s schedule interval.
@@ -520,7 +538,7 @@ export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, 
 
     if ((wasOut && nowIn) || (grew && Number(prev.stock ?? 0) > 0 && Number(p.stock) - Number(prev.stock ?? 0) >= 1)) {
       alerts.push({
-        id: `${s.id}:${p.external_id}:${now}`,
+        id: `restock:${transitionId}`,
         at: now,
         kind: "restock",
         supplier: s.name,
