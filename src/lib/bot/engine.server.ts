@@ -305,7 +305,23 @@ async function saveIconSetting(key: string, value: string) {
   return value;
 }
 
+/**
+ * Telegram only lets bots that own a Fragment username render Premium custom
+ * emoji. When that happens the icon is saved fine but shows as a plain emoji,
+ * so tell the admin instead of leaving them guessing.
+ */
+async function premiumEmojiNote(chatId: number, value: string) {
+  if (!parseIconValue(value, "").customId) return;
+  if (!isCustomEmojiBlocked()) return;
+  await sendMessage(
+    chatId,
+    "ℹ️ <b>Saved</b> — but Telegram is not letting this bot display Premium custom emoji, so it shows the normal emoji instead.\n\n" +
+      "Only bots that own a username bought on Fragment may send Premium emoji. Buy a username on fragment.com and assign it to this bot, then the saved Premium icons appear everywhere automatically.",
+  );
+}
+
 function saveFailText(e: unknown) {
+
   const m = e instanceof Error ? e.message : String(e);
   return `❌ Could not save the icon.\n<code>${escapeHtml(m)}</code>`;
 }
