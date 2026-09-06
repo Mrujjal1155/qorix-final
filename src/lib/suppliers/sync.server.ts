@@ -793,7 +793,38 @@ export async function syncAllSuppliers() {
  * `supplier_sync_minutes` setting). Safe to call very often — it claims the
  * timestamp before syncing so parallel callers never double-run.
  */
+/** Minimum gap between two fast polls of the same push-less supplier. */
+const FAST_POLL_MS = 15_000;
+
+/**
+ * MailReader and the FatBunny/Canboso buyer API expose no webhook endpoint
+ * (verified against both live APIs), so they can never push a stock change to
+ * us. To make them behave like the webhook suppliers we poll them on every
+ * scheduler tick and deliver whatever they produce right away.
+ */
+async function fastPollPushlessSuppliers(db: any) {
+  const { data: sups } = await db.from("suppliers").select("*").eq("is_enabled", true);
+  const api = await import("./api.server");
+  const due: any[] = [];
+  for (const s of sups ?? []) {
+    if (api.supplierSupportsWebhooks(s)) continue; // push already covers these
+    const key = `supplier_fastpoll_at:${String(s.id)}`;
+    const { data: row } = await db.from("bot_settings").select("value").eq("key", key).maybeSingle();
+    const at = Date.parse(String((row as any)?.value ?? ""));
+    if (Number.isFinite(at) && Date.now() - at < FAST_POLL_MS) continue;
+    await db.from("bot_settings").upsert({ key, value: new Date().toISOString() }, { onConflict: "key" });
+    due.push(s);
+  }
+  if (!due.length) return { polled: 0 };
+
+  await Promise.allSettled(due.map((s) => syncSupplierCore(db, s)));
+  // Anything the poll produced should reach Telegram in the same tick.
+  await drainAllNotifications(db).catch(() => ({ sent: 0, failed: 1 }));
+  return { polled: due.length };
+}
+
 export async function maybeAutoSyncSuppliers(minutes = 2) {
+
   const db = await adminDb();
   const { data } = await db
     .from("bot_settings")
