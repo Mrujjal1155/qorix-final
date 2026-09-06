@@ -8,7 +8,7 @@
  */
 import { publicProduct, type Reseller } from "./core.server";
 
-export type ResellerEvent = "restock" | "new" | "low" | "out" | "price";
+export type ResellerEvent = "restock" | "new" | "low" | "out" | "price" | "removed";
 
 type WebhookReseller = Reseller & {
   webhook_url?: string | null;
@@ -45,7 +45,10 @@ export async function pushResellerEvent(
   extra: Record<string, unknown> = {},
 ) {
   try {
-    if (!product?.id || product.is_active === false) return;
+    // A product that is OFF (or deleted) is invisible to resellers — the only
+    // event we still push for it is "removed", so they can hide it instantly.
+    if (!product?.id) return;
+    if (product.is_active === false && event !== "removed") return;
     const db = await adminDb();
     const { data: rows } = await db
       .from("resellers")
@@ -55,7 +58,7 @@ export async function pushResellerEvent(
     const targets = (rows ?? []).filter((r: any) => {
       const url = String(r.webhook_url ?? "").trim();
       if (!/^https?:\/\//i.test(url)) return false;
-      const wanted = String(r.webhook_events ?? "restock,new,low,out,price")
+      const wanted = String(r.webhook_events ?? "restock,new,low,out,price,removed")
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean);

@@ -277,6 +277,10 @@ export const saveProduct = createServerFn({ method: "POST" })
         console.error("new-product announce failed:", e);
       }
     }
+    if (created) {
+      const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
+      await pushResellerEvent((created as any).is_active === false ? "removed" : "new", created);
+    }
     return { ok: true };
   });
 
@@ -296,6 +300,10 @@ export const deleteProduct = createServerFn({ method: "POST" })
       } catch (e) {
         console.error("removed-product announce failed:", e);
       }
+    }
+    if (existing) {
+      const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
+      await pushResellerEvent("removed", existing);
     }
     return { ok: true };
   });
