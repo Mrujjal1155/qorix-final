@@ -122,6 +122,34 @@ export function pageIconHtml(settings: Record<string, string>, key: PageIconKey)
   return parsed.customId ? `<tg-emoji emoji-id="${parsed.customId}">${glyph}</tg-emoji>` : glyph;
 }
 
+/**
+ * Icons used inside the stock / price alert cards. Admin can replace every one
+ * of them with a Telegram Premium custom emoji from /admin → Alert icons.
+ */
+const ALERT_ICONS = {
+  restock: ["🔥", "Back in stock badge"],
+  new: ["🆕", "New product badge"],
+  low: ["🚨", "Almost gone badge"],
+  out: ["⛔", "Sold out badge"],
+  price_down: ["💸", "Price drop badge"],
+  price_up: ["📈", "Price update badge"],
+  price: ["🏷", "Price line"],
+  stock: ["📦", "Stock line"],
+  spark: ["⚡", "Highlight line"],
+  delivery: ["⏱", "Delivery line"],
+  bell: ["🔔", "Notify line"],
+  save: ["💰", "You save line"],
+} as const;
+
+type AlertIconKey = keyof typeof ALERT_ICONS;
+
+/** HTML for an alert icon (Premium custom emoji when configured). */
+function alertIcon(settings: Record<string, string>, key: AlertIconKey) {
+  const [fallback] = ALERT_ICONS[key];
+  const parsed = parseIconValue(settings[`alert_icon_${key}`] ?? "", fallback);
+  const glyph = escapeHtml(parsed.glyph);
+  return parsed.customId ? `<tg-emoji emoji-id="${parsed.customId}">${glyph}</tg-emoji>` : glyph;
+}
 
 
 /**
