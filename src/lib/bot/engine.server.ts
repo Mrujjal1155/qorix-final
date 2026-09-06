@@ -2127,19 +2127,21 @@ export async function announceRestock(
 ) {
   const s = await getSettings();
   if ((s["announce_restock"] ?? "on").toLowerCase() === "off") return;
-  const title = s["announce_restock_title"] || "🔥 BACK IN STOCK";
+  const title = s["announce_restock_title"] || "BACK IN STOCK";
   const footer =
-    s["announce_restock_footer"] || "Back by popular demand — order now before it runs out again.";
-  const line = "──────────────────────";
+    s["announce_restock_footer"] || "Restocked units go fast — lock yours in before they're gone again.";
+  const line = "━━━━━━━━━━━━━━━━";
   const text =
-    `<b>${escapeHtml(title)}</b>\n${line}\n\n` +
+    `${alertIcon(s, "restock")} <b>${escapeHtml(title)}</b>\n${line}\n\n` +
     `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
     (addedQty > 0
-      ? `➕ Freshly restocked — <b>${addedQty}</b> new item(s) now available.\n\n`
-      : `➕ Now available again.\n\n`) +
-    `💎 <b>Price</b>  ${money(product?.price)}\n` +
-    `📈 <b>Available</b>  ${available} in stock\n\n` +
+      ? `${alertIcon(s, "spark")} <b>${addedQty}</b> fresh unit(s) just landed.\n`
+      : `${alertIcon(s, "spark")} Available again right now.\n`) +
+    `${alertIcon(s, "price")} <b>Price</b>  ${money(product?.price)}\n` +
+    `${alertIcon(s, "stock")} <b>In stock</b>  ${available} ready\n` +
+    `${alertIcon(s, "delivery")} <b>Delivery</b>  instant &amp; automatic\n\n` +
     `<i>${escapeHtml(footer)}</i>`;
+
   const kb = await channelProductButton(s, product);
   const banner = bannerFor(product, s);
   if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
