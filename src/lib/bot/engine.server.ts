@@ -5,6 +5,8 @@ import {
   deleteMessage,
   editMessage,
   getMe,
+  isCustomEmojiBlocked,
+
   sendDocument,
   sendMessage,
   sendPhoto,
@@ -303,7 +305,23 @@ async function saveIconSetting(key: string, value: string) {
   return value;
 }
 
+/**
+ * Telegram only lets bots that own a Fragment username render Premium custom
+ * emoji. When that happens the icon is saved fine but shows as a plain emoji,
+ * so tell the admin instead of leaving them guessing.
+ */
+async function premiumEmojiNote(chatId: number, value: string) {
+  if (!parseIconValue(value, "").customId) return;
+  if (!isCustomEmojiBlocked()) return;
+  await sendMessage(
+    chatId,
+    "ℹ️ <b>Saved</b> — but Telegram is not letting this bot display Premium custom emoji, so it shows the normal emoji instead.\n\n" +
+      "Only bots that own a username bought on Fragment may send Premium emoji. Buy a username on fragment.com and assign it to this bot, then the saved Premium icons appear everywhere automatically.",
+  );
+}
+
 function saveFailText(e: unknown) {
+
   const m = e instanceof Error ? e.message : String(e);
   return `❌ Could not save the icon.\n<code>${escapeHtml(m)}</code>`;
 }
@@ -2974,8 +2992,11 @@ async function handleMessage(msg: any) {
             `✅ ${UI_ELEMENTS[uiKey as keyof typeof UI_ELEMENTS].label} icon updated → ${preview}\n\nSaved value: <code>${escapeHtml(value || "(empty)")}</code>\n\n${v.text}`,
             v.kb,
           );
+          await premiumEmojiNote(chatId, value);
           return;
         } else {
+
+
           const value = raw === "-" ? "" : raw.slice(0, 40);
           await saveIconSetting(`ui_text_${uiKey}`, value);
           const v = await admUiItemView(uiKey);
@@ -3017,6 +3038,7 @@ async function handleMessage(msg: any) {
         p ? `✅ Icon updated: ${customEmojiId ? `<tg-emoji emoji-id="${customEmojiId}">${escapeHtml(icon)}</tg-emoji>` : escapeHtml(icon)} <b>${escapeHtml(p.name)}</b>` : "❌ Product not found.",
         [[{ text: "🎨 More icons", callback_data: "adm:icons" }], ADM_BACK[0]!],
       );
+      await premiumEmojiNote(chatId, input.value);
       return;
     }
     case "adm_menu_icon": {
@@ -3042,6 +3064,7 @@ async function handleMessage(msg: any) {
         `✅ ${MENU_ICONS[menuKey][1]} icon updated → ${iconPreviewHtml(value, MENU_ICONS[menuKey][0])}`,
         [[{ text: "🎨 More menu icons", callback_data: "adm:menuicons" }], ADM_BACK[0]!],
       );
+      await premiumEmojiNote(chatId, value);
       return;
     }
     case "adm_page_icon": {
@@ -3070,6 +3093,7 @@ async function handleMessage(msg: any) {
           ADM_BACK[0]!,
         ],
       );
+      await premiumEmojiNote(chatId, value);
       return;
     }
     case "adm_alert_icon": {
@@ -3095,6 +3119,7 @@ async function handleMessage(msg: any) {
         `✅ ${ALERT_ICONS[alertKey][1]} updated → ${iconPreviewHtml(value, ALERT_ICONS[alertKey][0])}`,
         [[{ text: "🚨 More alert icons", callback_data: "adm:alerticons" }], ADM_BACK[0]!],
       );
+      await premiumEmojiNote(chatId, value);
       return;
     }
 
