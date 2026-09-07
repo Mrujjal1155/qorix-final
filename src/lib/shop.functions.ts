@@ -65,10 +65,19 @@ export const listStorefront = createServerFn({ method: "GET" }).handler(async ()
   }
 
 
-  const products = base.map((p: any) => ({
-    ...p,
-    stock: p.supplier_id ? Number(p.supplier_stock ?? 0) : (counts[p.id] ?? 0),
-  }));
+  const products = base
+    .map((p: any) => ({
+      ...p,
+      stock: p.supplier_id ? Number(p.supplier_stock ?? 0) : (counts[p.id] ?? 0),
+    }))
+    // Same serial as the Telegram bot: admin-pinned (featured_rank 1,2,3…)
+    // first in that exact order, then the normal sort_order.
+    .sort((a: any, b: any) => {
+      const ra = Number(a.featured_rank ?? 0) || Number.MAX_SAFE_INTEGER;
+      const rb = Number(b.featured_rank ?? 0) || Number.MAX_SAFE_INTEGER;
+      if (ra !== rb) return ra - rb;
+      return Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0);
+    });
   return { categories, products, heroItems: hero.data ?? [] };
 });
 
