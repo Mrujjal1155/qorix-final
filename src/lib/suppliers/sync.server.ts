@@ -6,7 +6,14 @@
  * (bot_settings key `supplier_alerts`) so the admin bell can show them, and
  * posts BACK IN STOCK cards to the Telegram channel for listed products.
  */
-import { supplierProducts, sellPrice, detailsFromRaw, extraDetailsFromRaw, type SupplierRow } from "./api.server";
+import {
+  supplierProducts,
+  sellPrice,
+  detailsFromRaw,
+  extraDetailsFromRaw,
+  supplierDeliveryType,
+  type SupplierRow,
+} from "./api.server";
 
 export type SupplierAlert = {
   id: string;
