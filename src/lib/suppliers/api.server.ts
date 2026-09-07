@@ -716,8 +716,9 @@ export async function supplierProducts(s: SupplierRow): Promise<SupplierProduct[
   }
 
   return list
-    // Skip items the API cannot fulfil automatically (manual delivery on their side).
-    .filter((p) => (action ? p.api_orderable !== false : true))
+    // Items the API cannot fulfil automatically (manual delivery on the
+    // supplier side) are still imported so the admin sees the full catalogue —
+    // they are listed as manual-delivery products instead of being dropped.
     .filter((p) => (isCanboso(s) ? p.status !== "inactive" && p.is_active !== false : true))
     .flatMap((p) => {
       // Some action-style APIs expose `available` as the live numeric count,
