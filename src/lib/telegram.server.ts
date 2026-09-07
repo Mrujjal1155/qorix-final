@@ -252,6 +252,13 @@ export async function setMyCommands(adminChatIds: (string | number)[] = []) {
   // Public/default scope: no admin commands here.
   const res = await tg("setMyCommands", { commands: base, scope: { type: "default" } });
 
+  // Wipe stale lists left in other scopes by older versions, then re-apply
+  // the trimmed list so private chats never show removed commands.
+  for (const scope of [{ type: "all_private_chats" }, { type: "all_group_chats" }, { type: "all_chat_administrators" }]) {
+    await tg("deleteMyCommands", { scope }).catch(() => {});
+    await tg("setMyCommands", { commands: base, scope }).catch(() => {});
+  }
+
   // Admin-only scope: visible solely inside each admin's private chat.
   for (const id of adminChatIds) {
     await tg("setMyCommands", {
