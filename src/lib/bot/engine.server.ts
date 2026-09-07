@@ -4071,9 +4071,15 @@ async function admMenuIconView() {
     iconButton(settings, key, `adm:mi:${key}`, MENU_ICONS[key][1]),
   ]);
   kb.push(ADM_BACK[0]!);
+  const list = iconPreviewLines(
+    settings,
+    "menu_icon_",
+    (Object.keys(MENU_ICONS) as MenuIconKey[]).map((k) => [k, MENU_ICONS[k][1], MENU_ICONS[k][0]]),
+  );
   return {
     text:
-      "🧩 <b>Menu icons</b>\n\nPick a button, then send a normal or Telegram Premium custom emoji. Send <code>-</code> to reset.",
+      "🧩 <b>Menu icons</b>\n\nPick a button, then send a normal or Telegram Premium custom emoji. Send <code>-</code> to reset.\n\n" +
+      `<b>Current icons</b>\n${list}`,
     kb,
   };
 }
@@ -4084,19 +4090,27 @@ async function admPageIconView() {
     const parsed = parseIconValue(settings[`page_icon_${key}`] ?? "", PAGE_ICONS[key][0]);
     return [
       {
-        text: `${parsed.glyph} ${PAGE_ICONS[key][1]}`.trim(),
+        text: `${parsed.customId ? "✨" : parsed.glyph} ${PAGE_ICONS[key][1]}`.trim(),
         callback_data: `adm:pi:${key}`,
+        ...(parsed.customId ? { icon_custom_emoji_id: parsed.customId } : {}),
       },
     ];
   });
   kb.push(ADM_BACK[0]!);
+  const list = iconPreviewLines(
+    settings,
+    "page_icon_",
+    (Object.keys(PAGE_ICONS) as PageIconKey[]).map((k) => [k, PAGE_ICONS[k][1], PAGE_ICONS[k][0]]),
+  );
   return {
     text:
       "🖼 <b>Page icons</b>\n\nEvery bot page (shop, product, checkout, payment, wallet, orders…) has a header icon.\n" +
-      "Pick a page, then send a normal emoji or a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.",
+      "Pick a page, then send a normal emoji or a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.\n\n" +
+      `<b>Current icons</b>\n${list}`,
     kb,
   };
 }
+
 
 /** Icons used inside stock / price alert cards — Premium emoji supported. */
 async function admAlertIconView() {
