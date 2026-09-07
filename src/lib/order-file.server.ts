@@ -55,7 +55,7 @@ type OrderLike = {
 };
 
 /** Full, documented .txt export of one order. */
-export function orderFileText(order: OrderLike, brand = "Qamify") {
+export function orderFileText(order: OrderLike, brand = "QORIX") {
   const items = credentialItems(order.delivered_content);
   const head =
     `${brand} — Order receipt\n` +

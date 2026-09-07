@@ -761,6 +761,7 @@ export type Database = {
       }
       resellers: {
         Row: {
+          account_no: number | null
           allow_bot: boolean
           allow_website: boolean
           api_key: string
@@ -772,12 +773,14 @@ export type Database = {
           id: string
           is_active: boolean
           last_used_at: string | null
+          low_bal_alert: number
           markup_percent: number
           name: string
           notes: string | null
           site_name: string | null
           site_url: string | null
           support_contact: string | null
+          telegram_id: number | null
           updated_at: string
           user_id: string | null
           webhook_events: string
@@ -787,6 +790,7 @@ export type Database = {
           webhook_url: string | null
         }
         Insert: {
+          account_no?: number | null
           allow_bot?: boolean
           allow_website?: boolean
           api_key: string
@@ -798,12 +802,14 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_used_at?: string | null
+          low_bal_alert?: number
           markup_percent?: number
           name: string
           notes?: string | null
           site_name?: string | null
           site_url?: string | null
           support_contact?: string | null
+          telegram_id?: number | null
           updated_at?: string
           user_id?: string | null
           webhook_events?: string
@@ -813,6 +819,7 @@ export type Database = {
           webhook_url?: string | null
         }
         Update: {
+          account_no?: number | null
           allow_bot?: boolean
           allow_website?: boolean
           api_key?: string
@@ -824,12 +831,14 @@ export type Database = {
           id?: string
           is_active?: boolean
           last_used_at?: string | null
+          low_bal_alert?: number
           markup_percent?: number
           name?: string
           notes?: string | null
           site_name?: string | null
           site_url?: string | null
           support_contact?: string | null
+          telegram_id?: number | null
           updated_at?: string
           user_id?: string | null
           webhook_events?: string
