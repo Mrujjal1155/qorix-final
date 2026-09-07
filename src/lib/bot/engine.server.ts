@@ -3645,6 +3645,7 @@ export function adminKeyboard(): Button[][] {
       { text: "🖼 Page icons", callback_data: "adm:pageicons" },
     ],
     [{ text: "🔌 API icons", callback_data: "adm:apiicons" }],
+    [{ text: "🎫 Support tickets", callback_data: "adm:tk" }],
 
     [{ text: "🆕 Add product", callback_data: "adm:npw" }],
     [{ text: "📝 Product details", callback_data: "adm:pdetails" }],
