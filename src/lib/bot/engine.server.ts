@@ -8,6 +8,7 @@ import {
   isCustomEmojiBlocked,
 
   sendDocument,
+  sendDocumentUpload,
   sendMessage,
   sendPhoto,
   COMMAND_LIST,
@@ -30,6 +31,8 @@ import {
   credentialItems,
   orderCode,
   orderFileName,
+  orderFileText,
+  orderPlainText,
   signOrderToken,
 } from "@/lib/order-file.server";
 import { parseStock } from "@/lib/stock-format";
@@ -4550,14 +4553,22 @@ async function sendOrderFile(chatId: number, code: string, kind: "full" | "plain
     ]);
     return;
   }
-  const url = `${siteUrl(settings)}/api/public/order-file/${signOrderToken(o.id, kind)}/${orderFileName(o, kind)}`;
-  const res = await sendDocument(
-    chatId,
-    url,
-    `<code>${orderCode(o.id)}</code> · ${kind === "plain" ? "plain credentials" : `${credentialItems(o.delivered_content).length} items`}`,
-  );
+  const brand = String(settings["bot_name"] || "QORIX").trim() || "QORIX";
+  const body = kind === "plain" ? orderPlainText(o) : orderFileText(o, brand);
+  const filename = orderFileName(o, kind);
+  const caption = `<code>${orderCode(o.id)}</code> \u00b7 ${
+    kind === "plain" ? "plain credentials" : `${credentialItems(o.delivered_content).length} items`
+  }`;
+  const back: Button[][] = [[uiBtn(settings, "ord_back_list", "orders")]];
+
+  // Upload the file itself so no download URL is ever shown to the user.
+  let res = await sendDocumentUpload(chatId, filename, body, caption, back);
   if (res?.ok === false) {
-    await say(chatId, `📄 Download link:\n${escapeHtml(url)}`, [[uiBtn(settings, "ord_back_list", "orders")]]);
+    const url = `${siteUrl(settings)}/api/public/order-file/${signOrderToken(o.id, kind)}/${filename}`;
+    res = await sendDocument(chatId, url, caption, back);
+  }
+  if (res?.ok === false) {
+    await say(chatId, "\u26a0\ufe0f Could not build your file right now. Please try again in a moment.", back);
   }
 }
 
