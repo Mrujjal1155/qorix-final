@@ -2779,7 +2779,7 @@ async function handleMessage(msg: any) {
 
   // shortcut commands
   if (
-    /^\/(menu|home|shop|wallet|orders|profile|tiers|support|cart|checkout|freebies|referral|emails|api|redeem|deposit|help|commands)\b/.test(
+    /^\/(menu|products|wallet|api|support)\b/.test(
       text,
     )
   ) {
