@@ -153,6 +153,54 @@ function alertIcon(settings: Record<string, string>, key: AlertIconKey) {
   return parsed.customId ? `<tg-emoji emoji-id="${parsed.customId}">${glyph}</tg-emoji>` : glyph;
 }
 
+/**
+ * Icons used on the in-bot Reseller API panel. Every one of them can be
+ * replaced with a Telegram Premium custom emoji from /admin → API icons.
+ */
+const API_ICONS = {
+  panel: ["🔌", "API panel header"],
+  account: ["🪪", "Account line"],
+  status: ["🟢", "Status line"],
+  balance: ["💵", "API balance line"],
+  discount: ["🏷", "Discount line"],
+  orders: ["📦", "API orders line"],
+  key: ["🔑", "API key line"],
+  alert: ["🔔", "Low-balance alert line"],
+  topup: ["💳", "Top Up API Balance button"],
+  prices: ["💲", "My Prices button"],
+  docs: ["📖", "API Docs button"],
+  regen: ["🔄", "Regenerate Key button"],
+  revoke: ["🚫", "Revoke Key button"],
+} as const;
+
+type ApiIconKey = keyof typeof API_ICONS;
+
+/** HTML for an API panel icon (Premium custom emoji when configured). */
+function apiIcon(settings: Record<string, string>, key: ApiIconKey) {
+  const [fallback] = API_ICONS[key];
+  const parsed = parseIconValue(settings[`api_icon_${key}`] ?? "", fallback);
+  const glyph = escapeHtml(parsed.glyph);
+  return parsed.customId ? `<tg-emoji emoji-id="${parsed.customId}">${glyph}</tg-emoji>` : glyph;
+}
+
+/** Button carrying an API panel icon (Premium custom emoji when configured). */
+function apiBtn(
+  settings: Record<string, string>,
+  key: ApiIconKey,
+  label: string,
+  callback_data: string,
+): Button {
+  const [fallback] = API_ICONS[key];
+  const parsed = parseIconValue(settings[`api_icon_${key}`] ?? "", fallback);
+  return {
+    text: parsed.customId ? label : `${parsed.glyph} ${label}`.trim(),
+    callback_data,
+    ...(parsed.customId ? { icon_custom_emoji_id: parsed.customId } : {}),
+  };
+}
+
+
+
 
 /**
  * Fallback icon for products that have no icon of their own (e.g. products
