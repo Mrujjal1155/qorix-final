@@ -2786,6 +2786,15 @@ async function handleMessage(msg: any) {
 
   if (text.startsWith("/start")) {
     await setState(chatId, { msgs: (user.state as any)?.msgs ?? [] });
+    const gateSettings = await getSettings();
+    if (joinGateOn(gateSettings) && !(await isAdmin(chatId, gateSettings))) {
+      const missing = await missingJoins(chatId, gateSettings);
+      if (missing.length) {
+        const gv = joinGateView(gateSettings, missing);
+        await say(chatId, gv.text, gv.kb);
+        return;
+      }
+    }
     // Deep link from a channel post: /start p_<product-id> opens that product.
     if (payload?.startsWith("p_")) {
       const view = await productView(payload.slice(2));
