@@ -6331,17 +6331,30 @@ async function admApiIconView() {
   const settings = await getSettings();
   const kb: Button[][] = (Object.keys(API_ICONS) as ApiIconKey[]).map((key) => {
     const parsed = parseIconValue(settings[`api_icon_${key}`] ?? "", API_ICONS[key][0]);
-    return [{ text: `${parsed.glyph} ${API_ICONS[key][1]}`.trim(), callback_data: `adm:qi:${key}` }];
+    return [
+      {
+        text: `${parsed.customId ? "✨" : parsed.glyph} ${API_ICONS[key][1]}`.trim(),
+        callback_data: `adm:qi:${key}`,
+        ...(parsed.customId ? { icon_custom_emoji_id: parsed.customId } : {}),
+      },
+    ];
   });
   kb.push(ADM_BACK[0]!);
+  const list = iconPreviewLines(
+    settings,
+    "api_icon_",
+    (Object.keys(API_ICONS) as ApiIconKey[]).map((k) => [k, API_ICONS[k][1], API_ICONS[k][0]]),
+  );
   return {
     text:
       "🔌 <b>API icons</b>\n\nThese icons are used on the in-bot Reseller API panel " +
       "(account, balance, key, orders, buttons…).\n" +
-      "Pick one, then send a normal emoji or a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.",
+      "Pick one, then send a normal emoji or a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.\n\n" +
+      `<b>Current icons</b>\n${list}`,
     kb,
   };
 }
+
 
 /** Admin callbacks for API icons. Returns true when handled. */
 export async function handleApiIconCallback(
