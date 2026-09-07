@@ -646,7 +646,7 @@ function homeKeyboard(settings: Record<string, string>): Button[][] {
       ),
     ],
     [
-      iconButton(settings, "api", "page:reseller_api_text"),
+      iconButton(settings, "api", "api"),
       iconButton(settings, "clear", "clear"),
     ],
   ];
@@ -2542,8 +2542,12 @@ async function handleMessage(msg: any) {
     const homeBtn: Button[][] = [[uiBtn(await getSettings(), "com_home", "home")]];
     const pageKeys: Record<string, string> = {
       emails: "emails_trials_text",
-      api: "reseller_api_text",
     };
+    if (cmd === "api") {
+      const v = await apiPanelView(fresh);
+      await say(chatId, v.text, v.kb);
+      return;
+    }
     if (cmd === "freebies") {
       const v = await freebiesView();
       await say(chatId, v.text, v.kb);
