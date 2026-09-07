@@ -81,7 +81,7 @@ export const syncSupplier = createServerFn({ method: "POST" })
     if (!s) throw new Error("Supplier not found");
 
     const { syncSupplierCore } = await import("@/lib/suppliers/sync.server");
-    return await syncSupplierCore(sb, s);
+    return await syncSupplierCore(sb, s, { wait: true });
   });
 
 /** Recent "new product" / "restock" alerts coming from the supplier APIs. */
@@ -179,7 +179,9 @@ export const updateSupplierProduct = createServerFn({ method: "POST" })
     }
     const merged = { ...row, ...patch };
 
-    const { sellPrice, detailsFromRaw, extraDetailsFromRaw } = await import("@/lib/suppliers/api.server");
+    const { sellPrice, detailsFromRaw, extraDetailsFromRaw, supplierDeliveryType } = await import(
+      "@/lib/suppliers/api.server"
+    );
     const price = sellPrice(Number(merged.cost_price), {
       price_override: merged.price_override,
       markup_percent: merged.markup_percent,
@@ -194,7 +196,7 @@ export const updateSupplierProduct = createServerFn({ method: "POST" })
         name: merged.name,
         description: d.description ?? merged.description,
         price,
-        delivery_type: "auto",
+        delivery_type: supplierDeliveryType(merged.raw),
         supplier_id: merged.supplier_id,
         supplier_external_id: merged.external_id,
         supplier_stock: merged.stock,

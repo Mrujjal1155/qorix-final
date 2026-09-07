@@ -312,6 +312,15 @@ function imageValue(raw: any, depth = 0): string | null {
 }
 
 /** Normalise Qamify/Vexoran/Canboso fields while retaining the supplier's full text. */
+/**
+ * Some supplier items are flagged as manual delivery / not API-orderable.
+ * They are still imported, but must never be sold as auto-delivery.
+ */
+export function supplierDeliveryType(raw: any): "auto" | "manual" {
+  const r = raw ?? {};
+  return r.api_orderable === false || r.manual_delivery === true ? "manual" : "auto";
+}
+
 export function detailsFromRaw(raw: any): SupplierDetails {
   const r = raw ?? {};
   let description = longestValue(r, DETAIL_KEYS.description);
@@ -716,8 +725,9 @@ export async function supplierProducts(s: SupplierRow): Promise<SupplierProduct[
   }
 
   return list
-    // Skip items the API cannot fulfil automatically (manual delivery on their side).
-    .filter((p) => (action ? p.api_orderable !== false : true))
+    // Items the API cannot fulfil automatically (manual delivery on the
+    // supplier side) are still imported so the admin sees the full catalogue —
+    // they are listed as manual-delivery products instead of being dropped.
     .filter((p) => (isCanboso(s) ? p.status !== "inactive" && p.is_active !== false : true))
     .flatMap((p) => {
       // Some action-style APIs expose `available` as the live numeric count,
