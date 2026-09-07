@@ -1036,6 +1036,83 @@ export type Database = {
         }
         Relationships: []
       }
+      support_messages: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          sender: string
+          sender_name: string | null
+          ticket_id: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          sender?: string
+          sender_name?: string | null
+          ticket_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          sender?: string
+          sender_name?: string | null
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_messages_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      support_tickets: {
+        Row: {
+          created_at: string
+          id: string
+          last_message: string | null
+          status: string
+          subject: string
+          telegram_id: number | null
+          ticket_no: number
+          unread_admin: number
+          unread_user: number
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_message?: string | null
+          status?: string
+          subject?: string
+          telegram_id?: number | null
+          ticket_no?: number
+          unread_admin?: number
+          unread_user?: number
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_message?: string | null
+          status?: string
+          subject?: string
+          telegram_id?: number | null
+          ticket_no?: number
+          unread_admin?: number
+          unread_user?: number
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
       transactions: {
         Row: {
           amount: number
