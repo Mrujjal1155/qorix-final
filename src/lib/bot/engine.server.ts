@@ -385,6 +385,27 @@ function iconPreviewHtml(value: string, fallback: string) {
     : escapeHtml(glyph);
 }
 
+/**
+ * Live list of stored icons rendered inside the message text. Inline buttons
+ * cannot render Premium custom emoji, so the text block is the only place the
+ * admin can actually see the Premium icon that was just saved.
+ */
+function iconPreviewLines(
+  settings: Record<string, string>,
+  prefix: string,
+  entries: [string, string, string][],
+) {
+  return entries
+    .map(([key, label, fallback]) => {
+      const raw = settings[`${prefix}${key}`] ?? "";
+      const { customId } = parseIconValue(raw, fallback);
+      return `${iconPreviewHtml(raw, fallback)} ${escapeHtml(label)}${customId ? " · ✨" : ""}`;
+    })
+    .join("\n");
+}
+
+
+
 
 /** Locally tracked message ids per user, so tracking needs no extra SELECT. */
 const msgsCache = new Map<number, number[]>();
@@ -3345,11 +3366,13 @@ async function handleMessage(msg: any) {
         await say(chatId, saveFailText(e), ADM_BACK);
         return;
       }
+      const mv = await admMenuIconView();
       await say(
         chatId,
-        `✅ ${MENU_ICONS[menuKey][1]} icon updated → ${iconPreviewHtml(value, MENU_ICONS[menuKey][0])}`,
-        [[{ text: "🎨 More menu icons", callback_data: "adm:menuicons" }], ADM_BACK[0]!],
+        `✅ ${MENU_ICONS[menuKey][1]} icon updated → ${iconPreviewHtml(value, MENU_ICONS[menuKey][0])}\n\n${mv.text}`,
+        mv.kb,
       );
+
       await premiumEmojiNote(chatId, value);
       return;
     }
@@ -3371,14 +3394,13 @@ async function handleMessage(msg: any) {
         await say(chatId, saveFailText(e), ADM_BACK);
         return;
       }
+      const pv = await admPageIconView();
       await say(
         chatId,
-        `✅ ${PAGE_ICONS[pageKey][1]} icon updated → ${iconPreviewHtml(value, PAGE_ICONS[pageKey][0])}`,
-        [
-          [{ text: "🖼 More page icons", callback_data: "adm:pageicons" }],
-          ADM_BACK[0]!,
-        ],
+        `✅ ${PAGE_ICONS[pageKey][1]} icon updated → ${iconPreviewHtml(value, PAGE_ICONS[pageKey][0])}\n\n${pv.text}`,
+        pv.kb,
       );
+
       await premiumEmojiNote(chatId, value);
       return;
     }
@@ -3400,11 +3422,13 @@ async function handleMessage(msg: any) {
         await say(chatId, saveFailText(e), ADM_BACK);
         return;
       }
+      const av = await admAlertIconView();
       await say(
         chatId,
-        `✅ ${ALERT_ICONS[alertKey][1]} updated → ${iconPreviewHtml(value, ALERT_ICONS[alertKey][0])}`,
-        [[{ text: "🚨 More alert icons", callback_data: "adm:alerticons" }], ADM_BACK[0]!],
+        `✅ ${ALERT_ICONS[alertKey][1]} updated → ${iconPreviewHtml(value, ALERT_ICONS[alertKey][0])}\n\n${av.text}`,
+        av.kb,
       );
+
       await premiumEmojiNote(chatId, value);
       return;
     }
@@ -4050,9 +4074,15 @@ async function admMenuIconView() {
     iconButton(settings, key, `adm:mi:${key}`, MENU_ICONS[key][1]),
   ]);
   kb.push(ADM_BACK[0]!);
+  const list = iconPreviewLines(
+    settings,
+    "menu_icon_",
+    (Object.keys(MENU_ICONS) as MenuIconKey[]).map((k) => [k, MENU_ICONS[k][1], MENU_ICONS[k][0]]),
+  );
   return {
     text:
-      "🧩 <b>Menu icons</b>\n\nPick a button, then send a normal or Telegram Premium custom emoji. Send <code>-</code> to reset.",
+      "🧩 <b>Menu icons</b>\n\nPick a button, then send a normal or Telegram Premium custom emoji. Send <code>-</code> to reset.\n\n" +
+      `<b>Current icons</b>\n${list}`,
     kb,
   };
 }
@@ -4063,36 +4093,57 @@ async function admPageIconView() {
     const parsed = parseIconValue(settings[`page_icon_${key}`] ?? "", PAGE_ICONS[key][0]);
     return [
       {
-        text: `${parsed.glyph} ${PAGE_ICONS[key][1]}`.trim(),
+        text: `${parsed.customId ? "✨" : parsed.glyph} ${PAGE_ICONS[key][1]}`.trim(),
         callback_data: `adm:pi:${key}`,
+        ...(parsed.customId ? { icon_custom_emoji_id: parsed.customId } : {}),
       },
     ];
   });
   kb.push(ADM_BACK[0]!);
+  const list = iconPreviewLines(
+    settings,
+    "page_icon_",
+    (Object.keys(PAGE_ICONS) as PageIconKey[]).map((k) => [k, PAGE_ICONS[k][1], PAGE_ICONS[k][0]]),
+  );
   return {
     text:
       "🖼 <b>Page icons</b>\n\nEvery bot page (shop, product, checkout, payment, wallet, orders…) has a header icon.\n" +
-      "Pick a page, then send a normal emoji or a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.",
+      "Pick a page, then send a normal emoji or a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.\n\n" +
+      `<b>Current icons</b>\n${list}`,
     kb,
   };
 }
+
 
 /** Icons used inside stock / price alert cards — Premium emoji supported. */
 async function admAlertIconView() {
   const settings = await getSettings();
   const kb: Button[][] = (Object.keys(ALERT_ICONS) as AlertIconKey[]).map((key) => {
     const parsed = parseIconValue(settings[`alert_icon_${key}`] ?? "", ALERT_ICONS[key][0]);
-    return [{ text: `${parsed.glyph} ${ALERT_ICONS[key][1]}`.trim(), callback_data: `adm:ai:${key}` }];
+    return [
+      {
+        text: `${parsed.customId ? "✨" : parsed.glyph} ${ALERT_ICONS[key][1]}`.trim(),
+        callback_data: `adm:ai:${key}`,
+        ...(parsed.customId ? { icon_custom_emoji_id: parsed.customId } : {}),
+      },
+    ];
   });
   kb.push(ADM_BACK[0]!);
+  const list = iconPreviewLines(
+    settings,
+    "alert_icon_",
+    (Object.keys(ALERT_ICONS) as AlertIconKey[]).map((k) => [k, ALERT_ICONS[k][1], ALERT_ICONS[k][0]]),
+  );
   return {
     text:
       "🚨 <b>Alert icons</b>\n\nThese icons are used in the stock, restock, sold-out and price alert cards " +
       "sent to the channel and to bot users.\n" +
-      "Pick one, then send a normal emoji or a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.",
+      "Pick one, then send a normal emoji or a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.\n\n" +
+      `<b>Current icons</b>\n${list}`,
     kb,
   };
 }
+
 
 
 /* ------------------------------- every button + tag of every page (UI kit) */
@@ -6283,17 +6334,30 @@ async function admApiIconView() {
   const settings = await getSettings();
   const kb: Button[][] = (Object.keys(API_ICONS) as ApiIconKey[]).map((key) => {
     const parsed = parseIconValue(settings[`api_icon_${key}`] ?? "", API_ICONS[key][0]);
-    return [{ text: `${parsed.glyph} ${API_ICONS[key][1]}`.trim(), callback_data: `adm:qi:${key}` }];
+    return [
+      {
+        text: `${parsed.customId ? "✨" : parsed.glyph} ${API_ICONS[key][1]}`.trim(),
+        callback_data: `adm:qi:${key}`,
+        ...(parsed.customId ? { icon_custom_emoji_id: parsed.customId } : {}),
+      },
+    ];
   });
   kb.push(ADM_BACK[0]!);
+  const list = iconPreviewLines(
+    settings,
+    "api_icon_",
+    (Object.keys(API_ICONS) as ApiIconKey[]).map((k) => [k, API_ICONS[k][1], API_ICONS[k][0]]),
+  );
   return {
     text:
       "🔌 <b>API icons</b>\n\nThese icons are used on the in-bot Reseller API panel " +
       "(account, balance, key, orders, buttons…).\n" +
-      "Pick one, then send a normal emoji or a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.",
+      "Pick one, then send a normal emoji or a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.\n\n" +
+      `<b>Current icons</b>\n${list}`,
     kb,
   };
 }
+
 
 /** Admin callbacks for API icons. Returns true when handled. */
 export async function handleApiIconCallback(
@@ -6340,11 +6404,13 @@ export async function handleApiIconState(chatId: number, msg: any, text: string,
     await say(chatId, saveFailText(e), ADM_BACK);
     return true;
   }
+  const v = await admApiIconView();
   await say(
     chatId,
-    `✅ ${API_ICONS[key][1]} updated → ${iconPreviewHtml(input.value, API_ICONS[key][0])}`,
-    [[{ text: "🔌 More API icons", callback_data: "adm:apiicons" }], ADM_BACK[0]!],
+    `✅ ${API_ICONS[key][1]} updated → ${iconPreviewHtml(input.value, API_ICONS[key][0])}\n\n${v.text}`,
+    v.kb,
   );
+
   await premiumEmojiNote(chatId, input.value);
   return true;
 }

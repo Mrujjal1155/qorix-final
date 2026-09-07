@@ -115,7 +115,7 @@ function SettingsPage() {
   const [testTo, setTestTo] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
-  const { data } = useQuery({ queryKey: ["settings"], queryFn: () => fetchSettings() });
+  const { data, refetch: refetchSettings } = useQuery({ queryKey: ["settings"], queryFn: () => fetchSettings() });
   const { data: tokenStatus, isLoading: tokenLoading } = useQuery({
     queryKey: ["bot-token-status"],
     queryFn: () => checkToken(),
@@ -151,10 +151,12 @@ function SettingsPage() {
     try {
       await save({ data: { values } });
       toast.success("Settings saved");
+      await refetchSettings();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     }
   }
+
 
   async function onSaveKeys(apiKey: string, secretKey: string) {
     setSavingKeys(true);
@@ -425,16 +427,30 @@ function SettingsPage() {
           Enter only a Premium emoji ID (e.g. 5400280896311944960) or a plain emoji in each field. Paste an ID and messages show the Premium emoji while buttons show an automatic fallback emoji.
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          {MENU_ICON_FIELDS.map(([key, label]) => (
-            <div key={key} className="space-y-1">
-              <Label>{label}</Label>
-              <Input
-                value={values[key] ?? ""}
-                onChange={(e) => setValues({ ...values, [key]: e.target.value.trim() })}
-                placeholder="Emoji or custom emoji ID"
-              />
-            </div>
-          ))}
+          {MENU_ICON_FIELDS.map(([key, label]) => {
+            const raw = (values[key] ?? "").trim();
+            const [maybeId, maybeGlyph] = raw.includes("|") ? raw.split("|") : [raw, ""];
+            const isId = /^\d{8,}$/.test(maybeId ?? "");
+            const glyph = (isId ? maybeGlyph : raw) || "";
+            return (
+              <div key={key} className="space-y-1">
+                <Label>{label}</Label>
+                <Input
+                  value={values[key] ?? ""}
+                  onChange={(e) => setValues({ ...values, [key]: e.target.value.trim() })}
+                  placeholder="Emoji or custom emoji ID"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {raw
+                    ? isId
+                      ? `Premium icon ✨ ${glyph || ""} (id ${maybeId})`
+                      : `Icon ${glyph}`
+                    : "Using the default icon"}
+                </p>
+              </div>
+            );
+          })}
+
         </div>
         <Button onClick={onSave}>Save menu icons</Button>
       </CardContent>
