@@ -503,6 +503,17 @@ function BotProductsPanel() {
   const { data: products } = useQuery({ queryKey: ["bot-products"], queryFn: () => fetchAll() });
   const [search, setSearch] = useState("");
   const [only, setOnly] = useState<"all" | "pinned" | "inhouse" | "supplier">("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+
+  const sources: string[] = Array.from(
+    new Set(
+      (products ?? [])
+        .filter((p: any) => p.is_supplier)
+        .map((p: any) => String(p.source ?? "")) as string[],
+    ),
+  )
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["bot-products"] });
 
@@ -517,6 +528,7 @@ function BotProductsPanel() {
     if (only === "pinned" && !(Number(p.featured_rank) > 0)) return false;
     if (only === "inhouse" && p.is_supplier) return false;
     if (only === "supplier" && !p.is_supplier) return false;
+    if (sourceFilter !== "all" && String(p.source ?? "") !== sourceFilter) return false;
     return true;
   });
   const pinnedCount = (products ?? []).filter((p: any) => Number(p.featured_rank) > 0).length;
@@ -545,6 +557,18 @@ function BotProductsPanel() {
               </button>
             ))}
           </div>
+          <select
+            className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+          >
+            <option value="all">All suppliers</option>
+            {sources.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
           <Input
             className="max-w-44"
             placeholder="Search by name…"
