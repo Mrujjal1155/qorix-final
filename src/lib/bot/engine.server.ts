@@ -5703,6 +5703,44 @@ async function handleCallback(cq: any) {
       }
       const v = await admUserView(Number(arg));
       await edit(v.text, v.kb);
+    } else if (action === "jg") {
+      const v = await admJoinGateView();
+      await edit(v.text, v.kb);
+    } else if (action === "jgt") {
+      const s = await getSettings();
+      const on = (s["join_gate"] ?? "off").toLowerCase() === "on";
+      await upsertSetting({ key: "join_gate", value: on ? "off" : "on" }, { onConflict: "key" });
+      const v = await admJoinGateView();
+      await edit(v.text, v.kb);
+    } else if (action === "jgadd") {
+      await setState(chatId, { ...st, awaiting: "adm_jg_add" });
+      await say(
+        chatId,
+        "➕ Send the channel like <code>@mychannel</code>, or for private chats " +
+          "<code>-1001234567890|My Channel|https://t.me/+invitelink</code>.\n\n" +
+          "Make this bot an <b>admin</b> in that chat first. Send <code>-</code> to cancel.",
+        [[{ text: "✖️ Cancel", callback_data: "adm:jg" }]],
+      );
+    } else if (action.startsWith("jgdel:")) {
+      const s = await getSettings();
+      const lines = (s["join_channels"] ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
+      lines.splice(Number(action.split(":")[1]) || 0, 1);
+      await upsertSetting({ key: "join_channels", value: lines.join("\n") }, { onConflict: "key" });
+      const v = await admJoinGateView();
+      await edit(v.text, v.kb);
+    } else if (action === "jgtest") {
+      const s = await getSettings();
+      const lines: string[] = [];
+      for (const c of joinChannels(s)) {
+        const r = await tg("getChatMember", { chat_id: c.chat, user_id: chatId });
+        lines.push(
+          r?.ok
+            ? `✅ <code>${escapeHtml(c.chat)}</code> → ${escapeHtml(String(r.result?.status ?? "?"))}`
+            : `⚠️ <code>${escapeHtml(c.chat)}</code> → ${escapeHtml(r?.description ?? "cannot check (make the bot admin)")}`,
+        );
+      }
+      const v = await admJoinGateView();
+      await edit(`${lines.join("\n") || "No channels."}\n\n${v.text}`, v.kb);
     } else if (action === "ann") {
       const v = await admAnnounceView();
       await edit(v.text, v.kb);
