@@ -151,10 +151,12 @@ function SettingsPage() {
     try {
       await save({ data: { values } });
       toast.success("Settings saved");
+      await refetchSettings();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     }
   }
+
 
   async function onSaveKeys(apiKey: string, secretKey: string) {
     setSavingKeys(true);
