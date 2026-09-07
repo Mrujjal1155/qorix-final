@@ -22,6 +22,7 @@ import {
   Ticket,
   Users,
   BarChart3,
+  LifeBuoy,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
@@ -48,6 +49,7 @@ const NAV_GROUPS = [
       { to: "/admin/codes", label: "Codes", icon: Ticket },
       { to: "/admin/site", label: "Website", icon: Globe },
       { to: "/admin/settings", label: "Settings", icon: Settings },
+      { to: "/admin/support", label: "Support", icon: LifeBuoy },
       { to: "/admin/webhook", label: "Webhook", icon: Radio },
     ],
   },
