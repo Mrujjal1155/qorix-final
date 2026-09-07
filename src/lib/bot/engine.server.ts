@@ -3093,6 +3093,21 @@ async function handleMessage(msg: any) {
       await say(chatId, `✅ Saved.\n\n${v.text}`, v.kb);
       return;
     }
+    case "adm_jg_add": {
+      state.awaiting = null;
+      await setState(chatId, state);
+      if (!(await isAdmin(chatId))) return;
+      const line = text.trim();
+      if (line && line !== "-") {
+        const s = await getSettings();
+        const current = (s["join_channels"] ?? "").split("\n").map((l) => l.trim()).filter(Boolean);
+        current.push(line);
+        await upsertSetting({ key: "join_channels", value: current.join("\n") }, { onConflict: "key" });
+      }
+      const jv = await admJoinGateView();
+      await say(chatId, `✅ Saved.\n\n${jv.text}`, jv.kb);
+      return;
+    }
     case "adm_ann_post": {
       state.awaiting = null;
       await setState(chatId, state);
