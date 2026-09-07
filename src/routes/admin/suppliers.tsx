@@ -505,8 +505,12 @@ function BotProductsPanel() {
   const [only, setOnly] = useState<"all" | "pinned" | "inhouse" | "supplier">("all");
   const [sourceFilter, setSourceFilter] = useState("all");
 
-  const sources = Array.from(
-    new Set((products ?? []).filter((p: any) => p.is_supplier).map((p: any) => String(p.source ?? ""))),
+  const sources: string[] = Array.from(
+    new Set(
+      (products ?? [])
+        .filter((p: any) => p.is_supplier)
+        .map((p: any) => String(p.source ?? "")) as string[],
+    ),
   )
     .filter(Boolean)
     .sort((a, b) => a.localeCompare(b));
