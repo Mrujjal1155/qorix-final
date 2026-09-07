@@ -413,8 +413,27 @@ async function releaseSupplierSync(sb: any, supplierId: string) {
   await sb.from("bot_settings").update({ value: "" }).eq("key", `supplier_sync_lock:${supplierId}`);
 }
 
-export async function syncSupplierCore(sb: any, s: SupplierRow & Record<string, any>) {
-  const claimed = await claimSupplierSync(sb, String(s.id));
+export async function syncSupplierCore(
+  sb: any,
+  s: SupplierRow & Record<string, any>,
+  opts: { wait?: boolean } = {},
+) {
+  let claimed = await claimSupplierSync(sb, String(s.id));
+  // The admin "Sync catalogue" button used to give up instantly whenever the
+  // 15s background poll happened to hold the lock — which is most of the time.
+  // A manual run now waits for its turn instead of reporting "already running".
+  if (!claimed && opts.wait) {
+    const deadline = Date.now() + 20_000;
+    while (!claimed && Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 1500));
+      claimed = await claimSupplierSync(sb, String(s.id));
+    }
+    if (!claimed) {
+      // Stale lock left behind by an invocation Cloudflare cut short.
+      await releaseSupplierSync(sb, String(s.id));
+      claimed = await claimSupplierSync(sb, String(s.id));
+    }
+  }
   if (!claimed) return { ok: true, message: "Sync already running", added: 0, restocked: 0, checked: 0, priceChanges: 0, lowOrOut: 0 };
   try {
     return await syncSupplierCoreUnlocked(sb, s);

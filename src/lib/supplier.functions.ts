@@ -81,7 +81,7 @@ export const syncSupplier = createServerFn({ method: "POST" })
     if (!s) throw new Error("Supplier not found");
 
     const { syncSupplierCore } = await import("@/lib/suppliers/sync.server");
-    return await syncSupplierCore(sb, s);
+    return await syncSupplierCore(sb, s, { wait: true });
   });
 
 /** Recent "new product" / "restock" alerts coming from the supplier APIs. */
