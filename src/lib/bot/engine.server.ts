@@ -5376,6 +5376,10 @@ async function handleCallback(cq: any) {
     return;
   }
 
+  if (data.startsWith("sup:")) {
+    if (await handleSupportCallback(chatId, data, user, edit)) return;
+  }
+
   if (data === "support") {
     const v = await supportView();
     await edit(v.text, v.kb);
