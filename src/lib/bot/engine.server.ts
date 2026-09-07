@@ -4117,17 +4117,30 @@ async function admAlertIconView() {
   const settings = await getSettings();
   const kb: Button[][] = (Object.keys(ALERT_ICONS) as AlertIconKey[]).map((key) => {
     const parsed = parseIconValue(settings[`alert_icon_${key}`] ?? "", ALERT_ICONS[key][0]);
-    return [{ text: `${parsed.glyph} ${ALERT_ICONS[key][1]}`.trim(), callback_data: `adm:ai:${key}` }];
+    return [
+      {
+        text: `${parsed.customId ? "✨" : parsed.glyph} ${ALERT_ICONS[key][1]}`.trim(),
+        callback_data: `adm:ai:${key}`,
+        ...(parsed.customId ? { icon_custom_emoji_id: parsed.customId } : {}),
+      },
+    ];
   });
   kb.push(ADM_BACK[0]!);
+  const list = iconPreviewLines(
+    settings,
+    "alert_icon_",
+    (Object.keys(ALERT_ICONS) as AlertIconKey[]).map((k) => [k, ALERT_ICONS[k][1], ALERT_ICONS[k][0]]),
+  );
   return {
     text:
       "🚨 <b>Alert icons</b>\n\nThese icons are used in the stock, restock, sold-out and price alert cards " +
       "sent to the channel and to bot users.\n" +
-      "Pick one, then send a normal emoji or a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.",
+      "Pick one, then send a normal emoji or a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.\n\n" +
+      `<b>Current icons</b>\n${list}`,
     kb,
   };
 }
+
 
 
 /* ------------------------------- every button + tag of every page (UI kit) */
