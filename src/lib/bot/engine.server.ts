@@ -3366,11 +3366,13 @@ async function handleMessage(msg: any) {
         await say(chatId, saveFailText(e), ADM_BACK);
         return;
       }
+      const mv = await admMenuIconView();
       await say(
         chatId,
-        `✅ ${MENU_ICONS[menuKey][1]} icon updated → ${iconPreviewHtml(value, MENU_ICONS[menuKey][0])}`,
-        [[{ text: "🎨 More menu icons", callback_data: "adm:menuicons" }], ADM_BACK[0]!],
+        `✅ ${MENU_ICONS[menuKey][1]} icon updated → ${iconPreviewHtml(value, MENU_ICONS[menuKey][0])}\n\n${mv.text}`,
+        mv.kb,
       );
+
       await premiumEmojiNote(chatId, value);
       return;
     }
