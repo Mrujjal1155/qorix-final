@@ -847,18 +847,261 @@ async function supportView() {
   const handle = supportHandle(link);
   const body =
     (s["support_text"] || "").trim() ||
-    "Need help? Message one of our admins directly on Telegram and you'll get a reply as soon as possible.";
+    "Need help? Tap <b>Create Ticket</b> below to chat with our team.";
+  const rules =
+    (s["support_rules"] || "").trim() ||
+    "• Response time can vary from <b>24 to 72 hours</b>. Please be patient and do not create duplicate tickets.\n" +
+      "• Refunds eligible <b>strictly as per product description</b> terms &amp; time.\n" +
+      "• <b>Video Proof:</b> Uncut video of purchase &amp; issue is mandatory for refund/replacement <i>(if stated in product description)</i>. No video = no refund.\n" +
+      "• Technical assistance is provided for all orders.";
   const text =
-    `<b>${escapeHtml(uiText(s, "sup_title"))}</b>\n──────────────\n${escapeHtml(body)}\n──────────────\n` +
-    `${uiTag(s, "sup_admin")} — <a href="${escapeHtml(link)}">${escapeHtml(handle)}</a>\n\n` +
-    `<i>Click one of the below buttons to contact admins.</i>`;
+    `<b>${escapeHtml(uiText(s, "sup_title"))}</b>\n──────────────\n${body}\n\n` +
+    `⚠️ <b>Support Rules:</b>\n${rules}\n──────────────\n` +
+    `${uiTag(s, "sup_admin")} — <a href="${escapeHtml(link)}">${escapeHtml(handle)}</a>`;
   const kb: Button[][] = [
-    [{ ...uiUrlBtn(s, "sup_msg_btn", link), text: `${uiUrlBtn(s, "sup_msg_btn", link).text} ${handle}`.trim() }],
+    [{ text: "🆘 Create Support Ticket", callback_data: "sup:new" }],
+    [{ text: "🎫 My Tickets", callback_data: "sup:list" }],
     [uiBtn(s, "sup_back", "home")],
   ];
 
   return { text, kb };
 }
+
+/* ------------------------------------------------------- support tickets */
+
+function ticketCode(no: number | string) {
+  return `#T${String(no).padStart(4, "0")}`;
+}
+
+async function ticketListView(telegramId: number) {
+  const { data } = await db
+    .from("support_tickets")
+    .select("id,ticket_no,subject,status,updated_at")
+    .eq("telegram_id", telegramId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+  const rows = (data ?? []) as any[];
+  const kb: Button[][] = rows.map((t) => [
+    {
+      text: `${t.status === "open" ? "🟢" : "⚪️"} ${ticketCode(t.ticket_no)} · ${String(t.subject || "Ticket").slice(0, 28)}`,
+      callback_data: `sup:t:${t.id}`,
+    },
+  ]);
+  kb.push([{ text: "🆘 Create Support Ticket", callback_data: "sup:new" }]);
+  kb.push([{ text: "⬅️ Back", callback_data: "support" }]);
+  return {
+    text: rows.length
+      ? `🎫 <b>My Tickets</b>\n──────────────\nTap a ticket to read the conversation or reply.`
+      : `🎫 <b>My Tickets</b>\n──────────────\nYou have no tickets yet.`,
+    kb,
+  };
+}
+
+async function ticketView(ticketId: string, viewer: "user" | "admin") {
+  const { data: t } = await db.from("support_tickets").select("*").eq("id", ticketId).maybeSingle();
+  if (!t) return { text: "❌ Ticket not found.", kb: [[{ text: "⬅️ Back", callback_data: "support" }]] as Button[][] };
+  const { data: msgs } = await db
+    .from("support_messages")
+    .select("sender,sender_name,body,created_at")
+    .eq("ticket_id", ticketId)
+    .order("created_at", { ascending: true })
+    .limit(30);
+  const lines = (msgs ?? []).map((m: any) => {
+    const who = m.sender === "admin" ? "🛡 <b>Support</b>" : "👤 <b>You</b>";
+    const whoAdmin = m.sender === "admin" ? "🛡 <b>Support</b>" : `👤 <b>${escapeHtml(m.sender_name || "User")}</b>`;
+    return `${viewer === "admin" ? whoAdmin : who}\n${escapeHtml(String(m.body)).slice(0, 900)}`;
+  });
+  const head =
+    `🎫 <b>Ticket ${ticketCode(t.ticket_no)}</b> · ${t.status === "open" ? "🟢 open" : "⚪️ closed"}\n` +
+    (viewer === "admin"
+      ? `👤 ${t.username ? "@" + escapeHtml(t.username) : "—"} · <code>${t.telegram_id}</code>\n`
+      : "") +
+    `──────────────\n`;
+  const kb: Button[][] =
+    viewer === "admin"
+      ? [
+          [{ text: "✍️ Reply", callback_data: `adm:tkr:${t.id}` }],
+          t.status === "open"
+            ? [{ text: "✅ Close ticket", callback_data: `adm:tkc:${t.id}` }]
+            : [{ text: "♻️ Reopen ticket", callback_data: `adm:tko:${t.id}` }],
+          [{ text: "⬅️ Tickets", callback_data: "adm:tk" }],
+        ]
+      : [
+          ...(t.status === "open"
+            ? [
+                [{ text: "✍️ Reply", callback_data: `sup:r:${t.id}` }],
+                [{ text: "✅ Close ticket", callback_data: `sup:c:${t.id}` }],
+              ]
+            : []),
+          [{ text: "⬅️ My Tickets", callback_data: "sup:list" }],
+        ];
+  return { text: head + (lines.join("\n\n") || "<i>No messages yet.</i>"), kb };
+}
+
+async function createTicket(user: any, body: string) {
+  const subject = body.replace(/\s+/g, " ").trim().slice(0, 60) || "Support request";
+  const { data: t } = await db
+    .from("support_tickets")
+    .insert({
+      telegram_id: user.telegram_id,
+      username: user.username ?? null,
+      subject,
+      status: "open",
+      last_message: body.slice(0, 500),
+      unread_admin: 1,
+    })
+    .select("*")
+    .maybeSingle();
+  if (!t) return null;
+  await db.from("support_messages").insert({
+    ticket_id: t.id,
+    sender: "user",
+    sender_name: user.username || user.first_name || String(user.telegram_id),
+    body,
+  });
+  await notifyAdmins(
+    `🆘 <b>New support ticket ${ticketCode(t.ticket_no)}</b>\n` +
+      `👤 ${user.username ? "@" + escapeHtml(user.username) : escapeHtml(user.first_name ?? "user")} · <code>${user.telegram_id}</code>\n` +
+      `──────────────\n${escapeHtml(body).slice(0, 900)}`,
+    [[{ text: "✍️ Open & reply", callback_data: `adm:tk:${t.id}` }]],
+  );
+  return t;
+}
+
+/** Post a reply into a ticket and push it to the other side. */
+export async function postTicketReply(
+  ticketId: string,
+  sender: "user" | "admin",
+  body: string,
+  senderName?: string,
+) {
+  const { data: t } = await db.from("support_tickets").select("*").eq("id", ticketId).maybeSingle();
+  if (!t) throw new Error("Ticket not found");
+  await db.from("support_messages").insert({
+    ticket_id: ticketId,
+    sender,
+    sender_name: senderName ?? (sender === "admin" ? "Support" : null),
+    body,
+  });
+  await db
+    .from("support_tickets")
+    .update({
+      last_message: body.slice(0, 500),
+      status: t.status === "closed" ? "open" : t.status,
+      unread_admin: sender === "user" ? Number(t.unread_admin ?? 0) + 1 : 0,
+      unread_user: sender === "admin" ? Number(t.unread_user ?? 0) + 1 : 0,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", ticketId);
+
+  if (sender === "admin" && t.telegram_id) {
+    await sendMessage(
+      Number(t.telegram_id),
+      `🛡 <b>Support reply · ${ticketCode(t.ticket_no)}</b>\n──────────────\n${escapeHtml(body)}`,
+      [
+        [{ text: "✍️ Reply", callback_data: `sup:r:${t.id}` }],
+        [{ text: "🎫 My Tickets", callback_data: "sup:list" }],
+      ],
+    );
+  }
+  if (sender === "user") {
+    await notifyAdmins(
+      `💬 <b>Ticket ${ticketCode(t.ticket_no)} · new reply</b>\n` +
+        `👤 <code>${t.telegram_id}</code>\n──────────────\n${escapeHtml(body).slice(0, 900)}`,
+      [[{ text: "✍️ Open & reply", callback_data: `adm:tk:${t.id}` }]],
+    );
+  }
+  return true;
+}
+
+/** Close or reopen a ticket and tell the customer. */
+export async function setTicketStatus(ticketId: string, status: "open" | "closed", by: "user" | "admin") {
+  const { data: t } = await db.from("support_tickets").select("*").eq("id", ticketId).maybeSingle();
+  if (!t) throw new Error("Ticket not found");
+  await db.from("support_tickets").update({ status, updated_at: new Date().toISOString() }).eq("id", ticketId);
+  if (by === "admin" && t.telegram_id) {
+    await sendMessage(
+      Number(t.telegram_id),
+      status === "closed"
+        ? `✅ <b>Ticket ${ticketCode(t.ticket_no)} closed.</b>\nThanks for contacting support — open a new ticket any time.`
+        : `♻️ <b>Ticket ${ticketCode(t.ticket_no)} reopened.</b>`,
+      [[{ text: "🎫 My Tickets", callback_data: "sup:list" }]],
+    );
+  }
+  if (by === "user") {
+    await notifyAdmins(`✅ Customer closed ticket ${ticketCode(t.ticket_no)} (<code>${t.telegram_id}</code>).`);
+  }
+  return true;
+}
+
+/** Bot-admin ticket list. */
+async function admTicketsView() {
+  const { data } = await db
+    .from("support_tickets")
+    .select("id,ticket_no,username,telegram_id,subject,status,unread_admin")
+    .order("updated_at", { ascending: false })
+    .limit(15);
+  const rows = (data ?? []) as any[];
+  const kb: Button[][] = rows.map((t) => [
+    {
+      text: `${t.status === "open" ? "🟢" : "⚪️"}${Number(t.unread_admin) > 0 ? "🔔" : ""} ${ticketCode(t.ticket_no)} · ${
+        t.username ? "@" + t.username : t.telegram_id
+      }`,
+      callback_data: `adm:tk:${t.id}`,
+    },
+  ]);
+  kb.push(ADM_BACK[0]!);
+  return {
+    text: rows.length
+      ? `🎫 <b>Support tickets</b> (${rows.length})\nTap a ticket to read and reply.`
+      : "🎫 <b>Support tickets</b>\n\nNo tickets yet.",
+    kb,
+  };
+}
+
+/** Support callbacks for customers. Returns true when handled. */
+async function handleSupportCallback(
+  chatId: number,
+  data: string,
+  user: any,
+  edit: (text: string, kb?: Button[][]) => Promise<void>,
+): Promise<boolean> {
+  if (data === "sup:new") {
+    await setState(chatId, { ...((user.state ?? {}) as any), awaiting: "sup_new" });
+    await edit(
+      "🎟 <b>Create Support Ticket</b>\n\nPlease type and send your support inquiry or issue message below:\n\n" +
+        "⚠️ <b>Friendly Reminder:</b> Refunds follow product description terms &amp; time. Keep an uncut video " +
+        "recording ready if the product description requires it (No video = no refund). Technical help is always available!",
+      [[{ text: "⛔️ Cancel", callback_data: "support" }]],
+    );
+    return true;
+  }
+  if (data === "sup:list") {
+    const v = await ticketListView(chatId);
+    await edit(v.text, v.kb);
+    return true;
+  }
+  if (data.startsWith("sup:t:")) {
+    const v = await ticketView(data.slice(6), "user");
+    await edit(v.text, v.kb);
+    return true;
+  }
+  if (data.startsWith("sup:r:")) {
+    await setState(chatId, { ...((user.state ?? {}) as any), awaiting: "sup_reply", sup_ticket: data.slice(6) });
+    await edit("✍️ Send your reply message for this ticket.", [
+      [{ text: "⛔️ Cancel", callback_data: `sup:t:${data.slice(6)}` }],
+    ]);
+    return true;
+  }
+  if (data.startsWith("sup:c:")) {
+    await setTicketStatus(data.slice(6), "closed", "user");
+    const v = await ticketView(data.slice(6), "user");
+    await edit(v.text, v.kb);
+    return true;
+  }
+  return false;
+}
+
 
 /* ------------------------------------------------- referral credit store */
 
@@ -2536,78 +2779,26 @@ async function handleMessage(msg: any) {
 
   // shortcut commands
   if (
-    /^\/(menu|home|shop|wallet|orders|profile|tiers|support|cart|checkout|freebies|referral|emails|api|redeem|deposit|help|commands)\b/.test(
+    /^\/(menu|products|wallet|api|support)\b/.test(
       text,
     )
   ) {
     const cmd = text.slice(1).split(/[\s@]/)[0] ?? "";
     const fresh = await getUser(chatId);
-    const homeBtn: Button[][] = [[uiBtn(await getSettings(), "com_home", "home")]];
-    const pageKeys: Record<string, string> = {
-      emails: "emails_trials_text",
-    };
     if (cmd === "api") {
       const v = await apiPanelView(fresh);
       await say(chatId, v.text, v.kb);
-      return;
-    }
-    if (cmd === "freebies") {
-      const v = await freebiesView();
-      await say(chatId, v.text, v.kb);
-      return;
-    }
-    if (cmd === "menu" || cmd === "home") {
+    } else if (cmd === "menu") {
       await say(chatId, await homeText(fresh), homeKeyboard(await getSettings()));
-    } else if (cmd === "help" || cmd === "commands") {
-      await say(
-        chatId,
-        `<b>C O M M A N D S</b>\n\n` +
-          COMMAND_LIST.map((c) => `/${c.command} — ${c.description}`).join("\n"),
-        homeKeyboard(await getSettings()),
-      );
-    } else if (pageKeys[cmd]) {
-      const s = await getSettings();
-      await say(chatId, s[pageKeys[cmd]] || "Coming soon.", homeBtn);
-    } else if (cmd === "support") {
-      const v = await supportView();
-      await say(chatId, v.text, v.kb);
-    } else if (cmd === "referral") {
-      const v = await refStoreView(fresh);
-      await say(chatId, v.text, v.kb);
-    } else if (cmd === "redeem") {
-      await setState(chatId, { ...(fresh.state ?? {}), awaiting: "redeem" });
-      await say(chatId, uiTag(await getSettings(), "dep_redeem"), [[uiBtn(await getSettings(), "com_back", "wallet")]]);
-    } else if (cmd === "deposit") {
-      const v = await walletView(fresh);
-      await say(chatId, v.text, v.kb);
-    } else if (cmd === "shop") {
-
+    } else if (cmd === "products") {
       const v = await shopView(0);
-      await say(chatId, v.text, v.kb);
-    } else if (cmd === "flash" || cmd === "deals" || cmd === "sale") {
-      const v = await flashView();
       await say(chatId, v.text, v.kb);
     } else if (cmd === "wallet") {
       const v = await walletView(fresh);
       await say(chatId, v.text, v.kb);
-    } else if (cmd === "orders") {
-      const v = await ordersView(chatId);
-      await say(chatId, v.text, v.kb);
-    } else if (cmd === "cart") {
-      const v = await cartView(fresh);
-      await say(chatId, v.text, v.kb);
-    } else if (cmd === "checkout") {
-      const v = (await startCheckout(chatId, readCart(fresh))) ?? (await cartView(fresh));
-      await say(chatId, v.text, v.kb);
-    } else if (cmd === "profile") {
-      const v = await profileView(chatId, fresh);
-      await say(chatId, v.text, v.kb);
-    } else if (cmd === "tiers") {
-      const v = await tiersView(fresh);
-      await say(chatId, v.text, v.kb);
     } else {
-      const s = await getSettings();
-      await say(chatId, s["support_text"] || "🆘 Contact support.", [[uiBtn(await getSettings(), "com_home", "home")]]);
+      const v = await supportView();
+      await say(chatId, v.text, v.kb);
     }
     return;
   }
@@ -2624,6 +2815,38 @@ async function handleMessage(msg: any) {
 
   // state machine
   const state = (user.state ?? {}) as any;
+  if (state.awaiting === "sup_new" || state.awaiting === "sup_reply" || state.awaiting === "adm_tk_reply") {
+    const kind = String(state.awaiting);
+    state.awaiting = null;
+    await setState(chatId, state);
+    const body = text.trim();
+    if (!body) {
+      await say(chatId, "❌ Please send a text message.", [[{ text: "⬅️ Support", callback_data: "support" }]]);
+      return;
+    }
+    if (kind === "sup_new") {
+      const t = await createTicket(await getUser(chatId), body);
+      await say(
+        chatId,
+        t
+          ? `✅ <b>Ticket ${ticketCode(t.ticket_no)} created.</b>\nOur team will reply here in this chat.`
+          : "❌ Could not create the ticket. Please try again.",
+        [[{ text: "🎫 My Tickets", callback_data: "sup:list" }], [{ text: "🏠 Home", callback_data: "home" }]],
+      );
+      return;
+    }
+    if (kind === "sup_reply") {
+      await postTicketReply(String(state.sup_ticket), "user", body, (await getUser(chatId))?.username ?? undefined);
+      const v = await ticketView(String(state.sup_ticket), "user");
+      await say(chatId, `✅ Reply sent.\n\n${v.text}`, v.kb);
+      return;
+    }
+    if (!(await isAdmin(chatId))) return;
+    await postTicketReply(String(state.adm_ticket), "admin", body, "Support");
+    const v = await ticketView(String(state.adm_ticket), "admin");
+    await say(chatId, `✅ Reply delivered to the customer.\n\n${v.text}`, v.kb);
+    return;
+  }
   if (state.awaiting === "api_topup" || state.awaiting === "api_alert") {
     await handleApiState(chatId, String(state.awaiting), text, state);
     return;
@@ -3370,6 +3593,7 @@ export function adminKeyboard(): Button[][] {
       { text: "🖼 Page icons", callback_data: "adm:pageicons" },
     ],
     [{ text: "🔌 API icons", callback_data: "adm:apiicons" }],
+    [{ text: "🎫 Support tickets", callback_data: "adm:tk" }],
 
     [{ text: "🆕 Add product", callback_data: "adm:npw" }],
     [{ text: "📝 Product details", callback_data: "adm:pdetails" }],
@@ -5133,6 +5357,10 @@ async function handleCallback(cq: any) {
     return;
   }
 
+  if (data.startsWith("sup:")) {
+    if (await handleSupportCallback(chatId, data, user, edit)) return;
+  }
+
   if (data === "support") {
     const v = await supportView();
     await edit(v.text, v.kb);
@@ -5189,7 +5417,26 @@ async function handleCallback(cq: any) {
     const arg = action.split(":")[1] ?? "";
     const st = (user.state ?? {}) as any;
 
-    if (action === "stats") {
+    if (action === "tk") {
+      const v = await admTicketsView();
+      await edit(v.text, v.kb);
+    } else if (action.startsWith("tk:")) {
+      const id = action.slice(3);
+      await db.from("support_tickets").update({ unread_admin: 0 }).eq("id", id);
+      const v = await ticketView(id, "admin");
+      await edit(v.text, v.kb);
+    } else if (action.startsWith("tkr:")) {
+      const id = action.slice(4);
+      await setState(chatId, { ...st, awaiting: "adm_tk_reply", adm_ticket: id });
+      await edit("✍️ Send your reply — it goes straight to the customer's inbox.", [
+        [{ text: "⛔️ Cancel", callback_data: `adm:tk:${id}` }],
+      ]);
+    } else if (action.startsWith("tkc:") || action.startsWith("tko:")) {
+      const id = action.slice(4);
+      await setTicketStatus(id, action.startsWith("tkc:") ? "closed" : "open", "admin");
+      const v = await ticketView(id, "admin");
+      await edit(v.text, v.kb);
+    } else if (action === "stats") {
       await edit(await adminStatsText(), adminKeyboard());
     } else if (action === "orders") {
       const v = await admOrdersView();

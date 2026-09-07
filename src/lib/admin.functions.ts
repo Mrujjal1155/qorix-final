@@ -1302,3 +1302,55 @@ export const getEmailStatus = createServerFn({ method: "GET" })
       toggles: cfg.toggles,
     };
   });
+
+/* --------------------------------------------------------- support tickets */
+
+export const listSupportTickets = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const sb = (context as any).supabase;
+    const { data, error } = await sb
+      .from("support_tickets")
+      .select("*")
+      .order("updated_at", { ascending: false })
+      .limit(100);
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  });
+
+export const getSupportThread = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => d)
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const sb = (context as any).supabase;
+    await sb.from("support_tickets").update({ unread_admin: 0 }).eq("id", data.id);
+    const [{ data: ticket }, { data: messages }] = await Promise.all([
+      sb.from("support_tickets").select("*").eq("id", data.id).maybeSingle(),
+      sb.from("support_messages").select("*").eq("ticket_id", data.id).order("created_at", { ascending: true }),
+    ]);
+    return { ticket, messages: messages ?? [] };
+  });
+
+export const replySupportTicket = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; body: string }) => d)
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const body = String(data.body ?? "").trim();
+    if (!body) throw new Error("Message is empty");
+    const { postTicketReply } = await import("@/lib/bot/engine.server");
+    await postTicketReply(data.id, "admin", body, "Support");
+    return { ok: true };
+  });
+
+export const closeSupportTicket = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; status: "open" | "closed" }) => d)
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { setTicketStatus } = await import("@/lib/bot/engine.server");
+    await setTicketStatus(data.id, data.status, "admin");
+    return { ok: true };
+  });

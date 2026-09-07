@@ -32,6 +32,7 @@ import { Route as AdminResellersRouteImport } from './routes/admin/resellers'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminSiteRouteImport } from './routes/admin/site'
 import { Route as AdminSuppliersRouteImport } from './routes/admin/suppliers'
+import { Route as AdminSupportRouteImport } from './routes/admin/support'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminWebhookRouteImport } from './routes/admin/webhook'
 import { Route as OrderConfirmationRouteImport } from './routes/order.confirmation'
@@ -175,6 +176,11 @@ const AdminSiteRoute = AdminSiteRouteImport.update({
 const AdminSuppliersRoute = AdminSuppliersRouteImport.update({
   id: '/suppliers',
   path: '/suppliers',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminSupportRoute = AdminSupportRouteImport.update({
+  id: '/support',
+  path: '/support',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
@@ -366,6 +372,7 @@ export interface FileRoutesByFullPath {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/site': typeof AdminSiteRoute
   '/admin/suppliers': typeof AdminSuppliersRoute
+  '/admin/support': typeof AdminSupportRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/webhook': typeof AdminWebhookRoute
   '/order/confirmation': typeof OrderConfirmationRoute
@@ -419,6 +426,7 @@ export interface FileRoutesByTo {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/site': typeof AdminSiteRoute
   '/admin/suppliers': typeof AdminSuppliersRoute
+  '/admin/support': typeof AdminSupportRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/webhook': typeof AdminWebhookRoute
   '/order/confirmation': typeof OrderConfirmationRoute
@@ -475,6 +483,7 @@ export interface FileRoutesById {
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/site': typeof AdminSiteRoute
   '/admin/suppliers': typeof AdminSuppliersRoute
+  '/admin/support': typeof AdminSupportRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/webhook': typeof AdminWebhookRoute
   '/order/confirmation': typeof OrderConfirmationRoute
@@ -531,6 +540,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/site'
     | '/admin/suppliers'
+    | '/admin/support'
     | '/admin/users'
     | '/admin/webhook'
     | '/order/confirmation'
@@ -584,6 +594,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/site'
     | '/admin/suppliers'
+    | '/admin/support'
     | '/admin/users'
     | '/admin/webhook'
     | '/order/confirmation'
@@ -639,6 +650,7 @@ export interface FileRouteTypes {
     | '/admin/settings'
     | '/admin/site'
     | '/admin/suppliers'
+    | '/admin/support'
     | '/admin/users'
     | '/admin/webhook'
     | '/order/confirmation'
@@ -870,6 +882,13 @@ declare module '@tanstack/react-router' {
       path: '/suppliers'
       fullPath: '/admin/suppliers'
       preLoaderRoute: typeof AdminSuppliersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/support': {
+      id: '/admin/support'
+      path: '/support'
+      fullPath: '/admin/support'
+      preLoaderRoute: typeof AdminSupportRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/users': {
@@ -1114,6 +1133,7 @@ interface AdminRouteRouteChildren {
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminSiteRoute: typeof AdminSiteRoute
   AdminSuppliersRoute: typeof AdminSuppliersRoute
+  AdminSupportRoute: typeof AdminSupportRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminWebhookRoute: typeof AdminWebhookRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -1129,6 +1149,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminSettingsRoute: AdminSettingsRoute,
   AdminSiteRoute: AdminSiteRoute,
   AdminSuppliersRoute: AdminSuppliersRoute,
+  AdminSupportRoute: AdminSupportRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminWebhookRoute: AdminWebhookRoute,
   AdminIndexRoute: AdminIndexRoute,
