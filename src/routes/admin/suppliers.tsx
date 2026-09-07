@@ -503,6 +503,13 @@ function BotProductsPanel() {
   const { data: products } = useQuery({ queryKey: ["bot-products"], queryFn: () => fetchAll() });
   const [search, setSearch] = useState("");
   const [only, setOnly] = useState<"all" | "pinned" | "inhouse" | "supplier">("all");
+  const [sourceFilter, setSourceFilter] = useState("all");
+
+  const sources = Array.from(
+    new Set((products ?? []).filter((p: any) => p.is_supplier).map((p: any) => String(p.source ?? ""))),
+  )
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b));
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["bot-products"] });
 
