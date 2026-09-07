@@ -3394,14 +3394,13 @@ async function handleMessage(msg: any) {
         await say(chatId, saveFailText(e), ADM_BACK);
         return;
       }
+      const pv = await admPageIconView();
       await say(
         chatId,
-        `✅ ${PAGE_ICONS[pageKey][1]} icon updated → ${iconPreviewHtml(value, PAGE_ICONS[pageKey][0])}`,
-        [
-          [{ text: "🖼 More page icons", callback_data: "adm:pageicons" }],
-          ADM_BACK[0]!,
-        ],
+        `✅ ${PAGE_ICONS[pageKey][1]} icon updated → ${iconPreviewHtml(value, PAGE_ICONS[pageKey][0])}\n\n${pv.text}`,
+        pv.kb,
       );
+
       await premiumEmojiNote(chatId, value);
       return;
     }
