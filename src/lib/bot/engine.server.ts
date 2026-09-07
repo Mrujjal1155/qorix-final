@@ -385,6 +385,27 @@ function iconPreviewHtml(value: string, fallback: string) {
     : escapeHtml(glyph);
 }
 
+/**
+ * Live list of stored icons rendered inside the message text. Inline buttons
+ * cannot render Premium custom emoji, so the text block is the only place the
+ * admin can actually see the Premium icon that was just saved.
+ */
+function iconPreviewLines(
+  settings: Record<string, string>,
+  prefix: string,
+  entries: [string, string, string][],
+) {
+  return entries
+    .map(([key, label, fallback]) => {
+      const raw = settings[`${prefix}${key}`] ?? "";
+      const { customId } = parseIconValue(raw, fallback);
+      return `${iconPreviewHtml(raw, fallback)} ${escapeHtml(label)}${customId ? " · ✨" : ""}`;
+    })
+    .join("\n");
+}
+
+
+
 
 /** Locally tracked message ids per user, so tracking needs no extra SELECT. */
 const msgsCache = new Map<number, number[]>();
