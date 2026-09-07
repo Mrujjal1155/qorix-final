@@ -6401,11 +6401,13 @@ export async function handleApiIconState(chatId: number, msg: any, text: string,
     await say(chatId, saveFailText(e), ADM_BACK);
     return true;
   }
+  const v = await admApiIconView();
   await say(
     chatId,
-    `✅ ${API_ICONS[key][1]} updated → ${iconPreviewHtml(input.value, API_ICONS[key][0])}`,
-    [[{ text: "🔌 More API icons", callback_data: "adm:apiicons" }], ADM_BACK[0]!],
+    `✅ ${API_ICONS[key][1]} updated → ${iconPreviewHtml(input.value, API_ICONS[key][0])}\n\n${v.text}`,
+    v.kb,
   );
+
   await premiumEmojiNote(chatId, input.value);
   return true;
 }
