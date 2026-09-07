@@ -3643,6 +3643,7 @@ export function adminKeyboard(): Button[][] {
     ],
     [{ text: "🔌 API icons", callback_data: "adm:apiicons" }],
     [{ text: "🎫 Support tickets", callback_data: "adm:tk" }],
+    [{ text: "🔐 Force join gate", callback_data: "adm:jg" }],
 
     [{ text: "🆕 Add product", callback_data: "adm:npw" }],
     [{ text: "📝 Product details", callback_data: "adm:pdetails" }],
