@@ -196,7 +196,7 @@ export const updateSupplierProduct = createServerFn({ method: "POST" })
         name: merged.name,
         description: d.description ?? merged.description,
         price,
-        delivery_type: "auto",
+        delivery_type: supplierDeliveryType(merged.raw),
         supplier_id: merged.supplier_id,
         supplier_external_id: merged.external_id,
         supplier_stock: merged.stock,
