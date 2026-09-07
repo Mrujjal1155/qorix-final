@@ -2785,72 +2785,20 @@ async function handleMessage(msg: any) {
   ) {
     const cmd = text.slice(1).split(/[\s@]/)[0] ?? "";
     const fresh = await getUser(chatId);
-    const homeBtn: Button[][] = [[uiBtn(await getSettings(), "com_home", "home")]];
-    const pageKeys: Record<string, string> = {
-      emails: "emails_trials_text",
-    };
     if (cmd === "api") {
       const v = await apiPanelView(fresh);
       await say(chatId, v.text, v.kb);
-      return;
-    }
-    if (cmd === "freebies") {
-      const v = await freebiesView();
-      await say(chatId, v.text, v.kb);
-      return;
-    }
-    if (cmd === "menu" || cmd === "home") {
+    } else if (cmd === "menu") {
       await say(chatId, await homeText(fresh), homeKeyboard(await getSettings()));
-    } else if (cmd === "help" || cmd === "commands") {
-      await say(
-        chatId,
-        `<b>C O M M A N D S</b>\n\n` +
-          COMMAND_LIST.map((c) => `/${c.command} — ${c.description}`).join("\n"),
-        homeKeyboard(await getSettings()),
-      );
-    } else if (pageKeys[cmd]) {
-      const s = await getSettings();
-      await say(chatId, s[pageKeys[cmd]] || "Coming soon.", homeBtn);
-    } else if (cmd === "support") {
-      const v = await supportView();
-      await say(chatId, v.text, v.kb);
-    } else if (cmd === "referral") {
-      const v = await refStoreView(fresh);
-      await say(chatId, v.text, v.kb);
-    } else if (cmd === "redeem") {
-      await setState(chatId, { ...(fresh.state ?? {}), awaiting: "redeem" });
-      await say(chatId, uiTag(await getSettings(), "dep_redeem"), [[uiBtn(await getSettings(), "com_back", "wallet")]]);
-    } else if (cmd === "deposit") {
-      const v = await walletView(fresh);
-      await say(chatId, v.text, v.kb);
-    } else if (cmd === "shop") {
-
+    } else if (cmd === "products") {
       const v = await shopView(0);
-      await say(chatId, v.text, v.kb);
-    } else if (cmd === "flash" || cmd === "deals" || cmd === "sale") {
-      const v = await flashView();
       await say(chatId, v.text, v.kb);
     } else if (cmd === "wallet") {
       const v = await walletView(fresh);
       await say(chatId, v.text, v.kb);
-    } else if (cmd === "orders") {
-      const v = await ordersView(chatId);
-      await say(chatId, v.text, v.kb);
-    } else if (cmd === "cart") {
-      const v = await cartView(fresh);
-      await say(chatId, v.text, v.kb);
-    } else if (cmd === "checkout") {
-      const v = (await startCheckout(chatId, readCart(fresh))) ?? (await cartView(fresh));
-      await say(chatId, v.text, v.kb);
-    } else if (cmd === "profile") {
-      const v = await profileView(chatId, fresh);
-      await say(chatId, v.text, v.kb);
-    } else if (cmd === "tiers") {
-      const v = await tiersView(fresh);
-      await say(chatId, v.text, v.kb);
     } else {
-      const s = await getSettings();
-      await say(chatId, s["support_text"] || "🆘 Contact support.", [[uiBtn(await getSettings(), "com_home", "home")]]);
+      const v = await supportView();
+      await say(chatId, v.text, v.kb);
     }
     return;
   }
