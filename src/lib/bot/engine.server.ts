@@ -4455,7 +4455,10 @@ async function ordersView(chatId: number, page = 0) {
 
   const body = slice
     .map((o: any) => {
-      const status = o.status === "completed" ? "✅" : o.status === "cancelled" ? "❌" : "⏳";
+      const status = uiIconHtml(
+        settings,
+        o.status === "completed" ? "ord_status_done" : o.status === "cancelled" ? "ord_status_cancelled" : "ord_status_pending",
+      );
       return (
         `<b>#${o.order_no ?? ""}</b> ${uiIconHtml(settings, "ord_id")} <code>${orderCode(o.id)}</code>\n` +
         `${uiIconHtml(settings, "ord_item")} <b>${escapeHtml(String(o.product_name ?? "-"))}</b>\n` +

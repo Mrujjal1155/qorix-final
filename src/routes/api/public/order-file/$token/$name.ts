@@ -22,7 +22,14 @@ export const Route = createFileRoute("/api/public/order-file/$token/$name")({
           .maybeSingle();
         if (!order) return new Response("Not found", { status: 404 });
 
-        const body = parsed.kind === "plain" ? orderPlainText(order) : orderFileText(order);
+        const { data: brandRow } = await (supabaseAdmin as any)
+          .from("bot_settings")
+          .select("value")
+          .eq("key", "bot_name")
+          .maybeSingle();
+        const brand = String(brandRow?.value ?? "").trim() || "QORIX";
+
+        const body = parsed.kind === "plain" ? orderPlainText(order) : orderFileText(order, brand);
         const name = String(params.name ?? "order.txt").replace(/[^A-Za-z0-9._-]/g, "");
         return new Response(body || "No credentials found.\n", {
           headers: {

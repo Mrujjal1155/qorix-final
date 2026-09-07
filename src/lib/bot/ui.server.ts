@@ -119,6 +119,9 @@ export const UI_ELEMENTS = {
   ord_notfound: { icon: "❌", label: "Order not found.", group: "orders" },
   ord_cancelled: { icon: "🚫", label: "This order was cancelled.", group: "orders" },
   ord_nocreds: { icon: "📭", label: "No credentials attached yet. You will get them here as soon as the order is delivered.", group: "orders" },
+  ord_status_done: { icon: "✅", label: "Completed", group: "orders" },
+  ord_status_pending: { icon: "⏳", label: "Pending", group: "orders" },
+  ord_status_cancelled: { icon: "❌", label: "Cancelled", group: "orders" },
   ord_dl_hint: { icon: "⬇️", label: "Tap the download button below to get all credentials.", group: "orders" },
 
   /* ---- deposit / Binance Pay ---- */
