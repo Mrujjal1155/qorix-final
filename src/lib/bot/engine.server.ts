@@ -3633,6 +3633,89 @@ export function adminKeyboard(): Button[][] {
 
 const ADM_BACK: Button[][] = [[{ text: "⬅️ Admin panel", callback_data: "adm:stats" }]];
 
+/* --------------------------------------------------- forced join gate ---- */
+
+export type JoinChannel = { chat: string; label: string; url: string };
+
+/** Stored as one channel per line: `chat|label|invite url` (label/url optional). */
+function joinChannels(s: Record<string, string>): JoinChannel[] {
+  return (s["join_channels"] ?? "")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [chatRaw = "", labelRaw = "", urlRaw = ""] = line.split("|").map((p) => p.trim());
+      const chat = chatRaw;
+      const url =
+        urlRaw || (chat.startsWith("@") ? `https://t.me/${chat.slice(1)}` : "");
+      return { chat, label: labelRaw || chat, url };
+    })
+    .filter((c) => c.chat);
+}
+
+function joinGateOn(s: Record<string, string>) {
+  return (s["join_gate"] ?? "off").toLowerCase() === "on" && joinChannels(s).length > 0;
+}
+
+const JOINED_STATUSES = new Set(["member", "administrator", "creator", "restricted"]);
+
+/** Channels the user still has to join. Unverifiable chats never block anyone. */
+async function missingJoins(chatId: number, s: Record<string, string>): Promise<JoinChannel[]> {
+  const list = joinChannels(s);
+  const results = await Promise.all(
+    list.map(async (c) => {
+      try {
+        const r = await tg("getChatMember", { chat_id: c.chat, user_id: chatId });
+        if (!r?.ok) return null; // bot not admin / bad id → don't lock the user out
+        return JOINED_STATUSES.has(String(r.result?.status ?? "")) ? null : c;
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return results.filter(Boolean) as JoinChannel[];
+}
+
+function joinGateView(s: Record<string, string>, missing: JoinChannel[]) {
+  const kb: Button[][] = missing.map((c) => [
+    c.url
+      ? { text: `📢 Join ${c.label}`, url: c.url }
+      : { text: `📢 ${c.label}`, callback_data: "jg:v" },
+  ]);
+  kb.push([{ text: "✅ Verify & continue", callback_data: "jg:v" }]);
+  const title = (s["join_gate_title"] || "🔒 <b>Membership required</b>").trim();
+  const body =
+    (s["join_gate_text"] || "").trim() ||
+    "Please join our official channel(s) below, then tap <b>Verify &amp; continue</b> to unlock the bot.";
+  return { text: `${title}\n──────────────\n${body}`, kb };
+}
+
+async function admJoinGateView() {
+  const s = await getSettings();
+  const list = joinChannels(s);
+  const on = (s["join_gate"] ?? "off").toLowerCase() === "on";
+  const kb: Button[][] = [
+    [{ text: `${on ? "✅ Join gate ON" : "🚫 Join gate OFF"}`, callback_data: "adm:jgt" }],
+    [{ text: "➕ Add channel", callback_data: "adm:jgadd" }],
+  ];
+  list.forEach((c, i) => {
+    kb.push([{ text: `🗑 Remove ${c.label}`, callback_data: `adm:jgdel:${i}` }]);
+  });
+  kb.push([{ text: "🧪 Test my membership", callback_data: "adm:jgtest" }]);
+  kb.push(ADM_BACK[0]!);
+  return {
+    text:
+      "🔐 <b>Force join gate</b>\n──────────────\n" +
+      `Status: <b>${on ? "ON" : "OFF"}</b>\n` +
+      (list.length
+        ? list.map((c) => `• <code>${escapeHtml(c.chat)}</code> — ${escapeHtml(c.label)}`).join("\n")
+        : "⚠️ No channel added yet.") +
+      "\n\nNew users must join these chats on <code>/start</code>, then tap Verify. " +
+      "The bot must be an <b>admin</b> in every chat, otherwise membership cannot be checked.",
+    kb,
+  };
+}
+
 async function admOrdersView() {
   const { data } = await db
     .from("orders")
