@@ -153,6 +153,54 @@ function alertIcon(settings: Record<string, string>, key: AlertIconKey) {
   return parsed.customId ? `<tg-emoji emoji-id="${parsed.customId}">${glyph}</tg-emoji>` : glyph;
 }
 
+/**
+ * Icons used on the in-bot Reseller API panel. Every one of them can be
+ * replaced with a Telegram Premium custom emoji from /admin → API icons.
+ */
+const API_ICONS = {
+  panel: ["🔌", "API panel header"],
+  account: ["🪪", "Account line"],
+  status: ["🟢", "Status line"],
+  balance: ["💵", "API balance line"],
+  discount: ["🏷", "Discount line"],
+  orders: ["📦", "API orders line"],
+  key: ["🔑", "API key line"],
+  alert: ["🔔", "Low-balance alert line"],
+  topup: ["💳", "Top Up API Balance button"],
+  prices: ["💲", "My Prices button"],
+  docs: ["📖", "API Docs button"],
+  regen: ["🔄", "Regenerate Key button"],
+  revoke: ["🚫", "Revoke Key button"],
+} as const;
+
+type ApiIconKey = keyof typeof API_ICONS;
+
+/** HTML for an API panel icon (Premium custom emoji when configured). */
+function apiIcon(settings: Record<string, string>, key: ApiIconKey) {
+  const [fallback] = API_ICONS[key];
+  const parsed = parseIconValue(settings[`api_icon_${key}`] ?? "", fallback);
+  const glyph = escapeHtml(parsed.glyph);
+  return parsed.customId ? `<tg-emoji emoji-id="${parsed.customId}">${glyph}</tg-emoji>` : glyph;
+}
+
+/** Button carrying an API panel icon (Premium custom emoji when configured). */
+function apiBtn(
+  settings: Record<string, string>,
+  key: ApiIconKey,
+  label: string,
+  callback_data: string,
+): Button {
+  const [fallback] = API_ICONS[key];
+  const parsed = parseIconValue(settings[`api_icon_${key}`] ?? "", fallback);
+  return {
+    text: parsed.customId ? label : `${parsed.glyph} ${label}`.trim(),
+    callback_data,
+    ...(parsed.customId ? { icon_custom_emoji_id: parsed.customId } : {}),
+  };
+}
+
+
+
 
 /**
  * Fallback icon for products that have no icon of their own (e.g. products
@@ -598,7 +646,7 @@ function homeKeyboard(settings: Record<string, string>): Button[][] {
       ),
     ],
     [
-      iconButton(settings, "api", "page:reseller_api_text"),
+      iconButton(settings, "api", "api"),
       iconButton(settings, "clear", "clear"),
     ],
   ];
@@ -2494,8 +2542,12 @@ async function handleMessage(msg: any) {
     const homeBtn: Button[][] = [[uiBtn(await getSettings(), "com_home", "home")]];
     const pageKeys: Record<string, string> = {
       emails: "emails_trials_text",
-      api: "reseller_api_text",
     };
+    if (cmd === "api") {
+      const v = await apiPanelView(fresh);
+      await say(chatId, v.text, v.kb);
+      return;
+    }
     if (cmd === "freebies") {
       const v = await freebiesView();
       await say(chatId, v.text, v.kb);
@@ -2569,6 +2621,14 @@ async function handleMessage(msg: any) {
 
   // state machine
   const state = (user.state ?? {}) as any;
+  if (state.awaiting === "api_topup" || state.awaiting === "api_alert") {
+    await handleApiState(chatId, String(state.awaiting), text, state);
+    return;
+  }
+  if (state.awaiting === "adm_api_icon") {
+    await handleApiIconState(chatId, msg, text, state);
+    return;
+  }
   switch (state.awaiting) {
     case "pk_amount": {
       const amount = Number(text.replace(/[^0-9.]/g, ""));
@@ -3306,6 +3366,8 @@ export function adminKeyboard(): Button[][] {
       { text: "💳 Payment icons", callback_data: "adm:paymenticons" },
       { text: "🖼 Page icons", callback_data: "adm:pageicons" },
     ],
+    [{ text: "🔌 API icons", callback_data: "adm:apiicons" }],
+
     [{ text: "🆕 Add product", callback_data: "adm:npw" }],
     [{ text: "📝 Product details", callback_data: "adm:pdetails" }],
     [{ text: "🔢 Product order / serial", callback_data: "adm:porder" }],
@@ -4614,6 +4676,16 @@ async function handleCallback(cq: any) {
     return;
   }
 
+  if (data === "api" || data.startsWith("api:")) {
+    await handleApiCallback(chatId, data, user, edit);
+    return;
+  }
+
+  if (data === "adm:apiicons" || data.startsWith("adm:qi:")) {
+    await handleApiIconCallback(chatId, data, user.state ?? {}, edit);
+    return;
+  }
+
   if (data === "freebies") {
     const view = await freebiesView();
     await edit(view.text, view.kb);
@@ -5597,4 +5669,421 @@ export async function listResellerDeposits(resellerId: string) {
     .order("created_at", { ascending: false })
     .limit(20);
   return data ?? [];
+}
+
+/* ------------------------------------------------ in-bot Reseller API panel */
+/*
+ * A bot user can open a full reseller API account straight from the bot:
+ * balance, live key, API orders, docs and a low-balance alert. Every icon on
+ * this panel is admin-configurable (normal or Telegram Premium custom emoji)
+ * from /admin → API icons.
+ */
+
+function newApiKey() {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return "qxr_" + Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+function maskKey(key: string) {
+  const k = String(key || "");
+  return k.length > 12 ? `${k.slice(0, 8)}…${k.slice(-4)}` : k;
+}
+
+async function resellerForTelegram(telegramId: number) {
+  const { data } = await db.from("resellers").select("*").eq("telegram_id", telegramId).maybeSingle();
+  return data;
+}
+
+async function apiPanelView(user: any) {
+  const s = await getSettings();
+  const r = await resellerForTelegram(Number(user.telegram_id));
+
+  if (!r) {
+    return {
+      text:
+        `${apiIcon(s, "panel")} <b>R E S E L L E R   A P I</b>\n` +
+        `──────────────\n` +
+        `Sell our whole catalogue from <b>your own website or bot</b>.\n\n` +
+        `${apiIcon(s, "balance")} Your API balance pays the wholesale price\n` +
+        `${apiIcon(s, "orders")} Orders are delivered instantly through the API\n` +
+        `${apiIcon(s, "key")} You get a private API key in one tap\n\n` +
+        `<i>Open your free API account below.</i>`,
+      kb: [
+        [apiBtn(s, "key", "Create API Account", "api:new")],
+        [{ text: "📖 API Docs", url: `${siteUrl(s)}/reseller/docs` }],
+        [uiBtn(s, "com_home", "home")],
+      ] as Button[][],
+    };
+  }
+
+  const { count: orderCount } = await db
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("reseller_id", r.id);
+  const { data: spentRows } = await db.from("orders").select("total").eq("reseller_id", r.id);
+  const spent = (spentRows ?? []).reduce((sum: number, o: any) => sum + Number(o.total ?? 0), 0);
+  const alert = Number(r.low_bal_alert ?? 0);
+
+  const text =
+    `${apiIcon(s, "panel")} <b>R E S E L L E R   A P I</b>\n` +
+    `──────────────\n` +
+    `${apiIcon(s, "account")} <i>Account</i>   <b>${escapeHtml(r.name)}</b> <code>#${r.account_no ?? "—"}</code>\n` +
+    `${apiIcon(s, "status")} <i>Status</i>   <b>${r.is_active ? "Active" : "Revoked"}</b>\n` +
+    `${apiIcon(s, "balance")} <i>API Balance</i>   <b>${money(r.balance)}</b>\n` +
+    `${apiIcon(s, "discount")} <i>Discount</i>   ${Number(r.discount_percent ?? 0) > 0 ? `<b>${Number(r.discount_percent)}%</b> off retail` : "custom pricing"}\n` +
+    `${apiIcon(s, "orders")} <i>API Orders</i>   <b>${orderCount ?? 0}</b> (${money(spent)} total)\n` +
+    `${apiIcon(s, "key")} <i>API Key</i>   <code>${escapeHtml(maskKey(r.api_key))}</code>\n` +
+    `${apiIcon(s, "alert")} <i>Low-Bal Alert</i>   ${alert > 0 ? `<b>${money(alert)}</b>` : "off"}\n` +
+    `──────────────\n` +
+    `<i>Move funds from your bot wallet (${money(user.balance)}) to your API balance below.</i>`;
+
+  const kb: Button[][] = [
+    [apiBtn(s, "topup", "Top Up API Balance", "api:topup")],
+    [apiBtn(s, "prices", "My Prices", "api:prices"), apiBtn(s, "orders", "API Orders", "api:orders")],
+    [{ text: "📖 API Docs", url: `${siteUrl(s)}/reseller/docs` }],
+    [apiBtn(s, "regen", "Regenerate Key", "api:regen"), apiBtn(s, "revoke", r.is_active ? "Revoke Key" : "Re-activate Key", "api:revoke")],
+    [apiBtn(s, "alert", `Low Balance Alert (${alert > 0 ? money(alert) : "off"})`, "api:alert")],
+    [apiBtn(s, "key", "Show Full Key", "api:key")],
+    [uiBtn(s, "com_home", "home")],
+  ];
+  return { text, kb };
+}
+
+async function createBotReseller(user: any) {
+  const existing = await resellerForTelegram(Number(user.telegram_id));
+  if (existing) return existing;
+  const s = await getSettings();
+  const name =
+    `${user.first_name ?? ""} ${user.last_name ?? ""}`.trim() ||
+    (user.username ? `@${user.username}` : `TG ${user.telegram_id}`);
+  const { data, error } = await db
+    .from("resellers")
+    .insert({
+      name,
+      telegram_id: Number(user.telegram_id),
+      api_key: newApiKey(),
+      discount_percent: Math.max(0, Math.min(90, Number(s["reseller_default_discount"] ?? 0) || 0)),
+      allow_bot: true,
+      allow_website: true,
+      is_active: true,
+      notes: "Created from the Telegram bot",
+    })
+    .select("*")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data;
+}
+
+/** Move money from the bot wallet into the reseller API balance. */
+async function apiTopupFromWallet(user: any, usd: number) {
+  const amount = Math.round(Number(usd) * 100) / 100;
+  if (!(amount > 0)) return { error: "Enter a valid amount, e.g. 5" };
+  const r = await resellerForTelegram(Number(user.telegram_id));
+  if (!r) return { error: "No API account yet." };
+  if (Number(user.balance ?? 0) + 1e-9 < amount)
+    return { error: `Your bot wallet has only ${money(user.balance)}. Top the wallet up first.` };
+
+  const { data: debit, error: debitError } = await db.rpc("bot_user_debit", {
+    _telegram_id: Number(user.telegram_id),
+    _amount: amount,
+    _method: "wallet",
+    _reference: `api-topup-${r.id}`,
+    _note: "Transfer to reseller API balance",
+  });
+  if (debitError || (debit && (debit as any).ok === false))
+    return { error: (debitError?.message ?? (debit as any)?.error) || "Wallet debit failed." };
+
+  const { error: creditError } = await db.rpc("reseller_adjust_balance", {
+    _reseller_id: r.id,
+    _amount: amount,
+    _type: "topup",
+    _reference: `tg-${user.telegram_id}`,
+    _note: "Transferred from bot wallet",
+  });
+  if (creditError) {
+    // Put the money back so nothing is lost.
+    await db.rpc("bot_user_debit", {
+      _telegram_id: Number(user.telegram_id),
+      _amount: -amount,
+      _method: "wallet",
+      _reference: `api-topup-refund-${r.id}`,
+      _note: "API top-up failed — refunded",
+    });
+    return { error: creditError.message || "Top-up failed. Nothing was charged." };
+  }
+  return { ok: true as const, amount };
+}
+
+async function apiPricesView(user: any) {
+  const s = await getSettings();
+  const r = await resellerForTelegram(Number(user.telegram_id));
+  if (!r) return { text: "No API account yet.", kb: [[apiBtn(s, "panel", "Reseller API", "api")]] as Button[][] };
+  const { data: prods } = await db
+    .from("products")
+    .select("id,name,price,supplier_stock,supplier_id,delivery_type")
+    .eq("is_active", true)
+    .is("owner_reseller_id", null)
+    .order("sort_order")
+    .limit(20);
+  const discount = Number(r.discount_percent ?? 0);
+  const lines = (prods ?? []).map((p: any) => {
+    const yours = Math.max(0, Math.round(Number(p.price) * (1 - discount / 100) * 100) / 100);
+    return `• <b>${escapeHtml(p.name)}</b>\n   retail ${money(p.price)} → <b>you pay ${money(yours)}</b>`;
+  });
+  return {
+    text:
+      `${apiIcon(s, "prices")} <b>M Y   P R I C E S</b>\n──────────────\n` +
+      (discount > 0 ? `Your discount: <b>${discount}%</b> off retail\n\n` : `Custom pricing applies.\n\n`) +
+      (lines.length ? lines.join("\n") : "No products available right now.") +
+      `\n\n<i>Live prices and full catalogue come from the API.</i>`,
+    kb: [[apiBtn(s, "panel", "Reseller API", "api")], [uiBtn(s, "com_home", "home")]] as Button[][],
+  };
+}
+
+async function apiOrdersView(user: any) {
+  const s = await getSettings();
+  const r = await resellerForTelegram(Number(user.telegram_id));
+  if (!r) return { text: "No API account yet.", kb: [[apiBtn(s, "panel", "Reseller API", "api")]] as Button[][] };
+  const { data: orders } = await db
+    .from("orders")
+    .select("order_no,product_name,quantity,total,status,created_at")
+    .eq("reseller_id", r.id)
+    .order("created_at", { ascending: false })
+    .limit(10);
+  const lines = (orders ?? []).map(
+    (o: any) =>
+      `• <code>#${o.order_no}</code> ${escapeHtml(o.product_name)} ×${o.quantity}\n   ${money(o.total)} · ${escapeHtml(String(o.status))} · ${fmtDate(o.created_at)}`,
+  );
+  return {
+    text:
+      `${apiIcon(s, "orders")} <b>A P I   O R D E R S</b>\n──────────────\n` +
+      (lines.length ? lines.join("\n") : "No API orders yet."),
+    kb: [[apiBtn(s, "panel", "Reseller API", "api")], [uiBtn(s, "com_home", "home")]] as Button[][],
+  };
+}
+
+/** Warn the reseller in Telegram when their API balance drops below their limit. */
+export async function checkResellerLowBalance(resellerId: string) {
+  const { data: r } = await db
+    .from("resellers")
+    .select("id,name,balance,low_bal_alert,telegram_id")
+    .eq("id", resellerId)
+    .maybeSingle();
+  if (!r?.telegram_id) return;
+  const limit = Number(r.low_bal_alert ?? 0);
+  if (!(limit > 0) || Number(r.balance ?? 0) > limit) return;
+  const s = await getSettings();
+  await sendMessage(
+    Number(r.telegram_id),
+    `${apiIcon(s, "alert")} <b>Low API balance</b>\n\nYour API balance is <b>${money(r.balance)}</b> — below your ${money(limit)} alert.\nTop up to keep orders flowing.`,
+    [[apiBtn(s, "topup", "Top Up API Balance", "api:topup")]],
+  );
+}
+
+/** Reseller API panel callbacks (`api`, `api:*`). Returns true when handled. */
+export async function handleApiCallback(
+  chatId: number,
+  data: string,
+  user: any,
+  edit: (text: string, kb?: Button[][]) => Promise<void>,
+): Promise<boolean> {
+  if (data !== "api" && !data.startsWith("api:")) return false;
+  const s = await getSettings();
+  const back: Button[][] = [[apiBtn(s, "panel", "Reseller API", "api")]];
+  const action = data === "api" ? "" : data.slice(4);
+
+  if (action === "new") {
+    try {
+      await createBotReseller(user);
+    } catch (e) {
+      await edit(`❌ ${escapeHtml(e instanceof Error ? e.message : "Could not create the account")}`, back);
+      return true;
+    }
+  }
+
+  if (action === "key") {
+    const r = await resellerForTelegram(chatId);
+    if (r) {
+      await edit(
+        `${apiIcon(s, "key")} <b>Your API key</b>\n\n<code>${escapeHtml(r.api_key)}</code>\n\n<i>Keep it secret. Tap to copy.</i>`,
+        back,
+      );
+      return true;
+    }
+  }
+
+  if (action === "regen") {
+    const r = await resellerForTelegram(chatId);
+    if (r) {
+      const key = newApiKey();
+      await db.from("resellers").update({ api_key: key }).eq("id", r.id);
+      await edit(
+        `${apiIcon(s, "regen")} <b>New API key generated</b>\n\n<code>${escapeHtml(key)}</code>\n\n⚠️ The old key stopped working right now.`,
+        back,
+      );
+      return true;
+    }
+  }
+
+  if (action === "revoke") {
+    const r = await resellerForTelegram(chatId);
+    if (r) await db.from("resellers").update({ is_active: !r.is_active }).eq("id", r.id);
+  }
+
+  if (action === "topup") {
+    const r = await resellerForTelegram(chatId);
+    if (!r) {
+      await edit("Open your API account first.", back);
+      return true;
+    }
+    await setState(chatId, { ...(user.state ?? {}), awaiting: "api_topup" });
+    await edit(
+      `${apiIcon(s, "topup")} <b>Top up API balance</b>\n\nBot wallet: <b>${money(user.balance)}</b>\nAPI balance: <b>${money(r.balance)}</b>\n\nReply with the amount in USD to move, e.g. <code>5</code>.`,
+      back,
+    );
+    return true;
+  }
+
+  if (action === "alert") {
+    await setState(chatId, { ...(user.state ?? {}), awaiting: "api_alert" });
+    await edit(
+      `${apiIcon(s, "alert")} <b>Low balance alert</b>\n\nReply with the amount that should trigger the alert, e.g. <code>2</code>.\nSend <code>0</code> to switch it off.`,
+      back,
+    );
+    return true;
+  }
+
+  if (action === "prices") {
+    const v = await apiPricesView(user);
+    await edit(v.text, v.kb);
+    return true;
+  }
+
+  if (action === "orders") {
+    const v = await apiOrdersView(user);
+    await edit(v.text, v.kb);
+    return true;
+  }
+
+  const fresh = (await getUser(chatId)) ?? user;
+  const view = await apiPanelView(fresh);
+  await edit(view.text, view.kb);
+  return true;
+}
+
+/** Text replies for the API panel prompts. Returns true when handled. */
+export async function handleApiState(
+  chatId: number,
+  awaiting: string,
+  text: string,
+  state: any,
+): Promise<boolean> {
+  const s = await getSettings();
+  const back: Button[][] = [[apiBtn(s, "panel", "Reseller API", "api")]];
+
+  if (awaiting === "api_topup") {
+    state.awaiting = null;
+    await setState(chatId, state);
+    const fresh = await getUser(chatId);
+    const amount = Number(text.replace(/[^0-9.]/g, ""));
+    const r = await apiTopupFromWallet(fresh, amount);
+    if ("error" in r && r.error) {
+      await say(chatId, `❌ ${escapeHtml(r.error)}`, back);
+      return true;
+    }
+    const after = await getUser(chatId);
+    const view = await apiPanelView(after);
+    await say(chatId, `✅ ${money(amount)} moved to your API balance.\n\n${view.text}`, view.kb);
+    return true;
+  }
+
+  if (awaiting === "api_alert") {
+    state.awaiting = null;
+    await setState(chatId, state);
+    const limit = Math.max(0, Math.round(Number(text.replace(/[^0-9.]/g, "")) * 100) / 100 || 0);
+    const r = await resellerForTelegram(chatId);
+    if (r) await db.from("resellers").update({ low_bal_alert: limit }).eq("id", r.id);
+    const fresh = await getUser(chatId);
+    const view = await apiPanelView(fresh);
+    await say(
+      chatId,
+      `${limit > 0 ? `✅ Alert set at ${money(limit)}.` : "✅ Low balance alert switched off."}\n\n${view.text}`,
+      view.kb,
+    );
+    return true;
+  }
+
+  return false;
+}
+
+/** Admin view: pick an API panel icon to replace. */
+async function admApiIconView() {
+  const settings = await getSettings();
+  const kb: Button[][] = (Object.keys(API_ICONS) as ApiIconKey[]).map((key) => {
+    const parsed = parseIconValue(settings[`api_icon_${key}`] ?? "", API_ICONS[key][0]);
+    return [{ text: `${parsed.glyph} ${API_ICONS[key][1]}`.trim(), callback_data: `adm:qi:${key}` }];
+  });
+  kb.push(ADM_BACK[0]!);
+  return {
+    text:
+      "🔌 <b>API icons</b>\n\nThese icons are used on the in-bot Reseller API panel " +
+      "(account, balance, key, orders, buttons…).\n" +
+      "Pick one, then send a normal emoji or a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.",
+    kb,
+  };
+}
+
+/** Admin callbacks for API icons. Returns true when handled. */
+export async function handleApiIconCallback(
+  chatId: number,
+  data: string,
+  state: any,
+  edit: (text: string, kb?: Button[][]) => Promise<void>,
+): Promise<boolean> {
+  if (data === "adm:apiicons") {
+    if (!(await isAdmin(chatId))) return true;
+    const v = await admApiIconView();
+    await edit(v.text, v.kb);
+    return true;
+  }
+  if (data.startsWith("adm:qi:")) {
+    if (!(await isAdmin(chatId))) return true;
+    const key = data.slice(7) as ApiIconKey;
+    if (!(key in API_ICONS)) return true;
+    await setState(chatId, { ...(state ?? {}), awaiting: "adm_api_icon", adm_api_icon: key });
+    await edit(
+      `🔌 Send the new icon for <b>${API_ICONS[key][1]}</b>.\n\nNormal emoji or Telegram Premium custom emoji both work. Send <code>-</code> to reset.`,
+      [[{ text: "⬅️ API icons", callback_data: "adm:apiicons" }], ADM_BACK[0]!],
+    );
+    return true;
+  }
+  return false;
+}
+
+/** Admin text reply that carries a new API icon. Returns true when handled. */
+export async function handleApiIconState(chatId: number, msg: any, text: string, state: any): Promise<boolean> {
+  if (state?.awaiting !== "adm_api_icon") return false;
+  state.awaiting = null;
+  const key = String(state.adm_api_icon ?? "") as ApiIconKey;
+  await setState(chatId, state);
+  if (!(await isAdmin(chatId)) || !(key in API_ICONS)) return true;
+  const input = readIconInput(msg, text, API_ICONS[key][0]);
+  if (input.empty) {
+    await say(chatId, ICON_INPUT_HELP, ADM_BACK);
+    return true;
+  }
+  try {
+    await saveIconSetting(`api_icon_${key}`, input.value);
+  } catch (e) {
+    await say(chatId, saveFailText(e), ADM_BACK);
+    return true;
+  }
+  await say(
+    chatId,
+    `✅ ${API_ICONS[key][1]} updated → ${iconPreviewHtml(input.value, API_ICONS[key][0])}`,
+    [[{ text: "🔌 More API icons", callback_data: "adm:apiicons" }], ADM_BACK[0]!],
+  );
+  await premiumEmojiNote(chatId, input.value);
+  return true;
 }
