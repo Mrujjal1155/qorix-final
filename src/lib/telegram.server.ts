@@ -155,6 +155,44 @@ export function sendDocument(
   });
 }
 
+/**
+ * Upload a real file to Telegram (multipart) so the user gets a tappable
+ * document instead of a visible download link. Needs a direct bot token.
+ */
+export async function sendDocumentUpload(
+  chat_id: number | string,
+  filename: string,
+  content: string,
+  caption?: string,
+  keyboard?: Button[][],
+): Promise<TgResult> {
+  const token = process.env["TELEGRAM_BOT_TOKEN"];
+  if (!token) return { ok: false, description: "no bot token for file upload" };
+
+  const send = async (cap?: string) => {
+    const form = new FormData();
+    form.append("chat_id", String(chat_id));
+    form.append("document", new Blob([content], { type: "text/plain" }), filename);
+    if (cap) {
+      form.append("caption", cap);
+      form.append("parse_mode", "HTML");
+    }
+    if (keyboard) form.append("reply_markup", JSON.stringify({ inline_keyboard: keyboard }));
+    const res = await fetch(`https://api.telegram.org/bot${token}/sendDocument`, {
+      method: "POST",
+      body: form,
+    });
+    return (await res.json().catch(() => ({ ok: false }))) as TgResult;
+  };
+
+  let json = await send(caption);
+  if (json.ok === false && caption && /<tg-emoji/i.test(caption) && isCustomEmojiError(json)) {
+    json = await send(caption.replace(TG_EMOJI_RE, "$1"));
+  }
+  if (json.ok === false) console.error("Telegram sendDocument (upload) failed:", JSON.stringify(json));
+  return json;
+}
+
 export function editMessage(
   chat_id: number | string,
   message_id: number,
