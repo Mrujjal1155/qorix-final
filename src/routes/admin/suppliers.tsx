@@ -524,6 +524,7 @@ function BotProductsPanel() {
     if (only === "pinned" && !(Number(p.featured_rank) > 0)) return false;
     if (only === "inhouse" && p.is_supplier) return false;
     if (only === "supplier" && !p.is_supplier) return false;
+    if (sourceFilter !== "all" && String(p.source ?? "") !== sourceFilter) return false;
     return true;
   });
   const pinnedCount = (products ?? []).filter((p: any) => Number(p.featured_rank) > 0).length;
