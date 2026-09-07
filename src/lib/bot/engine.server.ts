@@ -5067,6 +5067,22 @@ async function handleCallback(cq: any) {
     await renderText(chatId, messageId, text, kb, fromMedia);
   };
 
+  if (data === "jg:v") {
+    const s = await getSettings();
+    const missing = joinGateOn(s) ? await missingJoins(chatId, s) : [];
+    if (missing.length) {
+      const gv = joinGateView(s, missing);
+      await edit(
+        `❌ <b>Not joined yet.</b>\nStill missing: ${missing.map((c) => escapeHtml(c.label)).join(", ")}\n\n${gv.text}`,
+        gv.kb,
+      );
+      return;
+    }
+    const okUser = await getUser(chatId);
+    await edit(`✅ <b>Verified!</b>\n\n${await homeText(okUser)}`, homeKeyboard(s));
+    return;
+  }
+
   if (data === "home") {
     const fresh = await getUser(chatId);
     await edit(await homeText(fresh), homeKeyboard(await getSettings()));
