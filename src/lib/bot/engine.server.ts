@@ -2621,6 +2621,14 @@ async function handleMessage(msg: any) {
 
   // state machine
   const state = (user.state ?? {}) as any;
+  if (state.awaiting === "api_topup" || state.awaiting === "api_alert") {
+    await handleApiState(chatId, String(state.awaiting), text, state);
+    return;
+  }
+  if (state.awaiting === "adm_api_icon") {
+    await handleApiIconState(chatId, msg, text, state);
+    return;
+  }
   switch (state.awaiting) {
     case "pk_amount": {
       const amount = Number(text.replace(/[^0-9.]/g, ""));
@@ -4663,6 +4671,16 @@ async function handleCallback(cq: any) {
   if (data === "home") {
     const fresh = await getUser(chatId);
     await edit(await homeText(fresh), homeKeyboard(await getSettings()));
+    return;
+  }
+
+  if (data === "api" || data.startsWith("api:")) {
+    await handleApiCallback(chatId, data, user, edit);
+    return;
+  }
+
+  if (data === "adm:apiicons" || data.startsWith("adm:qi:")) {
+    await handleApiIconCallback(chatId, data, user.state ?? {}, edit);
     return;
   }
 
