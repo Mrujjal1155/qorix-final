@@ -115,7 +115,7 @@ function SettingsPage() {
   const [testTo, setTestTo] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
-  const { data } = useQuery({ queryKey: ["settings"], queryFn: () => fetchSettings() });
+  const { data, refetch: refetchSettings } = useQuery({ queryKey: ["settings"], queryFn: () => fetchSettings() });
   const { data: tokenStatus, isLoading: tokenLoading } = useQuery({
     queryKey: ["bot-token-status"],
     queryFn: () => checkToken(),
