@@ -2867,6 +2867,38 @@ async function handleMessage(msg: any) {
 
   // state machine
   const state = (user.state ?? {}) as any;
+  if (state.awaiting === "sup_new" || state.awaiting === "sup_reply" || state.awaiting === "adm_tk_reply") {
+    const kind = String(state.awaiting);
+    state.awaiting = null;
+    await setState(chatId, state);
+    const body = text.trim();
+    if (!body) {
+      await say(chatId, "❌ Please send a text message.", [[{ text: "⬅️ Support", callback_data: "support" }]]);
+      return;
+    }
+    if (kind === "sup_new") {
+      const t = await createTicket(await getUser(chatId), body);
+      await say(
+        chatId,
+        t
+          ? `✅ <b>Ticket ${ticketCode(t.ticket_no)} created.</b>\nOur team will reply here in this chat.`
+          : "❌ Could not create the ticket. Please try again.",
+        [[{ text: "🎫 My Tickets", callback_data: "sup:list" }], [{ text: "🏠 Home", callback_data: "home" }]],
+      );
+      return;
+    }
+    if (kind === "sup_reply") {
+      await postTicketReply(String(state.sup_ticket), "user", body, (await getUser(chatId))?.username ?? undefined);
+      const v = await ticketView(String(state.sup_ticket), "user");
+      await say(chatId, `✅ Reply sent.\n\n${v.text}`, v.kb);
+      return;
+    }
+    if (!(await isAdmin(chatId))) return;
+    await postTicketReply(String(state.adm_ticket), "admin", body, "Support");
+    const v = await ticketView(String(state.adm_ticket), "admin");
+    await say(chatId, `✅ Reply delivered to the customer.\n\n${v.text}`, v.kb);
+    return;
+  }
   if (state.awaiting === "api_topup" || state.awaiting === "api_alert") {
     await handleApiState(chatId, String(state.awaiting), text, state);
     return;
