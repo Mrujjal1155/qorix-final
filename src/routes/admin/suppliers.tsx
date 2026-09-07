@@ -553,6 +553,18 @@ function BotProductsPanel() {
               </button>
             ))}
           </div>
+          <select
+            className="h-9 rounded-md border border-input bg-background px-2 text-xs"
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+          >
+            <option value="all">All suppliers</option>
+            {sources.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
           <Input
             className="max-w-44"
             placeholder="Search by name…"
