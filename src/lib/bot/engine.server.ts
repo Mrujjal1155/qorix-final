@@ -5,6 +5,7 @@ import {
   deleteMessage,
   editMessage,
   getMe,
+  tg,
   isCustomEmojiBlocked,
 
   sendDocument,
