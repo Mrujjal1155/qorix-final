@@ -3422,11 +3422,13 @@ async function handleMessage(msg: any) {
         await say(chatId, saveFailText(e), ADM_BACK);
         return;
       }
+      const av = await admAlertIconView();
       await say(
         chatId,
-        `✅ ${ALERT_ICONS[alertKey][1]} updated → ${iconPreviewHtml(value, ALERT_ICONS[alertKey][0])}`,
-        [[{ text: "🚨 More alert icons", callback_data: "adm:alerticons" }], ADM_BACK[0]!],
+        `✅ ${ALERT_ICONS[alertKey][1]} updated → ${iconPreviewHtml(value, ALERT_ICONS[alertKey][0])}\n\n${av.text}`,
+        av.kb,
       );
+
       await premiumEmojiNote(chatId, value);
       return;
     }
