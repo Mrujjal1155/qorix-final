@@ -312,6 +312,15 @@ function imageValue(raw: any, depth = 0): string | null {
 }
 
 /** Normalise Qamify/Vexoran/Canboso fields while retaining the supplier's full text. */
+/**
+ * Some supplier items are flagged as manual delivery / not API-orderable.
+ * They are still imported, but must never be sold as auto-delivery.
+ */
+export function supplierDeliveryType(raw: any): "auto" | "manual" {
+  const r = raw ?? {};
+  return r.api_orderable === false || r.manual_delivery === true ? "manual" : "auto";
+}
+
 export function detailsFromRaw(raw: any): SupplierDetails {
   const r = raw ?? {};
   let description = longestValue(r, DETAIL_KEYS.description);

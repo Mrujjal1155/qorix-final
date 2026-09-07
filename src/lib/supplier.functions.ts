@@ -179,7 +179,9 @@ export const updateSupplierProduct = createServerFn({ method: "POST" })
     }
     const merged = { ...row, ...patch };
 
-    const { sellPrice, detailsFromRaw, extraDetailsFromRaw } = await import("@/lib/suppliers/api.server");
+    const { sellPrice, detailsFromRaw, extraDetailsFromRaw, supplierDeliveryType } = await import(
+      "@/lib/suppliers/api.server"
+    );
     const price = sellPrice(Number(merged.cost_price), {
       price_override: merged.price_override,
       markup_percent: merged.markup_percent,
