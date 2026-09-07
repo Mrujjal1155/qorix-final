@@ -5436,7 +5436,26 @@ async function handleCallback(cq: any) {
     const arg = action.split(":")[1] ?? "";
     const st = (user.state ?? {}) as any;
 
-    if (action === "stats") {
+    if (action === "tk") {
+      const v = await admTicketsView();
+      await edit(v.text, v.kb);
+    } else if (action.startsWith("tk:")) {
+      const id = action.slice(3);
+      await db.from("support_tickets").update({ unread_admin: 0 }).eq("id", id);
+      const v = await ticketView(id, "admin");
+      await edit(v.text, v.kb);
+    } else if (action.startsWith("tkr:")) {
+      const id = action.slice(4);
+      await setState(chatId, { ...st, awaiting: "adm_tk_reply", adm_ticket: id });
+      await edit("✍️ Send your reply — it goes straight to the customer's inbox.", [
+        [{ text: "⛔️ Cancel", callback_data: `adm:tk:${id}` }],
+      ]);
+    } else if (action.startsWith("tkc:") || action.startsWith("tko:")) {
+      const id = action.slice(4);
+      await setTicketStatus(id, action.startsWith("tkc:") ? "closed" : "open", "admin");
+      const v = await ticketView(id, "admin");
+      await edit(v.text, v.kb);
+    } else if (action === "stats") {
       await edit(await adminStatsText(), adminKeyboard());
     } else if (action === "orders") {
       const v = await admOrdersView();
