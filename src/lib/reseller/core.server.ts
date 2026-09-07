@@ -267,6 +267,16 @@ export async function purchase(
     return { ok: false as const, status: 402, error: debitError.message ?? "Insufficient balance" };
   }
 
+  // Warn the reseller in Telegram when this order pushed them under their limit.
+  void (async () => {
+    try {
+      const { checkResellerLowBalance } = await import("@/lib/bot/engine.server");
+      await checkResellerLowBalance(reseller.id);
+    } catch {
+      /* alerting must never break an order */
+    }
+  })();
+
   let delivered: string | null = null;
   let status = "pending";
   let failReason: string | null = null;
