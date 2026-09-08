@@ -16,6 +16,7 @@ import {
   styleRows,
   styled,
   type Button,
+  type ButtonStyle,
 } from "@/lib/telegram.server";
 import {
   UI_ELEMENTS,
@@ -676,7 +677,7 @@ function homeKeyboard(settings: Record<string, string>): Button[][] {
       iconButton(settings, "api", "api"),
       iconButton(settings, "clear", "clear"),
     ],
-  ], "success");
+  ], btnColor(settings, "menu"));
 }
 
 async function homeText(user: any) {
@@ -1391,6 +1392,34 @@ function allProductsIcon(settings: Record<string, string>) {
   return parseIconValue(settings["cat_icon_all"] ?? "", "🗂");
 }
 
+/* ---------------------------------------- configurable button colours */
+
+type ColorSlot = "category" | "product" | "orders" | "pagination" | "nav" | "menu";
+
+const COLOR_SLOTS: { key: ColorSlot; label: string; def: ButtonStyle }[] = [
+  { key: "category", label: "Category cards", def: "primary" },
+  { key: "product", label: "Product cards", def: "primary" },
+  { key: "orders", label: "Order list cards", def: "primary" },
+  { key: "pagination", label: "Pagination (Prev/Next)", def: "primary" },
+  { key: "nav", label: "Navigation & actions", def: "success" },
+  { key: "menu", label: "Main menu", def: "success" },
+];
+
+const COLOR_LABEL: Record<ButtonStyle, string> = {
+  primary: "🔵 Blue",
+  success: "🟢 Green",
+  danger: "🔴 Red",
+};
+
+const COLOR_ORDER: ButtonStyle[] = ["primary", "success", "danger"];
+
+/** Colour for a button slot — admin configurable via bot_settings (btn_color_<slot>). */
+function btnColor(settings: Record<string, string>, slot: ColorSlot): ButtonStyle {
+  const def = COLOR_SLOTS.find((s) => s.key === slot)?.def ?? "success";
+  const v = String(settings[`btn_color_${slot}`] ?? "").trim().toLowerCase();
+  return (COLOR_ORDER as string[]).includes(v) ? (v as ButtonStyle) : def;
+}
+
 function categoryButton(settings: Record<string, string>, cat: any, text: string, callback_data: string): Button {
   const { customId } = catIcon(settings, cat);
   return {
@@ -1414,7 +1443,10 @@ async function shopView(page: number) {
 
   if (withProducts.length) {
     const kb: Button[][] = [];
-    if (flash.length) kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), "primary")]);
+    const catStyle = btnColor(settings, "category");
+    const navStyle = btnColor(settings, "nav");
+    if (flash.length)
+      kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), btnColor(settings, "product"))]);
     for (let i = 0; i < withProducts.length; i += 3) {
       const row: Button[] = [];
       for (const c of withProducts.slice(i, i + 3)) {
@@ -1427,7 +1459,7 @@ async function shopView(page: number) {
               ic.customId ? `${c.name} (${c.items.length})` : `${ic.glyph} ${c.name} (${c.items.length})`,
               `cat:${c.id}:0`,
             ),
-            "primary",
+            catStyle,
           ),
         );
       }
@@ -1443,13 +1475,13 @@ async function shopView(page: number) {
           callback_data: "cat:all:0",
           ...(allIc.customId ? { icon_custom_emoji_id: allIc.customId } : {}),
         },
-        "success",
+        navStyle,
       ),
     ]);
-    kb.push([styled(iconButton(settings, "refresh", "shop:0"), "success")]);
+    kb.push([styled(iconButton(settings, "refresh", "shop:0"), navStyle)]);
     kb.push([
-      styled(iconButton(settings, "cart", "cart"), "success"),
-      styled(iconButton(settings, "back", "home"), "success"),
+      styled(iconButton(settings, "cart", "cart"), navStyle),
+      styled(iconButton(settings, "back", "home"), navStyle),
     ]);
     const text =
       `${pageIconHtml(settings, "shop")} <b>C A T E G O R I E S</b>\n\n` +
@@ -1490,8 +1522,11 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
   const flash = products.filter(isFlash);
   const slice = products.slice(page * PAGE, page * PAGE + PAGE);
   const kb: Button[][] = [];
+  const prodStyle = btnColor(settings, "product");
+  const pageStyle = btnColor(settings, "pagination");
+  const navStyle = btnColor(settings, "nav");
   if (flash.length && page === 0)
-    kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), "primary")]);
+    kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), prodStyle)]);
   for (const p of slice) {
     kb.push([
       styled(
@@ -1500,20 +1535,20 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
           `${p.name} | ${money(p.price)} | ${p.delivery_type === "manual" ? "manual" : `📦 ${p.stock}`}`,
           `p:${p.id}`,
         ),
-        "primary",
+        prodStyle,
       ),
     ]);
   }
   const nav: Button[] = [];
-  if (page > 0) nav.push(styled(uiBtn(settings, "shop_prev", `${back}:${page - 1}`), "primary"));
+  if (page > 0) nav.push(styled(uiBtn(settings, "shop_prev", `${back}:${page - 1}`), pageStyle));
   if (products.length > (page + 1) * PAGE)
-    nav.push(styled(uiBtn(settings, "shop_next", `${back}:${page + 1}`), "primary"));
+    nav.push(styled(uiBtn(settings, "shop_next", `${back}:${page + 1}`), pageStyle));
   if (nav.length) kb.push(nav);
-  kb.push([styled(iconButton(settings, "refresh", `${back}:${page}`), "success")]);
-  if (hasCategories) kb.push([styled({ text: "🗂 Categories", callback_data: "shop:0" }, "success")]);
+  kb.push([styled(iconButton(settings, "refresh", `${back}:${page}`), navStyle)]);
+  if (hasCategories) kb.push([styled({ text: "🗂 Categories", callback_data: "shop:0" }, navStyle)]);
   kb.push([
-    styled(iconButton(settings, "cart", "cart"), "success"),
-    styled(iconButton(settings, "back", "home"), "success"),
+    styled(iconButton(settings, "cart", "cart"), navStyle),
+    styled(iconButton(settings, "back", "home"), navStyle),
   ]);
 
 
@@ -3816,6 +3851,8 @@ export function adminKeyboard(): Button[][] {
       { text: "🔌 API icons", callback_data: "adm:apiicons" },
       { text: "🗂 Category icons", callback_data: "adm:caticons" },
     ],
+    [{ text: "🎨 Button colors", callback_data: "adm:bcolors" }],
+
 
     [{ text: "🎫 Support tickets", callback_data: "adm:tk" }],
     [{ text: "🔐 Force join gate", callback_data: "adm:jg" }],
@@ -4398,6 +4435,28 @@ async function admPageIconView() {
   };
 }
 
+
+/** Button colors — pick the native Telegram colour for each group of buttons. */
+async function admButtonColorView() {
+  const settings = await getSettings();
+  const kb: Button[][] = COLOR_SLOTS.map((s) => [
+    styled(
+      { text: `${COLOR_LABEL[btnColor(settings, s.key)]} · ${s.label}`, callback_data: `adm:bc:${s.key}` },
+      btnColor(settings, s.key),
+    ),
+  ]);
+  kb.push(ADM_BACK[0]!);
+  const list = COLOR_SLOTS.map(
+    (s) => `${COLOR_LABEL[btnColor(settings, s.key)]} <b>${escapeHtml(s.label)}</b>`,
+  ).join("\n");
+  return {
+    text:
+      "🎨 <b>Button colors</b>\n\nTap a group to switch its colour — 🔵 Blue → 🟢 Green → 🔴 Red.\n" +
+      "New messages sent by the bot use the colour you pick here.\n\n" +
+      `<b>Current colors</b>\n${list}`,
+    kb,
+  };
+}
 
 /** Category icons — Premium custom emoji supported, shared by bot + website glyph. */
 async function admCategoryIconView() {
@@ -5075,18 +5134,27 @@ async function ordersView(chatId: number, page = 0) {
     })
     .join("\n──────────────\n");
 
+  const ordStyle = btnColor(settings, "orders");
+  const ordPage = btnColor(settings, "pagination");
+  const ordNav = btnColor(settings, "nav");
   const kb: Button[][] = slice.map((o: any) => [
-    {
-      text: `${parseIconValue(settings["ui_icon_ord_view"] ?? "", "🔎").glyph} ${uiText(settings, "ord_view")} ${orderCode(o.id)}`.trim(),
-      callback_data: `ord:v:${orderCode(o.id).replace("ORD-", "")}`,
-    },
+    styled(
+      {
+        text: `${parseIconValue(settings["ui_icon_ord_view"] ?? "", "🔎").glyph} ${uiText(settings, "ord_view")} ${orderCode(o.id)}`.trim(),
+        callback_data: `ord:v:${orderCode(o.id).replace("ORD-", "")}`,
+      },
+      ordStyle,
+    ),
   ]);
   const nav: Button[] = [];
-  if (current > 0) nav.push(uiBtn(settings, "ord_prev", `ord:p:${current - 1}`));
-  nav.push({ text: `${current + 1}/${pages}`, callback_data: `ord:p:${current}` });
-  if (current < pages - 1) nav.push(uiBtn(settings, "ord_next", `ord:p:${current + 1}`));
+  if (current > 0) nav.push(styled(uiBtn(settings, "ord_prev", `ord:p:${current - 1}`), ordPage));
+  nav.push(styled({ text: `${current + 1}/${pages}`, callback_data: `ord:p:${current}` }, ordPage));
+  if (current < pages - 1) nav.push(styled(uiBtn(settings, "ord_next", `ord:p:${current + 1}`), ordPage));
   kb.push(nav);
-  kb.push([uiBtn(settings, "ord_refresh", `ord:p:${current}`), uiBtn(settings, "ord_home", "home")]);
+  kb.push([
+    styled(uiBtn(settings, "ord_refresh", `ord:p:${current}`), ordNav),
+    styled(uiBtn(settings, "ord_home", "home"), ordNav),
+  ]);
 
   return {
     text:
@@ -6098,6 +6166,17 @@ async function handleCallback(cq: any) {
       await edit(v.text, v.kb);
     } else if (action === "caticons") {
       const v = await admCategoryIconView();
+      await edit(v.text, v.kb);
+    } else if (action === "bcolors") {
+      const v = await admButtonColorView();
+      await edit(v.text, v.kb);
+    } else if (action.startsWith("bc:")) {
+      const slot = arg as ColorSlot;
+      if (!COLOR_SLOTS.some((s) => s.key === slot)) return;
+      const settings = await getSettings();
+      const next = COLOR_ORDER[(COLOR_ORDER.indexOf(btnColor(settings, slot)) + 1) % COLOR_ORDER.length]!;
+      await saveIconSetting(`btn_color_${slot}`, next);
+      const v = await admButtonColorView();
       await edit(v.text, v.kb);
     } else if (action.startsWith("ci:")) {
       const catId = arg;
