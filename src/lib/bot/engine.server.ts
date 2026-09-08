@@ -3506,7 +3506,38 @@ async function handleMessage(msg: any) {
       await premiumEmojiNote(chatId, value);
       return;
     }
+    case "adm_cat_icon": {
+      state.awaiting = null;
+      const catId = String(state.adm_cat_icon ?? "");
+      await setState(chatId, state);
+      if (!(await isAdmin(chatId)) || !catId) return;
+      const catInput = readIconInput(msg, text, "📁");
+      if (catInput.empty) {
+        await say(chatId, ICON_INPUT_HELP, ADM_BACK);
+        return;
+      }
+      const value = catInput.value;
+      const parsedCat = parseIconValue(value, "📁");
+      try {
+        const upd = await db
+          .from("categories")
+          .update({ emoji: parsedCat.glyph || "📁" })
+          .eq("id", catId)
+          .select("name")
+          .maybeSingle();
+        if (upd.error) throw upd.error;
+        await saveIconSetting(`cat_icon_${catId}`, parsedCat.customId ? value : "");
+      } catch (e) {
+        await say(chatId, saveFailText(e), ADM_BACK);
+        return;
+      }
+      const cv = await admCategoryIconView();
+      await say(chatId, `✅ Category icon updated → ${iconPreviewHtml(value, "📁")}\n\n${cv.text}`, cv.kb);
+      await premiumEmojiNote(chatId, value);
+      return;
+    }
     case "adm_page_icon": {
+
       state.awaiting = null;
       const pageKey = String(state.adm_page_icon ?? "") as PageIconKey;
       await setState(chatId, state);
