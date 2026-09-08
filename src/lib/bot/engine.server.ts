@@ -4428,7 +4428,7 @@ async function admCategoryIconView() {
     text:
       "🗂 <b>Category icons</b>\n\nPick a category, then send a normal emoji or a <b>Telegram Premium custom emoji</b> " +
       "(type it, send it as a sticker, or paste its numeric id). Send <code>-</code> to reset.\n\n" +
-      `<b>Current icons</b>\n${list}`,
+      `<b>Current icons</b>\n${allPreview} <b>All products</b>${allIc.customId ? " · ✨ Premium" : ""}\n${list}`,
     kb,
   };
 }
