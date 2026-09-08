@@ -3777,7 +3777,11 @@ export function adminKeyboard(): Button[][] {
       { text: "💳 Payment icons", callback_data: "adm:paymenticons" },
       { text: "🖼 Page icons", callback_data: "adm:pageicons" },
     ],
-    [{ text: "🔌 API icons", callback_data: "adm:apiicons" }],
+    [
+      { text: "🔌 API icons", callback_data: "adm:apiicons" },
+      { text: "🗂 Category icons", callback_data: "adm:caticons" },
+    ],
+
     [{ text: "🎫 Support tickets", callback_data: "adm:tk" }],
     [{ text: "🔐 Force join gate", callback_data: "adm:jg" }],
 
