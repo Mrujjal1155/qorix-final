@@ -1522,8 +1522,11 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
   const flash = products.filter(isFlash);
   const slice = products.slice(page * PAGE, page * PAGE + PAGE);
   const kb: Button[][] = [];
+  const prodStyle = btnColor(settings, "product");
+  const pageStyle = btnColor(settings, "pagination");
+  const navStyle = btnColor(settings, "nav");
   if (flash.length && page === 0)
-    kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), "primary")]);
+    kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), prodStyle)]);
   for (const p of slice) {
     kb.push([
       styled(
@@ -1532,20 +1535,20 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
           `${p.name} | ${money(p.price)} | ${p.delivery_type === "manual" ? "manual" : `📦 ${p.stock}`}`,
           `p:${p.id}`,
         ),
-        "primary",
+        prodStyle,
       ),
     ]);
   }
   const nav: Button[] = [];
-  if (page > 0) nav.push(styled(uiBtn(settings, "shop_prev", `${back}:${page - 1}`), "primary"));
+  if (page > 0) nav.push(styled(uiBtn(settings, "shop_prev", `${back}:${page - 1}`), pageStyle));
   if (products.length > (page + 1) * PAGE)
-    nav.push(styled(uiBtn(settings, "shop_next", `${back}:${page + 1}`), "primary"));
+    nav.push(styled(uiBtn(settings, "shop_next", `${back}:${page + 1}`), pageStyle));
   if (nav.length) kb.push(nav);
-  kb.push([styled(iconButton(settings, "refresh", `${back}:${page}`), "success")]);
-  if (hasCategories) kb.push([styled({ text: "🗂 Categories", callback_data: "shop:0" }, "success")]);
+  kb.push([styled(iconButton(settings, "refresh", `${back}:${page}`), navStyle)]);
+  if (hasCategories) kb.push([styled({ text: "🗂 Categories", callback_data: "shop:0" }, navStyle)]);
   kb.push([
-    styled(iconButton(settings, "cart", "cart"), "success"),
-    styled(iconButton(settings, "back", "home"), "success"),
+    styled(iconButton(settings, "cart", "cart"), navStyle),
+    styled(iconButton(settings, "back", "home"), navStyle),
   ]);
 
 
