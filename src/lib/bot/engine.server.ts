@@ -1413,10 +1413,24 @@ async function shopView(page: number) {
   return allProductsView(page);
 }
 
-/** Flat product list — the original shop page (blue product buttons). */
-async function allProductsView(page: number) {
+/** Flat product list — original shop page, optionally scoped to one category. */
+async function allProductsView(page: number, catId: "all" | string = "all") {
   const settings = await getSettings();
-  const products = await productsWithStock();
+  const all = await productsWithStock();
+  let title = "P R O D U C T S";
+  let products = all;
+  let hasCategories = false;
+  if (catId !== "all") {
+    const { categories, byCat } = await categoryLinks();
+    const cat = categories.find((c: any) => c.id === catId);
+    products = productsOfCategory(all, catId, byCat);
+    if (cat) title = `${cat.emoji ?? "📁"} ${String(cat.name).toUpperCase()}`;
+    hasCategories = true;
+  } else {
+    const { categories, byCat } = await categoryLinks();
+    hasCategories = categories.some((c: any) => productsOfCategory(all, c.id, byCat).length > 0);
+  }
+  const back = catId === "all" ? "cat:all" : `cat:${catId}`;
   const inStock = products.filter((p: any) => p.delivery_type === "manual" || p.stock > 0).length;
   const flash = products.filter(isFlash);
   const slice = products.slice(page * PAGE, page * PAGE + PAGE);
