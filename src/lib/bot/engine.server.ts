@@ -1381,6 +1381,21 @@ function productsOfCategory(products: any[], catId: string, byCat: Record<string
   return products.filter((p: any) => (set && set.has(p.id)) || p.category_id === catId);
 }
 
+/** Category icon (Premium custom emoji id lives in bot_settings, glyph on the row). */
+function catIcon(settings: Record<string, string>, cat: any) {
+  return parseIconValue(settings[`cat_icon_${cat.id}`] ?? "", String(cat?.emoji || "📁"));
+}
+
+function categoryButton(settings: Record<string, string>, cat: any, text: string, callback_data: string): Button {
+  const { customId } = catIcon(settings, cat);
+  return {
+    text,
+    callback_data,
+    ...(customId ? { icon_custom_emoji_id: customId } : {}),
+  };
+}
+
+
 /** Category picker — green navigation buttons, one per row. */
 async function shopView(page: number) {
   const settings = await getSettings();
