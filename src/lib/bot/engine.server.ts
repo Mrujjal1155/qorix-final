@@ -6050,6 +6050,18 @@ async function handleCallback(cq: any) {
     } else if (action === "pageicons") {
       const v = await admPageIconView();
       await edit(v.text, v.kb);
+    } else if (action === "caticons") {
+      const v = await admCategoryIconView();
+      await edit(v.text, v.kb);
+    } else if (action.startsWith("ci:")) {
+      const catId = arg;
+      if (!catId) return;
+      await setState(chatId, { ...st, awaiting: "adm_cat_icon", adm_cat_icon: catId });
+      await say(
+        chatId,
+        "🗂 Send the new icon for this category.\n\nNormal emoji or <b>Telegram Premium custom emoji</b> both work (sticker or numeric id too). Send <code>-</code> to reset.",
+      );
+
     } else if (action === "ui") {
       const v = await admUiGroupView();
       await edit(v.text, v.kb);
