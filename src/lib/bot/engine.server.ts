@@ -1430,7 +1430,17 @@ async function shopView(page: number) {
     }
 
 
-    kb.push([styled({ text: "🗂 All products", callback_data: "cat:all:0" }, "success")]);
+    const allIc = allProductsIcon(settings);
+    kb.push([
+      styled(
+        {
+          text: allIc.customId ? "All products" : `${allIc.glyph} All products`,
+          callback_data: "cat:all:0",
+          ...(allIc.customId ? { icon_custom_emoji_id: allIc.customId } : {}),
+        },
+        "success",
+      ),
+    ]);
     kb.push([styled(iconButton(settings, "refresh", "shop:0"), "success")]);
     kb.push([
       styled(iconButton(settings, "cart", "cart"), "success"),
