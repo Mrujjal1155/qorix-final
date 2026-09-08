@@ -677,7 +677,7 @@ function homeKeyboard(settings: Record<string, string>): Button[][] {
       iconButton(settings, "api", "api"),
       iconButton(settings, "clear", "clear"),
     ],
-  ], "success");
+  ], btnColor(settings, "menu"));
 }
 
 async function homeText(user: any) {
