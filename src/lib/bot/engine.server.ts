@@ -3533,13 +3533,26 @@ async function handleMessage(msg: any) {
       const catId = String(state.adm_cat_icon ?? "");
       await setState(chatId, state);
       if (!(await isAdmin(chatId)) || !catId) return;
-      const catInput = readIconInput(msg, text, "📁");
+      const isAllBtn = catId === "all";
+      const catInput = readIconInput(msg, text, isAllBtn ? "🗂" : "📁");
       if (catInput.empty) {
         await say(chatId, ICON_INPUT_HELP, ADM_BACK);
         return;
       }
       const value = catInput.value;
-      const parsedCat = parseIconValue(value, "📁");
+      const parsedCat = parseIconValue(value, isAllBtn ? "🗂" : "📁");
+      if (isAllBtn) {
+        try {
+          await saveIconSetting("cat_icon_all", value);
+        } catch (e) {
+          await say(chatId, saveFailText(e), ADM_BACK);
+          return;
+        }
+        const av = await admCategoryIconView();
+        await say(chatId, `✅ All products icon updated → ${iconPreviewHtml(value, "🗂")}\n\n${av.text}`, av.kb);
+        await premiumEmojiNote(chatId, value);
+        return;
+      }
       try {
         const upd = await db
           .from("categories")
