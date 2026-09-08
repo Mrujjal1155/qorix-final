@@ -1450,11 +1450,12 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
     ]);
   }
   const nav: Button[] = [];
-  if (page > 0) nav.push(styled(uiBtn(settings, "shop_prev", `shop:${page - 1}`), "primary"));
+  if (page > 0) nav.push(styled(uiBtn(settings, "shop_prev", `${back}:${page - 1}`), "primary"));
   if (products.length > (page + 1) * PAGE)
-    nav.push(styled(uiBtn(settings, "shop_next", `shop:${page + 1}`), "primary"));
+    nav.push(styled(uiBtn(settings, "shop_next", `${back}:${page + 1}`), "primary"));
   if (nav.length) kb.push(nav);
-  kb.push([styled(iconButton(settings, "refresh", `shop:${page}`), "success")]);
+  kb.push([styled(iconButton(settings, "refresh", `${back}:${page}`), "success")]);
+  if (hasCategories) kb.push([styled({ text: "🗂 Categories", callback_data: "shop:0" }, "success")]);
   kb.push([
     styled(iconButton(settings, "cart", "cart"), "success"),
     styled(iconButton(settings, "back", "home"), "success"),
@@ -1462,7 +1463,7 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
 
 
   const text =
-    `${pageIconHtml(settings, "shop")} <b>P R O D U C T S</b>\n\n` +
+    `${pageIconHtml(settings, "shop")} <b>${title}</b>\n\n` +
     `${uiIconHtml(settings, "shop_instock")} <b>${inStock} of ${products.length}</b> ${uiText(settings, "shop_instock")}\n` +
     (flash.length
       ? `${uiTag(settings, "shop_flash")} — <b>${flash.length}</b> discounted item(s) live now\n`
