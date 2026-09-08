@@ -1443,7 +1443,10 @@ async function shopView(page: number) {
 
   if (withProducts.length) {
     const kb: Button[][] = [];
-    if (flash.length) kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), "primary")]);
+    const catStyle = btnColor(settings, "category");
+    const navStyle = btnColor(settings, "nav");
+    if (flash.length)
+      kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), btnColor(settings, "product"))]);
     for (let i = 0; i < withProducts.length; i += 3) {
       const row: Button[] = [];
       for (const c of withProducts.slice(i, i + 3)) {
@@ -1456,7 +1459,7 @@ async function shopView(page: number) {
               ic.customId ? `${c.name} (${c.items.length})` : `${ic.glyph} ${c.name} (${c.items.length})`,
               `cat:${c.id}:0`,
             ),
-            "primary",
+            catStyle,
           ),
         );
       }
@@ -1472,13 +1475,13 @@ async function shopView(page: number) {
           callback_data: "cat:all:0",
           ...(allIc.customId ? { icon_custom_emoji_id: allIc.customId } : {}),
         },
-        "success",
+        navStyle,
       ),
     ]);
-    kb.push([styled(iconButton(settings, "refresh", "shop:0"), "success")]);
+    kb.push([styled(iconButton(settings, "refresh", "shop:0"), navStyle)]);
     kb.push([
-      styled(iconButton(settings, "cart", "cart"), "success"),
-      styled(iconButton(settings, "back", "home"), "success"),
+      styled(iconButton(settings, "cart", "cart"), navStyle),
+      styled(iconButton(settings, "back", "home"), navStyle),
     ]);
     const text =
       `${pageIconHtml(settings, "shop")} <b>C A T E G O R I E S</b>\n\n` +
