@@ -5110,18 +5110,27 @@ async function ordersView(chatId: number, page = 0) {
     })
     .join("\n──────────────\n");
 
+  const ordStyle = btnColor(settings, "orders");
+  const ordPage = btnColor(settings, "pagination");
+  const ordNav = btnColor(settings, "nav");
   const kb: Button[][] = slice.map((o: any) => [
-    {
-      text: `${parseIconValue(settings["ui_icon_ord_view"] ?? "", "🔎").glyph} ${uiText(settings, "ord_view")} ${orderCode(o.id)}`.trim(),
-      callback_data: `ord:v:${orderCode(o.id).replace("ORD-", "")}`,
-    },
+    styled(
+      {
+        text: `${parseIconValue(settings["ui_icon_ord_view"] ?? "", "🔎").glyph} ${uiText(settings, "ord_view")} ${orderCode(o.id)}`.trim(),
+        callback_data: `ord:v:${orderCode(o.id).replace("ORD-", "")}`,
+      },
+      ordStyle,
+    ),
   ]);
   const nav: Button[] = [];
-  if (current > 0) nav.push(uiBtn(settings, "ord_prev", `ord:p:${current - 1}`));
-  nav.push({ text: `${current + 1}/${pages}`, callback_data: `ord:p:${current}` });
-  if (current < pages - 1) nav.push(uiBtn(settings, "ord_next", `ord:p:${current + 1}`));
+  if (current > 0) nav.push(styled(uiBtn(settings, "ord_prev", `ord:p:${current - 1}`), ordPage));
+  nav.push(styled({ text: `${current + 1}/${pages}`, callback_data: `ord:p:${current}` }, ordPage));
+  if (current < pages - 1) nav.push(styled(uiBtn(settings, "ord_next", `ord:p:${current + 1}`), ordPage));
   kb.push(nav);
-  kb.push([uiBtn(settings, "ord_refresh", `ord:p:${current}`), uiBtn(settings, "ord_home", "home")]);
+  kb.push([
+    styled(uiBtn(settings, "ord_refresh", `ord:p:${current}`), ordNav),
+    styled(uiBtn(settings, "ord_home", "home"), ordNav),
+  ]);
 
   return {
     text:
