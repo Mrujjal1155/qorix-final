@@ -1410,18 +1410,21 @@ async function shopView(page: number) {
   if (withProducts.length) {
     const kb: Button[][] = [];
     if (flash.length) kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), "primary")]);
-    for (const c of withProducts)
+    for (const c of withProducts) {
+      const ic = catIcon(settings, c);
       kb.push([
         styled(
           categoryButton(
             settings,
             c,
-            `${catIcon(settings, c).glyph} ${c.name} (${c.items.length})`,
+            ic.customId ? `${c.name} (${c.items.length})` : `${ic.glyph} ${c.name} (${c.items.length})`,
             `cat:${c.id}:0`,
           ),
           "success",
         ),
       ]);
+    }
+
 
     kb.push([styled({ text: "🗂 All products", callback_data: "cat:all:0" }, "success")]);
     kb.push([styled(iconButton(settings, "refresh", "shop:0"), "success")]);
