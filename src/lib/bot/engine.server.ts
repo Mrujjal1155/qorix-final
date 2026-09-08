@@ -4391,6 +4391,7 @@ async function admCategoryIconView() {
   const settings = await getSettings();
   const { data } = await db.from("categories").select("id,name,emoji,is_active").order("sort_order");
   const cats = (data ?? []) as any[];
+  const allIc = allProductsIcon(settings);
   const kb: Button[][] = cats.map((c) => {
     const ic = catIcon(settings, c);
     return [
