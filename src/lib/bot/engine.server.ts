@@ -1450,7 +1450,14 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
     const { categories, byCat } = await categoryLinks();
     const cat = categories.find((c: any) => c.id === catId);
     products = productsOfCategory(all, catId, byCat);
-    if (cat) title = `${cat.emoji ?? "📁"} ${String(cat.name).toUpperCase()}`;
+    if (cat) {
+      const ic = catIcon(settings, cat);
+      const iconHtml = ic.customId
+        ? `<tg-emoji emoji-id="${ic.customId}">${escapeHtml(ic.glyph)}</tg-emoji>`
+        : escapeHtml(ic.glyph);
+      title = `${iconHtml} ${String(cat.name).toUpperCase()}`;
+    }
+
     hasCategories = true;
   } else {
     const { categories, byCat } = await categoryLinks();
