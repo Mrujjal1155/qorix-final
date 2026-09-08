@@ -3851,6 +3851,8 @@ export function adminKeyboard(): Button[][] {
       { text: "🔌 API icons", callback_data: "adm:apiicons" },
       { text: "🗂 Category icons", callback_data: "adm:caticons" },
     ],
+    [{ text: "🎨 Button colors", callback_data: "adm:bcolors" }],
+
 
     [{ text: "🎫 Support tickets", callback_data: "adm:tk" }],
     [{ text: "🔐 Force join gate", callback_data: "adm:jg" }],
