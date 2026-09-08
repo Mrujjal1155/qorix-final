@@ -4436,6 +4436,28 @@ async function admPageIconView() {
 }
 
 
+/** Button colors — pick the native Telegram colour for each group of buttons. */
+async function admButtonColorView() {
+  const settings = await getSettings();
+  const kb: Button[][] = COLOR_SLOTS.map((s) => [
+    styled(
+      { text: `${COLOR_LABEL[btnColor(settings, s.key)]} · ${s.label}`, callback_data: `adm:bc:${s.key}` },
+      btnColor(settings, s.key),
+    ),
+  ]);
+  kb.push(ADM_BACK[0]!);
+  const list = COLOR_SLOTS.map(
+    (s) => `${COLOR_LABEL[btnColor(settings, s.key)]} <b>${escapeHtml(s.label)}</b>`,
+  ).join("\n");
+  return {
+    text:
+      "🎨 <b>Button colors</b>\n\nTap a group to switch its colour — 🔵 Blue → 🟢 Green → 🔴 Red.\n" +
+      "New messages sent by the bot use the colour you pick here.\n\n" +
+      `<b>Current colors</b>\n${list}`,
+    kb,
+  };
+}
+
 /** Category icons — Premium custom emoji supported, shared by bot + website glyph. */
 async function admCategoryIconView() {
   const settings = await getSettings();
