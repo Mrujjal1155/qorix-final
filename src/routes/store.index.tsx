@@ -50,7 +50,8 @@ function StorePage() {
   const linked = c ? categories.find((x: any) => String(x.name).toLowerCase().includes(c.toLowerCase())) : undefined;
   const activeCat = cat === "all" && linked ? (linked as any).id : cat;
   const products = ((data?.products ?? []) as StoreProduct[]).filter((p: any) => {
-    if (activeCat !== "all" && p.category_id !== activeCat) return false;
+    const ids: string[] = (p as any).category_ids ?? (p.category_id ? [p.category_id] : []);
+    if (activeCat !== "all" && !ids.includes(activeCat)) return false;
     if (q && !p.name.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
   });
