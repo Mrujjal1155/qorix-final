@@ -16,6 +16,7 @@ import {
   styleRows,
   styled,
   type Button,
+  type ButtonStyle,
 } from "@/lib/telegram.server";
 import {
   UI_ELEMENTS,
