@@ -104,12 +104,25 @@ function stripCustomEmoji(body: Record<string, unknown>): Record<string, unknown
 }
 
 
+export type ButtonStyle = "primary" | "success" | "danger";
+
 export type Button = {
   text: string;
   callback_data?: string;
   url?: string;
   icon_custom_emoji_id?: string;
+  /** Bot API 10+: "primary" (blue), "success" (green), "danger" (red). */
+  style?: ButtonStyle;
 };
+
+/** Apply a native Telegram button style to every button in the rows. */
+export function styleRows(rows: Button[][], style: ButtonStyle): Button[][] {
+  return rows.map((row) => row.map((b) => ({ ...b, style })));
+}
+
+export function styled(button: Button, style: ButtonStyle): Button {
+  return { ...button, style };
+}
 
 export function sendMessage(
   chat_id: number | string,
