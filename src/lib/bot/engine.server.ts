@@ -1386,6 +1386,11 @@ function catIcon(settings: Record<string, string>, cat: any) {
   return parseIconValue(settings[`cat_icon_${cat.id}`] ?? "", String(cat?.emoji || "📁"));
 }
 
+/** "All products" button icon — Premium custom emoji supported (cat_icon_all). */
+function allProductsIcon(settings: Record<string, string>) {
+  return parseIconValue(settings["cat_icon_all"] ?? "", "🗂");
+}
+
 function categoryButton(settings: Record<string, string>, cat: any, text: string, callback_data: string): Button {
   const { customId } = catIcon(settings, cat);
   return {
@@ -1430,7 +1435,17 @@ async function shopView(page: number) {
     }
 
 
-    kb.push([styled({ text: "🗂 All products", callback_data: "cat:all:0" }, "success")]);
+    const allIc = allProductsIcon(settings);
+    kb.push([
+      styled(
+        {
+          text: allIc.customId ? "All products" : `${allIc.glyph} All products`,
+          callback_data: "cat:all:0",
+          ...(allIc.customId ? { icon_custom_emoji_id: allIc.customId } : {}),
+        },
+        "success",
+      ),
+    ]);
     kb.push([styled(iconButton(settings, "refresh", "shop:0"), "success")]);
     kb.push([
       styled(iconButton(settings, "cart", "cart"), "success"),
@@ -3518,13 +3533,26 @@ async function handleMessage(msg: any) {
       const catId = String(state.adm_cat_icon ?? "");
       await setState(chatId, state);
       if (!(await isAdmin(chatId)) || !catId) return;
-      const catInput = readIconInput(msg, text, "📁");
+      const isAllBtn = catId === "all";
+      const catInput = readIconInput(msg, text, isAllBtn ? "🗂" : "📁");
       if (catInput.empty) {
         await say(chatId, ICON_INPUT_HELP, ADM_BACK);
         return;
       }
       const value = catInput.value;
-      const parsedCat = parseIconValue(value, "📁");
+      const parsedCat = parseIconValue(value, isAllBtn ? "🗂" : "📁");
+      if (isAllBtn) {
+        try {
+          await saveIconSetting("cat_icon_all", value);
+        } catch (e) {
+          await say(chatId, saveFailText(e), ADM_BACK);
+          return;
+        }
+        const av = await admCategoryIconView();
+        await say(chatId, `✅ All products icon updated → ${iconPreviewHtml(value, "🗂")}\n\n${av.text}`, av.kb);
+        await premiumEmojiNote(chatId, value);
+        return;
+      }
       try {
         const upd = await db
           .from("categories")
@@ -4376,6 +4404,7 @@ async function admCategoryIconView() {
   const settings = await getSettings();
   const { data } = await db.from("categories").select("id,name,emoji,is_active").order("sort_order");
   const cats = (data ?? []) as any[];
+  const allIc = allProductsIcon(settings);
   const kb: Button[][] = cats.map((c) => {
     const ic = catIcon(settings, c);
     return [
@@ -4386,7 +4415,17 @@ async function admCategoryIconView() {
       },
     ];
   });
+  kb.unshift([
+    {
+      text: `${allIc.customId ? "✨" : allIc.glyph} All products`.trim(),
+      callback_data: "adm:ci:all",
+      ...(allIc.customId ? { icon_custom_emoji_id: allIc.customId } : {}),
+    },
+  ]);
   kb.push(ADM_BACK[0]!);
+  const allPreview = allIc.customId
+    ? `<tg-emoji emoji-id="${allIc.customId}">${escapeHtml(allIc.glyph)}</tg-emoji>`
+    : escapeHtml(allIc.glyph);
   const list = cats.length
     ? cats
         .map((c) => {
@@ -4402,7 +4441,7 @@ async function admCategoryIconView() {
     text:
       "🗂 <b>Category icons</b>\n\nPick a category, then send a normal emoji or a <b>Telegram Premium custom emoji</b> " +
       "(type it, send it as a sticker, or paste its numeric id). Send <code>-</code> to reset.\n\n" +
-      `<b>Current icons</b>\n${list}`,
+      `<b>Current icons</b>\n${allPreview} <b>All products</b>${allIc.customId ? " · ✨ Premium" : ""}\n${list}`,
     kb,
   };
 }
