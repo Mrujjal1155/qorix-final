@@ -143,7 +143,7 @@ export function sendMessage(
     text,
     parse_mode: "HTML",
     disable_web_page_preview: true,
-    ...(keyboard ? { reply_markup: { inline_keyboard: keyboard } } : {}),
+    ...(keyboard ? { reply_markup: { inline_keyboard: withDefaultStyle(keyboard) } } : {}),
     ...extra,
   });
 }
@@ -158,7 +158,7 @@ export function sendPhoto(
     chat_id,
     photo,
     ...(caption ? { caption, parse_mode: "HTML" } : {}),
-    ...(keyboard ? { reply_markup: { inline_keyboard: keyboard } } : {}),
+    ...(keyboard ? { reply_markup: { inline_keyboard: withDefaultStyle(keyboard) } } : {}),
   });
 }
 
@@ -172,7 +172,7 @@ export function sendDocument(
     chat_id,
     document,
     ...(caption ? { caption, parse_mode: "HTML" } : {}),
-    ...(keyboard ? { reply_markup: { inline_keyboard: keyboard } } : {}),
+    ...(keyboard ? { reply_markup: { inline_keyboard: withDefaultStyle(keyboard) } } : {}),
   });
 }
 
@@ -198,7 +198,7 @@ export async function sendDocumentUpload(
       form.append("caption", cap);
       form.append("parse_mode", "HTML");
     }
-    if (keyboard) form.append("reply_markup", JSON.stringify({ inline_keyboard: keyboard }));
+    if (keyboard) form.append("reply_markup", JSON.stringify({ inline_keyboard: withDefaultStyle(keyboard) }));
     const res = await fetch(`https://api.telegram.org/bot${token}/sendDocument`, {
       method: "POST",
       body: form,
@@ -226,7 +226,7 @@ export function editMessage(
     text,
     parse_mode: "HTML",
     disable_web_page_preview: true,
-    ...(keyboard ? { reply_markup: { inline_keyboard: keyboard } } : {}),
+    ...(keyboard ? { reply_markup: { inline_keyboard: withDefaultStyle(keyboard) } } : {}),
   });
 }
 
