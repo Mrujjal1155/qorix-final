@@ -1364,7 +1364,57 @@ function isFlash(p: any) {
   return Number(p.old_price ?? 0) > Number(p.price) && (p.delivery_type === "manual" || (p.stock ?? 0) > 0);
 }
 
+/** Category → product links (a product can sit in several categories). */
+async function categoryLinks() {
+  const [{ data: cats }, { data: links }] = await Promise.all([
+    db.from("categories").select("id,name,emoji,sort_order,channel,is_active").eq("is_active", true).order("sort_order"),
+    db.from("product_categories").select("product_id,category_id"),
+  ]);
+  const byCat: Record<string, Set<string>> = {};
+  for (const l of links ?? []) (byCat[l.category_id] ??= new Set()).add(l.product_id);
+  const categories = (cats ?? []).filter((c: any) => (c.channel ?? "both") !== "website");
+  return { categories, byCat };
+}
+
+function productsOfCategory(products: any[], catId: string, byCat: Record<string, Set<string>>) {
+  const set = byCat[catId];
+  return products.filter((p: any) => (set && set.has(p.id)) || p.category_id === catId);
+}
+
+/** Category picker — green navigation buttons, one per row. */
 async function shopView(page: number) {
+  const settings = await getSettings();
+  const products = await productsWithStock();
+  const inStock = products.filter((p: any) => p.delivery_type === "manual" || p.stock > 0).length;
+  const flash = products.filter(isFlash);
+  const { categories, byCat } = await categoryLinks();
+  const withProducts = categories
+    .map((c: any) => ({ ...c, items: productsOfCategory(products, c.id, byCat) }))
+    .filter((c: any) => c.items.length > 0);
+
+  if (withProducts.length) {
+    const kb: Button[][] = [];
+    if (flash.length) kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), "primary")]);
+    for (const c of withProducts)
+      kb.push([styled({ text: `${c.emoji ?? "📁"} ${c.name} (${c.items.length})`, callback_data: `cat:${c.id}:0` }, "success")]);
+    kb.push([styled({ text: "🗂 All products", callback_data: "cat:all:0" }, "success")]);
+    kb.push([styled(iconButton(settings, "refresh", "shop:0"), "success")]);
+    kb.push([
+      styled(iconButton(settings, "cart", "cart"), "success"),
+      styled(iconButton(settings, "back", "home"), "success"),
+    ]);
+    const text =
+      `${pageIconHtml(settings, "shop")} <b>C A T E G O R I E S</b>\n\n` +
+      `${uiIconHtml(settings, "shop_instock")} <b>${inStock} of ${products.length}</b> ${uiText(settings, "shop_instock")}\n` +
+      `<i>Pick a category to see its products.</i>`;
+    return { text, kb };
+  }
+
+  return allProductsView(page);
+}
+
+/** Flat product list — the original shop page (blue product buttons). */
+async function allProductsView(page: number) {
   const settings = await getSettings();
   const products = await productsWithStock();
   const inStock = products.filter((p: any) => p.delivery_type === "manual" || p.stock > 0).length;
