@@ -130,6 +130,18 @@ function ProductsPage() {
     });
   }, [data?.products, search, supplierFilter]);
 
+  const manageList = useMemo(() => {
+    const q = manageSearch.trim().toLowerCase();
+    const list = (data?.products ?? []) as any[];
+    return q
+      ? list.filter(
+          (p) =>
+            String(p.name ?? "").toLowerCase().includes(q) ||
+            String(p.supplier_name ?? "").toLowerCase().includes(q),
+        )
+      : list;
+  }, [data?.products, manageSearch]);
+
 
   const fetchSettings = useServerFn(getBotSettings);
   const settingsQ = useQuery({ queryKey: ["bot-settings-icons"], queryFn: () => fetchSettings() });
