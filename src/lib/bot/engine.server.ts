@@ -1381,6 +1381,21 @@ function productsOfCategory(products: any[], catId: string, byCat: Record<string
   return products.filter((p: any) => (set && set.has(p.id)) || p.category_id === catId);
 }
 
+/** Category icon (Premium custom emoji id lives in bot_settings, glyph on the row). */
+function catIcon(settings: Record<string, string>, cat: any) {
+  return parseIconValue(settings[`cat_icon_${cat.id}`] ?? "", String(cat?.emoji || "📁"));
+}
+
+function categoryButton(settings: Record<string, string>, cat: any, text: string, callback_data: string): Button {
+  const { customId } = catIcon(settings, cat);
+  return {
+    text,
+    callback_data,
+    ...(customId ? { icon_custom_emoji_id: customId } : {}),
+  };
+}
+
+
 /** Category picker — green navigation buttons, one per row. */
 async function shopView(page: number) {
   const settings = await getSettings();
@@ -1396,7 +1411,18 @@ async function shopView(page: number) {
     const kb: Button[][] = [];
     if (flash.length) kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), "primary")]);
     for (const c of withProducts)
-      kb.push([styled({ text: `${c.emoji ?? "📁"} ${c.name} (${c.items.length})`, callback_data: `cat:${c.id}:0` }, "success")]);
+      kb.push([
+        styled(
+          categoryButton(
+            settings,
+            c,
+            `${catIcon(settings, c).glyph} ${c.name} (${c.items.length})`,
+            `cat:${c.id}:0`,
+          ),
+          "success",
+        ),
+      ]);
+
     kb.push([styled({ text: "🗂 All products", callback_data: "cat:all:0" }, "success")]);
     kb.push([styled(iconButton(settings, "refresh", "shop:0"), "success")]);
     kb.push([
@@ -1424,7 +1450,14 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
     const { categories, byCat } = await categoryLinks();
     const cat = categories.find((c: any) => c.id === catId);
     products = productsOfCategory(all, catId, byCat);
-    if (cat) title = `${cat.emoji ?? "📁"} ${String(cat.name).toUpperCase()}`;
+    if (cat) {
+      const ic = catIcon(settings, cat);
+      const iconHtml = ic.customId
+        ? `<tg-emoji emoji-id="${ic.customId}">${escapeHtml(ic.glyph)}</tg-emoji>`
+        : escapeHtml(ic.glyph);
+      title = `${iconHtml} ${String(cat.name).toUpperCase()}`;
+    }
+
     hasCategories = true;
   } else {
     const { categories, byCat } = await categoryLinks();
@@ -3473,7 +3506,38 @@ async function handleMessage(msg: any) {
       await premiumEmojiNote(chatId, value);
       return;
     }
+    case "adm_cat_icon": {
+      state.awaiting = null;
+      const catId = String(state.adm_cat_icon ?? "");
+      await setState(chatId, state);
+      if (!(await isAdmin(chatId)) || !catId) return;
+      const catInput = readIconInput(msg, text, "📁");
+      if (catInput.empty) {
+        await say(chatId, ICON_INPUT_HELP, ADM_BACK);
+        return;
+      }
+      const value = catInput.value;
+      const parsedCat = parseIconValue(value, "📁");
+      try {
+        const upd = await db
+          .from("categories")
+          .update({ emoji: parsedCat.glyph || "📁" })
+          .eq("id", catId)
+          .select("name")
+          .maybeSingle();
+        if (upd.error) throw upd.error;
+        await saveIconSetting(`cat_icon_${catId}`, parsedCat.customId ? value : "");
+      } catch (e) {
+        await say(chatId, saveFailText(e), ADM_BACK);
+        return;
+      }
+      const cv = await admCategoryIconView();
+      await say(chatId, `✅ Category icon updated → ${iconPreviewHtml(value, "📁")}\n\n${cv.text}`, cv.kb);
+      await premiumEmojiNote(chatId, value);
+      return;
+    }
     case "adm_page_icon": {
+
       state.awaiting = null;
       const pageKey = String(state.adm_page_icon ?? "") as PageIconKey;
       await setState(chatId, state);
@@ -3713,7 +3777,11 @@ export function adminKeyboard(): Button[][] {
       { text: "💳 Payment icons", callback_data: "adm:paymenticons" },
       { text: "🖼 Page icons", callback_data: "adm:pageicons" },
     ],
-    [{ text: "🔌 API icons", callback_data: "adm:apiicons" }],
+    [
+      { text: "🔌 API icons", callback_data: "adm:apiicons" },
+      { text: "🗂 Category icons", callback_data: "adm:caticons" },
+    ],
+
     [{ text: "🎫 Support tickets", callback_data: "adm:tk" }],
     [{ text: "🔐 Force join gate", callback_data: "adm:jg" }],
 
@@ -4296,7 +4364,44 @@ async function admPageIconView() {
 }
 
 
+/** Category icons — Premium custom emoji supported, shared by bot + website glyph. */
+async function admCategoryIconView() {
+  const settings = await getSettings();
+  const { data } = await db.from("categories").select("id,name,emoji,is_active").order("sort_order");
+  const cats = (data ?? []) as any[];
+  const kb: Button[][] = cats.map((c) => {
+    const ic = catIcon(settings, c);
+    return [
+      {
+        text: `${ic.customId ? "✨" : ic.glyph} ${c.name}${c.is_active ? "" : " (off)"}`.trim(),
+        callback_data: `adm:ci:${c.id}`,
+        ...(ic.customId ? { icon_custom_emoji_id: ic.customId } : {}),
+      },
+    ];
+  });
+  kb.push(ADM_BACK[0]!);
+  const list = cats.length
+    ? cats
+        .map((c) => {
+          const ic = catIcon(settings, c);
+          const preview = ic.customId
+            ? `<tg-emoji emoji-id="${ic.customId}">${escapeHtml(ic.glyph)}</tg-emoji>`
+            : escapeHtml(ic.glyph);
+          return `${preview} <b>${escapeHtml(c.name)}</b>${ic.customId ? " · ✨ Premium" : ""}`;
+        })
+        .join("\n")
+    : "No categories yet.";
+  return {
+    text:
+      "🗂 <b>Category icons</b>\n\nPick a category, then send a normal emoji or a <b>Telegram Premium custom emoji</b> " +
+      "(type it, send it as a sticker, or paste its numeric id). Send <code>-</code> to reset.\n\n" +
+      `<b>Current icons</b>\n${list}`,
+    kb,
+  };
+}
+
 /** Icons used inside stock / price alert cards — Premium emoji supported. */
+
 async function admAlertIconView() {
   const settings = await getSettings();
   const kb: Button[][] = (Object.keys(ALERT_ICONS) as AlertIconKey[]).map((key) => {
@@ -5945,6 +6050,18 @@ async function handleCallback(cq: any) {
     } else if (action === "pageicons") {
       const v = await admPageIconView();
       await edit(v.text, v.kb);
+    } else if (action === "caticons") {
+      const v = await admCategoryIconView();
+      await edit(v.text, v.kb);
+    } else if (action.startsWith("ci:")) {
+      const catId = arg;
+      if (!catId) return;
+      await setState(chatId, { ...st, awaiting: "adm_cat_icon", adm_cat_icon: catId });
+      await say(
+        chatId,
+        "🗂 Send the new icon for this category.\n\nNormal emoji or <b>Telegram Premium custom emoji</b> both work (sticker or numeric id too). Send <code>-</code> to reset.",
+      );
+
     } else if (action === "ui") {
       const v = await admUiGroupView();
       await edit(v.text, v.kb);
