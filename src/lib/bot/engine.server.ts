@@ -1371,24 +1371,29 @@ async function shopView(page: number) {
   const flash = products.filter(isFlash);
   const slice = products.slice(page * PAGE, page * PAGE + PAGE);
   const kb: Button[][] = [];
-  if (flash.length && page === 0) kb.push([uiBtn(settings, "shop_flash", "flash", `(${flash.length})`)]);
+  if (flash.length && page === 0)
+    kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), "primary")]);
   for (const p of slice) {
     kb.push([
-      productIconButton(
-        p,
-        `${p.name} | ${money(p.price)} | ${p.delivery_type === "manual" ? "manual" : `📦 ${p.stock}`}`,
-        `p:${p.id}`,
+      styled(
+        productIconButton(
+          p,
+          `${p.name} | ${money(p.price)} | ${p.delivery_type === "manual" ? "manual" : `📦 ${p.stock}`}`,
+          `p:${p.id}`,
+        ),
+        "primary",
       ),
     ]);
   }
   const nav: Button[] = [];
-  if (page > 0) nav.push(uiBtn(settings, "shop_prev", `shop:${page - 1}`));
-  if (products.length > (page + 1) * PAGE) nav.push(uiBtn(settings, "shop_next", `shop:${page + 1}`));
+  if (page > 0) nav.push(styled(uiBtn(settings, "shop_prev", `shop:${page - 1}`), "primary"));
+  if (products.length > (page + 1) * PAGE)
+    nav.push(styled(uiBtn(settings, "shop_next", `shop:${page + 1}`), "primary"));
   if (nav.length) kb.push(nav);
-  kb.push([iconButton(settings, "refresh", `shop:${page}`)]);
+  kb.push([styled(iconButton(settings, "refresh", `shop:${page}`), "success")]);
   kb.push([
-    iconButton(settings, "cart", "cart"),
-    iconButton(settings, "back", "home"),
+    styled(iconButton(settings, "cart", "cart"), "success"),
+    styled(iconButton(settings, "back", "home"), "success"),
   ]);
 
 
