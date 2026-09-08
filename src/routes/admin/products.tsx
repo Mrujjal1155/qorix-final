@@ -80,6 +80,35 @@ function ProductsPage() {
   const delProd = useServerFn(deleteProduct);
 
   const [cat, setCat] = useState({ name: "", emoji: "📁", channel: "both" });
+  const [manageCat, setManageCat] = useState<string>("");
+  const [manageSearch, setManageSearch] = useState("");
+  const [picked, setPicked] = useState<string[]>([]);
+  const loadCatProducts = useServerFn(getCategoryProducts);
+  const saveCatProducts = useServerFn(saveCategoryProducts);
+
+  const openManager = async (id: string) => {
+    if (manageCat === id) {
+      setManageCat("");
+      return;
+    }
+    setManageCat(id);
+    setManageSearch("");
+    try {
+      const r: any = await loadCatProducts({ data: { category_id: id } });
+      setPicked(r?.product_ids ?? []);
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const assignMut = useMutation({
+    mutationFn: () => saveCatProducts({ data: { category_id: manageCat, product_ids: picked } }),
+    onSuccess: (r: any) => {
+      qc.invalidateQueries({ queryKey: ["catalogue"] });
+      toast.success(`Saved — ${r?.count ?? picked.length} product(s) in this category`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const [form, setForm] = useState({ ...EMPTY });
   const [stockFor, setStockFor] = useState<string>("");
   const [search, setSearch] = useState("");
