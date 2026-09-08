@@ -9,7 +9,9 @@ import {
   deleteProduct,
   getBotSettings,
   getCatalogue,
+  getCategoryProducts,
   saveCategory,
+  saveCategoryProducts,
   saveProduct,
 } from "@/lib/admin.functions";
 
