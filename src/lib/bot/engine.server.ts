@@ -1386,6 +1386,11 @@ function catIcon(settings: Record<string, string>, cat: any) {
   return parseIconValue(settings[`cat_icon_${cat.id}`] ?? "", String(cat?.emoji || "📁"));
 }
 
+/** "All products" button icon — Premium custom emoji supported (cat_icon_all). */
+function allProductsIcon(settings: Record<string, string>) {
+  return parseIconValue(settings["cat_icon_all"] ?? "", "🗂");
+}
+
 function categoryButton(settings: Record<string, string>, cat: any, text: string, callback_data: string): Button {
   const { customId } = catIcon(settings, cat);
   return {
