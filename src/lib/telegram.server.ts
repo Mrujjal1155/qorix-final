@@ -124,6 +124,14 @@ export function styled(button: Button, style: ButtonStyle): Button {
   return { ...button, style };
 }
 
+/**
+ * Every menu / navigation button is green by default. Buttons that already
+ * declare a style (e.g. product rows = primary/blue) keep their own style.
+ */
+function withDefaultStyle(rows: Button[][]): Button[][] {
+  return rows.map((row) => row.map((b) => (b.style ? b : { ...b, style: "success" as ButtonStyle })));
+}
+
 export function sendMessage(
   chat_id: number | string,
   text: string,
