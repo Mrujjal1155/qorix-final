@@ -1392,6 +1392,34 @@ function allProductsIcon(settings: Record<string, string>) {
   return parseIconValue(settings["cat_icon_all"] ?? "", "🗂");
 }
 
+/* ---------------------------------------- configurable button colours */
+
+type ColorSlot = "category" | "product" | "orders" | "pagination" | "nav" | "menu";
+
+const COLOR_SLOTS: { key: ColorSlot; label: string; def: ButtonStyle }[] = [
+  { key: "category", label: "Category cards", def: "primary" },
+  { key: "product", label: "Product cards", def: "primary" },
+  { key: "orders", label: "Order list cards", def: "primary" },
+  { key: "pagination", label: "Pagination (Prev/Next)", def: "primary" },
+  { key: "nav", label: "Navigation & actions", def: "success" },
+  { key: "menu", label: "Main menu", def: "success" },
+];
+
+const COLOR_LABEL: Record<ButtonStyle, string> = {
+  primary: "🔵 Blue",
+  success: "🟢 Green",
+  danger: "🔴 Red",
+};
+
+const COLOR_ORDER: ButtonStyle[] = ["primary", "success", "danger"];
+
+/** Colour for a button slot — admin configurable via bot_settings (btn_color_<slot>). */
+function btnColor(settings: Record<string, string>, slot: ColorSlot): ButtonStyle {
+  const def = COLOR_SLOTS.find((s) => s.key === slot)?.def ?? "success";
+  const v = String(settings[`btn_color_${slot}`] ?? "").trim().toLowerCase();
+  return (COLOR_ORDER as string[]).includes(v) ? (v as ButtonStyle) : def;
+}
+
 function categoryButton(settings: Record<string, string>, cat: any, text: string, callback_data: string): Button {
   const { customId } = catIcon(settings, cat);
   return {
