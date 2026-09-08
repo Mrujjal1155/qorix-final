@@ -4329,7 +4329,44 @@ async function admPageIconView() {
 }
 
 
+/** Category icons — Premium custom emoji supported, shared by bot + website glyph. */
+async function admCategoryIconView() {
+  const settings = await getSettings();
+  const { data } = await db.from("categories").select("id,name,emoji,is_active").order("sort_order");
+  const cats = (data ?? []) as any[];
+  const kb: Button[][] = cats.map((c) => {
+    const ic = catIcon(settings, c);
+    return [
+      {
+        text: `${ic.customId ? "✨" : ic.glyph} ${c.name}${c.is_active ? "" : " (off)"}`.trim(),
+        callback_data: `adm:ci:${c.id}`,
+        ...(ic.customId ? { icon_custom_emoji_id: ic.customId } : {}),
+      },
+    ];
+  });
+  kb.push(ADM_BACK[0]!);
+  const list = cats.length
+    ? cats
+        .map((c) => {
+          const ic = catIcon(settings, c);
+          const preview = ic.customId
+            ? `<tg-emoji emoji-id="${ic.customId}">${escapeHtml(ic.glyph)}</tg-emoji>`
+            : escapeHtml(ic.glyph);
+          return `${preview} <b>${escapeHtml(c.name)}</b>${ic.customId ? " · ✨ Premium" : ""}`;
+        })
+        .join("\n")
+    : "No categories yet.";
+  return {
+    text:
+      "🗂 <b>Category icons</b>\n\nPick a category, then send a normal emoji or a <b>Telegram Premium custom emoji</b> " +
+      "(type it, send it as a sticker, or paste its numeric id). Send <code>-</code> to reset.\n\n" +
+      `<b>Current icons</b>\n${list}`,
+    kb,
+  };
+}
+
 /** Icons used inside stock / price alert cards — Premium emoji supported. */
+
 async function admAlertIconView() {
   const settings = await getSettings();
   const kb: Button[][] = (Object.keys(ALERT_ICONS) as AlertIconKey[]).map((key) => {
