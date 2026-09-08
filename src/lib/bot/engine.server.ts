@@ -5191,6 +5191,13 @@ async function handleCallback(cq: any) {
     return;
   }
 
+  if (data.startsWith("cat:")) {
+    const [, id, pg] = data.split(":");
+    const view = await allProductsView(Number(pg || 0), id || "all");
+    await edit(view.text, view.kb);
+    return;
+  }
+
   if (data.startsWith("p:")) {
     defer(() => awardReferralCredit(user));
     const view = await productView(data.slice(2));
