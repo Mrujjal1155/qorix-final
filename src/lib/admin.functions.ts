@@ -223,6 +223,41 @@ export const deleteCategory = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/* ------------------------------- category ⇄ product assignment (link only) */
+
+export const getCategoryProducts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { category_id: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { data: rows, error } = await (context as any).supabase
+      .from("product_categories")
+      .select("product_id")
+      .eq("category_id", data.category_id);
+    if (error) throw new Error(error.message);
+    return { product_ids: (rows ?? []).map((r: any) => r.product_id as string) };
+  });
+
+export const saveCategoryProducts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { category_id: string; product_ids: string[] }) => ({
+    category_id: String(d.category_id),
+    product_ids: Array.from(new Set((d.product_ids ?? []).map(String))),
+  }))
+  .handler(async ({ data, context }) => {
+    const sb = (context as any).supabase;
+    await assertAdmin(context);
+    const del = await sb.from("product_categories").delete().eq("category_id", data.category_id);
+    if (del.error) throw new Error(del.error.message);
+    if (data.product_ids.length) {
+      const ins = await sb
+        .from("product_categories")
+        .insert(data.product_ids.map((id) => ({ product_id: id, category_id: data.category_id })));
+      if (ins.error) throw new Error(ins.error.message);
+    }
+    return { ok: true, count: data.product_ids.length };
+  });
+
 export const saveProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(

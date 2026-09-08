@@ -1364,9 +1364,73 @@ function isFlash(p: any) {
   return Number(p.old_price ?? 0) > Number(p.price) && (p.delivery_type === "manual" || (p.stock ?? 0) > 0);
 }
 
+/** Category → product links (a product can sit in several categories). */
+async function categoryLinks() {
+  const [{ data: cats }, { data: links }] = await Promise.all([
+    db.from("categories").select("id,name,emoji,sort_order,channel,is_active").eq("is_active", true).order("sort_order"),
+    db.from("product_categories").select("product_id,category_id"),
+  ]);
+  const byCat: Record<string, Set<string>> = {};
+  for (const l of links ?? []) (byCat[l.category_id] ??= new Set()).add(l.product_id);
+  const categories = (cats ?? []).filter((c: any) => (c.channel ?? "both") !== "website");
+  return { categories, byCat };
+}
+
+function productsOfCategory(products: any[], catId: string, byCat: Record<string, Set<string>>) {
+  const set = byCat[catId];
+  return products.filter((p: any) => (set && set.has(p.id)) || p.category_id === catId);
+}
+
+/** Category picker — green navigation buttons, one per row. */
 async function shopView(page: number) {
   const settings = await getSettings();
   const products = await productsWithStock();
+  const inStock = products.filter((p: any) => p.delivery_type === "manual" || p.stock > 0).length;
+  const flash = products.filter(isFlash);
+  const { categories, byCat } = await categoryLinks();
+  const withProducts = categories
+    .map((c: any) => ({ ...c, items: productsOfCategory(products, c.id, byCat) }))
+    .filter((c: any) => c.items.length > 0);
+
+  if (withProducts.length) {
+    const kb: Button[][] = [];
+    if (flash.length) kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), "primary")]);
+    for (const c of withProducts)
+      kb.push([styled({ text: `${c.emoji ?? "📁"} ${c.name} (${c.items.length})`, callback_data: `cat:${c.id}:0` }, "success")]);
+    kb.push([styled({ text: "🗂 All products", callback_data: "cat:all:0" }, "success")]);
+    kb.push([styled(iconButton(settings, "refresh", "shop:0"), "success")]);
+    kb.push([
+      styled(iconButton(settings, "cart", "cart"), "success"),
+      styled(iconButton(settings, "back", "home"), "success"),
+    ]);
+    const text =
+      `${pageIconHtml(settings, "shop")} <b>C A T E G O R I E S</b>\n\n` +
+      `${uiIconHtml(settings, "shop_instock")} <b>${inStock} of ${products.length}</b> ${uiText(settings, "shop_instock")}\n` +
+      `<i>Pick a category to see its products.</i>`;
+    return { text, kb };
+  }
+
+  return allProductsView(page);
+}
+
+/** Flat product list — original shop page, optionally scoped to one category. */
+async function allProductsView(page: number, catId: "all" | string = "all") {
+  const settings = await getSettings();
+  const all = await productsWithStock();
+  let title = "P R O D U C T S";
+  let products = all;
+  let hasCategories = false;
+  if (catId !== "all") {
+    const { categories, byCat } = await categoryLinks();
+    const cat = categories.find((c: any) => c.id === catId);
+    products = productsOfCategory(all, catId, byCat);
+    if (cat) title = `${cat.emoji ?? "📁"} ${String(cat.name).toUpperCase()}`;
+    hasCategories = true;
+  } else {
+    const { categories, byCat } = await categoryLinks();
+    hasCategories = categories.some((c: any) => productsOfCategory(all, c.id, byCat).length > 0);
+  }
+  const back = catId === "all" ? "cat:all" : `cat:${catId}`;
   const inStock = products.filter((p: any) => p.delivery_type === "manual" || p.stock > 0).length;
   const flash = products.filter(isFlash);
   const slice = products.slice(page * PAGE, page * PAGE + PAGE);
@@ -1386,11 +1450,12 @@ async function shopView(page: number) {
     ]);
   }
   const nav: Button[] = [];
-  if (page > 0) nav.push(styled(uiBtn(settings, "shop_prev", `shop:${page - 1}`), "primary"));
+  if (page > 0) nav.push(styled(uiBtn(settings, "shop_prev", `${back}:${page - 1}`), "primary"));
   if (products.length > (page + 1) * PAGE)
-    nav.push(styled(uiBtn(settings, "shop_next", `shop:${page + 1}`), "primary"));
+    nav.push(styled(uiBtn(settings, "shop_next", `${back}:${page + 1}`), "primary"));
   if (nav.length) kb.push(nav);
-  kb.push([styled(iconButton(settings, "refresh", `shop:${page}`), "success")]);
+  kb.push([styled(iconButton(settings, "refresh", `${back}:${page}`), "success")]);
+  if (hasCategories) kb.push([styled({ text: "🗂 Categories", callback_data: "shop:0" }, "success")]);
   kb.push([
     styled(iconButton(settings, "cart", "cart"), "success"),
     styled(iconButton(settings, "back", "home"), "success"),
@@ -1398,7 +1463,7 @@ async function shopView(page: number) {
 
 
   const text =
-    `${pageIconHtml(settings, "shop")} <b>P R O D U C T S</b>\n\n` +
+    `${pageIconHtml(settings, "shop")} <b>${title}</b>\n\n` +
     `${uiIconHtml(settings, "shop_instock")} <b>${inStock} of ${products.length}</b> ${uiText(settings, "shop_instock")}\n` +
     (flash.length
       ? `${uiTag(settings, "shop_flash")} — <b>${flash.length}</b> discounted item(s) live now\n`
@@ -5122,6 +5187,13 @@ async function handleCallback(cq: any) {
   if (data.startsWith("shop:")) {
     const page = Number(data.split(":")[1] || 0);
     const view = await shopView(page);
+    await edit(view.text, view.kb);
+    return;
+  }
+
+  if (data.startsWith("cat:")) {
+    const [, id, pg] = data.split(":");
+    const view = await allProductsView(Number(pg || 0), id || "all");
     await edit(view.text, view.kb);
     return;
   }

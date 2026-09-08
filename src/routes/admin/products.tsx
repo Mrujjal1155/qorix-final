@@ -9,7 +9,9 @@ import {
   deleteProduct,
   getBotSettings,
   getCatalogue,
+  getCategoryProducts,
   saveCategory,
+  saveCategoryProducts,
   saveProduct,
 } from "@/lib/admin.functions";
 
@@ -80,6 +82,35 @@ function ProductsPage() {
   const delProd = useServerFn(deleteProduct);
 
   const [cat, setCat] = useState({ name: "", emoji: "📁", channel: "both" });
+  const [manageCat, setManageCat] = useState<string>("");
+  const [manageSearch, setManageSearch] = useState("");
+  const [picked, setPicked] = useState<string[]>([]);
+  const loadCatProducts = useServerFn(getCategoryProducts);
+  const saveCatProducts = useServerFn(saveCategoryProducts);
+
+  const openManager = async (id: string) => {
+    if (manageCat === id) {
+      setManageCat("");
+      return;
+    }
+    setManageCat(id);
+    setManageSearch("");
+    try {
+      const r: any = await loadCatProducts({ data: { category_id: id } });
+      setPicked(r?.product_ids ?? []);
+    } catch (e: any) {
+      toast.error(e.message);
+    }
+  };
+
+  const assignMut = useMutation({
+    mutationFn: () => saveCatProducts({ data: { category_id: manageCat, product_ids: picked } }),
+    onSuccess: (r: any) => {
+      qc.invalidateQueries({ queryKey: ["catalogue"] });
+      toast.success(`Saved — ${r?.count ?? picked.length} product(s) in this category`);
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const [form, setForm] = useState({ ...EMPTY });
   const [stockFor, setStockFor] = useState<string>("");
   const [search, setSearch] = useState("");
@@ -98,6 +129,18 @@ function ProductsPage() {
       );
     });
   }, [data?.products, search, supplierFilter]);
+
+  const manageList = useMemo(() => {
+    const q = manageSearch.trim().toLowerCase();
+    const list = (data?.products ?? []) as any[];
+    return q
+      ? list.filter(
+          (p) =>
+            String(p.name ?? "").toLowerCase().includes(q) ||
+            String(p.supplier_name ?? "").toLowerCase().includes(q),
+        )
+      : list;
+  }, [data?.products, manageSearch]);
 
 
   const fetchSettings = useServerFn(getBotSettings);
@@ -209,18 +252,60 @@ function ProductsPage() {
             </div>
             <ul className="space-y-1 text-sm">
               {(data?.categories ?? []).map((c: any) => (
-                <li key={c.id} className="flex items-center justify-between rounded-md bg-muted px-3 py-2">
-                  <span>
-                    {c.emoji} {c.name}
-                    <Badge variant="secondary" className="ml-2">{c.channel ?? "both"}</Badge>
-                  </span>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => delCat({ data: { id: c.id } }).then(refresh)}
-                  >
-                    Delete
-                  </Button>
+                <li key={c.id} className="rounded-md bg-muted px-3 py-2">
+                  <div className="flex items-center justify-between">
+                    <span>
+                      {c.emoji} {c.name}
+                      <Badge variant="secondary" className="ml-2">{c.channel ?? "both"}</Badge>
+                    </span>
+                    <div className="flex gap-1">
+                      <Button size="sm" variant="secondary" onClick={() => openManager(c.id)}>
+                        {manageCat === c.id ? "Close" : "Manage products"}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => delCat({ data: { id: c.id } }).then(refresh)}>
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                  {manageCat === c.id && (
+                    <div className="mt-3 space-y-2">
+                      <Input
+                        placeholder="Search products…"
+                        value={manageSearch}
+                        onChange={(e) => setManageSearch(e.target.value)}
+                      />
+                      <div className="max-h-72 space-y-1 overflow-y-auto rounded-md border border-border p-2">
+                        {manageList.map((p: any) => (
+                          <label key={p.id} className="flex cursor-pointer items-center gap-2 rounded px-1 py-1 hover:bg-muted">
+                            <input
+                              type="checkbox"
+                              checked={picked.includes(p.id)}
+                              onChange={(e) =>
+                                setPicked((prev) =>
+                                  e.target.checked ? [...prev, p.id] : prev.filter((x) => x !== p.id),
+                                )
+                              }
+                            />
+                            <span className="flex-1 truncate">
+                              {p.emoji} {p.name}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {p.supplier_name ?? "In-house"}
+                            </span>
+                          </label>
+                        ))}
+                        {manageList.length === 0 && (
+                          <p className="px-1 py-2 text-xs text-muted-foreground">No products match this search.</p>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">{picked.length} selected</span>
+                        <Button size="sm" onClick={() => assignMut.mutate()} disabled={assignMut.isPending}>
+                          Save
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>

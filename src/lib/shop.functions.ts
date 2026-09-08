@@ -49,7 +49,16 @@ export const listStorefront = createServerFn({ method: "GET" }).handler(async ()
   ]);
   const categories = (cats.data ?? []).filter((c: any) => c.channel !== "telegram");
   const allowed = new Set(categories.map((c: any) => c.id));
-  const base = (prods.data ?? []).filter((p: any) => !p.category_id || allowed.has(p.category_id));
+  // Extra category links (a product can be assigned to several categories).
+  const { data: links } = await sb.from("product_categories").select("product_id,category_id");
+  const linkMap: Record<string, string[]> = {};
+  for (const l of links ?? []) (linkMap[l.product_id as string] ??= []).push(l.category_id as string);
+  const base = (prods.data ?? [])
+    .map((p: any) => ({
+      ...p,
+      category_ids: Array.from(new Set([...(linkMap[p.id] ?? []), ...(p.category_id ? [p.category_id] : [])])),
+    }))
+    .filter((p: any) => p.category_ids.length === 0 || p.category_ids.some((id: string) => allowed.has(id)));
 
   const counts: Record<string, number> = {};
   try {
