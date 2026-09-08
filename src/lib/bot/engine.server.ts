@@ -1396,7 +1396,7 @@ function categoryButton(settings: Record<string, string>, cat: any, text: string
 }
 
 
-/** Category picker — green navigation buttons, one per row. */
+/** Category picker — blue category buttons, green navigation buttons. */
 async function shopView(page: number) {
   const settings = await getSettings();
   const products = await productsWithStock();
@@ -1422,7 +1422,7 @@ async function shopView(page: number) {
               ic.customId ? `${c.name} (${c.items.length})` : `${ic.glyph} ${c.name} (${c.items.length})`,
               `cat:${c.id}:0`,
             ),
-            "success",
+            "primary",
           ),
         );
       }
