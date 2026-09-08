@@ -6167,6 +6167,17 @@ async function handleCallback(cq: any) {
     } else if (action === "caticons") {
       const v = await admCategoryIconView();
       await edit(v.text, v.kb);
+    } else if (action === "bcolors") {
+      const v = await admButtonColorView();
+      await edit(v.text, v.kb);
+    } else if (action.startsWith("bc:")) {
+      const slot = arg as ColorSlot;
+      if (!COLOR_SLOTS.some((s) => s.key === slot)) return;
+      const settings = await getSettings();
+      const next = COLOR_ORDER[(COLOR_ORDER.indexOf(btnColor(settings, slot)) + 1) % COLOR_ORDER.length]!;
+      await setSetting(`btn_color_${slot}`, next);
+      const v = await admButtonColorView();
+      await edit(v.text, v.kb);
     } else if (action.startsWith("ci:")) {
       const catId = arg;
       if (!catId) return;
