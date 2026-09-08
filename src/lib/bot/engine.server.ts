@@ -650,7 +650,7 @@ async function getUser(telegramId: number) {
 /* ------------------------------------------------------------------ views */
 
 function homeKeyboard(settings: Record<string, string>): Button[][] {
-  return [
+  return styleRows([
     [
       iconButton(settings, "shop", "shop:0"),
       iconButton(settings, "cart", "cart"),
