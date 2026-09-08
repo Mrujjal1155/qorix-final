@@ -1410,19 +1410,23 @@ async function shopView(page: number) {
   if (withProducts.length) {
     const kb: Button[][] = [];
     if (flash.length) kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), "primary")]);
-    for (const c of withProducts) {
-      const ic = catIcon(settings, c);
-      kb.push([
-        styled(
-          categoryButton(
-            settings,
-            c,
-            ic.customId ? `${c.name} (${c.items.length})` : `${ic.glyph} ${c.name} (${c.items.length})`,
-            `cat:${c.id}:0`,
+    for (let i = 0; i < withProducts.length; i += 3) {
+      const row: Button[] = [];
+      for (const c of withProducts.slice(i, i + 3)) {
+        const ic = catIcon(settings, c);
+        row.push(
+          styled(
+            categoryButton(
+              settings,
+              c,
+              ic.customId ? `${c.name} (${c.items.length})` : `${ic.glyph} ${c.name} (${c.items.length})`,
+              `cat:${c.id}:0`,
+            ),
+            "success",
           ),
-          "success",
-        ),
-      ]);
+        );
+      }
+      kb.push(row);
     }
 
 
