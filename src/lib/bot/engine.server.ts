@@ -4402,7 +4402,17 @@ async function admCategoryIconView() {
       },
     ];
   });
+  kb.unshift([
+    {
+      text: `${allIc.customId ? "✨" : allIc.glyph} All products`.trim(),
+      callback_data: "adm:ci:all",
+      ...(allIc.customId ? { icon_custom_emoji_id: allIc.customId } : {}),
+    },
+  ]);
   kb.push(ADM_BACK[0]!);
+  const allPreview = allIc.customId
+    ? `<tg-emoji emoji-id="${allIc.customId}">${escapeHtml(allIc.glyph)}</tg-emoji>`
+    : escapeHtml(allIc.glyph);
   const list = cats.length
     ? cats
         .map((c) => {
