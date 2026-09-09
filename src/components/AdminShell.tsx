@@ -69,6 +69,7 @@ export function AdminShell({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const { v } = useSiteContent();
   const brandLogo = v("site_brand_logo");
   const brandName = v("site_brand_name") || "QORIX";
@@ -78,6 +79,10 @@ export function AdminShell({
   }, []);
 
   function toggleRail() {
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setMobileOpen((o) => !o);
+      return;
+    }
     setCollapsed((c) => {
       const next = !c;
       localStorage.setItem("qorix-admin-rail", next ? "collapsed" : "expanded");
@@ -92,74 +97,87 @@ export function AdminShell({
     navigate({ to: "/admin", replace: true });
   }
 
-  const showLabels = !collapsed;
+  const labelCls = collapsed ? "lg:hidden" : "";
 
   return (
     <div className="admin-theme flex min-h-screen">
-      {/* Vertical sidebar — collapsible on every device */}
+      {mobileOpen && (
+        <button
+          type="button"
+          aria-label="Close menu"
+          onClick={() => setMobileOpen(false)}
+          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+        />
+      )}
+      {/* Vertical sidebar — drawer on mobile, collapsible rail on desktop */}
       <aside
         className={cn(
-          "flex shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200",
-          collapsed ? "w-[4.25rem]" : "w-[15.5rem]",
+          "fixed inset-y-0 left-0 z-50 flex w-[15.5rem] shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar transition-transform duration-200 lg:static lg:translate-x-0 lg:transition-[width]",
+          mobileOpen ? "translate-x-0" : "-translate-x-full",
+          collapsed ? "lg:w-[4.25rem]" : "lg:w-[15.5rem]",
         )}
       >
-        <div className={cn("flex items-center py-5", collapsed ? "justify-center px-3" : "px-5")}>
+        <div className={cn("flex items-center px-5 py-5", collapsed && "lg:justify-center lg:px-3")}>
           <BrandLogo
             src={brandLogo}
             name={brandName}
             className={cn(
-              "shrink-0 rounded-lg object-contain",
-              collapsed ? "size-11" : "h-auto w-full max-h-12",
+              "h-auto max-h-12 w-full shrink-0 rounded-lg object-contain",
+              collapsed && "lg:size-11 lg:max-h-none lg:w-auto",
             )}
             textClassName={collapsed ? "text-base" : "text-xl"}
           />
         </div>
 
-        <nav className={cn("flex flex-1 flex-col gap-1 overflow-y-auto pb-4", collapsed ? "px-2" : "px-3")}>
+        <nav className={cn("flex flex-1 flex-col gap-1 overflow-y-auto px-3 pb-4", collapsed && "lg:px-2")}>
           {NAV_GROUPS.map((group) => (
             <div key={group.label} className="mb-1">
-              {showLabels ? (
-                <p className="px-3 pb-1 pt-4 text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground/70">
-                  {group.label}
-                </p>
-              ) : (
-                <div className="my-2 h-px bg-sidebar-border" />
-              )}
+              <p
+                className={cn(
+                  "px-3 pb-1 pt-4 text-[0.65rem] font-bold uppercase tracking-[0.14em] text-muted-foreground/70",
+                  labelCls,
+                )}
+              >
+                {group.label}
+              </p>
+              {collapsed && <div className="my-2 hidden h-px bg-sidebar-border lg:block" />}
               {group.items.map((item) => (
                 <Link
                   key={item.to}
                   to={item.to}
                   activeOptions={{ exact: item.to === "/admin" }}
                   title={item.label}
+                  onClick={() => setMobileOpen(false)}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                    collapsed ? "justify-center" : "justify-start",
+                    "flex items-center justify-start gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                    collapsed && "lg:justify-center",
                   )}
                   activeProps={{
                     className: "admin-rail-active text-foreground hover:text-foreground",
                   }}
                 >
                   <item.icon className="size-[1.15rem] shrink-0" />
-                  {showLabels && <span>{item.label}</span>}
+                  <span className={labelCls}>{item.label}</span>
                 </Link>
               ))}
             </div>
           ))}
         </nav>
 
-        <div className={cn("mt-auto border-t border-sidebar-border py-3", collapsed ? "px-2" : "px-3")}>
+        <div className={cn("mt-auto border-t border-sidebar-border px-3 py-3", collapsed && "lg:px-2")}>
           <button
             onClick={signOut}
             className={cn(
-              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-              collapsed ? "justify-center" : "justify-start",
+              "flex w-full items-center justify-start gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              collapsed && "lg:justify-center",
             )}
           >
             <LogOut className="size-[1.15rem] shrink-0" />
-            {showLabels && <span>Sign out</span>}
+            <span className={labelCls}>Sign out</span>
           </button>
         </div>
       </aside>
+
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
@@ -172,7 +190,7 @@ export function AdminShell({
           >
             {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
           </button>
-          <label className="mx-auto flex w-full min-w-0 max-w-md items-center gap-2 rounded-full border border-border bg-background/70 px-4 py-2">
+          <label className="mx-auto hidden w-full min-w-0 max-w-md items-center gap-2 rounded-full border border-border bg-background/70 px-4 py-2 sm:flex">
             <Search className="size-4 shrink-0 text-muted-foreground" />
             <input
               placeholder="Search…"
@@ -187,9 +205,10 @@ export function AdminShell({
         </header>
 
 
-        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 px-4 pt-8 lg:px-8">
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 px-4 pt-6 sm:pt-8 lg:px-8">
           <div className="min-w-0">
-            <h1 className="truncate text-3xl font-extrabold tracking-tight lg:text-4xl">{title}</h1>
+            <h1 className="truncate text-2xl font-extrabold tracking-tight sm:text-3xl lg:text-4xl">{title}</h1>
+
             <p className="truncate text-sm text-muted-foreground lg:text-base">
               {subtitle ?? "Here's what's going on at your business right now"}
             </p>

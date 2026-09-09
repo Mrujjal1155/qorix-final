@@ -223,7 +223,7 @@ export function StoreShell({ children }: { children: ReactNode }) {
             <BrandLogo src={brandLogo} name={v("site_brand_name")} className="h-10 w-auto object-contain sm:h-14" textClassName="text-xl sm:text-2xl" />
           </Link>
 
-          <nav className="mx-auto hidden items-center gap-1 md:flex">
+          <nav className="mx-auto hidden items-center gap-1 lg:flex">
             {nav.map((n, i) => (
               <NavItem key={`${n.label}-${i}`} link={n} />
             ))}
@@ -242,7 +242,7 @@ export function StoreShell({ children }: { children: ReactNode }) {
           </nav>
 
           {/* desktop controls */}
-          <div className="ml-auto hidden items-center gap-1.5 md:flex">
+          <div className="ml-auto hidden items-center gap-1.5 lg:flex">
             <Link
               to="/store"
               aria-label={t("Search products")}
@@ -287,7 +287,7 @@ export function StoreShell({ children }: { children: ReactNode }) {
           </div>
 
           {/* mobile: hamburger menu */}
-          <div className="ml-auto md:hidden">
+          <div className="ml-auto lg:hidden">
             <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
               <SheetTrigger asChild>
                 <button
@@ -416,7 +416,7 @@ export function StoreShell({ children }: { children: ReactNode }) {
 
       <main className="flex-1">{children}</main>
 
-      <footer className="border-t border-border/70 bg-background pb-24 md:pb-0">
+      <footer className="border-t border-border/70 bg-background pb-24 lg:pb-0">
         <div className="mx-auto max-w-7xl px-6 py-14">
           <div className="grid grid-cols-2 gap-x-6 gap-y-10 lg:grid-cols-5">
             <div className="col-span-2 lg:col-span-1">
@@ -548,7 +548,7 @@ export function StoreShell({ children }: { children: ReactNode }) {
       </footer>
 
       {/* mobile bottom tab bar */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/95 backdrop-blur-xl md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/95 backdrop-blur-xl lg:hidden">
         <div className="grid grid-cols-4">
           <Link
             to="/"
