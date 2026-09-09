@@ -1394,15 +1394,17 @@ function allProductsIcon(settings: Record<string, string>) {
 
 /* ---------------------------------------- configurable button colours */
 
-type ColorSlot = "category" | "product" | "orders" | "pagination" | "nav" | "menu";
+type ColorSlot = "category" | "product" | "orders" | "pagination" | "wallet" | "api" | "nav" | "menu";
 
 const COLOR_SLOTS: { key: ColorSlot; label: string; def: ButtonStyle }[] = [
   { key: "category", label: "Category cards", def: "primary" },
   { key: "product", label: "Product cards", def: "primary" },
   { key: "orders", label: "Order list cards", def: "primary" },
   { key: "pagination", label: "Pagination (Prev/Next)", def: "primary" },
+  { key: "wallet", label: "Wallet & payment buttons", def: "primary" },
+  { key: "api", label: "Reseller API buttons", def: "primary" },
   { key: "nav", label: "Navigation & actions", def: "success" },
-  { key: "menu", label: "Main menu", def: "success" },
+  { key: "menu", label: "Main menu", def: "primary" },
 ];
 
 const COLOR_LABEL: Record<ButtonStyle, string> = {
@@ -1883,17 +1885,19 @@ async function walletView(user: any) {
     `🏅 Membership: ${user.membership}\n` +
     `──────────────\n\n` +
     `<i>Choose a payment method below to add funds to your wallet.</i>`;
+  const walStyle = btnColor(s, "wallet");
+  const wBtn = (b: Button) => styled(b, walStyle);
   const kb: Button[][] = [];
   if (cfg.active && cfg.payid)
-    kb.push([uiBtn(s, "wal_binance", "dep:binance", cfg.live ? "(auto)" : "(manual)")]);
-  if (cfg.active && cfg.crypto && cfg.live) kb.push([uiBtn(s, "wal_usdt", "dep:usdt")]);
+    kb.push([wBtn(uiBtn(s, "wal_binance", "dep:binance", cfg.live ? "(auto)" : "(manual)"))]);
+  if (cfg.active && cfg.crypto && cfg.live) kb.push([wBtn(uiBtn(s, "wal_usdt", "dep:usdt"))]);
   {
     const { paykoriConfig, PAYKORI_METHODS } = await import("@/lib/paykori.server");
     const pk = paykoriConfig(s);
     if (pk.enabled) {
       const row: Button[] = [];
       for (const m of pk.methods) {
-        row.push(uiBtn(s, `wal_${m}` as any, `pkr:${m}`, "(auto)"));
+        row.push(wBtn(uiBtn(s, `wal_${m}` as any, `pkr:${m}`, "(auto)")));
         if (row.length === 2) {
           kb.push([...row]);
           row.length = 0;
@@ -1902,13 +1906,13 @@ async function walletView(user: any) {
       if (row.length) kb.push([...row]);
       void PAYKORI_METHODS;
     } else {
-      kb.push([uiBtn(s, "wal_bkash", "dep:bkash"), uiBtn(s, "wal_nagad", "dep:nagad")]);
+      kb.push([wBtn(uiBtn(s, "wal_bkash", "dep:bkash")), wBtn(uiBtn(s, "wal_nagad", "dep:nagad"))]);
     }
   }
 
-  kb.push([uiBtn(s, "wal_redeem", "redeem")]);
-  kb.push([uiBtn(s, "wal_history", "hist:0")]);
-  kb.push([uiBtn(s, "wal_home", "home")]);
+  kb.push([wBtn(uiBtn(s, "wal_redeem", "redeem"))]);
+  kb.push([wBtn(uiBtn(s, "wal_history", "hist:0"))]);
+  kb.push([wBtn(uiBtn(s, "wal_home", "home"))]);
   return { text, kb };
 }
 
@@ -6506,9 +6510,9 @@ async function apiPanelView(user: any) {
         `${apiIcon(s, "key")} You get a private API key in one tap\n\n` +
         `<i>Open your free API account below.</i>`,
       kb: [
-        [apiBtn(s, "key", "Create API Account", "api:new")],
-        [{ text: "📖 API Docs", url: `${siteUrl(s)}/reseller/docs` }],
-        [uiBtn(s, "com_home", "home")],
+        [styled(apiBtn(s, "key", "Create API Account", "api:new"), btnColor(s, "api"))],
+        [styled({ text: "📖 API Docs", url: `${siteUrl(s)}/reseller/docs` }, btnColor(s, "api"))],
+        [styled(uiBtn(s, "com_home", "home"), btnColor(s, "api"))],
       ] as Button[][],
     };
   }
@@ -6534,14 +6538,16 @@ async function apiPanelView(user: any) {
     `──────────────\n` +
     `<i>Move funds from your bot wallet (${money(user.balance)}) to your API balance below.</i>`;
 
+  const apiStyle = btnColor(s, "api");
+  const aBtn = (b: Button) => styled(b, apiStyle);
   const kb: Button[][] = [
-    [apiBtn(s, "topup", "Top Up API Balance", "api:topup")],
-    [apiBtn(s, "prices", "My Prices", "api:prices"), apiBtn(s, "orders", "API Orders", "api:orders")],
-    [{ text: "📖 API Docs", url: `${siteUrl(s)}/reseller/docs` }],
-    [apiBtn(s, "regen", "Regenerate Key", "api:regen"), apiBtn(s, "revoke", r.is_active ? "Revoke Key" : "Re-activate Key", "api:revoke")],
-    [apiBtn(s, "alert", `Low Balance Alert (${alert > 0 ? money(alert) : "off"})`, "api:alert")],
-    [apiBtn(s, "key", "Show Full Key", "api:key")],
-    [uiBtn(s, "com_home", "home")],
+    [aBtn(apiBtn(s, "topup", "Top Up API Balance", "api:topup"))],
+    [aBtn(apiBtn(s, "prices", "My Prices", "api:prices")), aBtn(apiBtn(s, "orders", "API Orders", "api:orders"))],
+    [aBtn({ text: "📖 API Docs", url: `${siteUrl(s)}/reseller/docs` })],
+    [aBtn(apiBtn(s, "regen", "Regenerate Key", "api:regen")), aBtn(apiBtn(s, "revoke", r.is_active ? "Revoke Key" : "Re-activate Key", "api:revoke"))],
+    [aBtn(apiBtn(s, "alert", `Low Balance Alert (${alert > 0 ? money(alert) : "off"})`, "api:alert"))],
+    [aBtn(apiBtn(s, "key", "Show Full Key", "api:key"))],
+    [aBtn(uiBtn(s, "com_home", "home"))],
   ];
   return { text, kb };
 }
