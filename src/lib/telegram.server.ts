@@ -101,15 +101,24 @@ export async function tg(method: string, body: Record<string, unknown> = {}): Pr
 
 const TG_EMOJI_RE = /<tg-emoji[^>]*>(.*?)<\/tg-emoji>/gis;
 
+function buttonRows(body: Record<string, unknown>): any[][] | null {
+  const rows = (body as any)?.reply_markup?.inline_keyboard;
+  return Array.isArray(rows) ? rows : null;
+}
+
 function hasCustomEmoji(body: Record<string, unknown>): boolean {
-  return ["text", "caption"].some(
-    (k) => typeof body[k] === "string" && /<tg-emoji/i.test(body[k] as string),
-  );
+  if (
+    ["text", "caption"].some((k) => typeof body[k] === "string" && /<tg-emoji/i.test(body[k] as string))
+  ) {
+    return true;
+  }
+  const rows = buttonRows(body);
+  return !!rows?.some((row) => row?.some?.((b: any) => b?.icon_custom_emoji_id));
 }
 
 function isCustomEmojiError(json: TgResult): boolean {
   const d = String(json?.description ?? "").toLowerCase();
-  return d.includes("custom emoji") || d.includes("custom_emoji");
+  return d.includes("custom emoji") || d.includes("custom_emoji") || d.includes("icon_custom_emoji");
 }
 
 function stripCustomEmoji(body: Record<string, unknown>): Record<string, unknown> {
@@ -117,8 +126,22 @@ function stripCustomEmoji(body: Record<string, unknown>): Record<string, unknown
   for (const k of ["text", "caption"]) {
     if (typeof out[k] === "string") out[k] = (out[k] as string).replace(TG_EMOJI_RE, "$1");
   }
+  const rows = buttonRows(out);
+  if (rows) {
+    out["reply_markup"] = {
+      ...(out["reply_markup"] as any),
+      inline_keyboard: rows.map((row) =>
+        (row ?? []).map((b: any) => {
+          if (!b?.icon_custom_emoji_id) return b;
+          const { icon_custom_emoji_id: _drop, ...rest } = b;
+          return rest;
+        }),
+      ),
+    };
+  }
   return out;
 }
+
 
 function hasMarkupText(body: Record<string, unknown>): boolean {
   return ["text", "caption"].some((k) => typeof body[k] === "string" && (body[k] as string).length > 0);
