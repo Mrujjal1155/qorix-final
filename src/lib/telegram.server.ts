@@ -75,6 +75,30 @@ export async function tg(method: string, body: Record<string, unknown> = {}): Pr
     customEmojiBlocked = false;
   }
 
+  // Broken HTML (a stray "<", an unsupported tag, a bad custom-emoji entity)
+  // must never make a view vanish. Downgrade progressively instead of failing:
+  // strip custom emoji first, then drop HTML entirely.
+  if ((!res.ok || json.ok === false) && isParseError(json) && hasMarkupText(body)) {
+    if (hasCustomEmoji(body)) {
+      const retry = await post(stripCustomEmoji(body));
+      res = retry.res;
+      json = retry.json;
+    }
+    if (!res.ok || json.ok === false) {
+      const retry = await post(toPlainText(body));
+      res = retry.res;
+      json = retry.json;
+    }
+  }
+
+  // Keyboard-level rejections (unknown button style on an older Bot API,
+  // invalid button icon) must not swallow the whole view either.
+  if ((!res.ok || json.ok === false) && isButtonError(json) && buttonRows(body)) {
+    const retry = await post(plainButtons(body));
+    res = retry.res;
+    json = retry.json;
+  }
+
 
   if (!res.ok || json.ok === false) {
     console.error(`Telegram ${method} failed [${res.status}]:`, JSON.stringify(json));
@@ -84,15 +108,24 @@ export async function tg(method: string, body: Record<string, unknown> = {}): Pr
 
 const TG_EMOJI_RE = /<tg-emoji[^>]*>(.*?)<\/tg-emoji>/gis;
 
+function buttonRows(body: Record<string, unknown>): any[][] | null {
+  const rows = (body as any)?.reply_markup?.inline_keyboard;
+  return Array.isArray(rows) ? rows : null;
+}
+
 function hasCustomEmoji(body: Record<string, unknown>): boolean {
-  return ["text", "caption"].some(
-    (k) => typeof body[k] === "string" && /<tg-emoji/i.test(body[k] as string),
-  );
+  if (
+    ["text", "caption"].some((k) => typeof body[k] === "string" && /<tg-emoji/i.test(body[k] as string))
+  ) {
+    return true;
+  }
+  const rows = buttonRows(body);
+  return !!rows?.some((row) => row?.some?.((b: any) => b?.icon_custom_emoji_id));
 }
 
 function isCustomEmojiError(json: TgResult): boolean {
   const d = String(json?.description ?? "").toLowerCase();
-  return d.includes("custom emoji") || d.includes("custom_emoji");
+  return d.includes("custom emoji") || d.includes("custom_emoji") || d.includes("icon_custom_emoji");
 }
 
 function stripCustomEmoji(body: Record<string, unknown>): Record<string, unknown> {
@@ -100,8 +133,81 @@ function stripCustomEmoji(body: Record<string, unknown>): Record<string, unknown
   for (const k of ["text", "caption"]) {
     if (typeof out[k] === "string") out[k] = (out[k] as string).replace(TG_EMOJI_RE, "$1");
   }
+  const rows = buttonRows(out);
+  if (rows) {
+    out["reply_markup"] = {
+      ...(out["reply_markup"] as any),
+      inline_keyboard: rows.map((row) =>
+        (row ?? []).map((b: any) => {
+          if (!b?.icon_custom_emoji_id) return b;
+          const { icon_custom_emoji_id: _drop, ...rest } = b;
+          return rest;
+        }),
+      ),
+    };
+  }
   return out;
 }
+
+
+function hasMarkupText(body: Record<string, unknown>): boolean {
+  return ["text", "caption"].some((k) => typeof body[k] === "string" && (body[k] as string).length > 0);
+}
+
+/** Telegram rejected the HTML markup itself. */
+function isParseError(json: TgResult): boolean {
+  const d = String(json?.description ?? "").toLowerCase();
+  return (
+    d.includes("can't parse entities") ||
+    d.includes("cant parse entities") ||
+    d.includes("unsupported start tag") ||
+    d.includes("unclosed start tag") ||
+    d.includes("can't find end tag") ||
+    d.includes("entity")
+  );
+}
+
+/** Telegram rejected something in the inline keyboard. */
+function isButtonError(json: TgResult): boolean {
+  const d = String(json?.description ?? "").toLowerCase();
+  return d.includes("button") || d.includes("reply_markup") || d.includes("keyboard");
+}
+
+/** Keyboard without styles or button icons — accepted by every Bot API build. */
+function plainButtons(body: Record<string, unknown>): Record<string, unknown> {
+  const rows = buttonRows(body) ?? [];
+  return {
+    ...body,
+    reply_markup: {
+      ...((body as any).reply_markup ?? {}),
+      inline_keyboard: rows.map((row) =>
+        (row ?? []).map((b: any) => {
+          const { style: _s, icon_custom_emoji_id: _i, ...rest } = b ?? {};
+          return rest;
+        }),
+      ),
+    },
+  };
+}
+
+/** Last-resort payload: no HTML at all, so the view always reaches the user. */
+function toPlainText(body: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...stripCustomEmoji(body) };
+  delete out["parse_mode"];
+  for (const k of ["text", "caption"]) {
+    if (typeof out[k] === "string") {
+      out[k] = (out[k] as string)
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<[^>]*>/g, "")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&amp;/g, "&");
+    }
+  }
+  return out;
+}
+
+
 
 
 export type ButtonStyle = "primary" | "success" | "danger";
