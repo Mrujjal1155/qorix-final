@@ -6510,9 +6510,9 @@ async function apiPanelView(user: any) {
         `${apiIcon(s, "key")} You get a private API key in one tap\n\n` +
         `<i>Open your free API account below.</i>`,
       kb: [
-        [apiBtn(s, "key", "Create API Account", "api:new")],
-        [{ text: "📖 API Docs", url: `${siteUrl(s)}/reseller/docs` }],
-        [uiBtn(s, "com_home", "home")],
+        [styled(apiBtn(s, "key", "Create API Account", "api:new"), btnColor(s, "api"))],
+        [styled({ text: "📖 API Docs", url: `${siteUrl(s)}/reseller/docs` }, btnColor(s, "api"))],
+        [styled(uiBtn(s, "com_home", "home"), btnColor(s, "api"))],
       ] as Button[][],
     };
   }
