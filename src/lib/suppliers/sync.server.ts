@@ -99,16 +99,22 @@ const STATS_KEY = "supplier_sync_stats";
 const CUTOVER_KEY = "supplier_alert_cutover_at";
 /** Per product+kind announcement cooldown, kills the 0→N→0 catalogue churn. */
 const RECENT_KEY = "supplier_notify_recent";
-/** A queued card older than this is no longer "live" — drop it silently. */
-const STALE_MS = 10 * 60_000;
+/**
+ * A queued card older than this is no longer "live" — drop it silently.
+ * Kept generous: a card that is still waiting for its turn (budget, backoff,
+ * partial DM fan-out) must never be thrown away as "history" while it is
+ * actively being delivered. Only genuinely abandoned cards expire.
+ */
+const STALE_MS = 6 * 60 * 60_000;
 /**
  * Telegram work is bounded per run so a single invocation can never exceed the
  * Cloudflare subrequest/CPU budget — that is what used to kill the whole run
  * (queues stayed full for hours and no card was ever delivered).
  * Worst case per run: CARDS_PER_RUN * (1 channel post + DM_PER_RUN DMs).
  */
-const CARDS_PER_RUN = 4;
-const DM_PER_RUN = 25;
+const CARDS_PER_RUN = 8;
+const DM_PER_RUN = 40;
+
 /** Give up (and log) after this many failed attempts for one event. */
 const MAX_TRIES = 8;
 
