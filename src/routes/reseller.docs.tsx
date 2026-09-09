@@ -44,7 +44,7 @@ function Code({ children }: { children: string }) {
         {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
         {copied ? "Copied" : "Copy"}
       </button>
-      <pre className="overflow-x-auto rounded-xl border border-border/70 bg-secondary/40 p-4 text-xs leading-relaxed">
+      <pre className="max-w-full overflow-x-auto rounded-xl border border-border/70 bg-secondary/40 p-4 pt-10 text-[0.7rem] leading-relaxed sm:pt-4 sm:text-xs">
         <code className="font-mono">{children}</code>
       </pre>
     </div>
@@ -53,12 +53,13 @@ function Code({ children }: { children: string }) {
 
 function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
   return (
-    <section id={id} className="scroll-mt-24 border-t border-border/60 py-10 first:border-t-0">
-      <h2 className="text-xl font-bold tracking-tight sm:text-2xl">{title}</h2>
-      <div className="mt-3 space-y-3 text-sm leading-relaxed text-muted-foreground">{children}</div>
+    <section id={id} className="min-w-0 scroll-mt-24 break-words border-t border-border/60 py-8 first:border-t-0 sm:py-10">
+      <h2 className="text-lg font-bold tracking-tight sm:text-2xl">{title}</h2>
+      <div className="mt-3 min-w-0 space-y-3 text-sm leading-relaxed text-muted-foreground">{children}</div>
     </section>
   );
 }
+
 
 const NAV = [
   ["start", "1. Getting started"],
@@ -81,17 +82,17 @@ function DocsPage() {
   return (
     <StoreShell>
       <div className="border-b border-border/60 bg-secondary/30">
-        <div className="mx-auto max-w-6xl px-6 py-12">
-          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Reseller API documentation</h1>
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
+          <h1 className="text-2xl font-extrabold tracking-tight sm:text-4xl">Reseller API documentation</h1>
           <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
             Everything you need to resell our catalogue from your own website or Telegram bot. Follow the guide top to
             bottom — no prior API experience needed.
           </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild variant="outline">
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <Button asChild variant="outline" className="w-full sm:w-auto">
               <Link to="/reseller">← Back to reseller portal</Link>
             </Button>
-            <Button asChild>
+            <Button asChild className="w-full sm:w-auto">
               <Link to="/reseller" hash="apply">
                 Get an API key
               </Link>
@@ -100,7 +101,7 @@ function DocsPage() {
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-6xl gap-10 px-6 py-10 lg:grid-cols-[220px_1fr]">
+      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10 lg:py-10">
         <aside className="hidden lg:block">
           <nav className="sticky top-24 space-y-1 text-sm">
             {NAV.map(([id, label]) => (
@@ -115,7 +116,20 @@ function DocsPage() {
           </nav>
         </aside>
 
-        <div>
+        <nav className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:hidden">
+          {NAV.map(([id, label]) => (
+            <a
+              key={id}
+              href={`#${id}`}
+              className="shrink-0 rounded-full border border-border/70 bg-secondary/40 px-3 py-1.5 text-xs text-muted-foreground"
+            >
+              {label}
+            </a>
+          ))}
+        </nav>
+
+        <div className="min-w-0">
+
           <Section id="start" title="1. Getting started">
             <p>
               Three things are needed before your first call: an <strong>approved reseller account</strong>, your{" "}
@@ -126,7 +140,7 @@ function DocsPage() {
               ; we email the key after approval.
             </p>
             <ul className="list-disc space-y-1 pl-5">
-              <li>Base URL: <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs">{base}</code></li>
+              <li>Base URL: <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs break-all">{base}</code></li>
               <li>All responses are JSON and always contain an <code className="font-mono">ok</code> field.</li>
               <li>Prices are in USD and already include your reseller discount.</li>
               <li>Orders are paid instantly from your wallet balance; a failed auto-delivery is refunded automatically.</li>
