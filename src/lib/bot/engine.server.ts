@@ -1394,15 +1394,17 @@ function allProductsIcon(settings: Record<string, string>) {
 
 /* ---------------------------------------- configurable button colours */
 
-type ColorSlot = "category" | "product" | "orders" | "pagination" | "nav" | "menu";
+type ColorSlot = "category" | "product" | "orders" | "pagination" | "wallet" | "api" | "nav" | "menu";
 
 const COLOR_SLOTS: { key: ColorSlot; label: string; def: ButtonStyle }[] = [
   { key: "category", label: "Category cards", def: "primary" },
   { key: "product", label: "Product cards", def: "primary" },
   { key: "orders", label: "Order list cards", def: "primary" },
   { key: "pagination", label: "Pagination (Prev/Next)", def: "primary" },
+  { key: "wallet", label: "Wallet & payment buttons", def: "primary" },
+  { key: "api", label: "Reseller API buttons", def: "primary" },
   { key: "nav", label: "Navigation & actions", def: "success" },
-  { key: "menu", label: "Main menu", def: "success" },
+  { key: "menu", label: "Main menu", def: "primary" },
 ];
 
 const COLOR_LABEL: Record<ButtonStyle, string> = {
