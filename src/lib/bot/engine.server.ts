@@ -531,8 +531,11 @@ export async function renderText(
     if (res?.ok !== false) return;
     if (/not modified/i.test(res.description ?? "")) return;
   }
+  // Send first, delete after: if the new message fails the user keeps the old
+  // view instead of an empty chat.
+  const sent = await say(chatId, text, kb);
+  if (sent?.ok === false) return;
   if (messageId) await deleteMessage(chatId, messageId).catch(() => undefined);
-  await say(chatId, text, kb);
 }
 
 /**
@@ -550,9 +553,6 @@ async function showView(
     return;
   }
 
-
-  if (messageId) await deleteMessage(chatId, messageId).catch(() => undefined);
-
   const short = view.text.length <= CAPTION_LIMIT;
   const res = await sendPhoto(
     chatId,
@@ -563,12 +563,17 @@ async function showView(
 
   if (!res.ok) {
     // Telegram could not fetch the banner — never lose the product details.
-    await say(chatId, view.text, view.kb);
+    const sent = await say(chatId, view.text, view.kb);
+    if (sent?.ok !== false && messageId) {
+      await deleteMessage(chatId, messageId).catch(() => undefined);
+    }
     return;
   }
+  if (messageId) await deleteMessage(chatId, messageId).catch(() => undefined);
   await trackMessage(chatId, res?.result?.message_id);
   if (!short) await say(chatId, view.text, view.kb);
 }
+
 
 /* ------------------------------------------------------------------- user */
 
