@@ -167,14 +167,36 @@ function isParseError(json: TgResult): boolean {
   );
 }
 
+/** Telegram rejected something in the inline keyboard. */
+function isButtonError(json: TgResult): boolean {
+  const d = String(json?.description ?? "").toLowerCase();
+  return d.includes("button") || d.includes("reply_markup") || d.includes("keyboard");
+}
+
+/** Keyboard without styles or button icons — accepted by every Bot API build. */
+function plainButtons(body: Record<string, unknown>): Record<string, unknown> {
+  const rows = buttonRows(body) ?? [];
+  return {
+    ...body,
+    reply_markup: {
+      ...((body as any).reply_markup ?? {}),
+      inline_keyboard: rows.map((row) =>
+        (row ?? []).map((b: any) => {
+          const { style: _s, icon_custom_emoji_id: _i, ...rest } = b ?? {};
+          return rest;
+        }),
+      ),
+    },
+  };
+}
+
 /** Last-resort payload: no HTML at all, so the view always reaches the user. */
 function toPlainText(body: Record<string, unknown>): Record<string, unknown> {
-  const out = { ...body };
+  const out = { ...stripCustomEmoji(body) };
   delete out["parse_mode"];
   for (const k of ["text", "caption"]) {
     if (typeof out[k] === "string") {
       out[k] = (out[k] as string)
-        .replace(TG_EMOJI_RE, "$1")
         .replace(/<br\s*\/?>/gi, "\n")
         .replace(/<[^>]*>/g, "")
         .replace(/&lt;/g, "<")
@@ -184,6 +206,7 @@ function toPlainText(body: Record<string, unknown>): Record<string, unknown> {
   }
   return out;
 }
+
 
 
 
