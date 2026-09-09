@@ -91,6 +91,13 @@ export async function tg(method: string, body: Record<string, unknown> = {}): Pr
     }
   }
 
+  // Keyboard-level rejections (unknown button style on an older Bot API,
+  // invalid button icon) must not swallow the whole view either.
+  if ((!res.ok || json.ok === false) && isButtonError(json) && buttonRows(body)) {
+    const retry = await post(plainButtons(body));
+    res = retry.res;
+    json = retry.json;
+  }
 
 
   if (!res.ok || json.ok === false) {
