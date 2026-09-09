@@ -75,6 +75,23 @@ export async function tg(method: string, body: Record<string, unknown> = {}): Pr
     customEmojiBlocked = false;
   }
 
+  // Broken HTML (a stray "<", an unsupported tag, a bad custom-emoji entity)
+  // must never make a view vanish. Downgrade progressively instead of failing:
+  // strip custom emoji first, then drop HTML entirely.
+  if ((!res.ok || json.ok === false) && isParseError(json) && hasMarkupText(body)) {
+    if (hasCustomEmoji(body)) {
+      const retry = await post(stripCustomEmoji(body));
+      res = retry.res;
+      json = retry.json;
+    }
+    if (!res.ok || json.ok === false) {
+      const retry = await post(toPlainText(body));
+      res = retry.res;
+      json = retry.json;
+    }
+  }
+
+
 
   if (!res.ok || json.ok === false) {
     console.error(`Telegram ${method} failed [${res.status}]:`, JSON.stringify(json));
