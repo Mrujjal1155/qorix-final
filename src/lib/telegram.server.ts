@@ -120,6 +120,42 @@ function stripCustomEmoji(body: Record<string, unknown>): Record<string, unknown
   return out;
 }
 
+function hasMarkupText(body: Record<string, unknown>): boolean {
+  return ["text", "caption"].some((k) => typeof body[k] === "string" && (body[k] as string).length > 0);
+}
+
+/** Telegram rejected the HTML markup itself. */
+function isParseError(json: TgResult): boolean {
+  const d = String(json?.description ?? "").toLowerCase();
+  return (
+    d.includes("can't parse entities") ||
+    d.includes("cant parse entities") ||
+    d.includes("unsupported start tag") ||
+    d.includes("unclosed start tag") ||
+    d.includes("can't find end tag") ||
+    d.includes("entity")
+  );
+}
+
+/** Last-resort payload: no HTML at all, so the view always reaches the user. */
+function toPlainText(body: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...body };
+  delete out["parse_mode"];
+  for (const k of ["text", "caption"]) {
+    if (typeof out[k] === "string") {
+      out[k] = (out[k] as string)
+        .replace(TG_EMOJI_RE, "$1")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<[^>]*>/g, "")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&amp;/g, "&");
+    }
+  }
+  return out;
+}
+
+
 
 export type ButtonStyle = "primary" | "success" | "danger";
 
