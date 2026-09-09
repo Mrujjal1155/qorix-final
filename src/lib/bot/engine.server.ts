@@ -651,18 +651,19 @@ async function getUser(telegramId: number) {
 /* ------------------------------------------------------------------ views */
 
 function homeKeyboard(settings: Record<string, string>): Button[][] {
-  return styleRows([
+  const mBtn = (b: Button) => styled(b, btnColor(settings, "menu"));
+  return [
     [
-      iconButton(settings, "shop", "shop:0"),
-      iconButton(settings, "cart", "cart"),
-      iconButton(settings, "orders", "orders"),
+      mBtn(iconButton(settings, "shop", "shop:0")),
+      mBtn(iconButton(settings, "cart", "cart")),
+      mBtn(iconButton(settings, "orders", "orders")),
     ],
 
 
     [
-      iconButton(settings, "wallet", "wallet"),
-      iconButton(settings, "freebies", "freebies"),
-      iconButton(settings, "profile", "profile"),
+      mBtn(iconButton(settings, "wallet", "wallet")),
+      mBtn(iconButton(settings, "freebies", "freebies")),
+      mBtn(iconButton(settings, "profile", "profile")),
     ],
     [iconButton(settings, "referral", "refstore")],
     [
@@ -677,7 +678,7 @@ function homeKeyboard(settings: Record<string, string>): Button[][] {
       iconButton(settings, "api", "api"),
       iconButton(settings, "clear", "clear"),
     ],
-  ], btnColor(settings, "menu"));
+  ];
 }
 
 async function homeText(user: any) {
@@ -1912,7 +1913,7 @@ async function walletView(user: any) {
 
   kb.push([wBtn(uiBtn(s, "wal_redeem", "redeem"))]);
   kb.push([wBtn(uiBtn(s, "wal_history", "hist:0"))]);
-  kb.push([wBtn(uiBtn(s, "wal_home", "home"))]);
+  kb.push([uiBtn(s, "wal_home", "home")]);
   return { text, kb };
 }
 
@@ -6512,7 +6513,7 @@ async function apiPanelView(user: any) {
       kb: [
         [styled(apiBtn(s, "key", "Create API Account", "api:new"), btnColor(s, "api"))],
         [styled({ text: "📖 API Docs", url: `${siteUrl(s)}/reseller/docs` }, btnColor(s, "api"))],
-        [styled(uiBtn(s, "com_home", "home"), btnColor(s, "api"))],
+        [uiBtn(s, "com_home", "home")],
       ] as Button[][],
     };
   }
@@ -6547,7 +6548,7 @@ async function apiPanelView(user: any) {
     [aBtn(apiBtn(s, "regen", "Regenerate Key", "api:regen")), aBtn(apiBtn(s, "revoke", r.is_active ? "Revoke Key" : "Re-activate Key", "api:revoke"))],
     [aBtn(apiBtn(s, "alert", `Low Balance Alert (${alert > 0 ? money(alert) : "off"})`, "api:alert"))],
     [aBtn(apiBtn(s, "key", "Show Full Key", "api:key"))],
-    [aBtn(uiBtn(s, "com_home", "home"))],
+    [uiBtn(s, "com_home", "home")],
   ];
   return { text, kb };
 }
