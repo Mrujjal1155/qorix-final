@@ -104,6 +104,7 @@ function iconButton(settings: Record<string, string>, key: MenuIconKey, callback
     text: customId ? (label ?? MENU_ICONS[key][1]) : text,
     callback_data,
     ...(customId ? { icon_custom_emoji_id: customId } : {}),
+    ...(key === "back" ? { style: "danger" as const } : {}),
   };
 }
 
