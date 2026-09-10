@@ -1335,7 +1335,7 @@ async function refPurchasesView(user: any) {
     s,
     "ref_credits",
   )} Credits left: <b>${refCredits(user)}</b>`;
-  return { text, kb: [[uiBtn(s, "prof_refer_btn", "refstore")], [uiBtn(s, "ref_profile_btn", "profile")]] };
+  return { text, kb: [[uiBtn(s, "prof_refer_btn", "refstore")], [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")]] };
 }
 
 
@@ -1369,7 +1369,7 @@ async function claimRefReward(user: any, rewardId: string) {
     text:
       `✅ <b>${escapeHtml(reward.name)}</b> claimed for <b>${reward.credits}</b> credits!\n\n` +
       `Our team will deliver it to you shortly right here in this chat.`,
-    kb: [[uiBtn(s, "prof_refer_btn", "refstore")], [uiBtn(s, "ref_profile_btn", "profile")]],
+    kb: [[uiBtn(s, "prof_refer_btn", "refstore")], [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")]],
   };
 }
 
@@ -1397,7 +1397,7 @@ async function redeemRefCredits(user: any) {
     );
   return {
     text: `💱 Redeemed <b>${credits}</b> credits → <b>${money(amount)}</b> added to your wallet.`,
-    kb: [[uiBtn(s, "prof_refer_btn", "refstore")], [uiBtn(s, "ref_profile_btn", "profile")]],
+    kb: [[uiBtn(s, "prof_refer_btn", "refstore")], [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")]],
   };
 }
 
