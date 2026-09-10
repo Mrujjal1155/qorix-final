@@ -819,10 +819,7 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
 
   const added = alerts.filter((a) => a.kind === "new").length;
   const restocked = restockPosts.length;
-  await sb
-    .from("suppliers")
-    .update({ last_synced_at: now, last_status: `Synced ${uniqueRemote.length} products` })
-    .eq("id", s.id);
+
 
   return {
     ok: true,
