@@ -239,7 +239,7 @@ function withDefaultStyle(rows: Button[][]): Button[][] {
     row.map((b) => {
       if (b.style) return b;
       const label = b.text.replace(/[^\p{L}\p{N}& ]/gu, " ").replace(/\s+/g, " ").trim();
-      const isBackNavigation = /^(?:back(?: to .+)?|main menu|home|wallet)$/i.test(label);
+      const isBackNavigation = /^(?:back(?: to .+)?|main menu)$/i.test(label);
       return { ...b, style: isBackNavigation ? ("danger" as ButtonStyle) : ("success" as ButtonStyle) };
     }),
   );

@@ -243,11 +243,7 @@ export type UiKey = keyof typeof UI_ELEMENTS;
 /** Navigation controls that return from the current page. Keep these red everywhere. */
 const BACK_UI_KEYS = new Set<UiKey>([
   "prod_back",
-  "prod_home",
-  "cart_home",
   "pay_back",
-  "wal_home",
-  "ord_home",
   "ord_back_list",
   "dep_wallet",
   "qty_back",
@@ -256,9 +252,7 @@ const BACK_UI_KEYS = new Set<UiKey>([
   "tier_back",
   "sup_back",
   "free_back",
-  "hist_wallet",
   "com_back",
-  "com_home",
 ]);
 
 export const UI_GROUPS = ["shop", "product", "cart", "checkout", "payment", "wallet", "orders", "deposit", "quantity", "profile", "refstore", "freebies", "support", "history", "common"] as const;
