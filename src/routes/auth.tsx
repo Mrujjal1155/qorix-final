@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { productionUrlFor } from "@/lib/site-url";
 import { useT } from "@/lib/i18n";
+import { signUpWithBrandedEmail } from "@/lib/auth-signup.functions";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { productionUrlFor } from "@/lib/site-url";
+import { signUpWithBrandedEmail } from "@/lib/auth-signup.functions";
 
 export const Route = createFileRoute("/reseller/start")({
   head: () => ({
