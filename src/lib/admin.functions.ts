@@ -1292,6 +1292,39 @@ export const previewEmailTemplate = createServerFn({ method: "POST" })
           adminUrl: `${origin}/admin/orders`,
         });
         break;
+      case "account_verify":
+        built = tpls.accountVerifyEmail({
+          siteName,
+          logoUrl,
+          name: "Rahim Ahmed",
+          verifyUrl: `${origin}/auth?token=sample-confirmation-link`,
+          reseller: true,
+        });
+        break;
+      case "reseller_application":
+        built = tpls.resellerApplicationReceivedEmail({
+          siteName,
+          logoUrl,
+          name: "Rahim Ahmed",
+          email: "rahim@example.com",
+          channel: "website",
+          docsUrl: `${origin}/reseller/docs`,
+        });
+        break;
+      case "admin_reseller_application":
+        built = tpls.adminNewResellerApplicationEmail({
+          siteName,
+          logoUrl,
+          name: "Rahim Ahmed",
+          email: "rahim@example.com",
+          telegram: "@rahim",
+          website: "https://rahimshop.com",
+          channel: "both",
+          monthlyVolume: "200-500 orders",
+          message: "I run a Telegram shop and want to resell your catalogue.",
+          adminUrl: `${origin}/admin/resellers`,
+        });
+        break;
       case "reseller_approved":
         built = tpls.resellerApprovedEmail({
           siteName,
