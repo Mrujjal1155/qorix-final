@@ -1405,10 +1405,10 @@ type ColorSlot = "category" | "product" | "orders" | "pagination" | "wallet" | "
 const COLOR_SLOTS: { key: ColorSlot; label: string; def: ButtonStyle }[] = [
   { key: "category", label: "Category cards", def: "success" },
   { key: "product", label: "Product cards", def: "success" },
-  { key: "orders", label: "Order list cards", def: "success" },
-  { key: "pagination", label: "Pagination (Prev/Next)", def: "success" },
+  { key: "orders", label: "Order list cards", def: "primary" },
+  { key: "pagination", label: "Pagination (Prev/Next)", def: "primary" },
   { key: "wallet", label: "Wallet & payment buttons", def: "success" },
-  { key: "api", label: "Reseller API buttons", def: "success" },
+  { key: "api", label: "Reseller API buttons", def: "primary" },
   { key: "nav", label: "Navigation & actions", def: "success" },
   { key: "menu", label: "Main menu", def: "success" },
 ];
