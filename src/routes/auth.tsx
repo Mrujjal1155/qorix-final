@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { productionUrlFor } from "@/lib/site-url";
 import { useT } from "@/lib/i18n";
+import { signUpWithBrandedEmail } from "@/lib/auth-signup.functions";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -50,17 +51,10 @@ function AuthPage() {
     setLoading(true);
     try {
       if (mode === "up") {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { emailRedirectTo: productionUrlFor("/"), data: { full_name: fullName.trim() } },
-        });
-        if (error) throw error;
-        if (!data.session) {
-          toast.success("Account created. Check your email to confirm, then sign in.");
-          setMode("in");
-          return;
-        }
+        await signUpWithBrandedEmail({ data: { email, password, fullName: fullName.trim() } });
+        toast.success("Account created. Check your email to confirm, then sign in.");
+        setMode("in");
+        return;
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;

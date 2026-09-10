@@ -4,7 +4,14 @@
  * and request a rendered preview from the server.
  */
 
-export type EmailTemplateId = "order_receipt" | "admin_new_order" | "reseller_approved" | "test";
+export type EmailTemplateId =
+  | "order_receipt"
+  | "admin_new_order"
+  | "account_verify"
+  | "reseller_application"
+  | "admin_reseller_application"
+  | "reseller_approved"
+  | "test";
 
 export interface EmailTemplateMeta {
   id: EmailTemplateId;
@@ -31,6 +38,29 @@ export const EMAIL_TEMPLATE_CATALOG: EmailTemplateMeta[] = [
     recipient: "Admin notification address",
     trigger: "A new website order arrives and needs payment verification",
     contains: "Order number, customer name & email, product, quantity, total, payment method, reference and a link to the admin orders page",
+    toggleKey: "email_admin_notify_enabled",
+  },
+  {
+    id: "account_verify",
+    label: "Email confirmation",
+    recipient: "New customer or reseller signup",
+    trigger: "Someone creates an account on the website or the reseller start page",
+    contains: "Branded welcome, confirm-email button and the plain confirmation link",
+  },
+  {
+    id: "reseller_application",
+    label: "Reseller application received",
+    recipient: "Reseller applicant",
+    trigger: "The reseller application form is submitted",
+    contains: "Thank-you note, submitted details, pending status and the API docs link",
+    toggleKey: "email_reseller_enabled",
+  },
+  {
+    id: "admin_reseller_application",
+    label: "New reseller application — admin notification",
+    recipient: "Admin notification address",
+    trigger: "A new reseller application arrives",
+    contains: "Applicant name, email, Telegram, website, channel, volume, message and a review link",
     toggleKey: "email_admin_notify_enabled",
   },
   {
