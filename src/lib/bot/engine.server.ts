@@ -147,6 +147,7 @@ const SECTION_HEADS = {
   orders: "My orders page",
   profile: "Profile page",
   referral: "Referral page",
+  refstore: "Refer & Earn (rewards) page",
   support: "Support page",
   api: "Reseller API page",
 } as const;
@@ -1283,7 +1284,7 @@ async function refStoreView(user: any) {
   const link = refLink(s, user);
 
   const text =
-    `${uiTag(s, "ref_title")}\n──────────────\n` +
+    `${sectionHead(s, "refstore", `<b>${escapeHtml(uiText(s, "ref_title").toUpperCase().split("").join(" "))}</b>`)}\n──────────────\n` +
     `<b>How it works</b>\n` +
     `• Invite a brand-new member with <b>your link</b> — each one earns you <b>${per} credit${per > 1 ? "s" : ""}</b>.\n` +
     `• The credit lands once your friend opens the shop and <b>views a product</b>.\n` +
@@ -1307,7 +1308,7 @@ async function refStoreView(user: any) {
         ? `(${uiText(s, "ref_reward")})`
         : `(${uiText(s, "ref_locked")} ${r.credits - credits} more)`;
     const icon = btn.text.replace(uiText(s, key), "").trim();
-    return [{ ...btn, text: `${icon} ${r.name} | ${r.credits} ${suffix}`.trim() }];
+    return [{ ...btn, text: `${icon} ${r.name} | ${r.credits} ${suffix}`.trim(), style: "primary" as const }];
   });
 
   kb.push([
@@ -1318,7 +1319,7 @@ async function refStoreView(user: any) {
     uiBtn(s, "ref_purch_btn", "refbought", `(${st.purchases.length})`),
     uiBtn(s, "ref_earn_btn", "refearn"),
   ]);
-  kb.push([uiBtn(s, "ref_profile_btn", "profile")]);
+  kb.push([styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")]);
   return { text, kb };
 }
 
