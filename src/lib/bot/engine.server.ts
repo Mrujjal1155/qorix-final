@@ -1551,7 +1551,7 @@ async function shopView(page: number) {
     kb.push([styled(iconButton(settings, "refresh", "shop:0"), navStyle)]);
     kb.push([
       styled(iconButton(settings, "cart", "cart"), navStyle),
-      styled(iconButton(settings, "back", "home"), navStyle),
+      styled(iconButton(settings, "back", "home"), "danger"),
     ]);
     const text =
       `${sectionHead(settings, "shop", `${pageIconHtml(settings, "shop")} <b>C A T E G O R I E S</b>`)}\n\n` +
@@ -1618,7 +1618,7 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
   if (hasCategories) kb.push([styled({ text: "🗂 Categories", callback_data: "shop:0" }, navStyle)]);
   kb.push([
     styled(iconButton(settings, "cart", "cart"), navStyle),
-    styled(iconButton(settings, "back", "home"), navStyle),
+    styled(iconButton(settings, "back", "home"), "danger"),
   ]);
 
 
