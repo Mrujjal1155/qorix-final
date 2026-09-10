@@ -52,20 +52,12 @@ function ResellerStartPage() {
     setLoading(true);
     try {
       if (mode === "up") {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: productionUrlFor("/reseller/panel"),
-            data: { full_name: name.trim() },
-          },
+        await signUpWithBrandedEmail({
+          data: { email, password, fullName: name.trim(), reseller: true },
         });
-        if (error) throw error;
-        if (!data.session) {
-          toast.success("Account created. Confirm your email, then sign in here.");
-          setMode("in");
-          return;
-        }
+        toast.success("Account created. Check your inbox and confirm your email, then sign in here.");
+        setMode("in");
+        return;
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
