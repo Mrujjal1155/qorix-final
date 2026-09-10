@@ -132,6 +132,66 @@ export function pageIconHtml(settings: Record<string, string>, key: PageIconKey)
 }
 
 /**
+ * Section headers — the big "P R O D U C T S" / "W A L L E T" style title on
+ * top of every bot page. Admins can replace each one with a line built from
+ * Telegram Premium custom emoji (letter emoji), sent straight from Bot Admin.
+ * Stored under `page_head_<key>` as ready-to-send Telegram HTML.
+ */
+const SECTION_HEADS = {
+  home: "Home / start page",
+  shop: "Shop · categories",
+  products: "Products list",
+  cart: "Cart page",
+  checkout: "Checkout page",
+  wallet: "Wallet page",
+  orders: "My orders page",
+  profile: "Profile page",
+  referral: "Referral page",
+  support: "Support page",
+  api: "Reseller API page",
+} as const;
+
+type SectionHeadKey = keyof typeof SECTION_HEADS;
+
+/** Admin header line when configured, otherwise the built-in header. */
+function sectionHead(settings: Record<string, string>, key: SectionHeadKey, fallbackHtml: string) {
+  const v = String(settings[`page_head_${key}`] ?? "").trim();
+  return v || fallbackHtml;
+}
+
+/**
+ * Turns an admin message into Telegram HTML, keeping every Premium custom
+ * emoji it contains — that is how a whole "PRODUCTS" banner is captured.
+ */
+function headerHtmlFromMessage(msg: any, text: string): string {
+  const raw = String(text ?? "");
+  const entities: any[] = [...(msg?.entities ?? []), ...(msg?.caption_entities ?? [])]
+    .filter((e: any) => e?.type === "custom_emoji" && e?.custom_emoji_id)
+    .sort((a: any, b: any) => a.offset - b.offset);
+
+  if (!raw.trim()) {
+    const st = msg?.sticker;
+    if (st?.custom_emoji_id) {
+      return `<tg-emoji emoji-id="${st.custom_emoji_id}">${escapeHtml(String(st.emoji ?? "⭐"))}</tg-emoji>`;
+    }
+    return "";
+  }
+
+  let out = "";
+  let pos = 0;
+  for (const e of entities) {
+    const offset = Number(e.offset ?? 0);
+    const length = Number(e.length ?? 0);
+    if (offset < pos) continue;
+    out += escapeHtml(raw.slice(pos, offset));
+    out += `<tg-emoji emoji-id="${e.custom_emoji_id}">${escapeHtml(raw.slice(offset, offset + length))}</tg-emoji>`;
+    pos = offset + length;
+  }
+  out += escapeHtml(raw.slice(pos));
+  return out.trim();
+}
+
+/**
  * Icons used inside the stock / price alert cards. Admin can replace every one
  * of them with a Telegram Premium custom emoji from /admin → Alert icons.
  */
@@ -691,7 +751,7 @@ async function homeText(user: any) {
   const botName = (s["bot_name"] || "SHOP").toUpperCase().split("").join(" ");
   const link = `https://t.me/${s["bot_username"] || "your_bot"}?start=ref_${user.ref_code}`;
   return (
-    `<b>${botName}</b>\n\n` +
+    `${sectionHead(s, "home", `<b>${botName}</b>`)}\n\n` +
     `${uiIconHtml(s, "home_greet")} ${uiText(s, "home_greet")}, <b>${escapeHtml(user.first_name ?? "friend")}</b>!\n` +
     `<i>${s["welcome_text"] ?? ""}</i>\n` +
     `──────────────\n` +
@@ -746,7 +806,7 @@ async function profileView(chatId: number, user: any) {
   const link = refLink(s, user);
 
   const text =
-    `<b>${escapeHtml(uiText(s, "prof_title").toUpperCase().split("").join(" "))}</b>\n` +
+    `${sectionHead(s, "profile", `<b>${escapeHtml(uiText(s, "prof_title").toUpperCase().split("").join(" "))}</b>`)}\n` +
     `──────────────\n` +
     `${uiTag(s, "prof_username")}: ${user.username ? "@" + escapeHtml(user.username) : "—"}\n` +
     `${uiTag(s, "prof_userid")}: <code>${user.telegram_id}</code>\n` +
@@ -783,7 +843,7 @@ async function referralView(user: any) {
   const pct = Number(s["referral_percent"] || 0);
   const link = refLink(s, user);
   const text =
-    `<b>${escapeHtml(uiText(s, "ref_title").toUpperCase().split("").join(" "))}</b>\n` +
+    `${sectionHead(s, "referral", `<b>${escapeHtml(uiText(s, "ref_title").toUpperCase().split("").join(" "))}</b>`)}\n` +
     `──────────────\n` +
     `${uiTag(s, "ref_rate")}: you earn <b>${pct}%</b> of every purchase your friends make — credited to your balance instantly.\n\n` +
     `${uiTag(s, "prof_refs")}: <b>${user.referral_count ?? 0}</b>\n` +
@@ -886,7 +946,7 @@ async function supportView() {
       "• <b>Video Proof:</b> Uncut video of purchase &amp; issue is mandatory for refund/replacement <i>(if stated in product description)</i>. No video = no refund.\n" +
       "• Technical assistance is provided for all orders.";
   const text =
-    `<b>${escapeHtml(uiText(s, "sup_title"))}</b>\n──────────────\n${body}\n\n` +
+    `${sectionHead(s, "support", `<b>${escapeHtml(uiText(s, "sup_title"))}</b>`)}\n──────────────\n${body}\n\n` +
     `⚠️ <b>Support Rules:</b>\n${rules}\n──────────────\n` +
     `${uiTag(s, "sup_admin")} — <a href="${escapeHtml(link)}">${escapeHtml(handle)}</a>`;
   const kb: Button[][] = [
@@ -1492,7 +1552,7 @@ async function shopView(page: number) {
       styled(iconButton(settings, "back", "home"), navStyle),
     ]);
     const text =
-      `${pageIconHtml(settings, "shop")} <b>C A T E G O R I E S</b>\n\n` +
+      `${sectionHead(settings, "shop", `${pageIconHtml(settings, "shop")} <b>C A T E G O R I E S</b>`)}\n\n` +
       `${uiIconHtml(settings, "shop_instock")} <b>${inStock} of ${products.length}</b> ${uiText(settings, "shop_instock")}\n` +
       `<i>Pick a category to see its products.</i>`;
     return { text, kb };
@@ -1561,7 +1621,7 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
 
 
   const text =
-    `${pageIconHtml(settings, "shop")} <b>${title}</b>\n\n` +
+    `${sectionHead(settings, "products", `${pageIconHtml(settings, "shop")} <b>${title}</b>`)}\n\n` +
     `${uiIconHtml(settings, "shop_instock")} <b>${inStock} of ${products.length}</b> ${uiText(settings, "shop_instock")}\n` +
     (flash.length
       ? `${uiTag(settings, "shop_flash")} — <b>${flash.length}</b> discounted item(s) live now\n`
@@ -1825,7 +1885,7 @@ async function cartView(user: any) {
   const { lines, total } = await cartDetails(user);
   if (!lines.length) {
     return {
-      text: `${pageIconHtml(settings, "cart")} <b>Y O U R   C A R T</b>\n\nYour cart is empty.\n\n<i>Browse the shop and tap “Add to Cart”.</i>`,
+      text: `${sectionHead(settings, "cart", `${pageIconHtml(settings, "cart")} <b>Y O U R   C A R T</b>`)}\n\nYour cart is empty.\n\n<i>Browse the shop and tap “Add to Cart”.</i>`,
       kb: [
         [iconButton(settings, "shop", "shop:0")],
         [uiBtn(settings, "cart_home", "home")],
@@ -1833,7 +1893,7 @@ async function cartView(user: any) {
     };
   }
 
-  let text = `${pageIconHtml(settings, "cart")} <b>Y O U R   C A R T</b>\n──────────────\n`;
+  let text = `${sectionHead(settings, "cart", `${pageIconHtml(settings, "cart")} <b>Y O U R   C A R T</b>`)}\n──────────────\n`;
   const kb: Button[][] = [];
   let issues = 0;
   for (const l of lines) {
@@ -1884,7 +1944,7 @@ async function walletView(user: any) {
   const cfg = await binanceConfig();
   const s = await getSettings();
   const text =
-    `${pageIconHtml(s, "wallet")} <b>W A L L E T</b>\n\n` +
+    `${sectionHead(s, "wallet", `${pageIconHtml(s, "wallet")} <b>W A L L E T</b>`)}\n\n` +
     `Your Balance and Spending Stats are:\n──────────────\n` +
     `💰 Balance: <b>${money(user.balance)}</b>\n` +
     `💎 Total Spent: ${money(user.total_spent)}\n` +
@@ -3645,6 +3705,36 @@ async function handleMessage(msg: any) {
       await premiumEmojiNote(chatId, value);
       return;
     }
+    case "adm_page_head": {
+      state.awaiting = null;
+      const headKey = String(state.adm_page_head ?? "") as SectionHeadKey;
+      await setState(chatId, state);
+      if (!(await isAdmin(chatId)) || !(headKey in SECTION_HEADS)) return;
+      const rawHead = (text ?? "").trim();
+      const value = rawHead === "-" ? "" : headerHtmlFromMessage(msg, text);
+      if (rawHead !== "-" && !value) {
+        await say(
+          chatId,
+          "❌ I could not read a header there.\n\nSend the title as one message (Premium emoji letters, normal emoji or text). Send <code>-</code> to reset.",
+          ADM_BACK,
+        );
+        return;
+      }
+      try {
+        await saveIconSetting(`page_head_${headKey}`, value);
+      } catch (e) {
+        await say(chatId, saveFailText(e), ADM_BACK);
+        return;
+      }
+      const hv = await admSectionHeadView();
+      await say(
+        chatId,
+        `✅ ${escapeHtml(SECTION_HEADS[headKey])} header ${value ? `updated →\n${value}` : "reset to default"}\n\n${hv.text}`,
+        hv.kb,
+      );
+      await premiumEmojiNote(chatId, value ? "1|x" : "");
+      return;
+    }
     case "adm_alert_icon": {
       state.awaiting = null;
       const alertKey = String(state.adm_alert_icon ?? "") as AlertIconKey;
@@ -3857,6 +3947,7 @@ export function adminKeyboard(): Button[][] {
       { text: "💳 Payment icons", callback_data: "adm:paymenticons" },
       { text: "🖼 Page icons", callback_data: "adm:pageicons" },
     ],
+    [{ text: "🔠 Section headers", callback_data: "adm:heads" }],
     [
       { text: "🔌 API icons", callback_data: "adm:apiicons" },
       { text: "🗂 Category icons", callback_data: "adm:caticons" },
@@ -4446,6 +4537,34 @@ async function admPageIconView() {
 }
 
 
+/** Section headers — a full Premium-emoji title line for every bot page. */
+async function admSectionHeadView() {
+  const settings = await getSettings();
+  const keys = Object.keys(SECTION_HEADS) as SectionHeadKey[];
+  const kb: Button[][] = keys.map((key) => [
+    {
+      text: `${String(settings[`page_head_${key}`] ?? "").trim() ? "✨" : "▫️"} ${SECTION_HEADS[key]}`,
+      callback_data: `adm:hd:${key}`,
+    },
+  ]);
+  kb.push(ADM_BACK[0]!);
+  const list = keys
+    .map((key) => {
+      const v = String(settings[`page_head_${key}`] ?? "").trim();
+      return `<b>${escapeHtml(SECTION_HEADS[key])}</b> — ${v || "<i>default</i>"}`;
+    })
+    .join("\n");
+  return {
+    text:
+      "🔠 <b>Section headers</b>\n\n" +
+      "Pick a page, then send the title exactly as you want it on top of that page — " +
+      "a line of <b>Telegram Premium emoji letters</b> (like the P R O D U C T S banner), normal emoji or plain text.\n" +
+      "Send <code>-</code> to restore the default header.\n\n" +
+      `<b>Current headers</b>\n${list}`,
+    kb,
+  };
+}
+
 /** Button colors — pick the native Telegram colour for each group of buttons. */
 async function admButtonColorView() {
   const settings = await getSettings();
@@ -4776,7 +4895,7 @@ async function coView(chatId: number) {
   }
   const { lines, subtotal, discount, total, tierPct, tierOff } = await coTotals(meta, chatId);
   const settings = await getSettings();
-  let text = `${pageIconHtml(settings, "checkout")} <b>C H E C K O U T</b>\n──────────────\n`;
+  let text = `${sectionHead(settings, "checkout", `${pageIconHtml(settings, "checkout")} <b>C H E C K O U T</b>`)}\n──────────────\n`;
   for (const l of lines) {
     text += `${productIconHtml(l.product)} <b>${l.product.name}</b>\n   ${l.qty} × ${money(l.product.price)} = <b>${money(l.subtotal)}</b>\n`;
   }
@@ -5118,7 +5237,7 @@ async function ordersView(chatId: number, page = 0) {
   const current = Math.min(Math.max(0, page), pages - 1);
   const slice = rows.slice(current * ORDERS_PER_PAGE, current * ORDERS_PER_PAGE + ORDERS_PER_PAGE);
 
-  const head = `${pageIconHtml(settings, "orders")} <b>M Y   O R D E R S</b>`;
+  const head = sectionHead(settings, "orders", `${pageIconHtml(settings, "orders")} <b>M Y   O R D E R S</b>`);
   if (!rows.length) {
     return {
       text: `${head}\n\nYou have no orders yet.`,
@@ -6230,6 +6349,19 @@ async function handleCallback(cq: any) {
       await upsertSetting({ key: `ui_text_${arg}`, value: "" }, { onConflict: "key" });
       const v = await admUiItemView(arg as UiKey);
       await edit(v.text, v.kb);
+    } else if (action === "heads") {
+      const v = await admSectionHeadView();
+      await edit(v.text, v.kb);
+    } else if (action.startsWith("hd:")) {
+      const headKey = arg as SectionHeadKey;
+      if (!(headKey in SECTION_HEADS)) return;
+      await setState(chatId, { ...st, awaiting: "adm_page_head", adm_page_head: headKey });
+      await say(
+        chatId,
+        `🔠 Send the new header for <b>${escapeHtml(SECTION_HEADS[headKey])}</b>.\n\n` +
+          "Type the Premium emoji letters (or any emoji / text) in one message — it is stored exactly as sent. " +
+          "Send <code>-</code> to restore the default header.",
+      );
     } else if (action.startsWith("pi:")) {
       const pageKey = arg as PageIconKey;
       if (!(pageKey in PAGE_ICONS)) return;
@@ -6508,7 +6640,7 @@ async function apiPanelView(user: any) {
   if (!r) {
     return {
       text:
-        `${apiIcon(s, "panel")} <b>R E S E L L E R   A P I</b>\n` +
+        `${sectionHead(s, "api", `${apiIcon(s, "panel")} <b>R E S E L L E R   A P I</b>`)}\n` +
         `──────────────\n` +
         `Sell our whole catalogue from <b>your own website or bot</b>.\n\n` +
         `${apiIcon(s, "balance")} Your API balance pays the wholesale price\n` +
@@ -6532,7 +6664,7 @@ async function apiPanelView(user: any) {
   const alert = Number(r.low_bal_alert ?? 0);
 
   const text =
-    `${apiIcon(s, "panel")} <b>R E S E L L E R   A P I</b>\n` +
+    `${sectionHead(s, "api", `${apiIcon(s, "panel")} <b>R E S E L L E R   A P I</b>`)}\n` +
     `──────────────\n` +
     `${apiIcon(s, "account")} <i>Account</i>   <b>${escapeHtml(r.name)}</b> <code>#${r.account_no ?? "—"}</code>\n` +
     `${apiIcon(s, "status")} <i>Status</i>   <b>${r.is_active ? "Active" : "Revoked"}</b>\n` +
