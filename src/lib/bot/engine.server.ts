@@ -104,6 +104,7 @@ function iconButton(settings: Record<string, string>, key: MenuIconKey, callback
     text: customId ? (label ?? MENU_ICONS[key][1]) : text,
     callback_data,
     ...(customId ? { icon_custom_emoji_id: customId } : {}),
+    ...(key === "back" ? { style: "danger" as const } : {}),
   };
 }
 
@@ -980,7 +981,7 @@ async function ticketListView(telegramId: number) {
     },
   ]);
   kb.push([{ text: "🆘 Create Support Ticket", callback_data: "sup:new" }]);
-  kb.push([{ text: "⬅️ Back", callback_data: "support" }]);
+  kb.push([styled({ text: "⬅️ Back", callback_data: "support" }, "danger")]);
   return {
     text: rows.length
       ? `🎫 <b>My Tickets</b>\n──────────────\nTap a ticket to read the conversation or reply.`
@@ -991,7 +992,7 @@ async function ticketListView(telegramId: number) {
 
 async function ticketView(ticketId: string, viewer: "user" | "admin") {
   const { data: t } = await db.from("support_tickets").select("*").eq("id", ticketId).maybeSingle();
-  if (!t) return { text: "❌ Ticket not found.", kb: [[{ text: "⬅️ Back", callback_data: "support" }]] as Button[][] };
+  if (!t) return { text: "❌ Ticket not found.", kb: [[styled({ text: "⬅️ Back", callback_data: "support" }, "danger")]] as Button[][] };
   const { data: msgs } = await db
     .from("support_messages")
     .select("sender,sender_name,body,created_at")
@@ -1016,7 +1017,7 @@ async function ticketView(ticketId: string, viewer: "user" | "admin") {
           t.status === "open"
             ? [{ text: "✅ Close ticket", callback_data: `adm:tkc:${t.id}` }]
             : [{ text: "♻️ Reopen ticket", callback_data: `adm:tko:${t.id}` }],
-          [{ text: "⬅️ Tickets", callback_data: "adm:tk" }],
+          [styled({ text: "⬅️ Tickets", callback_data: "adm:tk" }, "danger")],
         ]
       : [
           ...(t.status === "open"
@@ -1025,7 +1026,7 @@ async function ticketView(ticketId: string, viewer: "user" | "admin") {
                 [{ text: "✅ Close ticket", callback_data: `sup:c:${t.id}` }],
               ]
             : []),
-          [{ text: "⬅️ My Tickets", callback_data: "sup:list" }],
+          [styled({ text: "⬅️ My Tickets", callback_data: "sup:list" }, "danger")],
         ];
   return { text: head + (lines.join("\n\n") || "<i>No messages yet.</i>"), kb };
 }
@@ -1550,7 +1551,7 @@ async function shopView(page: number) {
     kb.push([styled(iconButton(settings, "refresh", "shop:0"), navStyle)]);
     kb.push([
       styled(iconButton(settings, "cart", "cart"), navStyle),
-      styled(iconButton(settings, "back", "home"), navStyle),
+      styled(iconButton(settings, "back", "home"), "danger"),
     ]);
     const text =
       `${sectionHead(settings, "shop", `${pageIconHtml(settings, "shop")} <b>C A T E G O R I E S</b>`)}\n\n` +
@@ -1617,7 +1618,7 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
   if (hasCategories) kb.push([styled({ text: "🗂 Categories", callback_data: "shop:0" }, navStyle)]);
   kb.push([
     styled(iconButton(settings, "cart", "cart"), navStyle),
-    styled(iconButton(settings, "back", "home"), navStyle),
+    styled(iconButton(settings, "back", "home"), "danger"),
   ]);
 
 

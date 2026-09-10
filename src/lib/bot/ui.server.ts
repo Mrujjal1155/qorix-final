@@ -240,6 +240,21 @@ export const UI_ELEMENTS = {
 
 export type UiKey = keyof typeof UI_ELEMENTS;
 
+/** Navigation controls that return from the current page. Keep these red everywhere. */
+const BACK_UI_KEYS = new Set<UiKey>([
+  "prod_back",
+  "pay_back",
+  "ord_back_list",
+  "dep_wallet",
+  "qty_back",
+  "prof_back_btn",
+  "ref_profile_btn",
+  "tier_back",
+  "sup_back",
+  "free_back",
+  "com_back",
+]);
+
 export const UI_GROUPS = ["shop", "product", "cart", "checkout", "payment", "wallet", "orders", "deposit", "quantity", "profile", "refstore", "freebies", "support", "history", "common"] as const;
 export type UiGroup = (typeof UI_GROUPS)[number];
 
@@ -302,6 +317,7 @@ export function uiBtn(
     text: customId ? label.trim() : `${glyph} ${label}`.trim(),
     callback_data,
     ...(customId ? { icon_custom_emoji_id: customId } : {}),
+    ...(BACK_UI_KEYS.has(key) ? { style: "danger" as const } : {}),
   };
 }
 

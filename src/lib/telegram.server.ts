@@ -235,7 +235,14 @@ export function styled(button: Button, style: ButtonStyle): Button {
  * declare a style (e.g. product rows = primary/blue) keep their own style.
  */
 function withDefaultStyle(rows: Button[][]): Button[][] {
-  return rows.map((row) => row.map((b) => (b.style ? b : { ...b, style: "success" as ButtonStyle })));
+  return rows.map((row) =>
+    row.map((b) => {
+      if (b.style) return b;
+      const label = b.text.replace(/[^\p{L}\p{N}& ]/gu, " ").replace(/\s+/g, " ").trim();
+      const isBackNavigation = /^(?:back(?: to .+)?|main menu)$/i.test(label);
+      return { ...b, style: isBackNavigation ? ("danger" as ButtonStyle) : ("success" as ButtonStyle) };
+    }),
+  );
 }
 
 export function sendMessage(
