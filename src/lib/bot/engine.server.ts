@@ -147,6 +147,7 @@ const SECTION_HEADS = {
   orders: "My orders page",
   profile: "Profile page",
   referral: "Referral page",
+  refstore: "Refer & Earn (rewards) page",
   support: "Support page",
   api: "Reseller API page",
 } as const;
@@ -853,7 +854,7 @@ async function referralView(user: any) {
   const kb: Button[][] = [
     [uiUrlBtn(s, "ref_share_btn", shareUrl(s, user))],
     [uiBtn(s, "ref_list_btn", "ref:list"), uiBtn(s, "prof_tiers_btn", "tiers")],
-    [uiBtn(s, "ref_profile_btn", "profile")],
+    [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")],
   ];
   return { text, kb };
 }
@@ -882,7 +883,7 @@ async function referralListView(user: any) {
     `${uiTag(s, "prof_earning")}: <b>${money(user.referral_earnings)}</b>`;
   const kb: Button[][] = [
     [uiUrlBtn(s, "ref_share_btn", shareUrl(s, user))],
-    [uiBtn(s, "ref_profile_btn", "profile")],
+    [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")],
   ];
   return { text, kb };
 }
@@ -1283,7 +1284,7 @@ async function refStoreView(user: any) {
   const link = refLink(s, user);
 
   const text =
-    `${uiTag(s, "ref_title")}\n──────────────\n` +
+    `${sectionHead(s, "refstore", `<b>${escapeHtml(uiText(s, "ref_title").toUpperCase().split("").join(" "))}</b>`)}\n──────────────\n` +
     `<b>How it works</b>\n` +
     `• Invite a brand-new member with <b>your link</b> — each one earns you <b>${per} credit${per > 1 ? "s" : ""}</b>.\n` +
     `• The credit lands once your friend opens the shop and <b>views a product</b>.\n` +
@@ -1307,7 +1308,7 @@ async function refStoreView(user: any) {
         ? `(${uiText(s, "ref_reward")})`
         : `(${uiText(s, "ref_locked")} ${r.credits - credits} more)`;
     const icon = btn.text.replace(uiText(s, key), "").trim();
-    return [{ ...btn, text: `${icon} ${r.name} | ${r.credits} ${suffix}`.trim() }];
+    return [{ ...btn, text: `${icon} ${r.name} | ${r.credits} ${suffix}`.trim(), style: "primary" as const }];
   });
 
   kb.push([
@@ -1318,7 +1319,7 @@ async function refStoreView(user: any) {
     uiBtn(s, "ref_purch_btn", "refbought", `(${st.purchases.length})`),
     uiBtn(s, "ref_earn_btn", "refearn"),
   ]);
-  kb.push([uiBtn(s, "ref_profile_btn", "profile")]);
+  kb.push([styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")]);
   return { text, kb };
 }
 
@@ -1334,7 +1335,7 @@ async function refPurchasesView(user: any) {
     s,
     "ref_credits",
   )} Credits left: <b>${refCredits(user)}</b>`;
-  return { text, kb: [[uiBtn(s, "prof_refer_btn", "refstore")], [uiBtn(s, "ref_profile_btn", "profile")]] };
+  return { text, kb: [[uiBtn(s, "prof_refer_btn", "refstore")], [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")]] };
 }
 
 
@@ -1368,7 +1369,7 @@ async function claimRefReward(user: any, rewardId: string) {
     text:
       `✅ <b>${escapeHtml(reward.name)}</b> claimed for <b>${reward.credits}</b> credits!\n\n` +
       `Our team will deliver it to you shortly right here in this chat.`,
-    kb: [[uiBtn(s, "prof_refer_btn", "refstore")], [uiBtn(s, "ref_profile_btn", "profile")]],
+    kb: [[uiBtn(s, "prof_refer_btn", "refstore")], [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")]],
   };
 }
 
@@ -1396,7 +1397,7 @@ async function redeemRefCredits(user: any) {
     );
   return {
     text: `💱 Redeemed <b>${credits}</b> credits → <b>${money(amount)}</b> added to your wallet.`,
-    kb: [[uiBtn(s, "prof_refer_btn", "refstore")], [uiBtn(s, "ref_profile_btn", "profile")]],
+    kb: [[uiBtn(s, "prof_refer_btn", "refstore")], [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")]],
   };
 }
 
