@@ -854,7 +854,7 @@ async function referralView(user: any) {
   const kb: Button[][] = [
     [uiUrlBtn(s, "ref_share_btn", shareUrl(s, user))],
     [uiBtn(s, "ref_list_btn", "ref:list"), uiBtn(s, "prof_tiers_btn", "tiers")],
-    [uiBtn(s, "ref_profile_btn", "profile")],
+    [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")],
   ];
   return { text, kb };
 }
@@ -883,7 +883,7 @@ async function referralListView(user: any) {
     `${uiTag(s, "prof_earning")}: <b>${money(user.referral_earnings)}</b>`;
   const kb: Button[][] = [
     [uiUrlBtn(s, "ref_share_btn", shareUrl(s, user))],
-    [uiBtn(s, "ref_profile_btn", "profile")],
+    [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")],
   ];
   return { text, kb };
 }
