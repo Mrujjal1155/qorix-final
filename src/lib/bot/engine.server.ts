@@ -751,7 +751,7 @@ async function homeText(user: any) {
   const botName = (s["bot_name"] || "SHOP").toUpperCase().split("").join(" ");
   const link = `https://t.me/${s["bot_username"] || "your_bot"}?start=ref_${user.ref_code}`;
   return (
-    `<b>${botName}</b>\n\n` +
+    `${sectionHead(s, "home", `<b>${botName}</b>`)}\n\n` +
     `${uiIconHtml(s, "home_greet")} ${uiText(s, "home_greet")}, <b>${escapeHtml(user.first_name ?? "friend")}</b>!\n` +
     `<i>${s["welcome_text"] ?? ""}</i>\n` +
     `──────────────\n` +
@@ -806,7 +806,7 @@ async function profileView(chatId: number, user: any) {
   const link = refLink(s, user);
 
   const text =
-    `<b>${escapeHtml(uiText(s, "prof_title").toUpperCase().split("").join(" "))}</b>\n` +
+    `${sectionHead(s, "profile", `<b>${escapeHtml(uiText(s, "prof_title").toUpperCase().split("").join(" "))}</b>`)}\n` +
     `──────────────\n` +
     `${uiTag(s, "prof_username")}: ${user.username ? "@" + escapeHtml(user.username) : "—"}\n` +
     `${uiTag(s, "prof_userid")}: <code>${user.telegram_id}</code>\n` +
@@ -843,7 +843,7 @@ async function referralView(user: any) {
   const pct = Number(s["referral_percent"] || 0);
   const link = refLink(s, user);
   const text =
-    `<b>${escapeHtml(uiText(s, "ref_title").toUpperCase().split("").join(" "))}</b>\n` +
+    `${sectionHead(s, "referral", `<b>${escapeHtml(uiText(s, "ref_title").toUpperCase().split("").join(" "))}</b>`)}\n` +
     `──────────────\n` +
     `${uiTag(s, "ref_rate")}: you earn <b>${pct}%</b> of every purchase your friends make — credited to your balance instantly.\n\n` +
     `${uiTag(s, "prof_refs")}: <b>${user.referral_count ?? 0}</b>\n` +
@@ -946,7 +946,7 @@ async function supportView() {
       "• <b>Video Proof:</b> Uncut video of purchase &amp; issue is mandatory for refund/replacement <i>(if stated in product description)</i>. No video = no refund.\n" +
       "• Technical assistance is provided for all orders.";
   const text =
-    `<b>${escapeHtml(uiText(s, "sup_title"))}</b>\n──────────────\n${body}\n\n` +
+    `${sectionHead(s, "support", `<b>${escapeHtml(uiText(s, "sup_title"))}</b>`)}\n──────────────\n${body}\n\n` +
     `⚠️ <b>Support Rules:</b>\n${rules}\n──────────────\n` +
     `${uiTag(s, "sup_admin")} — <a href="${escapeHtml(link)}">${escapeHtml(handle)}</a>`;
   const kb: Button[][] = [
@@ -1552,7 +1552,7 @@ async function shopView(page: number) {
       styled(iconButton(settings, "back", "home"), navStyle),
     ]);
     const text =
-      `${pageIconHtml(settings, "shop")} <b>C A T E G O R I E S</b>\n\n` +
+      `${sectionHead(settings, "shop", `${pageIconHtml(settings, "shop")} <b>C A T E G O R I E S</b>`)}\n\n` +
       `${uiIconHtml(settings, "shop_instock")} <b>${inStock} of ${products.length}</b> ${uiText(settings, "shop_instock")}\n` +
       `<i>Pick a category to see its products.</i>`;
     return { text, kb };
@@ -1621,7 +1621,7 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
 
 
   const text =
-    `${pageIconHtml(settings, "shop")} <b>${title}</b>\n\n` +
+    `${sectionHead(settings, "products", `${pageIconHtml(settings, "shop")} <b>${title}</b>`)}\n\n` +
     `${uiIconHtml(settings, "shop_instock")} <b>${inStock} of ${products.length}</b> ${uiText(settings, "shop_instock")}\n` +
     (flash.length
       ? `${uiTag(settings, "shop_flash")} — <b>${flash.length}</b> discounted item(s) live now\n`
@@ -1885,7 +1885,7 @@ async function cartView(user: any) {
   const { lines, total } = await cartDetails(user);
   if (!lines.length) {
     return {
-      text: `${pageIconHtml(settings, "cart")} <b>Y O U R   C A R T</b>\n\nYour cart is empty.\n\n<i>Browse the shop and tap “Add to Cart”.</i>`,
+      text: `${sectionHead(settings, "cart", `${pageIconHtml(settings, "cart")} <b>Y O U R   C A R T</b>`)}\n\nYour cart is empty.\n\n<i>Browse the shop and tap “Add to Cart”.</i>`,
       kb: [
         [iconButton(settings, "shop", "shop:0")],
         [uiBtn(settings, "cart_home", "home")],
@@ -1893,7 +1893,7 @@ async function cartView(user: any) {
     };
   }
 
-  let text = `${pageIconHtml(settings, "cart")} <b>Y O U R   C A R T</b>\n──────────────\n`;
+  let text = `${sectionHead(settings, "cart", `${pageIconHtml(settings, "cart")} <b>Y O U R   C A R T</b>`)}\n──────────────\n`;
   const kb: Button[][] = [];
   let issues = 0;
   for (const l of lines) {
@@ -1944,7 +1944,7 @@ async function walletView(user: any) {
   const cfg = await binanceConfig();
   const s = await getSettings();
   const text =
-    `${pageIconHtml(s, "wallet")} <b>W A L L E T</b>\n\n` +
+    `${sectionHead(s, "wallet", `${pageIconHtml(s, "wallet")} <b>W A L L E T</b>`)}\n\n` +
     `Your Balance and Spending Stats are:\n──────────────\n` +
     `💰 Balance: <b>${money(user.balance)}</b>\n` +
     `💎 Total Spent: ${money(user.total_spent)}\n` +
@@ -4836,7 +4836,7 @@ async function coView(chatId: number) {
   }
   const { lines, subtotal, discount, total, tierPct, tierOff } = await coTotals(meta, chatId);
   const settings = await getSettings();
-  let text = `${pageIconHtml(settings, "checkout")} <b>C H E C K O U T</b>\n──────────────\n`;
+  let text = `${sectionHead(settings, "checkout", `${pageIconHtml(settings, "checkout")} <b>C H E C K O U T</b>`)}\n──────────────\n`;
   for (const l of lines) {
     text += `${productIconHtml(l.product)} <b>${l.product.name}</b>\n   ${l.qty} × ${money(l.product.price)} = <b>${money(l.subtotal)}</b>\n`;
   }
@@ -5178,7 +5178,7 @@ async function ordersView(chatId: number, page = 0) {
   const current = Math.min(Math.max(0, page), pages - 1);
   const slice = rows.slice(current * ORDERS_PER_PAGE, current * ORDERS_PER_PAGE + ORDERS_PER_PAGE);
 
-  const head = `${pageIconHtml(settings, "orders")} <b>M Y   O R D E R S</b>`;
+  const head = sectionHead(settings, "orders", `${pageIconHtml(settings, "orders")} <b>M Y   O R D E R S</b>`);
   if (!rows.length) {
     return {
       text: `${head}\n\nYou have no orders yet.`,
@@ -6568,7 +6568,7 @@ async function apiPanelView(user: any) {
   if (!r) {
     return {
       text:
-        `${apiIcon(s, "panel")} <b>R E S E L L E R   A P I</b>\n` +
+        `${sectionHead(s, "api", `${apiIcon(s, "panel")} <b>R E S E L L E R   A P I</b>`)}\n` +
         `──────────────\n` +
         `Sell our whole catalogue from <b>your own website or bot</b>.\n\n` +
         `${apiIcon(s, "balance")} Your API balance pays the wholesale price\n` +
@@ -6592,7 +6592,7 @@ async function apiPanelView(user: any) {
   const alert = Number(r.low_bal_alert ?? 0);
 
   const text =
-    `${apiIcon(s, "panel")} <b>R E S E L L E R   A P I</b>\n` +
+    `${sectionHead(s, "api", `${apiIcon(s, "panel")} <b>R E S E L L E R   A P I</b>`)}\n` +
     `──────────────\n` +
     `${apiIcon(s, "account")} <i>Account</i>   <b>${escapeHtml(r.name)}</b> <code>#${r.account_no ?? "—"}</code>\n` +
     `${apiIcon(s, "status")} <i>Status</i>   <b>${r.is_active ? "Active" : "Revoked"}</b>\n` +
