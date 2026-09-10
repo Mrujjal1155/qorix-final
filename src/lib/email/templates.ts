@@ -186,3 +186,98 @@ export function testEmail(d: TestEmailData) {
     text: `Email delivery is working.\n\nThis is a test message from the ${d.siteName} admin panel.\nSent at: ${when}`,
   };
 }
+
+/* --------------------------------------------------- account verification */
+
+export interface AccountVerifyData {
+  siteName: string;
+  logoUrl?: string;
+  name?: string;
+  /** Confirmation link generated server-side (never a Supabase-sent email). */
+  verifyUrl: string;
+  /** Reseller signups get reseller-specific wording. */
+  reseller?: boolean;
+}
+
+export function accountVerifyEmail(d: AccountVerifyData) {
+  const what = d.reseller ? "reseller account" : "account";
+  const subject = `Confirm your email — ${d.siteName}`;
+  const inner = `
+    <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;">Confirm your email${d.name ? `, ${esc(d.name)}` : ""}</h1>
+    <p style="margin:0 0 18px;font-size:14px;color:${MUTED};line-height:1.6;">Your ${esc(what)} at ${esc(d.siteName)} is almost ready. Tap the button below to confirm this email address and activate your login.</p>
+    <p style="margin:0 0 18px;">${btn(d.verifyUrl, "Confirm my email")}</p>
+    <p style="margin:0 0 6px;font-size:12px;color:${MUTED};">Button not working? Copy this link into your browser:</p>
+    <p style="margin:0 0 18px;font-size:12px;word-break:break-all;"><a href="${esc(d.verifyUrl)}" style="color:${BRAND_DARK};">${esc(d.verifyUrl)}</a></p>
+    <p style="margin:0;font-size:13px;color:${MUTED};line-height:1.6;">This link expires in 24 hours. If you did not create this account, you can safely ignore this email.</p>`;
+  return {
+    subject,
+    html: shell(inner, d.siteName, d.logoUrl),
+    text: `Confirm your email for ${d.siteName}\n\nOpen this link to activate your ${what}:\n${d.verifyUrl}\n\nThe link expires in 24 hours.`,
+  };
+}
+
+/* ------------------------------------------- reseller application received */
+
+export interface ResellerApplicationData {
+  siteName: string;
+  logoUrl?: string;
+  name: string;
+  email: string;
+  channel?: string;
+  docsUrl: string;
+}
+
+export function resellerApplicationReceivedEmail(d: ResellerApplicationData) {
+  const subject = `We received your reseller application — ${d.siteName}`;
+  const inner = `
+    <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;">Thanks${d.name ? `, ${esc(d.name)}` : ""}!</h1>
+    <p style="margin:0 0 18px;font-size:14px;color:${MUTED};line-height:1.6;">Your reseller application has been received and is now under review. We usually reply within 24 hours — you will get another email as soon as your account is approved.</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 22px;">
+      ${row("Applicant", d.name || d.email)}
+      ${row("Email", d.email)}
+      ${d.channel ? row("Sales channel", d.channel) : ""}
+      ${row("Status", "Pending review")}
+    </table>
+    <p style="margin:0 0 8px;font-size:14px;">Meanwhile, you can read what the reseller API can do:</p>
+    <p style="margin:0 0 4px;">${btn(d.docsUrl, "Read the API docs")}</p>`;
+  return {
+    subject,
+    html: shell(inner, d.siteName, d.logoUrl),
+    text: `Thanks ${d.name || d.email}! Your ${d.siteName} reseller application is received and under review. API docs: ${d.docsUrl}`,
+  };
+}
+
+export interface AdminResellerApplicationData {
+  siteName: string;
+  logoUrl?: string;
+  name: string;
+  email: string;
+  telegram?: string;
+  website?: string;
+  channel?: string;
+  monthlyVolume?: string;
+  message?: string;
+  adminUrl: string;
+}
+
+export function adminNewResellerApplicationEmail(d: AdminResellerApplicationData) {
+  const subject = `🧾 New reseller application — ${d.name || d.email}`;
+  const inner = `
+    <h1 style="margin:0 0 6px;font-size:20px;font-weight:700;">New reseller application</h1>
+    <p style="margin:0 0 18px;font-size:14px;color:${MUTED};">Someone applied for a reseller account and is waiting for review.</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 22px;">
+      ${row("Name", d.name || "—")}
+      ${row("Email", d.email)}
+      ${d.telegram ? row("Telegram", d.telegram) : ""}
+      ${d.website ? row("Website", d.website) : ""}
+      ${d.channel ? row("Channel", d.channel) : ""}
+      ${d.monthlyVolume ? row("Monthly volume", d.monthlyVolume) : ""}
+    </table>
+    ${d.message ? `<p style="margin:0 0 18px;font-size:14px;line-height:1.6;white-space:pre-wrap;">${esc(d.message)}</p>` : ""}
+    ${btn(d.adminUrl, "Review application")}`;
+  return {
+    subject,
+    html: shell(inner, d.siteName, d.logoUrl),
+    text: `New reseller application from ${d.name || d.email} (${d.email}). Review: ${d.adminUrl}`,
+  };
+}
