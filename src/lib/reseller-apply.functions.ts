@@ -50,6 +50,52 @@ export const submitResellerApplication = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
 
+    // Branded "we received your application" email + admin notification,
+    // both through our own Resend sender (never Supabase email).
+    try {
+      const { sendResendEmail, getEmailBrand, getEmailConfig } = await import("@/lib/email/resend.server");
+      const { siteName, logoUrl } = await getEmailBrand();
+      const { resellerApplicationReceivedEmail, adminNewResellerApplicationEmail } = await import(
+        "@/lib/email/templates"
+      );
+
+      await sendResendEmail({
+        to: email,
+        kind: "reseller",
+        ...resellerApplicationReceivedEmail({
+          siteName,
+          logoUrl,
+          name,
+          email,
+          channel,
+          docsUrl: productionUrlFor("/reseller/docs"),
+        }),
+      });
+
+      const cfg = await getEmailConfig();
+      if (cfg.notifyEmail) {
+        await sendResendEmail({
+          to: cfg.notifyEmail,
+          kind: "admin_notify",
+          replyTo: email,
+          ...adminNewResellerApplicationEmail({
+            siteName,
+            logoUrl,
+            name,
+            email,
+            telegram: clean(data.telegram, 80),
+            website: clean(data.website, 200),
+            channel,
+            monthlyVolume: clean(data.monthly_volume, 60),
+            message: clean(data.message, 2000),
+            adminUrl: productionUrlFor("/admin/resellers"),
+          }),
+        });
+      }
+    } catch (e) {
+      console.error("[email] reseller application email failed:", e);
+    }
+
     return { ok: true, duplicate: false };
 
   });

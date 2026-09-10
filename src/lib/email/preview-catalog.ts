@@ -4,7 +4,14 @@
  * and request a rendered preview from the server.
  */
 
-export type EmailTemplateId = "order_receipt" | "admin_new_order" | "reseller_approved" | "test";
+export type EmailTemplateId =
+  | "order_receipt"
+  | "admin_new_order"
+  | "account_verify"
+  | "reseller_application"
+  | "admin_reseller_application"
+  | "reseller_approved"
+  | "test";
 
 export interface EmailTemplateMeta {
   id: EmailTemplateId;
