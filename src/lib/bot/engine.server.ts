@@ -3705,6 +3705,36 @@ async function handleMessage(msg: any) {
       await premiumEmojiNote(chatId, value);
       return;
     }
+    case "adm_page_head": {
+      state.awaiting = null;
+      const headKey = String(state.adm_page_head ?? "") as SectionHeadKey;
+      await setState(chatId, state);
+      if (!(await isAdmin(chatId)) || !(headKey in SECTION_HEADS)) return;
+      const rawHead = (text ?? "").trim();
+      const value = rawHead === "-" ? "" : headerHtmlFromMessage(msg, text);
+      if (rawHead !== "-" && !value) {
+        await say(
+          chatId,
+          "❌ I could not read a header there.\n\nSend the title as one message (Premium emoji letters, normal emoji or text). Send <code>-</code> to reset.",
+          ADM_BACK,
+        );
+        return;
+      }
+      try {
+        await saveIconSetting(`page_head_${headKey}`, value);
+      } catch (e) {
+        await say(chatId, saveFailText(e), ADM_BACK);
+        return;
+      }
+      const hv = await admSectionHeadView();
+      await say(
+        chatId,
+        `✅ ${escapeHtml(SECTION_HEADS[headKey])} header ${value ? `updated →\n${value}` : "reset to default"}\n\n${hv.text}`,
+        hv.kb,
+      );
+      await premiumEmojiNote(chatId, value ? "1|x" : "");
+      return;
+    }
     case "adm_alert_icon": {
       state.awaiting = null;
       const alertKey = String(state.adm_alert_icon ?? "") as AlertIconKey;
@@ -3917,6 +3947,7 @@ export function adminKeyboard(): Button[][] {
       { text: "💳 Payment icons", callback_data: "adm:paymenticons" },
       { text: "🖼 Page icons", callback_data: "adm:pageicons" },
     ],
+    [{ text: "🔠 Section headers", callback_data: "adm:heads" }],
     [
       { text: "🔌 API icons", callback_data: "adm:apiicons" },
       { text: "🗂 Category icons", callback_data: "adm:caticons" },
@@ -4505,6 +4536,34 @@ async function admPageIconView() {
   };
 }
 
+
+/** Section headers — a full Premium-emoji title line for every bot page. */
+async function admSectionHeadView() {
+  const settings = await getSettings();
+  const keys = Object.keys(SECTION_HEADS) as SectionHeadKey[];
+  const kb: Button[][] = keys.map((key) => [
+    {
+      text: `${String(settings[`page_head_${key}`] ?? "").trim() ? "✨" : "▫️"} ${SECTION_HEADS[key]}`,
+      callback_data: `adm:hd:${key}`,
+    },
+  ]);
+  kb.push(ADM_BACK[0]!);
+  const list = keys
+    .map((key) => {
+      const v = String(settings[`page_head_${key}`] ?? "").trim();
+      return `<b>${escapeHtml(SECTION_HEADS[key])}</b> — ${v || "<i>default</i>"}`;
+    })
+    .join("\n");
+  return {
+    text:
+      "🔠 <b>Section headers</b>\n\n" +
+      "Pick a page, then send the title exactly as you want it on top of that page — " +
+      "a line of <b>Telegram Premium emoji letters</b> (like the P R O D U C T S banner), normal emoji or plain text.\n" +
+      "Send <code>-</code> to restore the default header.\n\n" +
+      `<b>Current headers</b>\n${list}`,
+    kb,
+  };
+}
 
 /** Button colors — pick the native Telegram colour for each group of buttons. */
 async function admButtonColorView() {
@@ -6290,6 +6349,19 @@ async function handleCallback(cq: any) {
       await upsertSetting({ key: `ui_text_${arg}`, value: "" }, { onConflict: "key" });
       const v = await admUiItemView(arg as UiKey);
       await edit(v.text, v.kb);
+    } else if (action === "heads") {
+      const v = await admSectionHeadView();
+      await edit(v.text, v.kb);
+    } else if (action.startsWith("hd:")) {
+      const headKey = arg as SectionHeadKey;
+      if (!(headKey in SECTION_HEADS)) return;
+      await setState(chatId, { ...st, awaiting: "adm_page_head", adm_page_head: headKey });
+      await say(
+        chatId,
+        `🔠 Send the new header for <b>${escapeHtml(SECTION_HEADS[headKey])}</b>.\n\n` +
+          "Type the Premium emoji letters (or any emoji / text) in one message — it is stored exactly as sent. " +
+          "Send <code>-</code> to restore the default header.",
+      );
     } else if (action.startsWith("pi:")) {
       const pageKey = arg as PageIconKey;
       if (!(pageKey in PAGE_ICONS)) return;
