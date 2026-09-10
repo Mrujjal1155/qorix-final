@@ -682,17 +682,10 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
     })),
   ]);
 
-  // Batched catalogue write (chunked so one payload never gets too large).
-  for (let i = 0; i < rowsToWrite.length; i += 200) {
-    const { error } = await sb
-      .from("supplier_products")
-      .upsert(rowsToWrite.slice(i, i + 200), { onConflict: "supplier_id,external_id" });
-    if (error) throw new Error(`Could not save ${s.name} catalogue: ${error.message}`);
-  }
-
-  // Merge the patches with the rows already fetched above, then upsert them in
-  // chunks. This turns hundreds of per-product HTTP subrequests into only a
-  // handful, staying safely below Cloudflare's per-invocation request limit.
+  // LIVE STOCK FIRST. The storefront/bot read `products.supplier_stock`, so the
+  // customer-visible number must never lag behind the snapshot we diff against.
+  // If a run is cut short after the snapshot write but before this one, the
+  // next sync would see "no change" and the shown stock would stay wrong.
   const productsToWrite = productUpdates.flatMap(({ id, patch }) => {
     const current = productsById.get(id);
     return current ? [{ ...current, ...patch }] : [];
@@ -701,6 +694,23 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
     const { error } = await sb.from("products").upsert(productsToWrite.slice(i, i + 200), { onConflict: "id" });
     if (error) throw new Error(`Could not update live stock: ${error.message}`);
   }
+
+  // Batched catalogue write (chunked so one payload never gets too large).
+  for (let i = 0; i < rowsToWrite.length; i += 200) {
+    const { error } = await sb
+      .from("supplier_products")
+      .upsert(rowsToWrite.slice(i, i + 200), { onConflict: "supplier_id,external_id" });
+    if (error) throw new Error(`Could not save ${s.name} catalogue: ${error.message}`);
+  }
+
+  // Mark the supplier as synced as soon as both writes landed — the remaining
+  // work (alert feed, auto-listing new products) is optional extra and must not
+  // make a healthy run look stale in the admin health panel.
+  await sb
+    .from("suppliers")
+    .update({ last_synced_at: now, last_status: `Synced ${uniqueRemote.length} products` })
+    .eq("id", s.id);
+
 
   // The manual admin sync already has an authenticated admin client. Reuse it
   // instead of requiring the separately configured service-role secret.
@@ -809,10 +819,7 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
 
   const added = alerts.filter((a) => a.kind === "new").length;
   const restocked = restockPosts.length;
-  await sb
-    .from("suppliers")
-    .update({ last_synced_at: now, last_status: `Synced ${uniqueRemote.length} products` })
-    .eq("id", s.id);
+
 
   return {
     ok: true,
