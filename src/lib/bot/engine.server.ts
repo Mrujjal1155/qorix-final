@@ -132,6 +132,66 @@ export function pageIconHtml(settings: Record<string, string>, key: PageIconKey)
 }
 
 /**
+ * Section headers — the big "P R O D U C T S" / "W A L L E T" style title on
+ * top of every bot page. Admins can replace each one with a line built from
+ * Telegram Premium custom emoji (letter emoji), sent straight from Bot Admin.
+ * Stored under `page_head_<key>` as ready-to-send Telegram HTML.
+ */
+const SECTION_HEADS = {
+  home: "Home / start page",
+  shop: "Shop · categories",
+  products: "Products list",
+  cart: "Cart page",
+  checkout: "Checkout page",
+  wallet: "Wallet page",
+  orders: "My orders page",
+  profile: "Profile page",
+  referral: "Referral page",
+  support: "Support page",
+  api: "Reseller API page",
+} as const;
+
+type SectionHeadKey = keyof typeof SECTION_HEADS;
+
+/** Admin header line when configured, otherwise the built-in header. */
+function sectionHead(settings: Record<string, string>, key: SectionHeadKey, fallbackHtml: string) {
+  const v = String(settings[`page_head_${key}`] ?? "").trim();
+  return v || fallbackHtml;
+}
+
+/**
+ * Turns an admin message into Telegram HTML, keeping every Premium custom
+ * emoji it contains — that is how a whole "PRODUCTS" banner is captured.
+ */
+function headerHtmlFromMessage(msg: any, text: string): string {
+  const raw = String(text ?? "");
+  const entities: any[] = [...(msg?.entities ?? []), ...(msg?.caption_entities ?? [])]
+    .filter((e: any) => e?.type === "custom_emoji" && e?.custom_emoji_id)
+    .sort((a: any, b: any) => a.offset - b.offset);
+
+  if (!raw.trim()) {
+    const st = msg?.sticker;
+    if (st?.custom_emoji_id) {
+      return `<tg-emoji emoji-id="${st.custom_emoji_id}">${escapeHtml(String(st.emoji ?? "⭐"))}</tg-emoji>`;
+    }
+    return "";
+  }
+
+  let out = "";
+  let pos = 0;
+  for (const e of entities) {
+    const offset = Number(e.offset ?? 0);
+    const length = Number(e.length ?? 0);
+    if (offset < pos) continue;
+    out += escapeHtml(raw.slice(pos, offset));
+    out += `<tg-emoji emoji-id="${e.custom_emoji_id}">${escapeHtml(raw.slice(offset, offset + length))}</tg-emoji>`;
+    pos = offset + length;
+  }
+  out += escapeHtml(raw.slice(pos));
+  return out.trim();
+}
+
+/**
  * Icons used inside the stock / price alert cards. Admin can replace every one
  * of them with a Telegram Premium custom emoji from /admin → Alert icons.
  */
