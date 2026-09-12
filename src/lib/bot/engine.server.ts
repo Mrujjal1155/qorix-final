@@ -5912,7 +5912,29 @@ async function handleCallback(cq: any) {
       return;
     }
 
+    if (method === "eps_mfs" || method === "eps_card") {
+      const channel: EpsChannel = method === "eps_card" ? "card" : "mfs";
+      const er = await startEpsDeposit(chatId, channel, total, {
+        items: meta.items,
+        coupon: meta.coupon ?? null,
+        summary: meta.summary ?? "",
+        total,
+      });
+      if ("error" in er && er.error) {
+        await edit(`❌ ${escapeHtml(er.error)}`, [[{ text: "⬅️ Back", callback_data: "copay" }]]);
+        return;
+      }
+      const es = await getSettings();
+      const ev = epsView((er as any).row, es);
+      await edit(
+        `${uiIconHtml(es, "dep_order_tag")} <b>${escapeHtml(uiText(es, "dep_order_tag"))}:</b> ${escapeHtml(meta.summary ?? "")}\n\n${ev.text}`,
+        ev.kb,
+      );
+      return;
+    }
+
     if (method.startsWith("pk_")) {
+
       const pkr = await startPaykoriDeposit(chatId, method.slice(3), total, {
         items: meta.items,
         coupon: meta.coupon ?? null,
