@@ -4994,10 +4994,81 @@ async function coPayView(chatId: number) {
   };
 }
 
+/** Minutes an unpaid gateway checkout stays open before it is failed automatically. */
+const AWAITING_PAYMENT_MINUTES = 30;
+
+/**
+ * Create one "awaiting payment" order per line the moment a gateway link is
+ * made, so the buyer always has an order id to quote in support — even when
+ * they never pay, or pay a little less than asked.
+ */
+async function createAwaitingOrders(chatId: number, meta: CoMeta, depositId: string, gateway: string) {
+  const { lines, discount } = await coTotals(meta, chatId);
+  if (!lines.length) return [] as any[];
+  const share = discount / lines.length;
+  const rows = lines.map((l) => ({
+    telegram_id: chatId,
+    product_id: l.product.id,
+    product_name: l.product.name,
+    quantity: l.qty,
+    unit_price: l.product.price,
+    total: Math.max(0, Math.round((l.subtotal - share) * 100) / 100),
+    status: "awaiting_payment",
+    delivery_type: l.product.delivery_type,
+    coupon_code: meta.coupon?.code ?? null,
+    discount: Math.round(share * 100) / 100,
+    meta: { deposit_id: depositId, gateway, awaiting_payment: true },
+  }));
+  const { data } = await db.from("orders").insert(rows).select("id,order_no");
+  return (data ?? []) as any[];
+}
+
+/** Fail every checkout that stayed unpaid for 30 minutes (admin can still revive it). */
+export async function expireAwaitingOrders() {
+  const cutoff = new Date(Date.now() - AWAITING_PAYMENT_MINUTES * 60_000).toISOString();
+  const { data } = await db
+    .from("orders")
+    .select("id,meta")
+    .eq("status", "awaiting_payment")
+    .lt("created_at", cutoff)
+    .limit(200);
+  if (!data?.length) return 0;
+  await db
+    .from("orders")
+    .update({ status: "failed" })
+    .in("id", data.map((o: any) => o.id));
+  const deposits = [...new Set(data.map((o: any) => (o.meta ?? {}).deposit_id).filter(Boolean))];
+  if (deposits.length) {
+    await db
+      .from("binance_deposits")
+      .update({ status: "expired" })
+      .in("id", deposits as string[])
+      .neq("status", "credited");
+  }
+  return data.length;
+}
+
 /** Create the paid orders, deliver instantly or notify the admin for manual delivery. */
-async function fulfillCheckout(chatId: number, meta: CoMeta, methodKey: string, reference: string) {
+async function fulfillCheckout(
+  chatId: number,
+  meta: CoMeta,
+  methodKey: string,
+  reference: string,
+  depositId?: string | null,
+) {
   const { lines, discount, total } = await coTotals(meta, chatId);
   let user = await getUser(chatId);
+  const awaitingRows: any[] = depositId
+    ? ((
+        await db
+          .from("orders")
+          .select("id,product_id,quantity")
+          .eq("telegram_id", chatId)
+          .eq("status", "awaiting_payment")
+          .contains("meta", { deposit_id: depositId })
+      ).data ?? [])
+    : [];
+
 
   // Charge the order total atomically. The DB refuses the debit when the
   // balance is too low, so double-tapping / racing callbacks can never get
