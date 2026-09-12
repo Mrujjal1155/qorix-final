@@ -47,11 +47,7 @@ const CURRENCY_FLAG: Record<Currency, string> = {
 import { useT } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useSiteContent } from "@/lib/use-site-content";
-import { siteContacts, sitePayments, type SiteLink } from "@/lib/site-content";
-import footerPayDesktopDark from "@/assets/footer-pay-desktop-dark.png.asset.json";
-import footerPayDesktopLight from "@/assets/footer-pay-desktop-light.png.asset.json";
-import footerPayMobileDark from "@/assets/footer-pay-mobile-dark.png.asset.json";
-import footerPayMobileLight from "@/assets/footer-pay-mobile-light.png.asset.json";
+import { siteContacts, type SiteLink } from "@/lib/site-content";
 import { Clock } from "lucide-react";
 
 function useSignedIn() {
@@ -213,7 +209,6 @@ export function StoreShell({ children }: { children: ReactNode }) {
 
   const nav = links("site_nav");
   const socials = links("site_socials");
-  const payments = sitePayments(site);
   const more = links("site_footer_categories_more")[0];
   const whatsapp = v("site_whatsapp");
   const brandLogo = v("site_brand_logo");
@@ -519,62 +514,7 @@ export function StoreShell({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          {payments.length ? (
-            <div className="mt-12 flex flex-wrap items-center justify-center gap-3 border-t border-border/60 pt-8">
-              <span className="mr-2 text-sm font-medium text-muted-foreground">{t(v("site_payments_label"))}</span>
-              {payments.map((p, i) =>
-                p.image ? (
-                  <span
-                    key={`${p.label}-${i}`}
-                    className="inline-flex h-9 min-w-[74px] items-center justify-center overflow-hidden rounded-md border border-border/70 px-2"
-                    style={{ backgroundColor: p.bg || undefined }}
-                    title={p.label}
-                  >
-                    <img src={p.image} alt={p.label} loading="lazy" className="max-h-6 w-auto object-contain" />
-                  </span>
-                ) : (
-                  <span
-                    key={`${p.label}-${i}`}
-                    className="inline-flex h-9 min-w-[74px] items-center justify-center rounded-md border border-border/70 px-3 text-[11px] font-bold tracking-wide"
-                    style={{ backgroundColor: p.bg || undefined, color: p.color || "#fff" }}
-                  >
-                    {p.label}
-                  </span>
-                ),
-              )}
-            </div>
-          ) : null}
-
-          <div className="mt-10 flex flex-col items-center gap-4">
-            {/* Desktop banner — light version in light mode, dark version in dark mode */}
-            <img
-              src={footerPayDesktopLight.url}
-              alt="We accept Visa, Mastercard, American Express, bKash, Nagad, Rocket and more — verified by EPS"
-              loading="lazy"
-              className="hidden w-full max-w-5xl rounded-xl md:block dark:md:hidden"
-            />
-            <img
-              src={footerPayDesktopDark.url}
-              alt="We accept Visa, Mastercard, American Express, bKash, Nagad, Rocket and more — verified by EPS"
-              loading="lazy"
-              className="hidden w-full max-w-5xl rounded-xl dark:md:block"
-            />
-            {/* Mobile banner */}
-            <img
-              src={footerPayMobileLight.url}
-              alt="We accept Visa, Mastercard, American Express, bKash, Nagad, Rocket and more — verified by EPS"
-              loading="lazy"
-              className="w-full max-w-md rounded-xl md:hidden dark:hidden"
-            />
-            <img
-              src={footerPayMobileDark.url}
-              alt="We accept Visa, Mastercard, American Express, bKash, Nagad, Rocket and more — verified by EPS"
-              loading="lazy"
-              className="hidden w-full max-w-md rounded-xl dark:block md:dark:hidden"
-            />
-          </div>
-
-          <div className="mt-8 border-t border-border/60 pt-6 text-center text-sm text-muted-foreground">
+          <div className="mt-12 border-t border-border/60 pt-6 text-center text-sm text-muted-foreground">
             {copyright}
           </div>
         </div>
