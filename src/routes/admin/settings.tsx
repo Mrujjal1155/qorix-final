@@ -782,6 +782,14 @@ function SettingsPage() {
       icon: Smartphone,
       render: () => paykoriCard,
     },
+    {
+      id: "eps",
+      title: "Website payments (EPS)",
+      description: "bKash, Nagad, Rocket, Visa and Mastercard on the website checkout.",
+      icon: Smartphone,
+      render: () => epsCard,
+    },
+
 
     {
       id: "config",
