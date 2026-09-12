@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 
 import { getStoreProduct, getStorePayInfo } from "@/lib/shop.functions";
-import { CategoryIcon } from "@/components/CategoryIcon";
+import { SmartImage } from "@/components/SmartImage";
 import { useT } from "@/lib/i18n";
 import { StoreShell } from "@/components/StoreShell";
 import { Button } from "@/components/ui/button";
