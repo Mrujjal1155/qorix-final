@@ -48,6 +48,10 @@ import { useT } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useSiteContent } from "@/lib/use-site-content";
 import { siteContacts, sitePayments, type SiteLink } from "@/lib/site-content";
+import footerPayDesktopDark from "@/assets/footer-pay-desktop-dark.png.asset.json";
+import footerPayDesktopLight from "@/assets/footer-pay-desktop-light.png.asset.json";
+import footerPayMobileDark from "@/assets/footer-pay-mobile-dark.png.asset.json";
+import footerPayMobileLight from "@/assets/footer-pay-mobile-light.png.asset.json";
 import { Clock } from "lucide-react";
 
 function useSignedIn() {
@@ -540,6 +544,38 @@ export function StoreShell({ children }: { children: ReactNode }) {
               )}
             </div>
           ) : null}
+
+          <div className="mt-10 flex flex-col items-center gap-4">
+            <span className="text-sm font-medium text-muted-foreground">
+              {t(v("site_payments_label"))}
+            </span>
+            {/* Desktop banner */}
+            <img
+              src={footerPayDesktopDark.url}
+              alt="We accept Visa, Mastercard, American Express, bKash, Nagad, Rocket and more — verified by EPS"
+              loading="lazy"
+              className="hidden w-full max-w-5xl rounded-xl md:block dark:hidden"
+            />
+            <img
+              src={footerPayDesktopLight.url}
+              alt="We accept Visa, Mastercard, American Express, bKash, Nagad, Rocket and more — verified by EPS"
+              loading="lazy"
+              className="hidden w-full max-w-5xl rounded-xl dark:md:block"
+            />
+            {/* Mobile banner */}
+            <img
+              src={footerPayMobileDark.url}
+              alt="We accept Visa, Mastercard, American Express, bKash, Nagad, Rocket and more — verified by EPS"
+              loading="lazy"
+              className="w-full max-w-md rounded-xl md:hidden dark:hidden"
+            />
+            <img
+              src={footerPayMobileLight.url}
+              alt="We accept Visa, Mastercard, American Express, bKash, Nagad, Rocket and more — verified by EPS"
+              loading="lazy"
+              className="hidden w-full max-w-md rounded-xl dark:block md:dark:hidden"
+            />
+          </div>
 
           <div className="mt-8 border-t border-border/60 pt-6 text-center text-sm text-muted-foreground">
             {copyright}
