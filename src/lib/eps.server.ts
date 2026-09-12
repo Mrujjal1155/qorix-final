@@ -235,7 +235,10 @@ export async function initializePayment(cfg: EpsConfig, input: EpsInitInput) {
     merchantId: cfg.merchantId,
     storeId: cfg.storeId,
     CustomerOrderId: input.customerOrderId,
+    // EPS accepts the typo'd key in its docs, but only the correctly spelled
+    // one actually registers the transaction — send both.
     merchantTransactonId: input.merchantTransactionId,
+    merchantTransactionId: input.merchantTransactionId,
     TransactionTypeId: 1,
     totalAmount: Number(input.amountBdt.toFixed(2)),
     successUrl: input.successUrl,
