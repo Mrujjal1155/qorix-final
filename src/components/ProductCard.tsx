@@ -47,18 +47,14 @@ export function ProductCard({
         search={{ buy: false }}
         className="relative block aspect-[4/3] overflow-hidden bg-secondary/60"
       >
-        {product.image_url ? (
-          <img
-            src={product.image_url}
-            alt={product.name}
-            loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-          />
-        ) : (
-          <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-primary/15 to-chart-4/15 text-primary">
-            <CategoryIcon name={product.name} className="h-16 w-16" />
-          </span>
-        )}
+        <SmartImage
+          src={product.image_url}
+          alt={product.name}
+          priority={priority}
+          sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 320px"
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+        />
+      </Link>
 
         {/* top badge row */}
         <div className="pointer-events-none absolute inset-x-2 top-2 flex items-start justify-between gap-2">
