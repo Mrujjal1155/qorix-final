@@ -51,6 +51,13 @@ function isH3SwallowedErrorBody(body: string): boolean {
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      // Let bookkeeping run after the response instead of delaying it.
+      try {
+        const { setExecutionCtx } = await import("./lib/bg.server");
+        setExecutionCtx(ctx);
+      } catch {
+        /* non-worker runtime → background work is awaited inline */
+      }
       // Keep the Telegram webhook registered without any manual step.
       try {
         const { ensureWebhookOnce } = await import("./lib/bot/ensure-webhook.server");
