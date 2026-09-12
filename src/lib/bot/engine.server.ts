@@ -5148,12 +5148,20 @@ async function coPayView(chatId: number) {
     kb.push([uiBtn(settings, "pay_trc20", "copm:TRX")]);
   }
   {
-    const { paykoriConfig } = await import("@/lib/paykori.server");
-    const pk = paykoriConfig(settings);
-    if (pk.enabled) {
-      for (const m of pk.methods) kb.push([uiBtn(settings, `pay_${m}` as any, `copm:pk_${m}`)]);
+    const { epsConfig } = await import("@/lib/eps.server");
+    const eps = epsConfig(settings);
+    if (eps.enabled) {
+      kb.push([mfsBtn(settings, "pay_mfs", "copm:eps_mfs")]);
+      kb.push([uiBtn(settings, "pay_card", "copm:eps_card")]);
+    } else {
+      const { paykoriConfig } = await import("@/lib/paykori.server");
+      const pk = paykoriConfig(settings);
+      if (pk.enabled) {
+        for (const m of pk.methods) kb.push([uiBtn(settings, `pay_${m}` as any, `copm:pk_${m}`)]);
+      }
     }
   }
+
   kb.push([uiBtn(settings, "pay_back", "co")]);
 
   const items = lines
