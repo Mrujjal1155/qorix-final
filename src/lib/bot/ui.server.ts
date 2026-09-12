@@ -76,6 +76,14 @@ export const UI_ELEMENTS = {
   pay_nagad: { icon: "📲", label: "Nagad", group: "payment" },
   pay_rocket: { icon: "🚀", label: "Rocket", group: "payment" },
 
+  /* Merged EPS options (one mobile-banking row + one card row) */
+  pay_mfs: { icon: "🏦", label: "bKash · Nagad · Rocket", group: "payment" },
+  pay_card: { icon: "💳", label: "Visa · Mastercard", group: "payment" },
+  /* The three Premium emoji shown inside the mobile-banking row */
+  mfs_bkash: { icon: "📱", label: "bKash icon (merged row)", group: "payment" },
+  mfs_nagad: { icon: "📲", label: "Nagad icon (merged row)", group: "payment" },
+  mfs_rocket: { icon: "🚀", label: "Rocket icon (merged row)", group: "payment" },
+
   pay_back: { icon: "⬅️", label: "Back", group: "payment" },
   pay_title: { icon: "💳", label: "Select Payment Method", group: "payment" },
   pay_item_total: { icon: "🧾", label: "Total", group: "payment" },
@@ -86,6 +94,9 @@ export const UI_ELEMENTS = {
   wal_bkash: { icon: "📱", label: "bKash", group: "wallet" },
   wal_nagad: { icon: "📲", label: "Nagad", group: "wallet" },
   wal_rocket: { icon: "🚀", label: "Rocket", group: "wallet" },
+  wal_mfs: { icon: "🏦", label: "bKash · Nagad · Rocket", group: "wallet" },
+  wal_card: { icon: "💳", label: "Visa · Mastercard", group: "wallet" },
+
 
   wal_redeem: { icon: "🎟", label: "Redeem Code", group: "wallet" },
   wal_history: { icon: "🧾", label: "Transaction History", group: "wallet" },
