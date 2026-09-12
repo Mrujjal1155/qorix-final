@@ -1963,23 +1963,32 @@ async function walletView(user: any) {
     kb.push([wBtn(uiBtn(s, "wal_binance", "dep:binance", cfg.live ? "(auto)" : "(manual)"))]);
   if (cfg.active && cfg.crypto && cfg.live) kb.push([wBtn(uiBtn(s, "wal_usdt", "dep:usdt"))]);
   {
-    const { paykoriConfig, PAYKORI_METHODS } = await import("@/lib/paykori.server");
-    const pk = paykoriConfig(s);
-    if (pk.enabled) {
-      const row: Button[] = [];
-      for (const m of pk.methods) {
-        row.push(wBtn(uiBtn(s, `wal_${m}` as any, `pkr:${m}`, "(auto)")));
-        if (row.length === 2) {
-          kb.push([...row]);
-          row.length = 0;
-        }
-      }
-      if (row.length) kb.push([...row]);
-      void PAYKORI_METHODS;
+    // Merged EPS rows: one for bKash/Nagad/Rocket, one for cards.
+    const { epsConfig } = await import("@/lib/eps.server");
+    const eps = epsConfig(s);
+    if (eps.enabled) {
+      kb.push([wBtn(mfsBtn(s, "wal_mfs", "dep:eps:mfs", "(auto)"))]);
+      kb.push([wBtn(uiBtn(s, "wal_card", "dep:eps:card", "(auto)"))]);
     } else {
-      kb.push([wBtn(uiBtn(s, "wal_bkash", "dep:bkash")), wBtn(uiBtn(s, "wal_nagad", "dep:nagad"))]);
+      const { paykoriConfig, PAYKORI_METHODS } = await import("@/lib/paykori.server");
+      const pk = paykoriConfig(s);
+      if (pk.enabled) {
+        const row: Button[] = [];
+        for (const m of pk.methods) {
+          row.push(wBtn(uiBtn(s, `wal_${m}` as any, `pkr:${m}`, "(auto)")));
+          if (row.length === 2) {
+            kb.push([...row]);
+            row.length = 0;
+          }
+        }
+        if (row.length) kb.push([...row]);
+        void PAYKORI_METHODS;
+      } else {
+        kb.push([wBtn(uiBtn(s, "wal_bkash", "dep:bkash")), wBtn(uiBtn(s, "wal_nagad", "dep:nagad"))]);
+      }
     }
   }
+
 
   kb.push([wBtn(uiBtn(s, "wal_redeem", "redeem"))]);
   kb.push([wBtn(uiBtn(s, "wal_history", "hist:0"))]);
