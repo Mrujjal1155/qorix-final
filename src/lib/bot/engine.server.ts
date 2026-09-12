@@ -2211,7 +2211,7 @@ async function settlePayment(chatId: number, row: any, amount: number, txid: str
     });
     const fresh = await getUser(chatId);
     await db.from("bot_users").update({ balance: Number(fresh.balance) + amount }).eq("telegram_id", chatId);
-    const res = await fulfillCheckout(chatId, meta, methodKey, txid);
+    const res = await fulfillCheckout(chatId, meta, methodKey, txid, row.id);
     return { message: res.text, keyboard: res.kb };
   }
 
@@ -2509,6 +2509,9 @@ let lastSweep = 0;
 export async function sweepBinanceDeposits(force = false) {
   if (!force && Date.now() - lastSweep < 45_000) return { skipped: true, settled: 0 };
   lastSweep = Date.now();
+
+  // Unpaid / underpaid checkouts stop hanging forever.
+  await expireAwaitingOrders().catch((e) => console.error("Awaiting order expiry failed:", e));
 
   const nowIso = new Date().toISOString();
   const { data: rows } = await db
