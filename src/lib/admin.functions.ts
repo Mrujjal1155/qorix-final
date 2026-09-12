@@ -555,12 +555,25 @@ export const setOrderStatus = createServerFn({ method: "POST" })
     (d: { id: string; status: "pending" | "completed" | "cancelled" | "failed" | "refunded" }) => d,
   )
   .handler(async ({ data, context }) => {
+    const sb = (context as any).supabase;
     await assertAdmin(context);
-    const { error } = await (context as any).supabase
+    const { data: order, error } = await sb
       .from("orders")
       .update({ status: data.status })
-      .eq("id", data.id);
+      .eq("id", data.id)
+      .select("*")
+      .maybeSingle();
     if (error) throw new Error(error.message);
+    // Let the buyer know on Telegram when an admin cancels their order.
+    if (order?.telegram_id && data.status === "cancelled") {
+      const { sendMessage } = await import("@/lib/telegram.server");
+      await sendMessage(
+        Number(order.telegram_id),
+        `\u{1F6AB} <b>Order #${order.order_no}</b> has been cancelled.\n` +
+          `Product: ${order.product_name}\n` +
+          `If you already paid, please open a support ticket — we will refund your wallet.`,
+      ).catch(() => {});
+    }
     return { ok: true };
   });
 
