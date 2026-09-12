@@ -48,10 +48,10 @@ import { useT } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useSiteContent } from "@/lib/use-site-content";
 import { siteContacts, type SiteLink } from "@/lib/site-content";
-import footerPayDesktopDark from "@/assets/footer-pay-desktop-dark.png.asset.json";
-import footerPayDesktopLight from "@/assets/footer-pay-desktop-light.png.asset.json";
-import footerPayMobileDark from "@/assets/footer-pay-mobile-dark.png.asset.json";
-import footerPayMobileLight from "@/assets/footer-pay-mobile-light.png.asset.json";
+
+
+
+
 import { Clock } from "lucide-react";
 
 function useSignedIn() {
