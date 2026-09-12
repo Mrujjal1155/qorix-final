@@ -22,7 +22,6 @@ Lovable-এর GitHub রিপো (qorix.f.3) থাকলেই হবে — 
 - `TELEGRAM_WEBHOOK_SECRET`
 - `BINANCE_API_KEY`
 - `BINANCE_API_SECRET`
-- `PAYKORI_API_KEY`
 - `RESEND_API_KEY`
 - `RESEND_FROM_EMAIL`
 

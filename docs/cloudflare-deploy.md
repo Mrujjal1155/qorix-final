@@ -41,7 +41,6 @@ bunx wrangler secret put TELEGRAM_WEBHOOK_SECRET
 bunx wrangler secret put BINANCE_API_KEY
 bunx wrangler secret put BINANCE_API_SECRET
 bunx wrangler secret put BINANCE_CRON_SECRET
-bunx wrangler secret put PAYKORI_API_KEY
 bunx wrangler secret put RESEND_API_KEY
 bunx wrangler secret put RESEND_FROM
 ```
@@ -70,7 +69,6 @@ curl "https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook" \
 
 - `https://qorixlab.com/api/public/telegram/*`
 - `https://qorixlab.com/api/public/binance/auto-verify`
-- `https://qorixlab.com/api/public/paykori/*`
 - `https://qorixlab.com/api/public/reseller/*`
 - `https://qorixlab.com/api/public/suppliers/*`
 

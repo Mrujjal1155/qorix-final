@@ -31,7 +31,6 @@ Automated part: `bun scripts/domain-smoke-test.ts [baseUrl]` (default `http://lo
 
 ## 5. Webhooks (must be publicly reachable)
 - [ ] Admin → Webhook: Telegram webhook set to `https://qorixlab.com/api/...`, status OK
-- [ ] Admin → Settings: Pay Kori webhook shows `https://qorixlab.com/api/public/paykori/webhook`
 - [ ] a test payment callback reaches the endpoint (check order status changes)
 
 ## 6. Reseller API base

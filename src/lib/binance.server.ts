@@ -1,5 +1,5 @@
 // Server-only Binance API helper (Pay ID + on-chain USDT deposits).
-// Mirrors the paykori.online gateway logic: signed SAPI requests with HMAC-SHA256.
+// Signed SAPI requests with HMAC-SHA256.
 import { createHmac } from "crypto";
 
 // api.binance.com is frequently blocked (HTTP 403 / 451) from datacenter IPs.
