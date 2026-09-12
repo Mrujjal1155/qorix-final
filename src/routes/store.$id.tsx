@@ -134,13 +134,13 @@ function ProductPage() {
                   </span>
                 )}
               </div>
-              {product?.image_url ? (
-                <img src={product.image_url} alt={product.name} className="aspect-[4/3] w-full object-cover" />
-              ) : (
-                <div className="flex aspect-[4/3] w-full items-center justify-center text-primary">
-                  <CategoryIcon name={product?.name} className="h-28 w-28" />
-                </div>
-              )}
+              <SmartImage
+                src={product?.image_url}
+                alt={product?.name ?? ""}
+                priority
+                sizes="(max-width: 1024px) 100vw, 600px"
+                className="aspect-[4/3] w-full object-cover"
+              />
             </div>
 
             <div className="mt-4 flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-xs text-muted-foreground">
