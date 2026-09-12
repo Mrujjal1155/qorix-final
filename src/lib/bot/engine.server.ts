@@ -28,8 +28,11 @@ import {
   uiText,
   uiUrlBtn,
   parseIconValue,
+  mfsBtn,
+  mfsIconsHtml,
   type UiKey,
 } from "@/lib/bot/ui.server";
+
 import { renderRich, plainRich } from "@/lib/bot/richtext";
 import {
   credentialItems,
@@ -1960,23 +1963,32 @@ async function walletView(user: any) {
     kb.push([wBtn(uiBtn(s, "wal_binance", "dep:binance", cfg.live ? "(auto)" : "(manual)"))]);
   if (cfg.active && cfg.crypto && cfg.live) kb.push([wBtn(uiBtn(s, "wal_usdt", "dep:usdt"))]);
   {
-    const { paykoriConfig, PAYKORI_METHODS } = await import("@/lib/paykori.server");
-    const pk = paykoriConfig(s);
-    if (pk.enabled) {
-      const row: Button[] = [];
-      for (const m of pk.methods) {
-        row.push(wBtn(uiBtn(s, `wal_${m}` as any, `pkr:${m}`, "(auto)")));
-        if (row.length === 2) {
-          kb.push([...row]);
-          row.length = 0;
-        }
-      }
-      if (row.length) kb.push([...row]);
-      void PAYKORI_METHODS;
+    // Merged EPS rows: one for bKash/Nagad/Rocket, one for cards.
+    const { epsConfig } = await import("@/lib/eps.server");
+    const eps = epsConfig(s);
+    if (eps.enabled) {
+      kb.push([wBtn(mfsBtn(s, "wal_mfs", "dep:eps:mfs", "(auto)"))]);
+      kb.push([wBtn(uiBtn(s, "wal_card", "dep:eps:card", "(auto)"))]);
     } else {
-      kb.push([wBtn(uiBtn(s, "wal_bkash", "dep:bkash")), wBtn(uiBtn(s, "wal_nagad", "dep:nagad"))]);
+      const { paykoriConfig, PAYKORI_METHODS } = await import("@/lib/paykori.server");
+      const pk = paykoriConfig(s);
+      if (pk.enabled) {
+        const row: Button[] = [];
+        for (const m of pk.methods) {
+          row.push(wBtn(uiBtn(s, `wal_${m}` as any, `pkr:${m}`, "(auto)")));
+          if (row.length === 2) {
+            kb.push([...row]);
+            row.length = 0;
+          }
+        }
+        if (row.length) kb.push([...row]);
+        void PAYKORI_METHODS;
+      } else {
+        kb.push([wBtn(uiBtn(s, "wal_bkash", "dep:bkash")), wBtn(uiBtn(s, "wal_nagad", "dep:nagad"))]);
+      }
     }
   }
+
 
   kb.push([wBtn(uiBtn(s, "wal_redeem", "redeem"))]);
   kb.push([wBtn(uiBtn(s, "wal_history", "hist:0"))]);
@@ -2131,14 +2143,25 @@ async function verifyBinanceDeposit(chatId: number, id: string) {
 /** Credit a wallet deposit, or fulfil a direct checkout attached to the deposit row. */
 async function settlePayment(chatId: number, row: any, amount: number, txid: string, note: string) {
   const methodLabel =
-    row.kind === "paykori"
-      ? `Pay Kori ${String(row.network || "").toUpperCase()}`
-      : row.kind === "payid"
-        ? "Binance Pay"
-        : `USDT ${row.network}`;
+    row.kind === "eps"
+      ? row.network === "card"
+        ? "Card (EPS)"
+        : "Mobile banking (EPS)"
+      : row.kind === "paykori"
+        ? `Pay Kori ${String(row.network || "").toUpperCase()}`
+        : row.kind === "payid"
+          ? "Binance Pay"
+          : `USDT ${row.network}`;
 
   const methodKey =
-    row.kind === "paykori" ? `paykori_${row.network}` : row.kind === "payid" ? "binance_pay" : `usdt_${row.network}`;
+    row.kind === "eps"
+      ? `eps_${row.network}`
+      : row.kind === "paykori"
+        ? `paykori_${row.network}`
+        : row.kind === "payid"
+          ? "binance_pay"
+          : `usdt_${row.network}`;
+
 
   const meta = (row.meta ?? {}) as any;
 
@@ -2405,6 +2428,198 @@ export async function settlePaykoriTransaction(transactionId: string, depId?: st
   }
   return { ok: false as const, reason: r.message.replace(/<[^>]+>/g, "") };
 }
+
+/* ------------------------------------------------------------ EPS (BDT) */
+/*
+ * One hosted EPS checkout serves two merged rows:
+ *   - "bKash · Nagad · Rocket"  (mobile financial services)
+ *   - "Visa · Mastercard"       (cards)
+ * Nothing is credited from a redirect. Every credit comes from a
+ * server -> EPS `CheckMerchantTransactionStatus` call, the paid amount must
+ * cover what we asked for, and each transaction id is single-use.
+ */
+
+type EpsChannel = "mfs" | "card";
+
+const EPS_CHANNEL_LABEL: Record<EpsChannel, string> = {
+  mfs: "bKash · Nagad · Rocket",
+  card: "Visa · Mastercard",
+};
+
+async function epsCfg() {
+  const s = await getSettings();
+  const { epsConfig } = await import("@/lib/eps.server");
+  return { s, cfg: epsConfig(s) };
+}
+
+async function startEpsDeposit(
+  chatId: number,
+  channel: EpsChannel,
+  usd: number,
+  meta: Record<string, unknown> = {},
+) {
+  const { s, cfg } = await epsCfg();
+  const { initializePayment, newMerchantTransactionId, usdToBdt } = await import("@/lib/eps.server");
+  if (!cfg.enabled) {
+    return { error: "Card / mobile banking payments are currently unavailable. Please use another method." };
+  }
+  const amountUsd = Math.round(usd * 100) / 100;
+  if (!(amountUsd > 0)) return { error: "Invalid amount." };
+  const amountBdt = usdToBdt(amountUsd, cfg.rate);
+  const mtid = newMerchantTransactionId();
+
+  const { data: row, error } = await db
+    .from("binance_deposits")
+    .insert({
+      telegram_id: chatId,
+      kind: "eps",
+      network: channel,
+      address: null,
+      amount_usdt: amountUsd,
+      meta: { ...meta, gateway: "eps", channel, bdt: amountBdt, rate: cfg.rate, mtid },
+      expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+    })
+    .select("*")
+    .single();
+  if (error || !row) return { error: "Could not create the payment. Please try again." };
+
+  const base = siteUrl(s);
+  const ret = `${base}/api/public/eps/bot-return?dep=${row.id}&mtid=${encodeURIComponent(mtid)}`;
+  const user = await getUser(chatId);
+  const created = await initializePayment(cfg, {
+    merchantTransactionId: mtid,
+    customerOrderId: String(row.id),
+    amountBdt,
+    successUrl: ret,
+    failUrl: `${ret}&state=fail`,
+    cancelUrl: `${ret}&state=cancel`,
+    customerName: String(user?.first_name || user?.username || `Telegram ${chatId}`).slice(0, 40),
+    customerEmail: `tg${chatId}@qorixlab.com`,
+    customerPhone: "01700000000",
+    productName: String((meta as any).summary || "Wallet top-up").slice(0, 60),
+    noOfItem: 1,
+  });
+  if (!created.ok) {
+    await db.from("binance_deposits").update({ status: "failed" }).eq("id", row.id);
+    await notifyAdmins(`⚠️ <b>EPS create failed</b>\n${escapeHtml(String(created.error))}`);
+    return { error: String(created.error) };
+  }
+
+  const newMeta = { ...(row.meta as any), eps_tid: created.transactionId ?? null, pay_url: created.url };
+  await db.from("binance_deposits").update({ address: created.url, meta: newMeta }).eq("id", row.id);
+  return { row: { ...row, address: created.url, meta: newMeta } };
+}
+
+function epsView(row: any, settings: Record<string, string>) {
+  const meta = (row.meta ?? {}) as any;
+  const channel: EpsChannel = row.network === "card" ? "card" : "mfs";
+  const bdt = Number(meta.bdt ?? 0);
+  const head =
+    channel === "mfs"
+      ? `${mfsIconsHtml(settings)} <b>${escapeHtml(EPS_CHANNEL_LABEL.mfs)}</b>`
+      : `${uiIconHtml(settings, "pay_card")} <b>${escapeHtml(EPS_CHANNEL_LABEL.card)}</b>`;
+  const text =
+    `${head}\n\n` +
+    `Amount: <b>৳${bdt.toFixed(2)}</b>  (${money(row.amount_usdt)})\n` +
+    `Rate: 1 USD = ${Number(meta.rate ?? 0)} BDT\n\n` +
+    `Tap <b>Pay now</b> and finish the payment on the secure EPS page — your ${channel === "card" ? "card" : "wallet"} payment is confirmed automatically when it clears.`;
+  const kb: Button[][] = [
+    [{ text: `💳 Pay now — ৳${bdt.toFixed(2)}`, url: String(row.address) } as any],
+    [uiBtn(settings, "dep_verify", `epschk:${row.id}`)],
+    [uiUrlBtn(settings, "dep_support", (settings["support_link"] || "").trim() || DEFAULT_SUPPORT_LINK)],
+    [uiBtn(settings, "dep_cancel", "wallet")],
+  ];
+  return { text, kb };
+}
+
+async function creditEpsRow(row: any) {
+  const { cfg } = await epsCfg();
+  const { verifyTransaction, isPaid, bdtToUsd } = await import("@/lib/eps.server");
+  const meta = (row.meta ?? {}) as any;
+  const mtid = String(meta.mtid || row.tx_id || "");
+  const v = await verifyTransaction(cfg, { merchantTransactionId: mtid, epsTransactionId: meta.eps_tid ?? null });
+  if (!v.ok) return { credited: false as const, message: `⏳ Could not verify yet: ${escapeHtml(String(v.error))}` };
+  const info = v.info;
+  if (!isPaid(info.status)) {
+    return {
+      credited: false as const,
+      message: `⏳ Payment not confirmed yet (status: <b>${escapeHtml(info.status || "pending")}</b>). Complete the payment and try again in a minute.`,
+    };
+  }
+  const expectedBdt = Number(meta.bdt ?? 0);
+  if (expectedBdt > 0 && info.amount + 1 < expectedBdt) {
+    await notifyAdmins(
+      `⚠️ <b>EPS underpayment</b>\nDeposit <code>${row.id}</code>\nExpected ৳${expectedBdt} · paid ৳${info.amount}`,
+    );
+    return {
+      credited: false as const,
+      message: `❌ We received ৳${info.amount} but this order needs ৳${expectedBdt.toFixed(2)}. Please contact support.`,
+    };
+  }
+
+  const txKey = `eps:${info.epsTransactionId || info.merchantTransactionId || mtid}`;
+  const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: txKey });
+  if (usedErr) return { credited: false as const, message: "✅ This payment was already processed." };
+
+  const rate = Number(meta.rate ?? cfg.rate) || cfg.rate;
+  const usd = Math.max(Number(row.amount_usdt), bdtToUsd(info.amount, rate));
+  const r = await settlePayment(
+    Number(row.telegram_id),
+    row,
+    Math.round(usd * 100) / 100,
+    String(info.epsTransactionId || info.merchantTransactionId || mtid),
+    `Auto-verified via EPS (${info.financialEntity || row.network})`,
+  );
+  return { credited: true as const, message: r.message, keyboard: r.keyboard };
+}
+
+async function verifyEpsDeposit(chatId: number, id: string) {
+  const s = await getSettings();
+  const back: Button[][] = [
+    [uiBtn(s, "dep_verify", `epschk:${id}`)],
+    [uiUrlBtn(s, "dep_support", (s["support_link"] || "").trim() || DEFAULT_SUPPORT_LINK)],
+    [uiBtn(s, "dep_wallet", "wallet")],
+  ];
+  const { data: row } = await db
+    .from("binance_deposits")
+    .select("*")
+    .eq("id", id)
+    .eq("telegram_id", chatId)
+    .eq("kind", "eps")
+    .maybeSingle();
+  if (!row) return { message: "❌ Payment not found.", keyboard: back };
+  if (row.status === "credited") return { message: "✅ This payment was already credited.", keyboard: back };
+  const r = await creditEpsRow(row);
+  return { message: r.message, keyboard: r.credited ? (r as any).keyboard : back };
+}
+
+/** Entry point for the EPS redirect back into the bot flow. */
+export async function settleEpsBotPayment(depId: string | null, mtid?: string | null) {
+  let row: any = null;
+  if (depId) {
+    const { data } = await db.from("binance_deposits").select("*").eq("id", depId).eq("kind", "eps").maybeSingle();
+    row = data;
+  }
+  if (!row && mtid) {
+    const { data } = await db
+      .from("binance_deposits")
+      .select("*")
+      .eq("kind", "eps")
+      .eq("meta->>mtid", mtid)
+      .maybeSingle();
+    row = data;
+  }
+  if (!row) return { ok: false as const, reason: "payment not found" };
+  if (row.status === "credited") return { ok: true as const, already: true };
+  const r = await creditEpsRow(row);
+  if (r.credited) {
+    if (Number(row.telegram_id) > 0) await sendMessage(Number(row.telegram_id), r.message, (r as any).keyboard);
+    return { ok: true as const, credited: true };
+  }
+  return { ok: false as const, reason: r.message.replace(/<[^>]+>/g, "") };
+}
+
+
 
 
 
@@ -3121,7 +3336,26 @@ async function handleMessage(msg: any) {
     return;
   }
   switch (state.awaiting) {
+    case "eps_amount": {
+      const amount = Number(text.replace(/[^0-9.]/g, ""));
+      if (!amount || amount <= 0) {
+        await say(chatId, "❌ Please send a valid amount in USD, e.g. <code>5</code>");
+        return;
+      }
+      const channel: EpsChannel = state.eps_channel === "card" ? "card" : "mfs";
+      state.awaiting = null;
+      await setState(chatId, state);
+      const er = await startEpsDeposit(chatId, channel, amount);
+      if ("error" in er && er.error) {
+        await say(chatId, `❌ ${escapeHtml(er.error)}`, [[{ text: "⬅️ Wallet", callback_data: "wallet" }]]);
+        return;
+      }
+      const ev = epsView((er as any).row, await getSettings());
+      await say(chatId, ev.text, ev.kb);
+      return;
+    }
     case "pk_amount": {
+
       const amount = Number(text.replace(/[^0-9.]/g, ""));
       if (!amount || amount <= 0) {
         await say(chatId, "❌ Please send a valid amount in USD, e.g. <code>5</code>");
@@ -4714,18 +4948,31 @@ async function admPaymentIconsView() {
     uiBtn(settings, checkoutKey, `adm:uie:${checkoutKey}`, "· Checkout"),
     uiBtn(settings, walletKey, `adm:uie:${walletKey}`, "· Wallet"),
   ]);
+  kb.push([{ text: "— Merged EPS rows —", callback_data: "adm:pay" }]);
+  kb.push([uiBtn(settings, "mfs_bkash", "adm:uie:mfs_bkash", "· merged")]);
+  kb.push([uiBtn(settings, "mfs_nagad", "adm:uie:mfs_nagad", "· merged")]);
+  kb.push([uiBtn(settings, "mfs_rocket", "adm:uie:mfs_rocket", "· merged")]);
+  kb.push([
+    uiBtn(settings, "pay_mfs", "adm:uie:pay_mfs", "· Checkout"),
+    uiBtn(settings, "wal_mfs", "adm:uie:wal_mfs", "· Wallet"),
+  ]);
+  kb.push([
+    uiBtn(settings, "pay_card", "adm:uie:pay_card", "· Checkout"),
+    uiBtn(settings, "wal_card", "adm:uie:wal_card", "· Wallet"),
+  ]);
   kb.push([{ text: "🎛 All UI icons & tags", callback_data: "adm:ui" }]);
   kb.push(...ADM_BACK);
   return {
     text:
-      `${uiTag(settings, "pay_title")}
-
-` +
-      "Choose bKash, Nagad or Rocket. Then tap Set icon and send a normal emoji " +
-      "or a Telegram Premium custom emoji. The Checkout and Wallet icons are saved separately.",
+      `${uiTag(settings, "pay_title")}\n\n` +
+      `Merged row preview: ${mfsIconsHtml(settings)} <b>${escapeHtml(uiText(settings, "wal_mfs"))}</b>\n\n` +
+      "Tap bKash / Nagad / Rocket under “Merged EPS rows” to give each one its own " +
+      "Premium custom emoji, then Set icon and send the emoji. The card row and the " +
+      "Checkout / Wallet labels are saved separately.",
     kb,
   };
 }
+
 
 async function admUiListView(group: string) {
   const settings = await getSettings();
@@ -4933,12 +5180,20 @@ async function coPayView(chatId: number) {
     kb.push([uiBtn(settings, "pay_trc20", "copm:TRX")]);
   }
   {
-    const { paykoriConfig } = await import("@/lib/paykori.server");
-    const pk = paykoriConfig(settings);
-    if (pk.enabled) {
-      for (const m of pk.methods) kb.push([uiBtn(settings, `pay_${m}` as any, `copm:pk_${m}`)]);
+    const { epsConfig } = await import("@/lib/eps.server");
+    const eps = epsConfig(settings);
+    if (eps.enabled) {
+      kb.push([mfsBtn(settings, "pay_mfs", "copm:eps_mfs")]);
+      kb.push([uiBtn(settings, "pay_card", "copm:eps_card")]);
+    } else {
+      const { paykoriConfig } = await import("@/lib/paykori.server");
+      const pk = paykoriConfig(settings);
+      if (pk.enabled) {
+        for (const m of pk.methods) kb.push([uiBtn(settings, `pay_${m}` as any, `copm:pk_${m}`)]);
+      }
     }
   }
+
   kb.push([uiBtn(settings, "pay_back", "co")]);
 
   const items = lines
@@ -5689,7 +5944,29 @@ async function handleCallback(cq: any) {
       return;
     }
 
+    if (method === "eps_mfs" || method === "eps_card") {
+      const channel: EpsChannel = method === "eps_card" ? "card" : "mfs";
+      const er = await startEpsDeposit(chatId, channel, total, {
+        items: meta.items,
+        coupon: meta.coupon ?? null,
+        summary: meta.summary ?? "",
+        total,
+      });
+      if ("error" in er && er.error) {
+        await edit(`❌ ${escapeHtml(er.error)}`, [[{ text: "⬅️ Back", callback_data: "copay" }]]);
+        return;
+      }
+      const es = await getSettings();
+      const ev = epsView((er as any).row, es);
+      await edit(
+        `${uiIconHtml(es, "dep_order_tag")} <b>${escapeHtml(uiText(es, "dep_order_tag"))}:</b> ${escapeHtml(meta.summary ?? "")}\n\n${ev.text}`,
+        ev.kb,
+      );
+      return;
+    }
+
     if (method.startsWith("pk_")) {
+
       const pkr = await startPaykoriDeposit(chatId, method.slice(3), total, {
         items: meta.items,
         coupon: meta.coupon ?? null,
@@ -5771,7 +6048,36 @@ async function handleCallback(cq: any) {
     return;
   }
 
+  if (data === "dep:eps:mfs" || data === "dep:eps:card") {
+    const channel: EpsChannel = data.endsWith("card") ? "card" : "mfs";
+    const { s, cfg } = await epsCfg();
+    if (!cfg.enabled) {
+      await edit("⚠️ Card / mobile banking deposits are currently disabled. Please use another method.", [
+        [{ text: "⬅️ Wallet", callback_data: "wallet" }],
+      ]);
+      return;
+    }
+    await setState(chatId, { ...(user.state ?? {}), awaiting: "eps_amount", eps_channel: channel });
+    const head =
+      channel === "mfs"
+        ? `${mfsIconsHtml(s)} <b>${escapeHtml(EPS_CHANNEL_LABEL.mfs)}</b>`
+        : `${uiIconHtml(s, "wal_card")} <b>${escapeHtml(EPS_CHANNEL_LABEL.card)}</b>`;
+    await edit(
+      `${head}\n\nHow much do you want to add? Reply with the amount in <b>USD</b>, e.g. <code>5</code>.\n` +
+        `<i>Rate: 1 USD = ${cfg.rate} BDT</i>`,
+      [[uiBtn(s, "com_back", "wallet")]],
+    );
+    return;
+  }
+
+  if (data.startsWith("epschk:")) {
+    const r = await verifyEpsDeposit(chatId, data.slice(7));
+    await edit(r.message, r.keyboard);
+    return;
+  }
+
   if (data.startsWith("pkr:")) {
+
     const method = data.slice(4);
     const { s, cfg } = await paykoriCfg();
     const { PAYKORI_METHODS } = await import("@/lib/paykori.server");

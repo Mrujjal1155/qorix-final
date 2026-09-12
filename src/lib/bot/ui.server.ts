@@ -76,6 +76,14 @@ export const UI_ELEMENTS = {
   pay_nagad: { icon: "📲", label: "Nagad", group: "payment" },
   pay_rocket: { icon: "🚀", label: "Rocket", group: "payment" },
 
+  /* Merged EPS options (one mobile-banking row + one card row) */
+  pay_mfs: { icon: "🏦", label: "bKash · Nagad · Rocket", group: "payment" },
+  pay_card: { icon: "💳", label: "Visa · Mastercard", group: "payment" },
+  /* The three Premium emoji shown inside the mobile-banking row */
+  mfs_bkash: { icon: "📱", label: "bKash icon (merged row)", group: "payment" },
+  mfs_nagad: { icon: "📲", label: "Nagad icon (merged row)", group: "payment" },
+  mfs_rocket: { icon: "🚀", label: "Rocket icon (merged row)", group: "payment" },
+
   pay_back: { icon: "⬅️", label: "Back", group: "payment" },
   pay_title: { icon: "💳", label: "Select Payment Method", group: "payment" },
   pay_item_total: { icon: "🧾", label: "Total", group: "payment" },
@@ -86,6 +94,9 @@ export const UI_ELEMENTS = {
   wal_bkash: { icon: "📱", label: "bKash", group: "wallet" },
   wal_nagad: { icon: "📲", label: "Nagad", group: "wallet" },
   wal_rocket: { icon: "🚀", label: "Rocket", group: "wallet" },
+  wal_mfs: { icon: "🏦", label: "bKash · Nagad · Rocket", group: "wallet" },
+  wal_card: { icon: "💳", label: "Visa · Mastercard", group: "wallet" },
+
 
   wal_redeem: { icon: "🎟", label: "Redeem Code", group: "wallet" },
   wal_history: { icon: "🧾", label: "Transaction History", group: "wallet" },
@@ -327,6 +338,44 @@ export function uiUrlBtn(settings: Record<string, string>, key: UiKey, url: stri
   return {
     text: customId ? uiText(settings, key).trim() : `${glyph} ${uiText(settings, key)}`.trim(),
     url,
+    ...(customId ? { icon_custom_emoji_id: customId } : {}),
+  };
+}
+
+/* -------------------------------------------------- merged mobile banking */
+/**
+ * The merged "bKash · Nagad · Rocket" row shows three separately configurable
+ * icons. Each one is a normal UI element (`mfs_bkash` / `mfs_nagad` /
+ * `mfs_rocket`), so an admin can set a Telegram Premium custom emoji for every
+ * single wallet from Bot Admin.
+ */
+export const MFS_ICON_KEYS = ["mfs_bkash", "mfs_nagad", "mfs_rocket"] as const;
+
+/** Plain glyphs (button text can only carry plain characters). */
+export function mfsIconsText(settings: Record<string, string>) {
+  return MFS_ICON_KEYS.map((k) => raw(settings, k).glyph).join(" ");
+}
+
+/** Premium-aware HTML for message bodies. */
+export function mfsIconsHtml(settings: Record<string, string>) {
+  return MFS_ICON_KEYS.map((k) => {
+    const { customId, glyph } = raw(settings, k);
+    return customId ? `<tg-emoji emoji-id="${customId}">${esc(glyph)}</tg-emoji>` : esc(glyph);
+  }).join(" ");
+}
+
+/** Inline button for the merged mobile-banking row. */
+export function mfsBtn(
+  settings: Record<string, string>,
+  key: "wal_mfs" | "pay_mfs",
+  callback_data: string,
+  suffix?: string,
+): Button {
+  const label = `${uiText(settings, key)}${suffix ? ` ${suffix}` : ""}`.trim();
+  const { customId } = raw(settings, key);
+  return {
+    text: `${mfsIconsText(settings)} ${label}`.trim(),
+    callback_data,
     ...(customId ? { icon_custom_emoji_id: customId } : {}),
   };
 }
