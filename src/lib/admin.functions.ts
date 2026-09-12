@@ -557,6 +557,8 @@ export const setOrderStatus = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
+    const { data: before } = await sb.from("orders").select("*").eq("id", data.id).maybeSingle();
+    if (!before) throw new Error("Order not found");
     const { data: order, error } = await sb
       .from("orders")
       .update({ status: data.status })
@@ -566,12 +568,46 @@ export const setOrderStatus = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     // Let the buyer know on Telegram when an admin cancels their order.
     if (order?.telegram_id && data.status === "cancelled") {
+      // Paid orders (pending) get an automatic wallet refund on cancel.
+      let refundNote = "If you already paid, please open a support ticket — we will refund your wallet.";
+      if (before.status === "pending" && Number(before.total) > 0) {
+        const amount = Math.round(Number(before.total) * 100) / 100;
+        const reference = `order-${before.order_no}-cancel`;
+        const { data: already } = await sb
+          .from("transactions")
+          .select("id")
+          .eq("reference", reference)
+          .eq("type", "refund")
+          .maybeSingle();
+        if (!already) {
+          const { data: user } = await sb
+            .from("bot_users")
+            .select("balance")
+            .eq("telegram_id", before.telegram_id)
+            .maybeSingle();
+          if (user) {
+            const balance = Math.round((Number(user.balance ?? 0) + amount) * 100) / 100;
+            await sb.from("bot_users").update({ balance }).eq("telegram_id", before.telegram_id);
+            await sb.from("transactions").insert({
+              telegram_id: before.telegram_id,
+              type: "refund",
+              amount,
+              method: "wallet",
+              reference,
+              note: `Auto refund — order #${before.order_no} cancelled`,
+            });
+            refundNote = `\u{1F4B0} <b>$${amount.toFixed(2)}</b> refunded to your wallet.\nNew balance: <b>$${balance.toFixed(2)}</b>`;
+          }
+        } else {
+          refundNote = "Your payment was already refunded to your wallet.";
+        }
+      }
       const { sendMessage } = await import("@/lib/telegram.server");
       await sendMessage(
         Number(order.telegram_id),
         `\u{1F6AB} <b>Order #${order.order_no}</b> has been cancelled.\n` +
           `Product: ${order.product_name}\n` +
-          `If you already paid, please open a support ticket — we will refund your wallet.`,
+          refundNote,
       ).catch(() => {});
     }
     return { ok: true };
