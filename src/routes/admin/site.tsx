@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { SITE_DEFAULTS } from "@/lib/site-content";
 import { ImageUploadField } from "@/components/ImageUploadField";
-import { Trash2, Plus, Sparkles, Menu, LayoutList, Link2, LifeBuoy, Phone, Share2, CreditCard, Info, HelpCircle, MessageSquare, Scale, type LucideIcon } from "lucide-react";
+import { Sparkles, Menu, LayoutList, Link2, LifeBuoy, Phone, Share2, Info, HelpCircle, MessageSquare, Scale, type LucideIcon } from "lucide-react";
 import { SettingsHub, type HubSection } from "@/components/SettingsHub";
 import { broadcastSiteUpdate } from "@/lib/site-refresh";
 
@@ -19,7 +19,7 @@ export const Route = createFileRoute("/admin/site")({
   head: () => ({
     meta: [
       { title: "Website content — Shop Admin" },
-      { name: "description", content: "Edit header navigation, footer columns, contact details, payment badges and copyright of the storefront." },
+      { name: "description", content: "Edit header navigation, footer columns, contact details and copyright of the storefront." },
       { property: "og:title", content: "Website content — Shop Admin" },
       { property: "og:description", content: "Make every part of the website editable from the admin panel." },
       { property: "og:type", content: "website" },
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/admin/site")({
   component: SitePage,
 });
 
-type Field = { key: string; label: string; hint?: string; long?: boolean; image?: boolean; payments?: boolean };
+type Field = { key: string; label: string; hint?: string; long?: boolean; image?: boolean };
 
 const GROUPS: { title: string; desc: string; icon: LucideIcon; fields: Field[] }[] = [
   {
@@ -139,17 +139,10 @@ const GROUPS: { title: string; desc: string; icon: LucideIcon; fields: Field[] }
     ],
   },
   {
-    title: "Payments & copyright",
-    desc: "Payment method logos and copyright line.",
-    icon: CreditCard,
+    title: "Copyright",
+    desc: "Footer copyright line.",
+    icon: Scale,
     fields: [
-      { key: "site_payments_label", label: "Payments row label" },
-      {
-        key: "site_payments",
-        label: "Payment method logos",
-        hint: "Upload a logo for each method — when a logo is uploaded it replaces the placeholder text badge.",
-        payments: true,
-      },
       { key: "site_copyright", label: "Copyright line ({year} = current year)", long: true },
     ],
   },
@@ -260,7 +253,7 @@ function SitePage() {
   return (
     <AdminShell
       title="Website content"
-      subtitle="Everything on the public website — menu, footer, contact, payments — is edited here."
+      subtitle="Everything on the public website — menu, footer, contact, copyright — is edited here."
       actions={
         <div className="flex gap-2">
           <Button variant="outline" onClick={resetDefaults}>
