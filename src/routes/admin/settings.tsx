@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { checkBinanceStatus, checkBotToken, getBotSettings, registerWebhook, saveBinanceKeys, saveBotSettings, sendTestEmail, getEmailStatus } from "@/lib/admin.functions";
 import { AdminShell } from "@/components/AdminShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -115,7 +115,11 @@ function SettingsPage() {
   const [testTo, setTestTo] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
-  const { data, refetch: refetchSettings } = useQuery({ queryKey: ["settings"], queryFn: () => fetchSettings() });
+  const { data, refetch: refetchSettings } = useQuery({
+    queryKey: ["settings"],
+    queryFn: () => fetchSettings(),
+    refetchOnWindowFocus: false,
+  });
   const { data: tokenStatus, isLoading: tokenLoading } = useQuery({
     queryKey: ["bot-token-status"],
     queryFn: () => checkToken(),
@@ -133,10 +137,23 @@ function SettingsPage() {
   });
   const tokenOk = tokenStatus?.status === "ok";
   const [values, setValues] = useState<Record<string, string>>({});
+  // Last snapshot from the server. A refetch must never wipe fields the admin
+  // is still typing into, so only untouched keys are refreshed.
+  const serverValues = useRef<Record<string, string>>({});
 
   useEffect(() => {
-    if (data) setValues(data);
+    if (!data) return;
+    setValues((prev) => {
+      const next = { ...prev };
+      for (const [k, v] of Object.entries(data)) {
+        const wasEdited = Object.prototype.hasOwnProperty.call(prev, k) && prev[k] !== serverValues.current[k];
+        if (!wasEdited) next[k] = v as string;
+      }
+      return next;
+    });
+    serverValues.current = { ...(data as Record<string, string>) };
   }, [data]);
+
 
   function isOn(value: string | undefined) {
     const v = (value ?? "").toString().trim().toLowerCase();
@@ -599,9 +616,12 @@ function SettingsPage() {
       <CardContent className="space-y-5">
         <p className="text-sm text-muted-foreground">
           Credentials come from the EPS merchant panel and stay on the server. Give EPS this return URL:{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">{PRODUCTION_SITE_URL}/api/public/eps/return</code>. Every
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">{PRODUCTION_SITE_URL}/api/public/eps/return</code> (use it
+          for success, fail and cancel), and this IPN / notification URL:{" "}
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">{PRODUCTION_SITE_URL}/api/public/eps/ipn</code>. Every
           payment is re-verified with EPS before an order is marked paid.
         </p>
+
 
         <div className="flex items-start justify-between gap-4 rounded-xl border border-border/70 bg-card/50 p-4">
           <div className="space-y-0.5">
