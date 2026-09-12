@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Eye, ShieldCheck, ShoppingCart, Star, Zap } from "lucide-react";
-import { CategoryIcon } from "@/components/CategoryIcon";
+import { SmartImage } from "@/components/SmartImage";
 import { Button } from "@/components/ui/button";
 import { usePrefs } from "@/lib/prefs";
 import { useT } from "@/lib/i18n";
