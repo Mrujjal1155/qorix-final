@@ -48,6 +48,10 @@ import { useT } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useSiteContent } from "@/lib/use-site-content";
 import { siteContacts, type SiteLink } from "@/lib/site-content";
+import footerPayDesktopDark from "@/assets/footer-pay-desktop-dark.png.asset.json";
+import footerPayDesktopLight from "@/assets/footer-pay-desktop-light.png.asset.json";
+import footerPayMobileDark from "@/assets/footer-pay-mobile-dark.png.asset.json";
+import footerPayMobileLight from "@/assets/footer-pay-mobile-light.png.asset.json";
 import { Clock } from "lucide-react";
 
 function useSignedIn() {
@@ -514,7 +518,40 @@ export function StoreShell({ children }: { children: ReactNode }) {
             </div>
           </div>
 
-          <div className="mt-12 border-t border-border/60 pt-6 text-center text-sm text-muted-foreground">
+          <div className="mt-10 flex justify-center border-t border-border/60 pt-8">
+            <div className="w-full max-w-5xl">
+              <img
+                src={footerPayDesktopLight.url}
+                alt="Pay with EPS — Visa, Mastercard, American Express, bKash, Nagad, Rocket and more"
+                className="hidden w-full rounded-xl dark:hidden md:block"
+                loading="lazy"
+                decoding="async"
+              />
+              <img
+                src={footerPayDesktopDark.url}
+                alt="Pay with EPS — Visa, Mastercard, American Express, bKash, Nagad, Rocket and more"
+                className="hidden w-full rounded-xl md:dark:block"
+                loading="lazy"
+                decoding="async"
+              />
+              <img
+                src={footerPayMobileLight.url}
+                alt="Pay with EPS — Visa, Mastercard, American Express, bKash, Nagad, Rocket and more"
+                className="block w-full rounded-xl dark:hidden md:hidden"
+                loading="lazy"
+                decoding="async"
+              />
+              <img
+                src={footerPayMobileDark.url}
+                alt="Pay with EPS — Visa, Mastercard, American Express, bKash, Nagad, Rocket and more"
+                className="hidden w-full rounded-xl dark:block md:dark:hidden"
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
+          </div>
+
+          <div className="mt-8 border-t border-border/60 pt-6 text-center text-sm text-muted-foreground">
             {copyright}
           </div>
         </div>
