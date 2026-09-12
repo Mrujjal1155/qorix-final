@@ -5821,8 +5821,11 @@ async function handleCallback(cq: any) {
       }
       const es = await getSettings();
       const ev = epsView((er as any).row, es);
+      const epsOrders = await createAwaitingOrders(chatId, meta, String((er as any).row.id), `eps_${channel}`);
       await edit(
-        `${uiIconHtml(es, "dep_order_tag")} <b>${escapeHtml(uiText(es, "dep_order_tag"))}:</b> ${escapeHtml(meta.summary ?? "")}\n\n${ev.text}`,
+        `${uiIconHtml(es, "dep_order_tag")} <b>${escapeHtml(uiText(es, "dep_order_tag"))}:</b> ${escapeHtml(meta.summary ?? "")}\n` +
+          awaitingOrderNote(epsOrders) +
+          `\n${ev.text}`,
         ev.kb,
       );
       return;
@@ -5843,10 +5846,14 @@ async function handleCallback(cq: any) {
     }
     const s2 = await getSettings();
     const view = binanceView((r as any).row, s2);
+    const binOrders = await createAwaitingOrders(chatId, meta, String((r as any).row.id), kind);
     await edit(
-      `${uiIconHtml(s2, "dep_order_tag")} <b>${escapeHtml(uiText(s2, "dep_order_tag"))}:</b> ${escapeHtml(meta.summary ?? "")}\n\n${view.text}`,
+      `${uiIconHtml(s2, "dep_order_tag")} <b>${escapeHtml(uiText(s2, "dep_order_tag"))}:</b> ${escapeHtml(meta.summary ?? "")}\n` +
+        awaitingOrderNote(binOrders) +
+        `\n${view.text}`,
       view.kb,
     );
+
     return;
   }
 
