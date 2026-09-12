@@ -2211,7 +2211,7 @@ async function settlePayment(chatId: number, row: any, amount: number, txid: str
     });
     const fresh = await getUser(chatId);
     await db.from("bot_users").update({ balance: Number(fresh.balance) + amount }).eq("telegram_id", chatId);
-    const res = await fulfillCheckout(chatId, meta, methodKey, txid);
+    const res = await fulfillCheckout(chatId, meta, methodKey, txid, row.id);
     return { message: res.text, keyboard: res.kb };
   }
 
@@ -2509,6 +2509,9 @@ let lastSweep = 0;
 export async function sweepBinanceDeposits(force = false) {
   if (!force && Date.now() - lastSweep < 45_000) return { skipped: true, settled: 0 };
   lastSweep = Date.now();
+
+  // Unpaid / underpaid checkouts stop hanging forever.
+  await expireAwaitingOrders().catch((e) => console.error("Awaiting order expiry failed:", e));
 
   const nowIso = new Date().toISOString();
   const { data: rows } = await db
@@ -4994,10 +4997,88 @@ async function coPayView(chatId: number) {
   };
 }
 
+/** Minutes an unpaid gateway checkout stays open before it is failed automatically. */
+const AWAITING_PAYMENT_MINUTES = 30;
+
+/**
+ * Create one "awaiting payment" order per line the moment a gateway link is
+ * made, so the buyer always has an order id to quote in support — even when
+ * they never pay, or pay a little less than asked.
+ */
+async function createAwaitingOrders(chatId: number, meta: CoMeta, depositId: string, gateway: string) {
+  const { lines, discount } = await coTotals(meta, chatId);
+  if (!lines.length) return [] as any[];
+  const share = discount / lines.length;
+  const rows = lines.map((l) => ({
+    telegram_id: chatId,
+    product_id: l.product.id,
+    product_name: l.product.name,
+    quantity: l.qty,
+    unit_price: l.product.price,
+    total: Math.max(0, Math.round((l.subtotal - share) * 100) / 100),
+    status: "awaiting_payment",
+    delivery_type: l.product.delivery_type,
+    coupon_code: meta.coupon?.code ?? null,
+    discount: Math.round(share * 100) / 100,
+    meta: { deposit_id: depositId, gateway, awaiting_payment: true },
+  }));
+  const { data } = await db.from("orders").insert(rows).select("id,order_no");
+  return (data ?? []) as any[];
+}
+
+/** Order ids shown on the payment screen so support can trace an underpayment. */
+function awaitingOrderNote(rows: any[]) {
+  if (!rows.length) return "";
+  const ids = rows.map((r) => `#${r.order_no}`).join(", ");
+  return `\n\u{1F9FE} <b>Order ID:</b> <code>${escapeHtml(ids)}</code>\n<i>Keep this id — share it with support if anything goes wrong with the payment.</i>\n`;
+}
+
+/** Fail every checkout that stayed unpaid for 30 minutes (admin can still revive it). */
+export async function expireAwaitingOrders() {
+  const cutoff = new Date(Date.now() - AWAITING_PAYMENT_MINUTES * 60_000).toISOString();
+  const { data } = await db
+    .from("orders")
+    .select("id,meta")
+    .eq("status", "awaiting_payment")
+    .lt("created_at", cutoff)
+    .limit(200);
+  if (!data?.length) return 0;
+  await db
+    .from("orders")
+    .update({ status: "failed" })
+    .in("id", data.map((o: any) => o.id));
+  const deposits = [...new Set(data.map((o: any) => (o.meta ?? {}).deposit_id).filter(Boolean))];
+  if (deposits.length) {
+    await db
+      .from("binance_deposits")
+      .update({ status: "expired" })
+      .in("id", deposits as string[])
+      .neq("status", "credited");
+  }
+  return data.length;
+}
+
 /** Create the paid orders, deliver instantly or notify the admin for manual delivery. */
-async function fulfillCheckout(chatId: number, meta: CoMeta, methodKey: string, reference: string) {
+async function fulfillCheckout(
+  chatId: number,
+  meta: CoMeta,
+  methodKey: string,
+  reference: string,
+  depositId?: string | null,
+) {
   const { lines, discount, total } = await coTotals(meta, chatId);
   let user = await getUser(chatId);
+  const awaitingRows: any[] = depositId
+    ? ((
+        await db
+          .from("orders")
+          .select("id,product_id,quantity")
+          .eq("telegram_id", chatId)
+          .eq("status", "awaiting_payment")
+          .contains("meta", { deposit_id: depositId })
+      ).data ?? [])
+    : [];
+
 
   // Charge the order total atomically. The DB refuses the debit when the
   // balance is too low, so double-tapping / racing callbacks can never get
@@ -5091,23 +5172,29 @@ async function fulfillCheckout(chatId: number, meta: CoMeta, methodKey: string, 
     }
 
 
-    const { data: order } = await db
-      .from("orders")
-      .insert({
-        telegram_id: chatId,
-        product_id: p.id,
-        product_name: p.name,
-        quantity: l.qty,
-        unit_price: p.price,
-        total: Math.max(0, Math.round((l.subtotal - share) * 100) / 100),
-        status,
-        delivery_type: p.delivery_type,
-        delivered_content: delivered,
-        coupon_code: meta.coupon?.code ?? null,
-        discount: Math.round(share * 100) / 100,
-      })
-      .select("*")
-      .maybeSingle();
+    // Reuse the "awaiting payment" row created when the gateway link was made,
+    // so the order id the buyer already has stays the same after payment.
+    const claimIdx = awaitingRows.findIndex(
+      (r: any) => r.product_id === p.id && Number(r.quantity) === Number(l.qty),
+    );
+    const claimRow = claimIdx >= 0 ? awaitingRows.splice(claimIdx, 1)[0] : null;
+    const payload = {
+      telegram_id: chatId,
+      product_id: p.id,
+      product_name: p.name,
+      quantity: l.qty,
+      unit_price: p.price,
+      total: Math.max(0, Math.round((l.subtotal - share) * 100) / 100),
+      status,
+      delivery_type: p.delivery_type,
+      delivered_content: delivered,
+      coupon_code: meta.coupon?.code ?? null,
+      discount: Math.round(share * 100) / 100,
+    };
+    const { data: order } = claimRow
+      ? await db.from("orders").update(payload).eq("id", claimRow.id).select("*").maybeSingle()
+      : await db.from("orders").insert(payload).select("*").maybeSingle();
+
 
     text += `• #${order?.order_no} — ${l.qty}× ${p.name}${status === "completed" ? " ✅" : " ⏳ manual"}\n`;
     if (deliveredItems.length) {
@@ -5741,8 +5828,11 @@ async function handleCallback(cq: any) {
       }
       const es = await getSettings();
       const ev = epsView((er as any).row, es);
+      const epsOrders = await createAwaitingOrders(chatId, meta, String((er as any).row.id), `eps_${channel}`);
       await edit(
-        `${uiIconHtml(es, "dep_order_tag")} <b>${escapeHtml(uiText(es, "dep_order_tag"))}:</b> ${escapeHtml(meta.summary ?? "")}\n\n${ev.text}`,
+        `${uiIconHtml(es, "dep_order_tag")} <b>${escapeHtml(uiText(es, "dep_order_tag"))}:</b> ${escapeHtml(meta.summary ?? "")}\n` +
+          awaitingOrderNote(epsOrders) +
+          `\n${ev.text}`,
         ev.kb,
       );
       return;
@@ -5763,10 +5853,14 @@ async function handleCallback(cq: any) {
     }
     const s2 = await getSettings();
     const view = binanceView((r as any).row, s2);
+    const binOrders = await createAwaitingOrders(chatId, meta, String((r as any).row.id), kind);
     await edit(
-      `${uiIconHtml(s2, "dep_order_tag")} <b>${escapeHtml(uiText(s2, "dep_order_tag"))}:</b> ${escapeHtml(meta.summary ?? "")}\n\n${view.text}`,
+      `${uiIconHtml(s2, "dep_order_tag")} <b>${escapeHtml(uiText(s2, "dep_order_tag"))}:</b> ${escapeHtml(meta.summary ?? "")}\n` +
+        awaitingOrderNote(binOrders) +
+        `\n${view.text}`,
       view.kb,
     );
+
     return;
   }
 
