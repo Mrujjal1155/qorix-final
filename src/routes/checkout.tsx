@@ -246,11 +246,62 @@ function CheckoutPage() {
                         </button>
                       );
                     })}
+                    {eps?.enabled ? (
+                      <button
+                        type="button"
+                        onClick={() => setMethod(EPS_METHOD.id)}
+                        className={`rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 sm:col-span-3 ${
+                          isEps ? "border-primary bg-primary/10 card-glow" : "border-border bg-card"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                            isEps ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          <EPS_METHOD.icon className="h-4 w-4" />
+                        </span>
+                        <p className="mt-3 text-sm font-semibold">{EPS_METHOD.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {EPS_METHOD.hint}
+                          {epsTotalBdt > 0 ? ` · pay ৳${epsTotalBdt.toFixed(2)}` : ""}
+                        </p>
+                      </button>
+                    ) : null}
                   </div>
                 </div>
-                <Button className="md:col-span-2" disabled={!name.trim() || !email.trim()} onClick={() => go("pay")}>
-                  Continue to payment <ArrowRight className="h-4 w-4" />
-                </Button>
+
+                {isEps ? (
+                  <div className="space-y-1 md:col-span-2">
+                    <Label>Mobile number</Label>
+                    <Input
+                      inputMode="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="01XXXXXXXXX"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Needed by the payment gateway for bKash / Nagad / Rocket and card payments.
+                    </p>
+                  </div>
+                ) : null}
+
+                {isEps ? (
+                  <Button
+                    className="md:col-span-2"
+                    disabled={!name.trim() || !email.trim() || phone.replace(/\D/g, "").length < 11 || epsMut.isPending}
+                    onClick={() => epsMut.mutate()}
+                  >
+                    {epsMut.isPending
+                      ? "Opening secure payment…"
+                      : `Pay ৳${epsTotalBdt.toFixed(2)} securely`}{" "}
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button className="md:col-span-2" disabled={!name.trim() || !email.trim()} onClick={() => go("pay")}>
+                    Continue to payment <ArrowRight className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             )}
 
