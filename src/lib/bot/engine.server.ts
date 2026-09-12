@@ -4948,18 +4948,31 @@ async function admPaymentIconsView() {
     uiBtn(settings, checkoutKey, `adm:uie:${checkoutKey}`, "· Checkout"),
     uiBtn(settings, walletKey, `adm:uie:${walletKey}`, "· Wallet"),
   ]);
+  kb.push([{ text: "— Merged EPS rows —", callback_data: "adm:pay" }]);
+  kb.push([uiBtn(settings, "mfs_bkash", "adm:uie:mfs_bkash", "· merged")]);
+  kb.push([uiBtn(settings, "mfs_nagad", "adm:uie:mfs_nagad", "· merged")]);
+  kb.push([uiBtn(settings, "mfs_rocket", "adm:uie:mfs_rocket", "· merged")]);
+  kb.push([
+    uiBtn(settings, "pay_mfs", "adm:uie:pay_mfs", "· Checkout"),
+    uiBtn(settings, "wal_mfs", "adm:uie:wal_mfs", "· Wallet"),
+  ]);
+  kb.push([
+    uiBtn(settings, "pay_card", "adm:uie:pay_card", "· Checkout"),
+    uiBtn(settings, "wal_card", "adm:uie:wal_card", "· Wallet"),
+  ]);
   kb.push([{ text: "🎛 All UI icons & tags", callback_data: "adm:ui" }]);
   kb.push(...ADM_BACK);
   return {
     text:
-      `${uiTag(settings, "pay_title")}
-
-` +
-      "Choose bKash, Nagad or Rocket. Then tap Set icon and send a normal emoji " +
-      "or a Telegram Premium custom emoji. The Checkout and Wallet icons are saved separately.",
+      `${uiTag(settings, "pay_title")}\n\n` +
+      `Merged row preview: ${mfsIconsHtml(settings)} <b>${escapeHtml(uiText(settings, "wal_mfs"))}</b>\n\n` +
+      "Tap bKash / Nagad / Rocket under “Merged EPS rows” to give each one its own " +
+      "Premium custom emoji, then Set icon and send the emoji. The card row and the " +
+      "Checkout / Wallet labels are saved separately.",
     kb,
   };
 }
+
 
 async function admUiListView(group: string) {
   const settings = await getSettings();
