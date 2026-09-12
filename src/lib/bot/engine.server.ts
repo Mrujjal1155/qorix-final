@@ -404,7 +404,7 @@ export async function getSettings(): Promise<Record<string, string>> {
     }
     if (generation === settingsGeneration) settingsCache = { at: Date.now(), data: out };
     return out;
-  });
+  })();
   settingsInflight = request;
   return request.finally(() => {
     if (settingsInflight === request) settingsInflight = null;
@@ -2461,7 +2461,7 @@ export async function settlePaykoriTransaction(transactionId: string, depId?: st
 type EpsChannel = "mfs" | "card";
 
 const EPS_CHANNEL_LABEL: Record<EpsChannel, string> = {
-  mfs: "bKash · Nagad · Rocket",
+  mfs: "bKash · Nagad · Rocket & more",
   card: "Visa · Mastercard",
 };
 
