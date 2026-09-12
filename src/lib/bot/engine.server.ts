@@ -30,6 +30,8 @@ import {
   parseIconValue,
   mfsBtn,
   mfsIconsHtml,
+  cardBtn,
+  cardIconsHtml,
   type UiKey,
 } from "@/lib/bot/ui.server";
 
@@ -357,6 +359,7 @@ const ICON_INPUT_HELP =
 const SETTINGS_TTL_MS = 30_000;
 let settingsCache: { at: number; data: Record<string, string> } | null = null;
 let settingsInflight: Promise<Record<string, string>> | null = null;
+let settingsGeneration = 0;
 
 /** Background work that must not block the Telegram reply. */
 const background: Promise<unknown>[] = [];
@@ -373,14 +376,19 @@ export async function flushBackground() {
 }
 
 export function invalidateSettings() {
+  settingsGeneration += 1;
   settingsCache = null;
+  // Do not let a read that started before an admin save feed the immediate
+  // preview. Its generation guard already prevents it from repopulating cache.
+  settingsInflight = null;
 }
 
 export async function getSettings(): Promise<Record<string, string>> {
   const now = Date.now();
   if (settingsCache && now - settingsCache.at < SETTINGS_TTL_MS) return settingsCache.data;
   if (settingsInflight) return settingsInflight;
-  settingsInflight = (async () => {
+  const generation = settingsGeneration;
+  const request = (async () => {
     const out: Record<string, string> = {};
     // PostgREST caps a response at 1,000 rows. This table also stores dynamic
     // Premium icons, category labels, and button colours, so it can exceed
@@ -397,12 +405,13 @@ export async function getSettings(): Promise<Record<string, string>> {
       for (const row of data ?? []) out[row.key] = row.value ?? "";
       if (!data || data.length < pageSize) break;
     }
-    settingsCache = { at: Date.now(), data: out };
+    if (generation === settingsGeneration) settingsCache = { at: Date.now(), data: out };
     return out;
-  })().finally(() => {
-    settingsInflight = null;
+  })();
+  settingsInflight = request;
+  return request.finally(() => {
+    if (settingsInflight === request) settingsInflight = null;
   });
-  return settingsInflight;
 }
 
 /** Admin-written note describing how a manual product should be delivered. */
@@ -1981,7 +1990,7 @@ async function walletView(user: any) {
     const eps = epsConfig(s);
     if (eps.enabled) {
       kb.push([wBtn(mfsBtn(s, "wal_mfs", "dep:eps:mfs", "(auto)"))]);
-      kb.push([wBtn(uiBtn(s, "wal_card", "dep:eps:card", "(auto)"))]);
+      kb.push([wBtn(cardBtn(s, "wal_card", "dep:eps:card", "(auto)"))]);
     } else {
       const { paykoriConfig, PAYKORI_METHODS } = await import("@/lib/paykori.server");
       const pk = paykoriConfig(s);
@@ -2455,7 +2464,7 @@ export async function settlePaykoriTransaction(transactionId: string, depId?: st
 type EpsChannel = "mfs" | "card";
 
 const EPS_CHANNEL_LABEL: Record<EpsChannel, string> = {
-  mfs: "bKash · Nagad · Rocket",
+  mfs: "bKash · Nagad · Rocket & more",
   card: "Visa · Mastercard",
 };
 
@@ -2530,7 +2539,7 @@ function epsView(row: any, settings: Record<string, string>) {
   const head =
     channel === "mfs"
       ? `${mfsIconsHtml(settings)} <b>${escapeHtml(EPS_CHANNEL_LABEL.mfs)}</b>`
-      : `${uiIconHtml(settings, "pay_card")} <b>${escapeHtml(EPS_CHANNEL_LABEL.card)}</b>`;
+      : `${cardIconsHtml(settings)} <b>${escapeHtml(EPS_CHANNEL_LABEL.card)}</b>`;
   const text =
     `${head}\n\n` +
     `Amount: <b>৳${bdt.toFixed(2)}</b>  (${money(row.amount_usdt)})\n` +
@@ -4965,6 +4974,9 @@ async function admPaymentIconsView() {
   kb.push([uiBtn(settings, "mfs_bkash", "adm:uie:mfs_bkash", "· merged")]);
   kb.push([uiBtn(settings, "mfs_nagad", "adm:uie:mfs_nagad", "· merged")]);
   kb.push([uiBtn(settings, "mfs_rocket", "adm:uie:mfs_rocket", "· merged")]);
+  kb.push([{ text: "— Card row —", callback_data: "adm:pay" }]);
+  kb.push([uiBtn(settings, "card_visa", "adm:uie:card_visa", "· merged")]);
+  kb.push([uiBtn(settings, "card_mastercard", "adm:uie:card_mastercard", "· merged")]);
   kb.push([
     uiBtn(settings, "pay_mfs", "adm:uie:pay_mfs", "· Checkout"),
     uiBtn(settings, "wal_mfs", "adm:uie:wal_mfs", "· Wallet"),
@@ -4978,9 +4990,10 @@ async function admPaymentIconsView() {
   return {
     text:
       `${uiTag(settings, "pay_title")}\n\n` +
-      `Merged row preview: ${mfsIconsHtml(settings)} <b>${escapeHtml(uiText(settings, "wal_mfs"))}</b>\n\n` +
+      `Mobile row: ${mfsIconsHtml(settings)} <b>${escapeHtml(uiText(settings, "wal_mfs"))}</b>\n` +
+      `Card row: ${cardIconsHtml(settings)} <b>${escapeHtml(uiText(settings, "wal_card"))}</b>\n\n` +
       "Tap bKash / Nagad / Rocket under “Merged EPS rows” to give each one its own " +
-      "Premium custom emoji, then Set icon and send the emoji. The card row and the " +
+      "Premium custom emoji. Visa and Mastercard also have separate icon settings. " +
       "Checkout / Wallet labels are saved separately.",
     kb,
   };
@@ -5197,7 +5210,7 @@ async function coPayView(chatId: number) {
     const eps = epsConfig(settings);
     if (eps.enabled) {
       kb.push([mfsBtn(settings, "pay_mfs", "copm:eps_mfs")]);
-      kb.push([uiBtn(settings, "pay_card", "copm:eps_card")]);
+      kb.push([cardBtn(settings, "pay_card", "copm:eps_card")]);
     } else {
       const { paykoriConfig } = await import("@/lib/paykori.server");
       const pk = paykoriConfig(settings);
@@ -6074,7 +6087,7 @@ async function handleCallback(cq: any) {
     const head =
       channel === "mfs"
         ? `${mfsIconsHtml(s)} <b>${escapeHtml(EPS_CHANNEL_LABEL.mfs)}</b>`
-        : `${uiIconHtml(s, "wal_card")} <b>${escapeHtml(EPS_CHANNEL_LABEL.card)}</b>`;
+        : `${cardIconsHtml(s)} <b>${escapeHtml(EPS_CHANNEL_LABEL.card)}</b>`;
     await edit(
       `${head}\n\nHow much do you want to add? Reply with the amount in <b>USD</b>, e.g. <code>5</code>.\n` +
         `<i>Rate: 1 USD = ${cfg.rate} BDT</i>`,
