@@ -549,28 +549,28 @@ export function StoreShell({ children }: { children: ReactNode }) {
             <span className="text-sm font-medium text-muted-foreground">
               {t(v("site_payments_label"))}
             </span>
-            {/* Desktop banner */}
-            <img
-              src={footerPayDesktopDark.url}
-              alt="We accept Visa, Mastercard, American Express, bKash, Nagad, Rocket and more — verified by EPS"
-              loading="lazy"
-              className="hidden w-full max-w-5xl rounded-xl md:block dark:hidden"
-            />
+            {/* Desktop banner — light version in light mode, dark version in dark mode */}
             <img
               src={footerPayDesktopLight.url}
+              alt="We accept Visa, Mastercard, American Express, bKash, Nagad, Rocket and more — verified by EPS"
+              loading="lazy"
+              className="hidden w-full max-w-5xl rounded-xl md:block dark:md:hidden"
+            />
+            <img
+              src={footerPayDesktopDark.url}
               alt="We accept Visa, Mastercard, American Express, bKash, Nagad, Rocket and more — verified by EPS"
               loading="lazy"
               className="hidden w-full max-w-5xl rounded-xl dark:md:block"
             />
             {/* Mobile banner */}
             <img
-              src={footerPayMobileDark.url}
+              src={footerPayMobileLight.url}
               alt="We accept Visa, Mastercard, American Express, bKash, Nagad, Rocket and more — verified by EPS"
               loading="lazy"
               className="w-full max-w-md rounded-xl md:hidden dark:hidden"
             />
             <img
-              src={footerPayMobileLight.url}
+              src={footerPayMobileDark.url}
               alt="We accept Visa, Mastercard, American Express, bKash, Nagad, Rocket and more — verified by EPS"
               loading="lazy"
               className="hidden w-full max-w-md rounded-xl dark:block md:dark:hidden"
