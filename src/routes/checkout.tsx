@@ -19,7 +19,7 @@ import { getStoreProduct, getStorePayInfo, placeWebsiteOrder } from "@/lib/shop.
 import { getEpsStatus, startEpsCheckout } from "@/lib/eps.functions";
 import { StoreShell, priceTag } from "@/components/StoreShell";
 import { CategoryIcon } from "@/components/CategoryIcon";
-import epsPayBanner from "@/assets/footer-pay-eps-light.png.asset.json";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -254,7 +254,7 @@ function CheckoutPage() {
                         }`}
                       >
                         <img
-                          src={epsPayBanner.url}
+                          src="/footer-pay-eps-light.png"
                           alt="Pay with bKash, Nagad, Rocket, Card and more via EPS"
                           className="h-auto w-full rounded-xl object-contain"
                           loading="lazy"
