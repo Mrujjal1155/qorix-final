@@ -12,7 +12,6 @@ import {
   CreditCard,
   Send,
   ShieldCheck,
-  Smartphone,
   Wallet,
 } from "lucide-react";
 
@@ -20,6 +19,7 @@ import { getStoreProduct, getStorePayInfo, placeWebsiteOrder } from "@/lib/shop.
 import { getEpsStatus, startEpsCheckout } from "@/lib/eps.functions";
 import { StoreShell, priceTag } from "@/components/StoreShell";
 import { CategoryIcon } from "@/components/CategoryIcon";
+import epsPayBanner from "@/assets/footer-pay-eps-light.png.asset.json";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,7 +63,6 @@ const METHODS = [
 const EPS_METHOD = {
   id: "eps",
   label: "bKash · Nagad · Rocket · Card",
-  icon: Smartphone,
   hint: "Instant — EPS secure gateway",
 } as const;
 
@@ -250,19 +249,18 @@ function CheckoutPage() {
                       <button
                         type="button"
                         onClick={() => setMethod(EPS_METHOD.id)}
-                        className={`rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 sm:col-span-3 ${
+                        className={`rounded-2xl border p-3 text-left transition-all hover:-translate-y-0.5 sm:col-span-3 ${
                           isEps ? "border-primary bg-primary/10 card-glow" : "border-border bg-card"
                         }`}
                       >
-                        <span
-                          className={`flex h-9 w-9 items-center justify-center rounded-xl ${
-                            isEps ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          <EPS_METHOD.icon className="h-4 w-4" />
-                        </span>
-                        <p className="mt-3 text-sm font-semibold">{EPS_METHOD.label}</p>
-                        <p className="text-xs text-muted-foreground">
+                        <img
+                          src={epsPayBanner.url}
+                          alt="Pay with bKash, Nagad, Rocket, Card and more via EPS"
+                          className="h-auto w-full rounded-xl object-contain"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                        <p className="mt-2 text-xs text-muted-foreground">
                           {EPS_METHOD.hint}
                           {epsTotalBdt > 0 ? ` · pay ৳${epsTotalBdt.toFixed(2)}` : ""}
                         </p>
