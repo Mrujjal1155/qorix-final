@@ -26,7 +26,13 @@ export function discountPct(p: StoreProduct) {
   return Math.round(((old - Number(p.price)) / old) * 100);
 }
 
-export function ProductCard({ product }: { product: StoreProduct }) {
+export function ProductCard({
+  product,
+  priority = false,
+}: {
+  product: StoreProduct;
+  priority?: boolean;
+}) {
   const t = useT();
   const off = discountPct(product);
   const { money, usd, currency } = usePrefs();
