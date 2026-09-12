@@ -318,7 +318,7 @@ function CheckoutPage() {
                 </div>
                 <div className="rounded-2xl border border-border bg-card p-4">
                   <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                    Send to · {METHODS.find((m) => m.id === method)!.label}
+                    Send to · {cryptoMethod?.label ?? "Payment"}
                   </p>
                   <button
                     className="mt-2 block w-full break-all rounded-xl bg-muted/60 p-3 text-left font-mono text-xs hover:bg-muted"
