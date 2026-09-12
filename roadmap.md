@@ -8,6 +8,7 @@
 - [x] Verify live supplier sync state, queue/log, TypeScript check, and build
 - [ ] Verify the corrected Telegram delivery after the next Cloudflare deployment
 - [x] Load all paginated Bot Admin settings so EPS does not fall back to legacy Pay Kori after 1,000 rows
+- [x] Fix immediate Premium Emoji refresh and add separate MFS/Card icon slots for EPS payment rows
 - [x] Prevent duplicate stock alerts across overlapping sync requests
 - [x] Alert below 5 units (4 or fewer), while keeping sold-out transitions distinct
 - [x] Refresh open storefront stock automatically

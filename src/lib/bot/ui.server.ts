@@ -77,12 +77,14 @@ export const UI_ELEMENTS = {
   pay_rocket: { icon: "🚀", label: "Rocket", group: "payment" },
 
   /* Merged EPS options (one mobile-banking row + one card row) */
-  pay_mfs: { icon: "🏦", label: "bKash · Nagad · Rocket", group: "payment" },
+  pay_mfs: { icon: "🏦", label: "bKash · Nagad · Rocket & more", group: "payment" },
   pay_card: { icon: "💳", label: "Visa · Mastercard", group: "payment" },
   /* The three Premium emoji shown inside the mobile-banking row */
   mfs_bkash: { icon: "📱", label: "bKash icon (merged row)", group: "payment" },
   mfs_nagad: { icon: "📲", label: "Nagad icon (merged row)", group: "payment" },
   mfs_rocket: { icon: "🚀", label: "Rocket icon (merged row)", group: "payment" },
+  card_visa: { icon: "💳", label: "Visa icon (merged row)", group: "payment" },
+  card_mastercard: { icon: "💳", label: "Mastercard icon (merged row)", group: "payment" },
 
   pay_back: { icon: "⬅️", label: "Back", group: "payment" },
   pay_title: { icon: "💳", label: "Select Payment Method", group: "payment" },
@@ -94,7 +96,7 @@ export const UI_ELEMENTS = {
   wal_bkash: { icon: "📱", label: "bKash", group: "wallet" },
   wal_nagad: { icon: "📲", label: "Nagad", group: "wallet" },
   wal_rocket: { icon: "🚀", label: "Rocket", group: "wallet" },
-  wal_mfs: { icon: "🏦", label: "bKash · Nagad · Rocket", group: "wallet" },
+  wal_mfs: { icon: "🏦", label: "bKash · Nagad · Rocket & more", group: "wallet" },
   wal_card: { icon: "💳", label: "Visa · Mastercard", group: "wallet" },
 
 
@@ -350,18 +352,54 @@ export function uiUrlBtn(settings: Record<string, string>, key: UiKey, url: stri
  * single wallet from Bot Admin.
  */
 export const MFS_ICON_KEYS = ["mfs_bkash", "mfs_nagad", "mfs_rocket"] as const;
+export const CARD_ICON_KEYS = ["card_visa", "card_mastercard"] as const;
+
+type MergedIconKey = (typeof MFS_ICON_KEYS)[number] | (typeof CARD_ICON_KEYS)[number];
+
+function mergedIcons(settings: Record<string, string>, keys: readonly MergedIconKey[]) {
+  return keys.map((key) => raw(settings, key));
+}
 
 /** Plain glyphs (button text can only carry plain characters). */
 export function mfsIconsText(settings: Record<string, string>) {
-  return MFS_ICON_KEYS.map((k) => raw(settings, k).glyph).join(" ");
+  return mergedIcons(settings, MFS_ICON_KEYS).map(({ glyph }) => glyph).join(" ");
 }
 
 /** Premium-aware HTML for message bodies. */
 export function mfsIconsHtml(settings: Record<string, string>) {
-  return MFS_ICON_KEYS.map((k) => {
-    const { customId, glyph } = raw(settings, k);
+  return mergedIcons(settings, MFS_ICON_KEYS).map(({ customId, glyph }) => {
     return customId ? `<tg-emoji emoji-id="${customId}">${esc(glyph)}</tg-emoji>` : esc(glyph);
   }).join(" ");
+}
+
+export function cardIconsHtml(settings: Record<string, string>) {
+  return mergedIcons(settings, CARD_ICON_KEYS).map(({ customId, glyph }) => {
+    return customId ? `<tg-emoji emoji-id="${customId}">${esc(glyph)}</tg-emoji>` : esc(glyph);
+  }).join(" ");
+}
+
+/**
+ * Telegram allows one Premium icon on a native inline button. Use the first
+ * configured Premium icon as that native icon and retain the other configured
+ * glyphs in the button text. Message headings render every Premium icon.
+ */
+function mergedBtn(
+  settings: Record<string, string>,
+  key: "wal_mfs" | "pay_mfs" | "wal_card" | "pay_card",
+  iconKeys: readonly MergedIconKey[],
+  callback_data: string,
+  suffix?: string,
+): Button {
+  const label = `${uiText(settings, key)}${suffix ? ` ${suffix}` : ""}`.trim();
+  const icons = mergedIcons(settings, iconKeys);
+  const premiumIndex = icons.findIndex(({ customId }) => Boolean(customId));
+  const glyphs = icons.filter((_, index) => index !== premiumIndex).map(({ glyph }) => glyph).join(" ");
+  const customId = premiumIndex >= 0 ? icons[premiumIndex]?.customId ?? "" : "";
+  return {
+    text: `${glyphs} ${label}`.trim(),
+    callback_data,
+    ...(customId ? { icon_custom_emoji_id: customId } : {}),
+  };
 }
 
 /** Inline button for the merged mobile-banking row. */
@@ -371,11 +409,15 @@ export function mfsBtn(
   callback_data: string,
   suffix?: string,
 ): Button {
-  const label = `${uiText(settings, key)}${suffix ? ` ${suffix}` : ""}`.trim();
-  const { customId } = raw(settings, key);
-  return {
-    text: `${mfsIconsText(settings)} ${label}`.trim(),
-    callback_data,
-    ...(customId ? { icon_custom_emoji_id: customId } : {}),
-  };
+  return mergedBtn(settings, key, MFS_ICON_KEYS, callback_data, suffix);
+}
+
+/** Inline button for the merged Visa / Mastercard row. */
+export function cardBtn(
+  settings: Record<string, string>,
+  key: "wal_card" | "pay_card",
+  callback_data: string,
+  suffix?: string,
+): Button {
+  return mergedBtn(settings, key, CARD_ICON_KEYS, callback_data, suffix);
 }
