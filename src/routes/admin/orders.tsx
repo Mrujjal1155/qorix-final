@@ -2,11 +2,20 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState, type CSSProperties } from "react";
-import { checkSupplierBalances, deliverOrder, listOrders, retryAutoDelivery, setOrderStatus } from "@/lib/admin.functions";
+import {
+  checkSupplierBalances,
+  deliverOrder,
+  listOrders,
+  markOrderPaid,
+  refundOrderToWallet,
+  retryAutoDelivery,
+  setOrderStatus,
+} from "@/lib/admin.functions";
 import { AdminShell, money } from "@/components/AdminShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 
@@ -24,7 +33,13 @@ export const Route = createFileRoute("/admin/orders")({
   component: OrdersPage,
 });
 
-const FILTERS = ["all", "pending", "completed", "cancelled"] as const;
+const FILTERS = ["all", "awaiting_payment", "pending", "completed", "failed", "refunded", "cancelled"] as const;
+
+const STATUS_LABEL: Record<string, string> = {
+  awaiting_payment: "awaiting payment",
+  failed: "failed / unpaid",
+  refunded: "refunded",
+};
 
 const SUPPLIER_HUES = [18, 145, 255, 320, 75, 195, 285, 45, 225, 350] as const;
 
@@ -49,12 +64,17 @@ function OrdersPage() {
   const [source, setSource] = useState<string>("all");
   const [deliverFor, setDeliverFor] = useState<string>("");
   const [content, setContent] = useState("");
+  const [refundFor, setRefundFor] = useState<string>("");
+  const [refundAmount, setRefundAmount] = useState("");
+  const [busy, setBusy] = useState("");
 
   const fetchOrders = useServerFn(listOrders);
   const deliver = useServerFn(deliverOrder);
   const changeStatus = useServerFn(setOrderStatus);
   const retryAuto = useServerFn(retryAutoDelivery);
   const fetchBalances = useServerFn(checkSupplierBalances);
+  const markPaid = useServerFn(markOrderPaid);
+  const refund = useServerFn(refundOrderToWallet);
   const [retrying, setRetrying] = useState<string>("");
 
   const { data: balances } = useQuery({
@@ -206,9 +226,48 @@ function OrdersPage() {
                   <td>{money(o.total)}</td>
                   <td>{o.delivery_type}</td>
                   <td>
-                    <Badge variant={o.status === "completed" ? "default" : "secondary"}>{o.status}</Badge>
+                    <Badge
+                      variant={
+                        o.status === "completed" ? "default" : o.status === "failed" ? "destructive" : "secondary"
+                      }
+                    >
+                      {STATUS_LABEL[o.status] ?? o.status}
+                    </Badge>
                   </td>
                   <td className="space-x-1 text-right">
+                    {(o.status === "awaiting_payment" || o.status === "failed") && (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={busy === o.id}
+                          onClick={async () => {
+                            setBusy(o.id);
+                            try {
+                              await markPaid({ data: { id: o.id } });
+                              toast.success("Order reopened — deliver it now");
+                              refresh();
+                            } catch (e) {
+                              toast.error(e instanceof Error ? e.message : "Failed");
+                            } finally {
+                              setBusy("");
+                            }
+                          }}
+                        >
+                          Mark paid
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setRefundFor(o.id);
+                            setRefundAmount(String(Number(o.total ?? 0).toFixed(2)));
+                          }}
+                        >
+                          Refund
+                        </Button>
+                      </>
+                    )}
                     {o.status === "pending" && (
                       <>
                         {o.supplier_name && (
@@ -279,6 +338,51 @@ function OrdersPage() {
                 {deliverMut.isPending ? "Sending…" : "Send to user & complete"}
               </Button>
               <Button variant="outline" onClick={() => setDeliverFor("")}>
+                Close
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {refundFor && (
+        <Card className="mt-4">
+          <CardHeader>
+            <CardTitle>Refund to wallet</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Enter exactly how much the buyer actually paid for this order. The amount is credited to their wallet and
+              the order is marked refunded.
+            </p>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              value={refundAmount}
+              onChange={(e) => setRefundAmount(e.target.value)}
+              className="max-w-[12rem]"
+            />
+            <div className="flex gap-2">
+              <Button
+                disabled={busy === refundFor || !(Number(refundAmount) > 0)}
+                onClick={async () => {
+                  setBusy(refundFor);
+                  try {
+                    await refund({ data: { id: refundFor, amount: Number(refundAmount) } });
+                    toast.success("Refunded to wallet");
+                    setRefundFor("");
+                    refresh();
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Refund failed");
+                  } finally {
+                    setBusy("");
+                  }
+                }}
+              >
+                Refund to wallet
+              </Button>
+              <Button variant="outline" onClick={() => setRefundFor("")}>
                 Close
               </Button>
             </div>
