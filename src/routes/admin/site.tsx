@@ -280,12 +280,7 @@ function SitePage() {
                 {g.fields.map((f) => (
                   <div key={f.key} className="space-y-1.5">
                     <Label htmlFor={f.key}>{f.label}</Label>
-                    {f.payments ? (
-                      <PaymentsEditor
-                        value={values[f.key] ?? ""}
-                        onChange={(val) => setValues((v) => ({ ...v, [f.key]: val }))}
-                      />
-                    ) : f.image ? (
+                  {f.image ? (
                       <div className="space-y-2">
                         <ImageUploadField
                           value={values[f.key] ?? ""}
@@ -334,93 +329,5 @@ function SitePage() {
         }))}
       />
     </AdminShell>
-  );
-}
-
-type PayRow = { label: string; bg: string; color: string; image: string };
-
-function parseRows(value: string): PayRow[] {
-  return value
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [label = "", bg = "", color = "", image = ""] = line.split("|").map((p) => p.trim());
-      return { label, bg, color, image };
-    });
-}
-
-function serializeRows(rows: PayRow[]) {
-  return rows
-    .filter((r) => r.label || r.image)
-    .map((r) => [r.label, r.bg, r.color, r.image].join("|").replace(/\|+$/, ""))
-    .join("\n");
-}
-
-function PaymentsEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const rows = parseRows(value);
-  const update = (i: number, patch: Partial<PayRow>) => {
-    const next = rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r));
-    onChange(serializeRows(next));
-  };
-
-  return (
-    <div className="space-y-3">
-      {rows.map((r, i) => (
-        <div key={i} className="rounded-lg border border-border/60 p-3">
-          <div className="flex items-center gap-2">
-            <span
-              className="inline-flex h-9 w-[86px] shrink-0 items-center justify-center overflow-hidden rounded-md border border-border/70 px-2 text-[11px] font-bold"
-              style={{ backgroundColor: r.bg || undefined, color: r.image ? undefined : r.color || "#fff" }}
-            >
-              {r.image ? (
-                <img src={r.image} alt={r.label} className="max-h-6 w-auto object-contain" />
-              ) : (
-                r.label || "—"
-              )}
-            </span>
-            <Input
-              value={r.label}
-              placeholder="Name (bKash)"
-              onChange={(e) => update(i, { label: e.target.value })}
-            />
-            <Input
-              value={r.bg}
-              placeholder="#background"
-              className="w-32"
-              onChange={(e) => update(i, { bg: e.target.value })}
-            />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label="Remove payment method"
-              onClick={() => onChange(serializeRows(rows.filter((_, idx) => idx !== i)))}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-          <div className="mt-2">
-            <ImageUploadField
-              value={r.image}
-              onChange={(url) => update(i, { image: url })}
-              placeholder="Logo URL (auto-filled on upload)"
-              compact
-            />
-          </div>
-        </div>
-      ))}
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        onClick={() => onChange(serializeRows([...rows, { label: "New method", bg: "", color: "", image: "" }]))}
-      >
-        <Plus className="mr-1 h-4 w-4" /> Add payment method
-      </Button>
-      <p className="text-xs text-muted-foreground">
-        Logo size: <strong>200×60 px</strong> (transparent PNG) looks best.
-      </p>
-    </div>
   );
 }
