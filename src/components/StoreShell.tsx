@@ -546,9 +546,6 @@ export function StoreShell({ children }: { children: ReactNode }) {
           ) : null}
 
           <div className="mt-10 flex flex-col items-center gap-4">
-            <span className="text-sm font-medium text-muted-foreground">
-              {t(v("site_payments_label"))}
-            </span>
             {/* Desktop banner — light version in light mode, dark version in dark mode */}
             <img
               src={footerPayDesktopLight.url}
