@@ -63,7 +63,6 @@ const METHODS = [
 const EPS_METHOD = {
   id: "eps",
   label: "bKash · Nagad · Rocket · Card",
-  icon: Smartphone,
   hint: "Instant — EPS secure gateway",
 } as const;
 
