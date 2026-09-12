@@ -367,12 +367,23 @@ function defer(work: Promise<unknown> | (() => Promise<unknown>)) {
   const p = typeof work === "function" ? work() : work;
   background.push(Promise.resolve(p).catch(() => {}));
 }
-/** Awaited once, after the user-visible reply has been sent. */
+/**
+ * Bookkeeping runs after the reply. On Cloudflare it is handed to
+ * `ctx.waitUntil()` so the webhook answers instantly — Telegram then delivers
+ * the user's next tap without waiting for our database writes.
+ */
 export async function flushBackground() {
-  while (background.length) {
-    const batch = background.splice(0, background.length);
-    await Promise.allSettled(batch);
-  }
+  if (!background.length) return;
+  const batch = background.splice(0, background.length);
+  const work = (async () => {
+    let pending = batch;
+    while (pending.length) {
+      await Promise.allSettled(pending);
+      pending = background.splice(0, background.length);
+    }
+  })();
+  if (backgroundWaitUntil(work)) return;
+  await work;
 }
 
 export function invalidateSettings() {
