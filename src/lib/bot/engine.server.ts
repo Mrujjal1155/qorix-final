@@ -2134,14 +2134,25 @@ async function verifyBinanceDeposit(chatId: number, id: string) {
 /** Credit a wallet deposit, or fulfil a direct checkout attached to the deposit row. */
 async function settlePayment(chatId: number, row: any, amount: number, txid: string, note: string) {
   const methodLabel =
-    row.kind === "paykori"
-      ? `Pay Kori ${String(row.network || "").toUpperCase()}`
-      : row.kind === "payid"
-        ? "Binance Pay"
-        : `USDT ${row.network}`;
+    row.kind === "eps"
+      ? row.network === "card"
+        ? "Card (EPS)"
+        : "Mobile banking (EPS)"
+      : row.kind === "paykori"
+        ? `Pay Kori ${String(row.network || "").toUpperCase()}`
+        : row.kind === "payid"
+          ? "Binance Pay"
+          : `USDT ${row.network}`;
 
   const methodKey =
-    row.kind === "paykori" ? `paykori_${row.network}` : row.kind === "payid" ? "binance_pay" : `usdt_${row.network}`;
+    row.kind === "eps"
+      ? `eps_${row.network}`
+      : row.kind === "paykori"
+        ? `paykori_${row.network}`
+        : row.kind === "payid"
+          ? "binance_pay"
+          : `usdt_${row.network}`;
+
 
   const meta = (row.meta ?? {}) as any;
 
