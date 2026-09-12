@@ -4740,7 +4740,7 @@ async function admPaymentIconsView() {
     ["card_visa", "Visa"],
     ["card_mastercard", "Mastercard"],
   ] as const;
-  const kb: Button[][] = gateways.map(([key]) => [uiBtn(settings, key, `adm:uie:${key}`)]);
+  const kb: Button[][] = gateways.map(([key]) => [uiBtn(settings, key, `adm:uii:${key}`)]);
   kb.push([{ text: "— Row labels —", callback_data: "adm:pay" }]);
   kb.push([
     uiBtn(settings, "wal_mfs", "adm:uie:wal_mfs", "· Wallet"),
@@ -4757,7 +4757,7 @@ async function admPaymentIconsView() {
       `${uiTag(settings, "pay_title")}\n\n` +
       `Mobile row: ${mfsIconsHtml(settings)} <b>${escapeHtml(uiText(settings, "wal_mfs"))}</b>\n` +
       `Card row: ${cardIconsHtml(settings)} <b>${escapeHtml(uiText(settings, "wal_card"))}</b>\n\n` +
-      "Tap a gateway to set its Premium custom emoji (or a normal emoji). " +
+      "Tap a gateway and send its Premium custom emoji (or a normal emoji) right away. " +
       "Row labels rename the merged wallet / checkout buttons.",
     kb,
   };
