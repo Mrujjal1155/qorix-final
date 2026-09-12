@@ -5091,23 +5091,29 @@ async function fulfillCheckout(chatId: number, meta: CoMeta, methodKey: string, 
     }
 
 
-    const { data: order } = await db
-      .from("orders")
-      .insert({
-        telegram_id: chatId,
-        product_id: p.id,
-        product_name: p.name,
-        quantity: l.qty,
-        unit_price: p.price,
-        total: Math.max(0, Math.round((l.subtotal - share) * 100) / 100),
-        status,
-        delivery_type: p.delivery_type,
-        delivered_content: delivered,
-        coupon_code: meta.coupon?.code ?? null,
-        discount: Math.round(share * 100) / 100,
-      })
-      .select("*")
-      .maybeSingle();
+    // Reuse the "awaiting payment" row created when the gateway link was made,
+    // so the order id the buyer already has stays the same after payment.
+    const claimIdx = awaitingRows.findIndex(
+      (r: any) => r.product_id === p.id && Number(r.quantity) === Number(l.qty),
+    );
+    const claimRow = claimIdx >= 0 ? awaitingRows.splice(claimIdx, 1)[0] : null;
+    const payload = {
+      telegram_id: chatId,
+      product_id: p.id,
+      product_name: p.name,
+      quantity: l.qty,
+      unit_price: p.price,
+      total: Math.max(0, Math.round((l.subtotal - share) * 100) / 100),
+      status,
+      delivery_type: p.delivery_type,
+      delivered_content: delivered,
+      coupon_code: meta.coupon?.code ?? null,
+      discount: Math.round(share * 100) / 100,
+    };
+    const { data: order } = claimRow
+      ? await db.from("orders").update(payload).eq("id", claimRow.id).select("*").maybeSingle()
+      : await db.from("orders").insert(payload).select("*").maybeSingle();
+
 
     text += `• #${order?.order_no} — ${l.qty}× ${p.name}${status === "completed" ? " ✅" : " ⏳ manual"}\n`;
     if (deliveredItems.length) {
