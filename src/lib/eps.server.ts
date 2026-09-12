@@ -11,7 +11,7 @@
 //   `verifyTransaction()` (server -> EPS) reports Success with an amount that
 //   covers what we asked for.
 
-import { createHmac } from "crypto";
+import { createDecipheriv, createHmac } from "crypto";
 
 const DEFAULT_BASE = "https://pgapi.eps.com.bd";
 
@@ -55,6 +55,56 @@ export function epsConfig(settings: Record<string, string>): EpsConfig {
 /** x-hash: base64( HMAC-SHA512( utf8(hashKey), message ) ). */
 export function epsHash(hashKey: string, message: string) {
   return createHmac("sha512", Buffer.from(hashKey, "utf8")).update(message, "utf8").digest("base64");
+}
+
+/** Secret key used by EPS to AES-encrypt IPN payloads. */
+export function epsSecretKey(settings: Record<string, string>) {
+  return (
+    settings["eps_secret_key"] ||
+    process.env["EPS_SECRET_KEY"] ||
+    settings["eps_hash_key"] ||
+    process.env["EPS_HASH_KEY"] ||
+    ""
+  ).trim();
+}
+
+export type EpsIpnPayload = {
+  EpsTransactionId?: string;
+  MerchantTransactionId?: string;
+  StoreId?: number;
+  Status?: string;
+  TotalAmount?: number;
+  StoreAmount?: number;
+  TransactionDate?: string;
+  TransactionType?: string;
+  FinancialEntity?: string;
+  CustomerId?: string;
+  CustomerName?: string;
+  CustomerPhone?: string;
+  CustomerEmail?: string;
+  CustomerAddress?: string;
+  Timestamp?: number;
+};
+
+/**
+ * Decrypt an IPN `Data` field: AES-256-CBC, PKCS7, format `base64IV:base64Cipher`.
+ * The key is the merchant Secret Key, padded/truncated to 32 bytes.
+ */
+export function decryptIpn(data: string, secretKey: string): EpsIpnPayload | null {
+  try {
+    const idx = data.indexOf(":");
+    if (idx <= 0 || !secretKey) return null;
+    const iv = Buffer.from(data.slice(0, idx), "base64");
+    const cipher = Buffer.from(data.slice(idx + 1), "base64");
+    const key = Buffer.alloc(32);
+    Buffer.from(secretKey, "utf8").copy(key, 0, 0, Math.min(32, Buffer.byteLength(secretKey, "utf8")));
+    const decipher = createDecipheriv("aes-256-cbc", key, iv);
+    decipher.setAutoPadding(true);
+    const out = Buffer.concat([decipher.update(cipher), decipher.final()]).toString("utf8");
+    return JSON.parse(out) as EpsIpnPayload;
+  } catch {
+    return null;
+  }
 }
 
 export function usdToBdt(usd: number, rate: number) {

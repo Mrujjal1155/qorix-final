@@ -10,6 +10,7 @@ import { createFileRoute } from "@tanstack/react-router";
 async function readIds(request: Request) {
   const url = new URL(request.url);
   const bag: Record<string, string> = {};
+  let encrypted = "";
 
   const put = (k: string, v: unknown) => {
     if (typeof v === "string" && v.trim()) bag[k.toLowerCase()] = v.trim();
@@ -30,6 +31,20 @@ async function readIds(request: Request) {
       }
     } catch {
       /* empty or unreadable body — query string may still carry the ids */
+    }
+  }
+
+  encrypted = bag["data"] || "";
+
+  // Encrypted IPN (EPS IPN Receiver v0.2): { "Data": "base64IV:base64Cipher" }
+  if (encrypted.includes(":")) {
+    const [{ epsSettings }, { decryptIpn, epsSecretKey }] = await Promise.all([
+      import("@/lib/eps-settle.server"),
+      import("@/lib/eps.server"),
+    ]);
+    const payload = decryptIpn(encrypted, epsSecretKey(await epsSettings()));
+    if (payload) {
+      for (const [k, v] of Object.entries(payload)) put(k, v);
     }
   }
 
