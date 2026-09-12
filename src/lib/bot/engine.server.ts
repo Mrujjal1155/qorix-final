@@ -3336,7 +3336,26 @@ async function handleMessage(msg: any) {
     return;
   }
   switch (state.awaiting) {
+    case "eps_amount": {
+      const amount = Number(text.replace(/[^0-9.]/g, ""));
+      if (!amount || amount <= 0) {
+        await say(chatId, "❌ Please send a valid amount in USD, e.g. <code>5</code>");
+        return;
+      }
+      const channel: EpsChannel = state.eps_channel === "card" ? "card" : "mfs";
+      state.awaiting = null;
+      await setState(chatId, state);
+      const er = await startEpsDeposit(chatId, channel, amount);
+      if ("error" in er && er.error) {
+        await say(chatId, `❌ ${escapeHtml(er.error)}`, [[{ text: "⬅️ Wallet", callback_data: "wallet" }]]);
+        return;
+      }
+      const ev = epsView((er as any).row, await getSettings());
+      await say(chatId, ev.text, ev.kb);
+      return;
+    }
     case "pk_amount": {
+
       const amount = Number(text.replace(/[^0-9.]/g, ""));
       if (!amount || amount <= 0) {
         await say(chatId, "❌ Please send a valid amount in USD, e.g. <code>5</code>");
