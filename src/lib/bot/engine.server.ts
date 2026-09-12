@@ -6016,7 +6016,36 @@ async function handleCallback(cq: any) {
     return;
   }
 
+  if (data === "dep:eps:mfs" || data === "dep:eps:card") {
+    const channel: EpsChannel = data.endsWith("card") ? "card" : "mfs";
+    const { s, cfg } = await epsCfg();
+    if (!cfg.enabled) {
+      await edit("⚠️ Card / mobile banking deposits are currently disabled. Please use another method.", [
+        [{ text: "⬅️ Wallet", callback_data: "wallet" }],
+      ]);
+      return;
+    }
+    await setState(chatId, { ...(user.state ?? {}), awaiting: "eps_amount", eps_channel: channel });
+    const head =
+      channel === "mfs"
+        ? `${mfsIconsHtml(s)} <b>${escapeHtml(EPS_CHANNEL_LABEL.mfs)}</b>`
+        : `${uiIconHtml(s, "wal_card")} <b>${escapeHtml(EPS_CHANNEL_LABEL.card)}</b>`;
+    await edit(
+      `${head}\n\nHow much do you want to add? Reply with the amount in <b>USD</b>, e.g. <code>5</code>.\n` +
+        `<i>Rate: 1 USD = ${cfg.rate} BDT</i>`,
+      [[uiBtn(s, "com_back", "wallet")]],
+    );
+    return;
+  }
+
+  if (data.startsWith("epschk:")) {
+    const r = await verifyEpsDeposit(chatId, data.slice(7));
+    await edit(r.message, r.keyboard);
+    return;
+  }
+
   if (data.startsWith("pkr:")) {
+
     const method = data.slice(4);
     const { s, cfg } = await paykoriCfg();
     const { PAYKORI_METHODS } = await import("@/lib/paykori.server");
