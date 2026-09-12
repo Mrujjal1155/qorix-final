@@ -18,6 +18,12 @@ import { I18nProvider, useT } from "@/lib/i18n";
 import { ReferralCapture } from "@/components/ReferralCapture";
 import { BrandHead } from "@/components/BrandHead";
 
+/** Storage origin that serves product images — warm the connection early. */
+const IMG_ORIGIN: string =
+  (import.meta.env["VITE_SB_URL"] as string | undefined) ||
+  (import.meta.env["VITE_SUPABASE_URL"] as string | undefined) ||
+  "";
+
 
 function NotFoundComponent() {
   const t = useT();
