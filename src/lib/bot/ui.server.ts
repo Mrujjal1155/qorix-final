@@ -341,3 +341,41 @@ export function uiUrlBtn(settings: Record<string, string>, key: UiKey, url: stri
     ...(customId ? { icon_custom_emoji_id: customId } : {}),
   };
 }
+
+/* -------------------------------------------------- merged mobile banking */
+/**
+ * The merged "bKash · Nagad · Rocket" row shows three separately configurable
+ * icons. Each one is a normal UI element (`mfs_bkash` / `mfs_nagad` /
+ * `mfs_rocket`), so an admin can set a Telegram Premium custom emoji for every
+ * single wallet from Bot Admin.
+ */
+export const MFS_ICON_KEYS = ["mfs_bkash", "mfs_nagad", "mfs_rocket"] as const;
+
+/** Plain glyphs (button text can only carry plain characters). */
+export function mfsIconsText(settings: Record<string, string>) {
+  return MFS_ICON_KEYS.map((k) => raw(settings, k).glyph).join(" ");
+}
+
+/** Premium-aware HTML for message bodies. */
+export function mfsIconsHtml(settings: Record<string, string>) {
+  return MFS_ICON_KEYS.map((k) => {
+    const { customId, glyph } = raw(settings, k);
+    return customId ? `<tg-emoji emoji-id="${customId}">${esc(glyph)}</tg-emoji>` : esc(glyph);
+  }).join(" ");
+}
+
+/** Inline button for the merged mobile-banking row. */
+export function mfsBtn(
+  settings: Record<string, string>,
+  key: "wal_mfs" | "pay_mfs",
+  callback_data: string,
+  suffix?: string,
+): Button {
+  const label = `${uiText(settings, key)}${suffix ? ` ${suffix}` : ""}`.trim();
+  const { customId } = raw(settings, key);
+  return {
+    text: `${mfsIconsText(settings)} ${label}`.trim(),
+    callback_data,
+    ...(customId ? { icon_custom_emoji_id: customId } : {}),
+  };
+}
