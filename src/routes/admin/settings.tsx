@@ -137,10 +137,23 @@ function SettingsPage() {
   });
   const tokenOk = tokenStatus?.status === "ok";
   const [values, setValues] = useState<Record<string, string>>({});
+  // Last snapshot from the server. A refetch must never wipe fields the admin
+  // is still typing into, so only untouched keys are refreshed.
+  const serverValues = useRef<Record<string, string>>({});
 
   useEffect(() => {
-    if (data) setValues(data);
+    if (!data) return;
+    setValues((prev) => {
+      const next = { ...prev };
+      for (const [k, v] of Object.entries(data)) {
+        const wasEdited = Object.prototype.hasOwnProperty.call(prev, k) && prev[k] !== serverValues.current[k];
+        if (!wasEdited) next[k] = v as string;
+      }
+      return next;
+    });
+    serverValues.current = { ...(data as Record<string, string>) };
   }, [data]);
+
 
   function isOn(value: string | undefined) {
     const v = (value ?? "").toString().trim().toLowerCase();
