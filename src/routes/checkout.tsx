@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 
 import { getStoreProduct, getStorePayInfo, placeWebsiteOrder } from "@/lib/shop.functions";
+import { getEpsStatus, startEpsCheckout } from "@/lib/eps.functions";
 import { StoreShell, priceTag } from "@/components/StoreShell";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,6 +58,13 @@ const METHODS = [
   { id: "usdt_bep20", label: "USDT · BEP-20", key: "usdt_bep20_address", icon: Coins, hint: "BNB Smart Chain" },
   { id: "usdt_trc20", label: "USDT · TRC-20", key: "usdt_trc20_address", icon: Bitcoin, hint: "Tron network" },
 ] as const;
+
+const EPS_METHOD = {
+  id: "eps",
+  label: "bKash · Nagad · Rocket · Card",
+  icon: Smartphone,
+  hint: "Instant — EPS secure gateway",
+} as const;
 
 function CheckoutPage() {
   const { id, qty, step } = Route.useSearch();
