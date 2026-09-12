@@ -18,6 +18,12 @@ import { I18nProvider, useT } from "@/lib/i18n";
 import { ReferralCapture } from "@/components/ReferralCapture";
 import { BrandHead } from "@/components/BrandHead";
 
+/** Storage origin that serves product images — warm the connection early. */
+const IMG_ORIGIN: string =
+  (import.meta.env["VITE_SB_URL"] as string | undefined) ||
+  (import.meta.env["VITE_SUPABASE_URL"] as string | undefined) ||
+  "";
+
 
 function NotFoundComponent() {
   const t = useT();
@@ -108,6 +114,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
+      ...(IMG_ORIGIN
+        ? [
+            { rel: "preconnect", href: IMG_ORIGIN, crossOrigin: "anonymous" as const },
+            { rel: "dns-prefetch", href: IMG_ORIGIN },
+          ]
+        : []),
       { rel: "icon", href: "/favicon.png", type: "image/png" },
       { rel: "apple-touch-icon", href: "/favicon.png" },
       { rel: "shortcut icon", href: "/favicon.ico" },
