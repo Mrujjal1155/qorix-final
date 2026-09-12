@@ -4732,13 +4732,11 @@ async function admUiGroupView() {
 
 async function admPaymentIconsView() {
   const settings = await getSettings();
-  // One button per gateway — each opens the usual icon editor.
+  // Telegram supports one Premium icon per native button, so each merged EPS
+  // option has one shared icon editor.
   const gateways = [
-    ["mfs_bkash", "bKash"],
-    ["mfs_nagad", "Nagad"],
-    ["mfs_rocket", "Rocket"],
-    ["card_visa", "Visa"],
-    ["card_mastercard", "Mastercard"],
+    ["mfs_bkash", "MFS"],
+    ["card_visa", "Card"],
   ] as const;
   const kb: Button[][] = gateways.map(([key]) => [uiBtn(settings, key, `adm:uii:${key}`)]);
   kb.push([{ text: "— Row labels —", callback_data: "adm:pay" }]);
@@ -4757,7 +4755,7 @@ async function admPaymentIconsView() {
       `${uiTag(settings, "pay_title")}\n\n` +
       `Mobile row: ${mfsIconsHtml(settings)} <b>${escapeHtml(uiText(settings, "wal_mfs"))}</b>\n` +
       `Card row: ${cardIconsHtml(settings)} <b>${escapeHtml(uiText(settings, "wal_card"))}</b>\n\n` +
-      "Tap a gateway and send its Premium custom emoji (or a normal emoji) right away. " +
+      "Set one Premium custom emoji (or normal emoji) for each merged payment option. " +
       "Row labels rename the merged wallet / checkout buttons.",
     kb,
   };

@@ -79,12 +79,9 @@ export const UI_ELEMENTS = {
   /* Merged EPS options (one mobile-banking row + one card row) */
   pay_mfs: { icon: "🏦", label: "bKash · Nagad · Rocket & more", group: "payment" },
   pay_card: { icon: "💳", label: "Visa · Mastercard", group: "payment" },
-  /* The three Premium emoji shown inside the mobile-banking row */
-  mfs_bkash: { icon: "📱", label: "bKash icon (merged row)", group: "payment" },
-  mfs_nagad: { icon: "📲", label: "Nagad icon (merged row)", group: "payment" },
-  mfs_rocket: { icon: "🚀", label: "Rocket icon (merged row)", group: "payment" },
-  card_visa: { icon: "💳", label: "Visa icon (merged row)", group: "payment" },
-  card_mastercard: { icon: "💳", label: "Mastercard icon (merged row)", group: "payment" },
+  /* One shared Premium emoji per merged EPS option. */
+  mfs_bkash: { icon: "🏦", label: "MFS payment icon", group: "payment" },
+  card_visa: { icon: "💳", label: "Card payment icon", group: "payment" },
 
   pay_back: { icon: "⬅️", label: "Back", group: "payment" },
   pay_title: { icon: "💳", label: "Select Payment Method", group: "payment" },
@@ -345,14 +342,9 @@ export function uiUrlBtn(settings: Record<string, string>, key: UiKey, url: stri
 }
 
 /* -------------------------------------------------- merged mobile banking */
-/**
- * The merged "bKash · Nagad · Rocket" row shows three separately configurable
- * icons. Each one is a normal UI element (`mfs_bkash` / `mfs_nagad` /
- * `mfs_rocket`), so an admin can set a Telegram Premium custom emoji for every
- * single wallet from Bot Admin.
- */
-export const MFS_ICON_KEYS = ["mfs_bkash", "mfs_nagad", "mfs_rocket"] as const;
-export const CARD_ICON_KEYS = ["card_visa", "card_mastercard"] as const;
+/** Each merged EPS row has one shared, Bot Admin-configurable icon. */
+export const MFS_ICON_KEYS = ["mfs_bkash"] as const;
+export const CARD_ICON_KEYS = ["card_visa"] as const;
 
 type MergedIconKey = (typeof MFS_ICON_KEYS)[number] | (typeof CARD_ICON_KEYS)[number];
 
@@ -360,7 +352,7 @@ function mergedIcons(settings: Record<string, string>, keys: readonly MergedIcon
   return keys.map((key) => raw(settings, key));
 }
 
-/** Plain glyphs (button text can only carry plain characters). */
+/** Plain fallback glyph for the merged mobile-banking option. */
 export function mfsIconsText(settings: Record<string, string>) {
   return mergedIcons(settings, MFS_ICON_KEYS).map(({ glyph }) => glyph).join(" ");
 }
@@ -378,11 +370,7 @@ export function cardIconsHtml(settings: Record<string, string>) {
   }).join(" ");
 }
 
-/**
- * Telegram allows one Premium icon on a native inline button. Use the first
- * configured Premium icon as that native icon and retain the other configured
- * glyphs in the button text. Message headings render every Premium icon.
- */
+/** Telegram allows one Premium icon on a native inline button. */
 function mergedBtn(
   settings: Record<string, string>,
   key: "wal_mfs" | "pay_mfs" | "wal_card" | "pay_card",
@@ -391,16 +379,11 @@ function mergedBtn(
   suffix?: string,
 ): Button {
   const label = `${uiText(settings, key)}${suffix ? ` ${suffix}` : ""}`.trim();
-  const icons = mergedIcons(settings, iconKeys);
-  // Telegram button text cannot render a Premium emoji, so every configured
-  // glyph stays visible in the label. The first Premium id is still attached as
-  // the native button icon on clients that support it.
-  const glyphs = icons.map(({ glyph }) => glyph).filter(Boolean).join(" ");
-  const customId = icons.find(({ customId: c }) => Boolean(c))?.customId ?? "";
+  const icon = mergedIcons(settings, iconKeys)[0] ?? { customId: "", glyph: "" };
   return {
-    text: `${glyphs} ${label}`.trim(),
+    text: icon.customId ? label : `${icon.glyph} ${label}`.trim(),
     callback_data,
-    ...(customId ? { icon_custom_emoji_id: customId } : {}),
+    ...(icon.customId ? { icon_custom_emoji_id: icon.customId } : {}),
   };
 }
 
