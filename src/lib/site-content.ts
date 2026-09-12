@@ -33,11 +33,6 @@ export const SITE_DEFAULTS: Record<string, string> = {
   site_socials:
     "facebook|https://facebook.com\ninstagram|https://instagram.com\ntelegram|https://t.me/vibexAcademybd\ntwitter|https://twitter.com",
 
-  // Payment chips — one per line: Label|#bgColor|#textColor|imageURL(image optional)
-  site_payments:
-    "bKash|#e2136e\nNagad|#f60\nBINANCE|#0b0e11|#f0b90b\nUddoktaPay|#00a8ff\nNOWPayments|#0b1b2b\nskrill|#862165\nRocket|#8c3494\nUBA|#111\neasypay|#f5820b\nUPI|#1b1b1b",
-  site_payments_label: "We accept:",
-
   site_copyright: "© {year} qorixlab.com. All rights reserved. Made with ❤️ in Bangladesh.",
 
   // Floating buttons
@@ -105,21 +100,6 @@ export function parseLinks(raw: string): SiteLink[] {
 
 export function siteLinks(site: SiteContent | undefined, key: string): SiteLink[] {
   return parseLinks(siteValue(site, key));
-}
-
-/* Payment badges: one per line → Label|#bgColor|#textColor|imageURL(optional) */
-export type SitePayment = { label: string; bg: string; color: string; image: string };
-
-export function sitePayments(site: SiteContent | undefined): SitePayment[] {
-  return siteValue(site, "site_payments")
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [label = "", bg = "", color = "", image = ""] = line.split("|").map((p) => p.trim());
-      return { label, bg, color, image };
-    })
-    .filter((p) => p.label || p.image);
 }
 
 /* Page "cards"/"points" lists: one per line → Title|Text|link(optional)|icon(optional) */
