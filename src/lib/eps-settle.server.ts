@@ -50,7 +50,7 @@ export async function settleEpsPayment(
   const { epsConfig, verifyTransaction, isPaid, usdToBdt } = await import("@/lib/eps.server");
   const cfg = epsConfig(settings);
 
-  const v = await verifyTransaction(cfg, { merchantTransactionId: mtid, epsTransactionId });
+  const v = await verifyTransaction(cfg, { merchantTransactionId: mtid, epsTransactionId: epsTransactionId ?? null });
   if (!v.ok) return { ok: false, orderNo: order.order_no, email: order.customer_email, reason: v.error };
   const info = v.info;
   if (!isPaid(info.status)) {
