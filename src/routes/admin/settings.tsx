@@ -616,9 +616,12 @@ function SettingsPage() {
       <CardContent className="space-y-5">
         <p className="text-sm text-muted-foreground">
           Credentials come from the EPS merchant panel and stay on the server. Give EPS this return URL:{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">{PRODUCTION_SITE_URL}/api/public/eps/return</code>. Every
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">{PRODUCTION_SITE_URL}/api/public/eps/return</code> (use it
+          for success, fail and cancel), and this IPN / notification URL:{" "}
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">{PRODUCTION_SITE_URL}/api/public/eps/ipn</code>. Every
           payment is re-verified with EPS before an order is marked paid.
         </p>
+
 
         <div className="flex items-start justify-between gap-4 rounded-xl border border-border/70 bg-card/50 p-4">
           <div className="space-y-0.5">
