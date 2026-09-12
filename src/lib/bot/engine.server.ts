@@ -46,6 +46,7 @@ import {
 } from "@/lib/order-file.server";
 import { parseStock } from "@/lib/stock-format";
 import { SITE_ORIGIN } from "@/lib/site-url";
+import { backgroundWaitUntil } from "@/lib/bg.server";
 
 
 const db = supabaseAdmin as any;
@@ -404,16 +405,26 @@ export async function getSettings(): Promise<Record<string, string>> {
     // PostgREST caps a response at 1,000 rows. This table also stores dynamic
     // Premium icons, category labels, and button colours, so it can exceed
     // that limit. Read every page; otherwise later keys such as EPS credentials
-    const pageSize = 500;
-    for (let from = 0; ; from += pageSize) {
+    const pageSize = 1000;
+    const page = async (from: number) => {
       const { data, error } = await db
         .from("bot_settings")
         .select("key,value")
         .order("key", { ascending: true })
         .range(from, from + pageSize - 1);
       if (error) throw new Error(`Could not load bot settings: ${error.message}`);
-      for (const row of data ?? []) out[row.key] = row.value ?? "";
-      if (!data || data.length < pageSize) break;
+      return (data ?? []) as { key: string; value: string | null }[];
+    };
+    // First page alone, then any remaining pages together: two round trips
+    // instead of one per page keeps every bot reply fast.
+    let rows = await page(0);
+    for (const row of rows) out[row.key] = row.value ?? "";
+    let from = pageSize;
+    while (rows.length === pageSize) {
+      const batch = await Promise.all([page(from), page(from + pageSize)]);
+      for (const part of batch) for (const row of part) out[row.key] = row.value ?? "";
+      rows = batch[1] ?? [];
+      from += pageSize * 2;
     }
     if (generation === settingsGeneration) settingsCache = { at: Date.now(), data: out };
     return out;
@@ -523,24 +534,17 @@ async function setState(telegramId: number, state: Record<string, unknown> | nul
 
 async function trackMessage(telegramId: number, messageId?: number) {
   if (!messageId) return;
-  let msgs = msgsCache.get(telegramId);
-  if (!msgs) {
-    const { data } = await db
-      .from("bot_users")
-      .select("state")
-      .eq("telegram_id", telegramId)
-      .maybeSingle();
-    const state = (data?.state ?? {}) as any;
-    msgs = Array.isArray(state.msgs) ? state.msgs : [];
-  }
-  msgs = [...(msgs ?? []), messageId].slice(-40);
-  msgsCache.set(telegramId, msgs);
+  // One read only: the same row carries both the tracked ids and the state.
   const { data } = await db
     .from("bot_users")
     .select("state")
     .eq("telegram_id", telegramId)
     .maybeSingle();
   const dbState = (data?.state ?? {}) as any;
+  let msgs = msgsCache.get(telegramId);
+  if (!msgs) msgs = Array.isArray(dbState.msgs) ? dbState.msgs : [];
+  msgs = [...(msgs ?? []), messageId].slice(-40);
+  msgsCache.set(telegramId, msgs);
   // Never let this background write roll back a newer state (e.g. `awaiting`).
   const state = { ...dbState, ...(stateCache.get(telegramId) ?? {}) } as any;
   state.msgs = msgs;
@@ -667,7 +671,7 @@ async function showView(
     return;
   }
   if (messageId) await deleteMessage(chatId, messageId).catch(() => undefined);
-  await trackMessage(chatId, res?.result?.message_id);
+  defer(() => trackMessage(chatId, res?.result?.message_id));
   if (!short) await say(chatId, view.text, view.kb);
 }
 
@@ -3078,8 +3082,7 @@ async function handleMessage(msg: any) {
         return;
       }
     }
-    const fresh = await getUser(chatId);
-    await say(chatId, await homeText(fresh), homeKeyboard(await getSettings()));
+    await say(chatId, await homeText(user), homeKeyboard(await getSettings()));
     return;
   }
 
@@ -3090,7 +3093,7 @@ async function handleMessage(msg: any) {
     )
   ) {
     const cmd = text.slice(1).split(/[\s@]/)[0] ?? "";
-    const fresh = await getUser(chatId);
+    const fresh = user;
     if (cmd === "api") {
       const v = await apiPanelView(fresh);
       await say(chatId, v.text, v.kb);
@@ -5643,8 +5646,8 @@ async function handleCallback(cq: any) {
   }
 
   if (data === "home") {
-    const fresh = await getUser(chatId);
-    await edit(await homeText(fresh), homeKeyboard(await getSettings()));
+    // `user` was just loaded by upsertUser — no second read needed.
+    await edit(await homeText(user), homeKeyboard(await getSettings()));
     return;
   }
 
