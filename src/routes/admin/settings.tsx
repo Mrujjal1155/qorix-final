@@ -667,6 +667,16 @@ function SettingsPage() {
               placeholder="hash key from EPS"
             />
           </div>
+          <div className="space-y-1 sm:col-span-2">
+            <Label>Secret key (IPN decryption)</Label>
+            <Input
+              type="password"
+              autoComplete="off"
+              value={values["eps_secret_key"] ?? ""}
+              onChange={(e) => setValues({ ...values, eps_secret_key: e.target.value.trim() })}
+              placeholder="secret key from EPS (used to decrypt IPN payloads)"
+            />
+          </div>
           <div className="space-y-1">
             <Label>Merchant ID</Label>
             <Input
