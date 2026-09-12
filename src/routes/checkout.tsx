@@ -116,6 +116,17 @@ function CheckoutPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // EPS hosted checkout: we create the order, then hand the buyer to the
+  // gateway where they choose bKash / Nagad / Rocket / card.
+  const epsMut = useMutation({
+    mutationFn: () =>
+      startEps({ data: { product_id: id, quantity: qty, customer_name: name, customer_email: email, customer_phone: phone } }),
+    onSuccess: (r) => {
+      if (typeof window !== "undefined") window.location.href = r.url;
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   function copy(v: string) {
     navigator.clipboard.writeText(v);
     toast.success("Copied");
