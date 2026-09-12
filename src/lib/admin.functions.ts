@@ -748,9 +748,19 @@ export const getBotSettings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context);
-    const { data } = await (context as any).supabase.from("bot_settings").select("key,value");
+    const sb = (context as any).supabase;
     const out: Record<string, string> = {};
-    for (const row of data ?? []) out[row.key] = row.value ?? "";
+    const pageSize = 500;
+    for (let from = 0; ; from += pageSize) {
+      const { data, error } = await sb
+        .from("bot_settings")
+        .select("key,value")
+        .order("key", { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error) throw new Error(error.message);
+      for (const row of data ?? []) out[row.key] = row.value ?? "";
+      if (!data || data.length < pageSize) break;
+    }
     return out;
   });
 
