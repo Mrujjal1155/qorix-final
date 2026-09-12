@@ -51,8 +51,6 @@ import { Route as ApiPublicBinanceAutoVerifyRouteImport } from './routes/api/pub
 import { Route as ApiPublicEpsBotReturnRouteImport } from './routes/api/public/eps/bot-return'
 import { Route as ApiPublicEpsIpnRouteImport } from './routes/api/public/eps/ipn'
 import { Route as ApiPublicEpsReturnRouteImport } from './routes/api/public/eps/return'
-import { Route as ApiPublicPaykoriReturnRouteImport } from './routes/api/public/paykori/return'
-import { Route as ApiPublicPaykoriWebhookRouteImport } from './routes/api/public/paykori/webhook'
 import { Route as ApiPublicProductImageIdRouteImport } from './routes/api/public/product-image/$id'
 import { Route as ApiPublicSuppliersNotifyRouteImport } from './routes/api/public/suppliers/notify'
 import { Route as ApiPublicSuppliersSyncRouteImport } from './routes/api/public/suppliers/sync'
@@ -282,16 +280,6 @@ const ApiPublicEpsReturnRoute = ApiPublicEpsReturnRouteImport.update({
   path: '/api/public/eps/return',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicPaykoriReturnRoute = ApiPublicPaykoriReturnRouteImport.update({
-  id: '/api/public/paykori/return',
-  path: '/api/public/paykori/return',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiPublicPaykoriWebhookRoute = ApiPublicPaykoriWebhookRouteImport.update({
-  id: '/api/public/paykori/webhook',
-  path: '/api/public/paykori/webhook',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicProductImageIdRoute = ApiPublicProductImageIdRouteImport.update({
   id: '/api/public/product-image/$id',
   path: '/api/public/product-image/$id',
@@ -410,8 +398,6 @@ export interface FileRoutesByFullPath {
   '/api/public/eps/bot-return': typeof ApiPublicEpsBotReturnRoute
   '/api/public/eps/ipn': typeof ApiPublicEpsIpnRoute
   '/api/public/eps/return': typeof ApiPublicEpsReturnRoute
-  '/api/public/paykori/return': typeof ApiPublicPaykoriReturnRoute
-  '/api/public/paykori/webhook': typeof ApiPublicPaykoriWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
   '/api/public/suppliers/notify': typeof ApiPublicSuppliersNotifyRoute
   '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
@@ -467,8 +453,6 @@ export interface FileRoutesByTo {
   '/api/public/eps/bot-return': typeof ApiPublicEpsBotReturnRoute
   '/api/public/eps/ipn': typeof ApiPublicEpsIpnRoute
   '/api/public/eps/return': typeof ApiPublicEpsReturnRoute
-  '/api/public/paykori/return': typeof ApiPublicPaykoriReturnRoute
-  '/api/public/paykori/webhook': typeof ApiPublicPaykoriWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
   '/api/public/suppliers/notify': typeof ApiPublicSuppliersNotifyRoute
   '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
@@ -527,8 +511,6 @@ export interface FileRoutesById {
   '/api/public/eps/bot-return': typeof ApiPublicEpsBotReturnRoute
   '/api/public/eps/ipn': typeof ApiPublicEpsIpnRoute
   '/api/public/eps/return': typeof ApiPublicEpsReturnRoute
-  '/api/public/paykori/return': typeof ApiPublicPaykoriReturnRoute
-  '/api/public/paykori/webhook': typeof ApiPublicPaykoriWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
   '/api/public/suppliers/notify': typeof ApiPublicSuppliersNotifyRoute
   '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
@@ -587,8 +569,6 @@ export interface FileRouteTypes {
     | '/api/public/eps/bot-return'
     | '/api/public/eps/ipn'
     | '/api/public/eps/return'
-    | '/api/public/paykori/return'
-    | '/api/public/paykori/webhook'
     | '/api/public/product-image/$id'
     | '/api/public/suppliers/notify'
     | '/api/public/suppliers/sync'
@@ -644,8 +624,6 @@ export interface FileRouteTypes {
     | '/api/public/eps/bot-return'
     | '/api/public/eps/ipn'
     | '/api/public/eps/return'
-    | '/api/public/paykori/return'
-    | '/api/public/paykori/webhook'
     | '/api/public/product-image/$id'
     | '/api/public/suppliers/notify'
     | '/api/public/suppliers/sync'
@@ -703,8 +681,6 @@ export interface FileRouteTypes {
     | '/api/public/eps/bot-return'
     | '/api/public/eps/ipn'
     | '/api/public/eps/return'
-    | '/api/public/paykori/return'
-    | '/api/public/paykori/webhook'
     | '/api/public/product-image/$id'
     | '/api/public/suppliers/notify'
     | '/api/public/suppliers/sync'
@@ -745,8 +721,6 @@ export interface RootRouteChildren {
   ApiPublicEpsBotReturnRoute: typeof ApiPublicEpsBotReturnRoute
   ApiPublicEpsIpnRoute: typeof ApiPublicEpsIpnRoute
   ApiPublicEpsReturnRoute: typeof ApiPublicEpsReturnRoute
-  ApiPublicPaykoriReturnRoute: typeof ApiPublicPaykoriReturnRoute
-  ApiPublicPaykoriWebhookRoute: typeof ApiPublicPaykoriWebhookRoute
   ApiPublicProductImageIdRoute: typeof ApiPublicProductImageIdRoute
   ApiPublicSuppliersNotifyRoute: typeof ApiPublicSuppliersNotifyRoute
   ApiPublicSuppliersSyncRoute: typeof ApiPublicSuppliersSyncRoute
@@ -1056,20 +1030,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicEpsReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/paykori/return': {
-      id: '/api/public/paykori/return'
-      path: '/api/public/paykori/return'
-      fullPath: '/api/public/paykori/return'
-      preLoaderRoute: typeof ApiPublicPaykoriReturnRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/public/paykori/webhook': {
-      id: '/api/public/paykori/webhook'
-      path: '/api/public/paykori/webhook'
-      fullPath: '/api/public/paykori/webhook'
-      preLoaderRoute: typeof ApiPublicPaykoriWebhookRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/product-image/$id': {
       id: '/api/public/product-image/$id'
       path: '/api/public/product-image/$id'
@@ -1272,8 +1232,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicEpsBotReturnRoute: ApiPublicEpsBotReturnRoute,
   ApiPublicEpsIpnRoute: ApiPublicEpsIpnRoute,
   ApiPublicEpsReturnRoute: ApiPublicEpsReturnRoute,
-  ApiPublicPaykoriReturnRoute: ApiPublicPaykoriReturnRoute,
-  ApiPublicPaykoriWebhookRoute: ApiPublicPaykoriWebhookRoute,
   ApiPublicProductImageIdRoute: ApiPublicProductImageIdRoute,
   ApiPublicSuppliersNotifyRoute: ApiPublicSuppliersNotifyRoute,
   ApiPublicSuppliersSyncRoute: ApiPublicSuppliersSyncRoute,
