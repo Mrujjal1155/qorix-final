@@ -34,6 +34,20 @@ async function readIds(request: Request) {
     }
   }
 
+  encrypted = bag["data"] || "";
+
+  // Encrypted IPN (EPS IPN Receiver v0.2): { "Data": "base64IV:base64Cipher" }
+  if (encrypted.includes(":")) {
+    const [{ epsSettings }, { decryptIpn, epsSecretKey }] = await Promise.all([
+      import("@/lib/eps-settle.server"),
+      import("@/lib/eps.server"),
+    ]);
+    const payload = decryptIpn(encrypted, epsSecretKey(await epsSettings()));
+    if (payload) {
+      for (const [k, v] of Object.entries(payload)) put(k, v);
+    }
+  }
+
   const get = (...keys: string[]) => {
     for (const k of keys) {
       const v = bag[k.toLowerCase()];
