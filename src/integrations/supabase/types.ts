@@ -310,6 +310,7 @@ export type Database = {
           discount: number
           external_ref: string | null
           id: string
+          meta: Json
           order_no: number
           payment_method: string | null
           product_id: string | null
@@ -336,6 +337,7 @@ export type Database = {
           discount?: number
           external_ref?: string | null
           id?: string
+          meta?: Json
           order_no?: number
           payment_method?: string | null
           product_id?: string | null
@@ -362,6 +364,7 @@ export type Database = {
           discount?: number
           external_ref?: string | null
           id?: string
+          meta?: Json
           order_no?: number
           payment_method?: string | null
           product_id?: string | null

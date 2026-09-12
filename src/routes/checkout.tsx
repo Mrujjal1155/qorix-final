@@ -12,10 +12,12 @@ import {
   CreditCard,
   Send,
   ShieldCheck,
+  Smartphone,
   Wallet,
 } from "lucide-react";
 
 import { getStoreProduct, getStorePayInfo, placeWebsiteOrder } from "@/lib/shop.functions";
+import { getEpsStatus, startEpsCheckout } from "@/lib/eps.functions";
 import { StoreShell, priceTag } from "@/components/StoreShell";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -58,12 +60,21 @@ const METHODS = [
   { id: "usdt_trc20", label: "USDT · TRC-20", key: "usdt_trc20_address", icon: Bitcoin, hint: "Tron network" },
 ] as const;
 
+const EPS_METHOD = {
+  id: "eps",
+  label: "bKash · Nagad · Rocket · Card",
+  icon: Smartphone,
+  hint: "Instant — EPS secure gateway",
+} as const;
+
 function CheckoutPage() {
   const { id, qty, step } = Route.useSearch();
   const navigate = useNavigate();
   const fetchProduct = useServerFn(getStoreProduct);
   const fetchPay = useServerFn(getStorePayInfo);
   const submit = useServerFn(placeWebsiteOrder);
+  const fetchEps = useServerFn(getEpsStatus);
+  const startEps = useServerFn(startEpsCheckout);
   const { money, usd, currency } = usePrefs();
 
   const { data: product } = useQuery({
@@ -72,15 +83,20 @@ function CheckoutPage() {
     enabled: !!id,
   });
   const { data: pay } = useQuery({ queryKey: ["store-pay"], queryFn: () => fetchPay() });
+  const { data: eps } = useQuery({ queryKey: ["eps-status"], queryFn: () => fetchEps() });
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [method, setMethod] = useState<string>("binance");
   const [txid, setTxid] = useState("");
 
   const total = Number(product?.price ?? 0) * qty;
-  const address = pay?.[METHODS.find((m) => m.id === method)!.key] ?? "";
+  const isEps = method === "eps";
+  const cryptoMethod = METHODS.find((m) => m.id === method);
+  const address = cryptoMethod ? (pay?.[cryptoMethod.key] ?? "") : "";
   const botUser = pay?.["bot_username"] ?? "";
+  const epsTotalBdt = Math.round(total * Number(eps?.rate ?? 0) * 100) / 100;
 
   const go = (next: Step) => void navigate({ to: "/checkout", search: { id, qty, step: next } });
 
@@ -96,6 +112,17 @@ function CheckoutPage() {
     onSuccess: (r) => {
       toast.success(`Order #${r.order_no} placed`);
       void navigate({ to: "/order/confirmation", search: { order: String(r.order_no), email } });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  // EPS hosted checkout: we create the order, then hand the buyer to the
+  // gateway where they choose bKash / Nagad / Rocket / card.
+  const epsMut = useMutation({
+    mutationFn: () =>
+      startEps({ data: { product_id: id, quantity: qty, customer_name: name, customer_email: email, customer_phone: phone } }),
+    onSuccess: (r) => {
+      if (typeof window !== "undefined") window.location.href = r.url;
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -219,11 +246,62 @@ function CheckoutPage() {
                         </button>
                       );
                     })}
+                    {eps?.enabled ? (
+                      <button
+                        type="button"
+                        onClick={() => setMethod(EPS_METHOD.id)}
+                        className={`rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 sm:col-span-3 ${
+                          isEps ? "border-primary bg-primary/10 card-glow" : "border-border bg-card"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                            isEps ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          <EPS_METHOD.icon className="h-4 w-4" />
+                        </span>
+                        <p className="mt-3 text-sm font-semibold">{EPS_METHOD.label}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {EPS_METHOD.hint}
+                          {epsTotalBdt > 0 ? ` · pay ৳${epsTotalBdt.toFixed(2)}` : ""}
+                        </p>
+                      </button>
+                    ) : null}
                   </div>
                 </div>
-                <Button className="md:col-span-2" disabled={!name.trim() || !email.trim()} onClick={() => go("pay")}>
-                  Continue to payment <ArrowRight className="h-4 w-4" />
-                </Button>
+
+                {isEps ? (
+                  <div className="space-y-1 md:col-span-2">
+                    <Label>Mobile number</Label>
+                    <Input
+                      inputMode="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="01XXXXXXXXX"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Needed by the payment gateway for bKash / Nagad / Rocket and card payments.
+                    </p>
+                  </div>
+                ) : null}
+
+                {isEps ? (
+                  <Button
+                    className="md:col-span-2"
+                    disabled={!name.trim() || !email.trim() || phone.replace(/\D/g, "").length < 11 || epsMut.isPending}
+                    onClick={() => epsMut.mutate()}
+                  >
+                    {epsMut.isPending
+                      ? "Opening secure payment…"
+                      : `Pay ৳${epsTotalBdt.toFixed(2)} securely`}{" "}
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                ) : (
+                  <Button className="md:col-span-2" disabled={!name.trim() || !email.trim()} onClick={() => go("pay")}>
+                    Continue to payment <ArrowRight className="h-4 w-4" />
+                  </Button>
+                )}
               </div>
             )}
 
@@ -240,7 +318,7 @@ function CheckoutPage() {
                 </div>
                 <div className="rounded-2xl border border-border bg-card p-4">
                   <p className="text-xs uppercase tracking-widest text-muted-foreground">
-                    Send to · {METHODS.find((m) => m.id === method)!.label}
+                    Send to · {cryptoMethod?.label ?? "Payment"}
                   </p>
                   <button
                     className="mt-2 block w-full break-all rounded-xl bg-muted/60 p-3 text-left font-mono text-xs hover:bg-muted"

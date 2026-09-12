@@ -48,6 +48,7 @@ import { Route as AuthenticatedAccountReferralsRouteImport } from './routes/_aut
 import { Route as AuthenticatedResellerPanelRouteImport } from './routes/_authenticated/reseller.panel'
 import { Route as ApiAdminImageUploadRouteImport } from './routes/api/admin/image-upload'
 import { Route as ApiPublicBinanceAutoVerifyRouteImport } from './routes/api/public/binance/auto-verify'
+import { Route as ApiPublicEpsReturnRouteImport } from './routes/api/public/eps/return'
 import { Route as ApiPublicPaykoriReturnRouteImport } from './routes/api/public/paykori/return'
 import { Route as ApiPublicPaykoriWebhookRouteImport } from './routes/api/public/paykori/webhook'
 import { Route as ApiPublicProductImageIdRouteImport } from './routes/api/public/product-image/$id'
@@ -264,6 +265,11 @@ const ApiPublicBinanceAutoVerifyRoute =
     path: '/api/public/binance/auto-verify',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicEpsReturnRoute = ApiPublicEpsReturnRouteImport.update({
+  id: '/api/public/eps/return',
+  path: '/api/public/eps/return',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPaykoriReturnRoute = ApiPublicPaykoriReturnRouteImport.update({
   id: '/api/public/paykori/return',
   path: '/api/public/paykori/return',
@@ -389,6 +395,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/image-upload': typeof ApiAdminImageUploadRoute
   '/account/': typeof AuthenticatedAccountIndexRoute
   '/api/public/binance/auto-verify': typeof ApiPublicBinanceAutoVerifyRoute
+  '/api/public/eps/return': typeof ApiPublicEpsReturnRoute
   '/api/public/paykori/return': typeof ApiPublicPaykoriReturnRoute
   '/api/public/paykori/webhook': typeof ApiPublicPaykoriWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
@@ -443,6 +450,7 @@ export interface FileRoutesByTo {
   '/api/admin/image-upload': typeof ApiAdminImageUploadRoute
   '/account': typeof AuthenticatedAccountIndexRoute
   '/api/public/binance/auto-verify': typeof ApiPublicBinanceAutoVerifyRoute
+  '/api/public/eps/return': typeof ApiPublicEpsReturnRoute
   '/api/public/paykori/return': typeof ApiPublicPaykoriReturnRoute
   '/api/public/paykori/webhook': typeof ApiPublicPaykoriWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
@@ -500,6 +508,7 @@ export interface FileRoutesById {
   '/api/admin/image-upload': typeof ApiAdminImageUploadRoute
   '/_authenticated/account/': typeof AuthenticatedAccountIndexRoute
   '/api/public/binance/auto-verify': typeof ApiPublicBinanceAutoVerifyRoute
+  '/api/public/eps/return': typeof ApiPublicEpsReturnRoute
   '/api/public/paykori/return': typeof ApiPublicPaykoriReturnRoute
   '/api/public/paykori/webhook': typeof ApiPublicPaykoriWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
@@ -557,6 +566,7 @@ export interface FileRouteTypes {
     | '/api/admin/image-upload'
     | '/account/'
     | '/api/public/binance/auto-verify'
+    | '/api/public/eps/return'
     | '/api/public/paykori/return'
     | '/api/public/paykori/webhook'
     | '/api/public/product-image/$id'
@@ -611,6 +621,7 @@ export interface FileRouteTypes {
     | '/api/admin/image-upload'
     | '/account'
     | '/api/public/binance/auto-verify'
+    | '/api/public/eps/return'
     | '/api/public/paykori/return'
     | '/api/public/paykori/webhook'
     | '/api/public/product-image/$id'
@@ -667,6 +678,7 @@ export interface FileRouteTypes {
     | '/api/admin/image-upload'
     | '/_authenticated/account/'
     | '/api/public/binance/auto-verify'
+    | '/api/public/eps/return'
     | '/api/public/paykori/return'
     | '/api/public/paykori/webhook'
     | '/api/public/product-image/$id'
@@ -706,6 +718,7 @@ export interface RootRouteChildren {
   StoreIndexRoute: typeof StoreIndexRoute
   ApiAdminImageUploadRoute: typeof ApiAdminImageUploadRoute
   ApiPublicBinanceAutoVerifyRoute: typeof ApiPublicBinanceAutoVerifyRoute
+  ApiPublicEpsReturnRoute: typeof ApiPublicEpsReturnRoute
   ApiPublicPaykoriReturnRoute: typeof ApiPublicPaykoriReturnRoute
   ApiPublicPaykoriWebhookRoute: typeof ApiPublicPaykoriWebhookRoute
   ApiPublicProductImageIdRoute: typeof ApiPublicProductImageIdRoute
@@ -996,6 +1009,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicBinanceAutoVerifyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/eps/return': {
+      id: '/api/public/eps/return'
+      path: '/api/public/eps/return'
+      fullPath: '/api/public/eps/return'
+      preLoaderRoute: typeof ApiPublicEpsReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/paykori/return': {
       id: '/api/public/paykori/return'
       path: '/api/public/paykori/return'
@@ -1209,6 +1229,7 @@ const rootRouteChildren: RootRouteChildren = {
   StoreIndexRoute: StoreIndexRoute,
   ApiAdminImageUploadRoute: ApiAdminImageUploadRoute,
   ApiPublicBinanceAutoVerifyRoute: ApiPublicBinanceAutoVerifyRoute,
+  ApiPublicEpsReturnRoute: ApiPublicEpsReturnRoute,
   ApiPublicPaykoriReturnRoute: ApiPublicPaykoriReturnRoute,
   ApiPublicPaykoriWebhookRoute: ApiPublicPaykoriWebhookRoute,
   ApiPublicProductImageIdRoute: ApiPublicProductImageIdRoute,
