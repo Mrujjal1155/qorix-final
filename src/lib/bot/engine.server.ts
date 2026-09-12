@@ -5026,6 +5026,13 @@ async function createAwaitingOrders(chatId: number, meta: CoMeta, depositId: str
   return (data ?? []) as any[];
 }
 
+/** Order ids shown on the payment screen so support can trace an underpayment. */
+function awaitingOrderNote(rows: any[]) {
+  if (!rows.length) return "";
+  const ids = rows.map((r) => `#${r.order_no}`).join(", ");
+  return `\n\u{1F9FE} <b>Order ID:</b> <code>${escapeHtml(ids)}</code>\n<i>Keep this id — share it with support if anything goes wrong with the payment.</i>\n`;
+}
+
 /** Fail every checkout that stayed unpaid for 30 minutes (admin can still revive it). */
 export async function expireAwaitingOrders() {
   const cutoff = new Date(Date.now() - AWAITING_PAYMENT_MINUTES * 60_000).toISOString();
