@@ -10,6 +10,7 @@ import { createFileRoute } from "@tanstack/react-router";
 async function readIds(request: Request) {
   const url = new URL(request.url);
   const bag: Record<string, string> = {};
+  let encrypted = "";
 
   const put = (k: string, v: unknown) => {
     if (typeof v === "string" && v.trim()) bag[k.toLowerCase()] = v.trim();
