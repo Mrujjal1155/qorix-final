@@ -591,6 +591,103 @@ function SettingsPage() {
     </Card>
   );
 
+  const epsCard = (
+    <Card>
+      <CardHeader>
+        <CardTitle>Website payments — EPS (bKash / Nagad / Rocket / Visa / Mastercard)</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <p className="text-sm text-muted-foreground">
+          Credentials come from the EPS merchant panel and stay on the server. Give EPS this return URL:{" "}
+          <code className="rounded bg-muted px-1 py-0.5 text-xs">{PRODUCTION_SITE_URL}/api/public/eps/return</code>. Every
+          payment is re-verified with EPS before an order is marked paid.
+        </p>
+
+        <div className="flex items-start justify-between gap-4 rounded-xl border border-border/70 bg-card/50 p-4">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-semibold">EPS enabled</Label>
+            <p className="text-xs text-muted-foreground">
+              When off, the website checkout only offers the crypto methods.
+            </p>
+          </div>
+          <Switch
+            checked={isOn(values["eps_enabled"])}
+            onCheckedChange={(c) => setToggle("eps_enabled", c)}
+            aria-label="EPS enabled"
+          />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1">
+            <Label>Merchant user name</Label>
+            <Input
+              autoComplete="off"
+              value={values["eps_username"] ?? ""}
+              onChange={(e) => setValues({ ...values, eps_username: e.target.value.trim() })}
+              placeholder="merchant user name"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Password</Label>
+            <Input
+              type="password"
+              autoComplete="off"
+              value={values["eps_password"] ?? ""}
+              onChange={(e) => setValues({ ...values, eps_password: e.target.value })}
+              placeholder="••••••••"
+            />
+          </div>
+          <div className="space-y-1 sm:col-span-2">
+            <Label>Hash key</Label>
+            <Input
+              type="password"
+              autoComplete="off"
+              value={values["eps_hash_key"] ?? ""}
+              onChange={(e) => setValues({ ...values, eps_hash_key: e.target.value.trim() })}
+              placeholder="hash key from EPS"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Merchant ID</Label>
+            <Input
+              value={values["eps_merchant_id"] ?? ""}
+              onChange={(e) => setValues({ ...values, eps_merchant_id: e.target.value.trim() })}
+              placeholder="e.g. 21"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>Store ID</Label>
+            <Input
+              value={values["eps_store_id"] ?? ""}
+              onChange={(e) => setValues({ ...values, eps_store_id: e.target.value.trim() })}
+              placeholder="e.g. 33"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>USD → BDT rate</Label>
+            <Input
+              inputMode="decimal"
+              value={values["bdt_rate"] ?? ""}
+              onChange={(e) => setValues({ ...values, bdt_rate: e.target.value })}
+              placeholder="129"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>API base URL (optional)</Label>
+            <Input
+              value={values["eps_base"] ?? ""}
+              onChange={(e) => setValues({ ...values, eps_base: e.target.value.trim() })}
+              placeholder="https://pgapi.eps.com.bd"
+            />
+          </div>
+        </div>
+
+        <Button onClick={onSave}>Save EPS settings</Button>
+      </CardContent>
+    </Card>
+  );
+
+
   const referralCard = (
     <Card>
       <CardHeader>
