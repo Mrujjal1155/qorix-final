@@ -301,7 +301,12 @@ export const supplierSyncHealth = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const sb = (context as any).supabase;
     await assertSupplierAdmin(context);
-    const { data } = await sb.from("bot_settings").select("key,value");
+    const { data } = await sb
+      .from("bot_settings")
+      .select("key,value")
+      .or(
+        "key.eq.supplier_sync_stats,key.eq.supplier_last_autosync,key.eq.supplier_last_successful_sync,key.eq.supplier_notify_log,key.like.supplier_notify_queue:%",
+      );
     const rows = (data ?? []) as Array<{ key: string; value: string | null }>;
     const get = (key: string) => rows.find((r) => r.key === key)?.value ?? "";
     const parse = (value: string, fallback: any) => {

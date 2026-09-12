@@ -381,9 +381,22 @@ export async function getSettings(): Promise<Record<string, string>> {
   if (settingsCache && now - settingsCache.at < SETTINGS_TTL_MS) return settingsCache.data;
   if (settingsInflight) return settingsInflight;
   settingsInflight = (async () => {
-    const { data } = await db.from("bot_settings").select("key,value");
     const out: Record<string, string> = {};
-    for (const row of data ?? []) out[row.key] = row.value ?? "";
+    // PostgREST caps a response at 1,000 rows. This table also stores dynamic
+    // Premium icons, category labels, and button colours, so it can exceed
+    // that limit. Read every page; otherwise later keys such as EPS credentials
+    // silently disappear and the bot incorrectly falls back to Pay Kori.
+    const pageSize = 500;
+    for (let from = 0; ; from += pageSize) {
+      const { data, error } = await db
+        .from("bot_settings")
+        .select("key,value")
+        .order("key", { ascending: true })
+        .range(from, from + pageSize - 1);
+      if (error) throw new Error(`Could not load bot settings: ${error.message}`);
+      for (const row of data ?? []) out[row.key] = row.value ?? "";
+      if (!data || data.length < pageSize) break;
+    }
     settingsCache = { at: Date.now(), data: out };
     return out;
   })().finally(() => {
