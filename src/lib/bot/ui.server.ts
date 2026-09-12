@@ -392,9 +392,11 @@ function mergedBtn(
 ): Button {
   const label = `${uiText(settings, key)}${suffix ? ` ${suffix}` : ""}`.trim();
   const icons = mergedIcons(settings, iconKeys);
-  const premiumIndex = icons.findIndex(({ customId }) => Boolean(customId));
-  const glyphs = icons.filter((_, index) => index !== premiumIndex).map(({ glyph }) => glyph).join(" ");
-  const customId = premiumIndex >= 0 ? icons[premiumIndex]?.customId ?? "" : "";
+  // Telegram button text cannot render a Premium emoji, so every configured
+  // glyph stays visible in the label. The first Premium id is still attached as
+  // the native button icon on clients that support it.
+  const glyphs = icons.map(({ glyph }) => glyph).filter(Boolean).join(" ");
+  const customId = icons.find(({ customId: c }) => Boolean(c))?.customId ?? "";
   return {
     text: `${glyphs} ${label}`.trim(),
     callback_data,
