@@ -54,7 +54,6 @@ export function ProductCard({
           sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 320px"
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
         />
-      </Link>
 
         {/* top badge row */}
         <div className="pointer-events-none absolute inset-x-2 top-2 flex items-start justify-between gap-2">
