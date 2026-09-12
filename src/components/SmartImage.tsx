@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 type Props = {
-  src?: string | null;
+  src?: string | null | undefined;
   alt: string;
   className?: string;
   /** Above-the-fold images load immediately; everything else is lazy. */

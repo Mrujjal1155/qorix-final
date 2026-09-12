@@ -116,7 +116,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       ...(IMG_ORIGIN
         ? [
-            { rel: "preconnect", href: IMG_ORIGIN, crossOrigin: "anonymous" },
+            { rel: "preconnect", href: IMG_ORIGIN, crossOrigin: "anonymous" as const },
             { rel: "dns-prefetch", href: IMG_ORIGIN },
           ]
         : []),
