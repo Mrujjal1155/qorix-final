@@ -500,114 +500,6 @@ function SettingsPage() {
       </CardContent>
     </Card>
   );
-  const PAYKORI_METHOD_LIST = [
-    ["bkash", "bKash"],
-    ["nagad", "Nagad"],
-    ["rocket", "Rocket"],
-  ] as const;
-  const selectedMethods = (values["paykori_methods"] ?? "bkash,nagad,rocket")
-    .split(",")
-    .map((m) => m.trim().toLowerCase())
-    .filter(Boolean);
-  function toggleMethod(m: string, on: boolean) {
-    const next = on
-      ? Array.from(new Set([...selectedMethods, m]))
-      : selectedMethods.filter((x) => x !== m);
-    setValues({ ...values, paykori_methods: next.join(",") });
-  }
-
-  const paykoriCard = (
-    <Card>
-      <CardHeader>
-        <CardTitle>Mobile banking — Pay Kori (bKash / Nagad / Rocket)</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-5">
-        <p className="text-sm text-muted-foreground">
-          Get the Brand API key from the Pay Kori dashboard. Use this as the webhook URL:{" "}
-          <code className="rounded bg-muted px-1 py-0.5 text-xs">
-            {PRODUCTION_SITE_URL}/api/public/paykori/webhook
-          </code>
-          . Payments are always verified with the gateway from the server, so fake confirmations will not work.
-        </p>
-
-        <div className="flex items-start justify-between gap-4 rounded-xl border border-border/70 bg-card/50 p-4">
-          <div className="space-y-0.5">
-            <Label className="text-sm font-semibold">Pay Kori enabled</Label>
-            <p className="text-xs text-muted-foreground">
-              When off, the bot will not show bKash / Nagad / Rocket buttons.
-            </p>
-          </div>
-          <Switch
-            checked={isOn(values["paykori_enabled"])}
-            onCheckedChange={(c) => setToggle("paykori_enabled", c)}
-            aria-label="Pay Kori enabled"
-          />
-        </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div className="space-y-1 sm:col-span-2">
-            <Label>Pay Kori API key</Label>
-            <p className="text-xs text-muted-foreground">
-              Brand API key — used server-side only, never visible to users.
-            </p>
-            <Input
-              type="password"
-              autoComplete="off"
-              value={values["paykori_key"] ?? ""}
-              onChange={(e) => setValues({ ...values, paykori_key: e.target.value.trim() })}
-              placeholder="pk_live_..."
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>USD → BDT rate</Label>
-            <Input
-              inputMode="decimal"
-              value={values["bdt_rate"] ?? ""}
-              onChange={(e) => setValues({ ...values, bdt_rate: e.target.value })}
-              placeholder="129"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>API base URL (optional)</Label>
-            <Input
-              value={values["paykori_base"] ?? ""}
-              onChange={(e) => setValues({ ...values, paykori_base: e.target.value.trim() })}
-              placeholder="https://checkout.paykori.online/api"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label className="text-sm font-semibold">Enabled methods</Label>
-          <div className="flex flex-wrap gap-3">
-            {PAYKORI_METHOD_LIST.map(([key, label]) => (
-              <label
-                key={key}
-                className="flex items-center gap-2 rounded-xl border border-border/70 bg-card/50 px-4 py-2"
-              >
-                <Switch
-                  checked={selectedMethods.includes(key)}
-                  onCheckedChange={(c) => toggleMethod(key, c)}
-                  aria-label={label}
-                />
-                <span className="text-sm">{label}</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-2 rounded-xl border border-border/70 bg-card/50 p-4">
-          <Label className="text-sm font-semibold">Payment method icons</Label>
-          <p className="text-xs text-muted-foreground">
-            bKash, Nagad and Rocket icons can only be changed from the Telegram bot admin. In the bot go to /admin → "Payment icons" and send a Premium emoji to update.
-          </p>
-        </div>
-
-    <Button onClick={onSave}>Save Pay Kori settings</Button>
-      </CardContent>
-    </Card>
-  );
-
   const epsCard = (
     <Card>
       <CardHeader>
@@ -804,13 +696,6 @@ function SettingsPage() {
           savingKeys={savingKeys}
         />
       ),
-    },
-    {
-      id: "paykori",
-      title: "Mobile banking (Pay Kori)",
-      description: "bKash, Nagad, Rocket — API key, USD→BDT rate and methods.",
-      icon: Smartphone,
-      render: () => paykoriCard,
     },
     {
       id: "eps",

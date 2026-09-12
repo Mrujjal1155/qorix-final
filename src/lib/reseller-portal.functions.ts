@@ -552,7 +552,7 @@ export const reviewTopUpRequest = createServerFn({ method: "POST" })
 
 /* ---------------------------------------------- automatic top-up gateways */
 /* Same payment gateways the Telegram bot uses (Binance Pay, USDT BEP-20/TRC-20,
-   Pay Kori bKash/Nagad/Rocket). Verification is always server -> gateway. */
+   Verification is always server -> gateway. */
 
 export const listTopupMethods = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

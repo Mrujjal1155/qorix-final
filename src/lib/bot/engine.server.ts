@@ -393,7 +393,6 @@ export async function getSettings(): Promise<Record<string, string>> {
     // PostgREST caps a response at 1,000 rows. This table also stores dynamic
     // Premium icons, category labels, and button colours, so it can exceed
     // that limit. Read every page; otherwise later keys such as EPS credentials
-    // silently disappear and the bot incorrectly falls back to Pay Kori.
     const pageSize = 500;
     for (let from = 0; ; from += pageSize) {
       const { data, error } = await db
@@ -1992,22 +1991,7 @@ async function walletView(user: any) {
       kb.push([wBtn(mfsBtn(s, "wal_mfs", "dep:eps:mfs", "(auto)"))]);
       kb.push([wBtn(cardBtn(s, "wal_card", "dep:eps:card", "(auto)"))]);
     } else {
-      const { paykoriConfig, PAYKORI_METHODS } = await import("@/lib/paykori.server");
-      const pk = paykoriConfig(s);
-      if (pk.enabled) {
-        const row: Button[] = [];
-        for (const m of pk.methods) {
-          row.push(wBtn(uiBtn(s, `wal_${m}` as any, `pkr:${m}`, "(auto)")));
-          if (row.length === 2) {
-            kb.push([...row]);
-            row.length = 0;
-          }
-        }
-        if (row.length) kb.push([...row]);
-        void PAYKORI_METHODS;
-      } else {
-        kb.push([wBtn(uiBtn(s, "wal_bkash", "dep:bkash")), wBtn(uiBtn(s, "wal_nagad", "dep:nagad"))]);
-      }
+      kb.push([wBtn(uiBtn(s, "wal_bkash", "dep:bkash")), wBtn(uiBtn(s, "wal_nagad", "dep:nagad"))]);
     }
   }
 
@@ -2169,20 +2153,16 @@ async function settlePayment(chatId: number, row: any, amount: number, txid: str
       ? row.network === "card"
         ? "Card (EPS)"
         : "Mobile banking (EPS)"
-      : row.kind === "paykori"
-        ? `Pay Kori ${String(row.network || "").toUpperCase()}`
-        : row.kind === "payid"
-          ? "Binance Pay"
-          : `USDT ${row.network}`;
+      : row.kind === "payid"
+        ? "Binance Pay"
+        : `USDT ${row.network}`;
 
   const methodKey =
     row.kind === "eps"
       ? `eps_${row.network}`
-      : row.kind === "paykori"
-        ? `paykori_${row.network}`
-        : row.kind === "payid"
-          ? "binance_pay"
-          : `usdt_${row.network}`;
+      : row.kind === "payid"
+        ? "binance_pay"
+        : `usdt_${row.network}`;
 
 
   const meta = (row.meta ?? {}) as any;
@@ -2259,196 +2239,6 @@ async function settlePayment(chatId: number, row: any, amount: number, txid: str
       [uiBtn(await getSettings(), "com_home", "home")],
     ] as Button[][],
   };
-}
-
-/* ------------------------------------------------------- Pay Kori (BDT) */
-/*
- * bKash / Nagad / Rocket through the Pay Kori hosted checkout.
- * Anti-fraud: the bot never accepts a user-supplied "I paid" claim. Every
- * credit is decided by a server -> gateway `payment/verify` call, the paid
- * amount must cover the amount we requested, and each transaction id can only
- * be used once (unique row in `binance_used_txs`).
- */
-
-async function paykoriCfg() {
-  const s = await getSettings();
-  const { paykoriConfig } = await import("@/lib/paykori.server");
-  return { s, cfg: paykoriConfig(s) };
-}
-
-async function startPaykoriDeposit(
-  chatId: number,
-  method: string,
-  usd: number,
-  meta: Record<string, unknown> = {},
-) {
-  const { s, cfg } = await paykoriCfg();
-  const { PAYKORI_METHODS, createPayment, usdToBdt } = await import("@/lib/paykori.server");
-  if (!cfg.enabled || !PAYKORI_METHODS[method]) {
-    return { error: "Mobile banking payments are currently unavailable. Please use another method." };
-  }
-  const amountUsd = Math.round(usd * 100) / 100;
-  if (!(amountUsd > 0)) return { error: "Invalid amount." };
-  const amountBdt = usdToBdt(amountUsd, cfg.rate);
-
-  const { data: row, error } = await db
-    .from("binance_deposits")
-    .insert({
-      telegram_id: chatId,
-      kind: "paykori",
-      network: method,
-      address: null,
-      amount_usdt: amountUsd,
-      meta: { ...meta, gateway: "paykori", method, bdt: amountBdt, rate: cfg.rate },
-      expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
-    })
-    .select("*")
-    .single();
-  if (error || !row) return { error: "Could not create the payment. Please try again." };
-
-  const base = siteUrl(s);
-  const created = await createPayment(cfg, {
-    amountBdt,
-    successUrl: `${base}/api/public/paykori/return?dep=${row.id}`,
-    cancelUrl: `${base}/api/public/paykori/return?dep=${row.id}&cancel=1`,
-    orderId: String(row.id),
-    phone: undefined,
-    email: undefined,
-  });
-  if (!created.ok) {
-    await db.from("binance_deposits").update({ status: "failed" }).eq("id", row.id);
-    await notifyAdmins(`⚠️ <b>Pay Kori create failed</b>\n${escapeHtml(created.error)}`);
-    return { error: created.error };
-  }
-
-  const newMeta = { ...(row.meta as any), trx: created.transactionId ?? null, pay_url: created.url };
-  await db.from("binance_deposits").update({ address: created.url, meta: newMeta }).eq("id", row.id);
-  return { row: { ...row, address: created.url, meta: newMeta } };
-}
-
-function paykoriView(row: any, settings: Record<string, string>) {
-  const meta = (row.meta ?? {}) as any;
-  const label = String(row.network || "").toUpperCase();
-  const bdt = Number(meta.bdt ?? 0);
-  const text =
-    `${uiIconHtml(settings, "dep_bdt_title")} <b>${escapeHtml(uiText(settings, "dep_bdt_title"))} — ${escapeHtml(label)}</b>\n\n` +
-    `Amount: <b>৳${bdt.toFixed(2)}</b>  (${money(row.amount_usdt)})\n` +
-    `Rate: 1 USD = ${Number(meta.rate ?? 0)} BDT\n\n` +
-    `Tap <b>Pay now</b>, complete the payment with bKash / Nagad / Rocket, then come back — your wallet is credited automatically after the gateway confirms it.`;
-  const kb: Button[][] = [
-    [{ text: `💳 Pay now — ৳${bdt.toFixed(2)}`, url: String(row.address) } as any],
-    [uiBtn(settings, "dep_verify", `pkchk:${row.id}`)],
-    [uiUrlBtn(settings, "dep_support", (settings["support_link"] || "").trim() || DEFAULT_SUPPORT_LINK)],
-    [uiBtn(settings, "dep_cancel", "wallet")],
-  ];
-  return { text, kb };
-}
-
-/** Verify with the gateway and credit exactly once. Returns a bot-ready message. */
-async function creditPaykoriRow(row: any, transactionId: string) {
-  const { cfg } = await paykoriCfg();
-  const { verifyPayment, isPaid, bdtToUsd } = await import("@/lib/paykori.server");
-  const v = await verifyPayment(cfg, transactionId);
-  if (!v.ok) return { credited: false as const, message: `⏳ Could not verify yet: ${escapeHtml(v.error)}` };
-  const info = v.info;
-  if (!isPaid(info.status)) {
-    return {
-      credited: false as const,
-      message: `⏳ Payment not confirmed yet (status: <b>${escapeHtml(info.status || "pending")}</b>). Complete the payment and try again in a minute.`,
-    };
-  }
-  const expectedBdt = Number((row.meta ?? {}).bdt ?? 0);
-  // Tolerate 1 BDT rounding, never accept an underpayment.
-  if (expectedBdt > 0 && info.amount + 1 < expectedBdt) {
-    await notifyAdmins(
-      `⚠️ <b>Pay Kori underpayment</b>\nDeposit <code>${row.id}</code>\nExpected ৳${expectedBdt} · paid ৳${info.amount}`,
-    );
-    return {
-      credited: false as const,
-      message: `❌ We received ৳${info.amount} but this order needs ৳${expectedBdt.toFixed(2)}. Please contact support.`,
-    };
-  }
-
-  // Single-use transaction id — blocks replay of the same TrxID.
-  const txKey = `paykori:${info.transactionId ?? transactionId}`;
-  const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: txKey });
-  if (usedErr) return { credited: false as const, message: "✅ This payment was already processed." };
-
-  const rate = Number((row.meta ?? {}).rate ?? cfg.rate) || cfg.rate;
-  const usd = Math.max(Number(row.amount_usdt), bdtToUsd(info.amount, rate));
-  const r = await settlePayment(
-    Number(row.telegram_id),
-    row,
-    Math.round(usd * 100) / 100,
-    String(info.transactionId ?? transactionId),
-    `Auto-verified via Pay Kori (${info.method || row.network})`,
-  );
-  return { credited: true as const, message: r.message, keyboard: r.keyboard };
-}
-
-async function verifyPaykoriDeposit(chatId: number, id: string) {
-  const s = await getSettings();
-  const back: Button[][] = [
-    [uiBtn(s, "dep_verify", `pkchk:${id}`)],
-    [uiUrlBtn(s, "dep_support", (s["support_link"] || "").trim() || DEFAULT_SUPPORT_LINK)],
-    [uiBtn(s, "dep_wallet", "wallet")],
-  ];
-  const { data: row } = await db
-    .from("binance_deposits")
-    .select("*")
-    .eq("id", id)
-    .eq("telegram_id", chatId)
-    .eq("kind", "paykori")
-    .maybeSingle();
-  if (!row) return { message: "❌ Payment not found.", keyboard: back };
-  if (row.status === "credited") return { message: "✅ This payment was already credited.", keyboard: back };
-
-  const trx = row.tx_id || (row.meta as any)?.trx;
-  if (!trx) {
-    return {
-      message:
-        "⏳ We have not received a confirmation from the gateway yet.\n\nFinish the payment on the Pay Kori page, then tap verify again in a minute.",
-      keyboard: back,
-    };
-  }
-  const r = await creditPaykoriRow(row, String(trx));
-  return { message: r.message, keyboard: r.credited ? (r as any).keyboard : back };
-}
-
-/**
- * Entry point for the gateway webhook and the success redirect.
- * The payload is treated as an untrusted hint: only `transactionId` (and an
- * optional deposit id) are used, and the real status always comes from
- * `payment/verify`.
- */
-export async function settlePaykoriTransaction(transactionId: string, depId?: string | null) {
-  const tx = String(transactionId || "").trim();
-  if (!tx) return { ok: false as const, reason: "missing transaction id" };
-
-  let row: any = null;
-  if (depId) {
-    const { data } = await db.from("binance_deposits").select("*").eq("id", depId).eq("kind", "paykori").maybeSingle();
-    row = data;
-  }
-  if (!row) {
-    const { data } = await db
-      .from("binance_deposits")
-      .select("*")
-      .eq("kind", "paykori")
-      .or(`tx_id.eq.${tx},meta->>trx.eq.${tx}`)
-      .maybeSingle();
-    row = data;
-  }
-  if (!row) return { ok: false as const, reason: "deposit not found" };
-  if (row.status === "credited") return { ok: true as const, already: true };
-
-  if (!row.tx_id) await db.from("binance_deposits").update({ tx_id: tx }).eq("id", row.id);
-  const r = await creditPaykoriRow({ ...row, tx_id: tx }, tx);
-  if (r.credited) {
-    if (Number(row.telegram_id) > 0) await sendMessage(Number(row.telegram_id), r.message, (r as any).keyboard);
-    return { ok: true as const, credited: true };
-  }
-  return { ok: false as const, reason: r.message.replace(/<[^>]+>/g, "") };
 }
 
 /* ------------------------------------------------------------ EPS (BDT) */
@@ -3374,25 +3164,6 @@ async function handleMessage(msg: any) {
       }
       const ev = epsView((er as any).row, await getSettings());
       await say(chatId, ev.text, ev.kb);
-      return;
-    }
-    case "pk_amount": {
-
-      const amount = Number(text.replace(/[^0-9.]/g, ""));
-      if (!amount || amount <= 0) {
-        await say(chatId, "❌ Please send a valid amount in USD, e.g. <code>5</code>");
-        return;
-      }
-      const pkMethod = String(state.pk_method || "bkash");
-      state.awaiting = null;
-      await setState(chatId, state);
-      const pr = await startPaykoriDeposit(chatId, pkMethod, amount);
-      if ("error" in pr && pr.error) {
-        await say(chatId, `❌ ${escapeHtml(pr.error)}`, [[{ text: "⬅️ Wallet", callback_data: "wallet" }]]);
-        return;
-      }
-      const pv = paykoriView((pr as any).row, await getSettings());
-      await say(chatId, pv.text, pv.kb);
       return;
     }
     case "bin_amount": {
@@ -5212,11 +4983,6 @@ async function coPayView(chatId: number) {
       kb.push([mfsBtn(settings, "pay_mfs", "copm:eps_mfs")]);
       kb.push([cardBtn(settings, "pay_card", "copm:eps_card")]);
     } else {
-      const { paykoriConfig } = await import("@/lib/paykori.server");
-      const pk = paykoriConfig(settings);
-      if (pk.enabled) {
-        for (const m of pk.methods) kb.push([uiBtn(settings, `pay_${m}` as any, `copm:pk_${m}`)]);
-      }
     }
   }
 
@@ -5991,27 +5757,6 @@ async function handleCallback(cq: any) {
       return;
     }
 
-    if (method.startsWith("pk_")) {
-
-      const pkr = await startPaykoriDeposit(chatId, method.slice(3), total, {
-        items: meta.items,
-        coupon: meta.coupon ?? null,
-        summary: meta.summary ?? "",
-        total,
-      });
-      if ("error" in pkr && pkr.error) {
-        await edit(`❌ ${escapeHtml(pkr.error)}`, [[{ text: "⬅️ Back", callback_data: "copay" }]]);
-        return;
-      }
-      const ps = await getSettings();
-      const pv = paykoriView((pkr as any).row, ps);
-      await edit(
-        `${uiIconHtml(ps, "dep_order_tag")} <b>${escapeHtml(uiText(ps, "dep_order_tag"))}:</b> ${escapeHtml(meta.summary ?? "")}\n\n${pv.text}`,
-        pv.kb,
-      );
-      return;
-    }
-
     const kind = method === "payid" ? "payid" : "crypto";
 
     const network = method === "payid" ? undefined : method;
@@ -6098,33 +5843,6 @@ async function handleCallback(cq: any) {
 
   if (data.startsWith("epschk:")) {
     const r = await verifyEpsDeposit(chatId, data.slice(7));
-    await edit(r.message, r.keyboard);
-    return;
-  }
-
-  if (data.startsWith("pkr:")) {
-
-    const method = data.slice(4);
-    const { s, cfg } = await paykoriCfg();
-    const { PAYKORI_METHODS } = await import("@/lib/paykori.server");
-    if (!cfg.enabled || !PAYKORI_METHODS[method]) {
-      await edit("⚠️ Mobile banking deposits are currently disabled. Please use another method.", [
-        [{ text: "⬅️ Wallet", callback_data: "wallet" }],
-      ]);
-      return;
-    }
-    await setState(chatId, { ...(user.state ?? {}), awaiting: "pk_amount", pk_method: method });
-    await edit(
-      `${uiIconHtml(s, "dep_bdt_title")} <b>${escapeHtml(PAYKORI_METHODS[method]!)}</b>\n\n` +
-        `How much do you want to add? Reply with the amount in <b>USD</b>, e.g. <code>5</code>.\n` +
-        `<i>Rate: 1 USD = ${cfg.rate} BDT</i>`,
-      [[uiBtn(s, "com_back", "wallet")]],
-    );
-    return;
-  }
-
-  if (data.startsWith("pkchk:")) {
-    const r = await verifyPaykoriDeposit(chatId, data.slice(6));
     await edit(r.message, r.keyboard);
     return;
   }
@@ -6819,12 +6537,12 @@ async function handleCallback(cq: any) {
 /* ------------------------------------------------- reseller auto top-up */
 /*
  * Resellers top their wallet up through the exact same gateways as bot users
- * (Binance Pay, on-chain USDT, Pay Kori bKash/Nagad/Rocket). The deposit rows
+ * (Binance Pay, on-chain USDT). The deposit rows
  * live in `binance_deposits` with `meta.reseller_id`, and `settlePayment()`
  * routes the credit to the reseller wallet instead of a bot wallet.
  */
 
-export type ResellerTopupMethod = { id: string; label: string; kind: "payid" | "crypto" | "paykori"; note?: string };
+export type ResellerTopupMethod = { id: string; label: string; kind: "payid" | "crypto"; note?: string };
 
 export async function resellerTopupMethods(): Promise<ResellerTopupMethod[]> {
   const s = await getSettings();
@@ -6835,13 +6553,6 @@ export async function resellerTopupMethods(): Promise<ResellerTopupMethod[]> {
   if (cfg.active && cfg.crypto && cfg.live) {
     out.push({ id: "BSC", label: "USDT BEP-20 (BSC)", kind: "crypto", note: "On-chain, auto-verified" });
     out.push({ id: "TRX", label: "USDT TRC-20 (Tron)", kind: "crypto", note: "On-chain, auto-verified" });
-  }
-  const { paykoriConfig, PAYKORI_METHODS } = await import("@/lib/paykori.server");
-  const pk = paykoriConfig(s);
-  if (pk.enabled) {
-    for (const m of pk.methods) {
-      out.push({ id: m, label: PAYKORI_METHODS[m] ?? m, kind: "paykori", note: `1 USD = ${pk.rate} BDT` });
-    }
   }
   return out;
 }
@@ -6854,25 +6565,6 @@ export async function startResellerTopup(resellerId: string, method: string, usd
   if (!picked) return { error: "This payment method is not available right now." };
 
   const meta = { reseller_id: resellerId, purpose: "reseller_topup" };
-
-  if (picked.kind === "paykori") {
-    const r = await startPaykoriDeposit(0, picked.id, amount, meta);
-    if ((r as any).error) return { error: (r as any).error };
-    const row: any = (r as any).row;
-    return {
-      deposit: {
-        id: row.id,
-        kind: "paykori",
-        method: picked.label,
-        amount_usdt: Number(row.amount_usdt),
-        bdt: Number((row.meta ?? {}).bdt ?? 0),
-        pay_url: String(row.address),
-        address: null,
-        network: row.network,
-        expires_at: row.expires_at,
-      },
-    };
-  }
 
   const r = await startBinanceDeposit(0, picked.kind, amount, picked.kind === "crypto" ? picked.id : undefined, meta);
   if ((r as any).error) return { error: (r as any).error };
@@ -6908,13 +6600,6 @@ export async function verifyResellerTopup(resellerId: string, depositId: string)
   if (new Date(row.expires_at).getTime() < Date.now()) {
     await db.from("binance_deposits").update({ status: "expired" }).eq("id", row.id);
     return { ok: false as const, message: "This payment request expired. Please start a new one." };
-  }
-
-  if (row.kind === "paykori") {
-    const trx = row.tx_id || (row.meta as any)?.trx;
-    if (!trx) return { ok: false as const, message: "No gateway confirmation yet. Finish the payment, then check again." };
-    const r = await creditPaykoriRow(row, String(trx));
-    return r.credited ? { ok: true as const, message: plain(r.message) } : { ok: false as const, message: plain(r.message) };
   }
 
   const { findCryptoDeposit, findPayTransaction } = await import("@/lib/binance.server");
