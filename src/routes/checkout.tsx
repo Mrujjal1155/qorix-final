@@ -12,6 +12,7 @@ import {
   CreditCard,
   Send,
   ShieldCheck,
+  Smartphone,
   Wallet,
 } from "lucide-react";
 
@@ -72,6 +73,8 @@ function CheckoutPage() {
   const fetchProduct = useServerFn(getStoreProduct);
   const fetchPay = useServerFn(getStorePayInfo);
   const submit = useServerFn(placeWebsiteOrder);
+  const fetchEps = useServerFn(getEpsStatus);
+  const startEps = useServerFn(startEpsCheckout);
   const { money, usd, currency } = usePrefs();
 
   const { data: product } = useQuery({
@@ -80,15 +83,20 @@ function CheckoutPage() {
     enabled: !!id,
   });
   const { data: pay } = useQuery({ queryKey: ["store-pay"], queryFn: () => fetchPay() });
+  const { data: eps } = useQuery({ queryKey: ["eps-status"], queryFn: () => fetchEps() });
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [method, setMethod] = useState<string>("binance");
   const [txid, setTxid] = useState("");
 
   const total = Number(product?.price ?? 0) * qty;
-  const address = pay?.[METHODS.find((m) => m.id === method)!.key] ?? "";
+  const isEps = method === "eps";
+  const cryptoMethod = METHODS.find((m) => m.id === method);
+  const address = cryptoMethod ? (pay?.[cryptoMethod.key] ?? "") : "";
   const botUser = pay?.["bot_username"] ?? "";
+  const epsTotalBdt = Math.round(total * Number(eps?.rate ?? 0) * 100) / 100;
 
   const go = (next: Step) => void navigate({ to: "/checkout", search: { id, qty, step: next } });
 
