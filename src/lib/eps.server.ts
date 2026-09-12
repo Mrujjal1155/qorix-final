@@ -175,20 +175,35 @@ function pick(obj: Json | null, keys: string[]): string | null {
   return null;
 }
 
+/** Short-lived token cache — EPS rate-limits /Auth/GetToken (HTTP 429). */
+const tokenCache = new Map<string, { token: string; expires: number }>();
+
 /** API 01 — auth token (hashed with the user name). */
 export async function getToken(cfg: EpsConfig) {
-  const r = await request(cfg, "/v1/Auth/GetToken", {
-    method: "POST",
-    hashMessage: cfg.userName,
-    body: { userName: cfg.userName, password: cfg.password },
-  });
-  if (!r.ok) return { ok: false as const, error: r.error };
-  const token = pick(r.data, ["token", "Token"]);
-  if (!token) {
-    const err = pick(r.data, ["errorMessage", "ErrorMessage"]) ?? "EPS did not return an auth token.";
-    return { ok: false as const, error: err };
+  const cacheKey = `${cfg.base}|${cfg.userName}`;
+  const hit = tokenCache.get(cacheKey);
+  if (hit && hit.expires > Date.now()) return { ok: true as const, token: hit.token };
+
+  let last = "EPS did not return an auth token.";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const r = await request(cfg, "/v1/Auth/GetToken", {
+      method: "POST",
+      hashMessage: cfg.userName,
+      body: { userName: cfg.userName, password: cfg.password },
+    });
+    if (r.ok) {
+      const token = pick(r.data, ["token", "Token"]);
+      if (token) {
+        tokenCache.set(cacheKey, { token, expires: Date.now() + 4 * 60 * 1000 });
+        return { ok: true as const, token };
+      }
+      last = pick(r.data, ["errorMessage", "ErrorMessage"]) ?? last;
+    } else {
+      last = r.error;
+    }
+    await new Promise((res) => setTimeout(res, 1200 * (attempt + 1)));
   }
-  return { ok: true as const, token };
+  return { ok: false as const, error: last };
 }
 
 export type EpsInitInput = {
