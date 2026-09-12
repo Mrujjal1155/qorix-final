@@ -521,28 +521,28 @@ export function StoreShell({ children }: { children: ReactNode }) {
           <div className="mt-10 flex justify-center border-t border-border/60 pt-8">
             <div className="w-full max-w-5xl">
               <img
-                src={footerPayDesktopLight.url}
+                src="/footer-pay-desktop-light.png"
                 alt="Pay with EPS — Visa, Mastercard, American Express, bKash, Nagad, Rocket and more"
                 className="hidden w-full rounded-xl dark:hidden md:block"
                 loading="lazy"
                 decoding="async"
               />
               <img
-                src={footerPayDesktopDark.url}
+                src="/footer-pay-desktop-dark.png"
                 alt="Pay with EPS — Visa, Mastercard, American Express, bKash, Nagad, Rocket and more"
                 className="hidden w-full rounded-xl md:dark:block"
                 loading="lazy"
                 decoding="async"
               />
               <img
-                src={footerPayMobileLight.url}
+                src="/footer-pay-mobile-light.png"
                 alt="Pay with EPS — Visa, Mastercard, American Express, bKash, Nagad, Rocket and more"
                 className="block w-full rounded-xl dark:hidden md:hidden"
                 loading="lazy"
                 decoding="async"
               />
               <img
-                src={footerPayMobileDark.url}
+                src="/footer-pay-mobile-dark.png"
                 alt="Pay with EPS — Visa, Mastercard, American Express, bKash, Nagad, Rocket and more"
                 className="hidden w-full rounded-xl dark:block md:dark:hidden"
                 loading="lazy"
