@@ -378,6 +378,9 @@ export async function flushBackground() {
 export function invalidateSettings() {
   settingsGeneration += 1;
   settingsCache = null;
+  // Do not let a read that started before an admin save feed the immediate
+  // preview. Its generation guard already prevents it from repopulating cache.
+  settingsInflight = null;
 }
 
 export async function getSettings(): Promise<Record<string, string>> {
