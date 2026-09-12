@@ -4732,29 +4732,23 @@ async function admUiGroupView() {
 
 async function admPaymentIconsView() {
   const settings = await getSettings();
-  const keys = [
-    ["pay_bkash", "wal_bkash"],
-    ["pay_nagad", "wal_nagad"],
-    ["pay_rocket", "wal_rocket"],
+  // One button per gateway — each opens the usual icon editor.
+  const gateways = [
+    ["mfs_bkash", "bKash"],
+    ["mfs_nagad", "Nagad"],
+    ["mfs_rocket", "Rocket"],
+    ["card_visa", "Visa"],
+    ["card_mastercard", "Mastercard"],
   ] as const;
-  const kb: Button[][] = keys.map(([checkoutKey, walletKey]) => [
-    uiBtn(settings, checkoutKey, `adm:uie:${checkoutKey}`, "· Checkout"),
-    uiBtn(settings, walletKey, `adm:uie:${walletKey}`, "· Wallet"),
-  ]);
-  kb.push([{ text: "— Merged EPS rows —", callback_data: "adm:pay" }]);
-  kb.push([uiBtn(settings, "mfs_bkash", "adm:uie:mfs_bkash", "· merged")]);
-  kb.push([uiBtn(settings, "mfs_nagad", "adm:uie:mfs_nagad", "· merged")]);
-  kb.push([uiBtn(settings, "mfs_rocket", "adm:uie:mfs_rocket", "· merged")]);
-  kb.push([{ text: "— Card row —", callback_data: "adm:pay" }]);
-  kb.push([uiBtn(settings, "card_visa", "adm:uie:card_visa", "· merged")]);
-  kb.push([uiBtn(settings, "card_mastercard", "adm:uie:card_mastercard", "· merged")]);
+  const kb: Button[][] = gateways.map(([key]) => [uiBtn(settings, key, `adm:uie:${key}`)]);
+  kb.push([{ text: "— Row labels —", callback_data: "adm:pay" }]);
   kb.push([
-    uiBtn(settings, "pay_mfs", "adm:uie:pay_mfs", "· Checkout"),
     uiBtn(settings, "wal_mfs", "adm:uie:wal_mfs", "· Wallet"),
+    uiBtn(settings, "pay_mfs", "adm:uie:pay_mfs", "· Checkout"),
   ]);
   kb.push([
-    uiBtn(settings, "pay_card", "adm:uie:pay_card", "· Checkout"),
     uiBtn(settings, "wal_card", "adm:uie:wal_card", "· Wallet"),
+    uiBtn(settings, "pay_card", "adm:uie:pay_card", "· Checkout"),
   ]);
   kb.push([{ text: "🎛 All UI icons & tags", callback_data: "adm:ui" }]);
   kb.push(...ADM_BACK);
@@ -4763,9 +4757,8 @@ async function admPaymentIconsView() {
       `${uiTag(settings, "pay_title")}\n\n` +
       `Mobile row: ${mfsIconsHtml(settings)} <b>${escapeHtml(uiText(settings, "wal_mfs"))}</b>\n` +
       `Card row: ${cardIconsHtml(settings)} <b>${escapeHtml(uiText(settings, "wal_card"))}</b>\n\n` +
-      "Tap bKash / Nagad / Rocket under “Merged EPS rows” to give each one its own " +
-      "Premium custom emoji. Visa and Mastercard also have separate icon settings. " +
-      "Checkout / Wallet labels are saved separately.",
+      "Tap a gateway to set its Premium custom emoji (or a normal emoji). " +
+      "Row labels rename the merged wallet / checkout buttons.",
     kb,
   };
 }
