@@ -668,7 +668,9 @@ export const refundOrderToWallet = createServerFn({ method: "POST" })
       if (!profile) throw new Error("Customer profile not found");
       const balance = Math.round((Number(profile.wallet_balance ?? 0) + data.amount) * 100) / 100;
       await sb.from("profiles").update({ wallet_balance: balance }).eq("id", order.user_id);
-      await sb.from("wallet_transactions").insert({
+      // wallet_transactions is insert-protected by RLS; write it as admin.
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await (supabaseAdmin as any).from("wallet_transactions").insert({
         user_id: order.user_id,
         type: "refund",
         amount: data.amount,
