@@ -5664,15 +5664,29 @@ async function handleCallback(cq: any) {
     if (missing.length) {
       const gv = joinGateView(s, missing);
       await edit(
-        `❌ <b>Not joined yet.</b>\nStill missing: ${missing.map((c) => escapeHtml(c.label)).join(", ")}\n\n${gv.text}`,
+        `❌ <b>Not verified yet.</b>\nStill to join: ${missing.map((c) => escapeHtml(c.label)).join(", ")}\n\n${gv.text}`,
         gv.kb,
       );
       return;
     }
     const okUser = await getUser(chatId);
-    await edit(`✅ <b>Verified!</b>\n\n${await homeText(okUser)}`, homeKeyboard(s));
+    await edit(`${joinSuccessText(s)}\n\n${await homeText(okUser)}`, homeKeyboard(s));
     return;
   }
+
+  // Every other action stays locked until the community gate is satisfied.
+  {
+    const s = await getSettings();
+    if (joinGateOn(s) && !(await isAdmin(chatId, s))) {
+      const missing = await missingJoins(chatId, s);
+      if (missing.length) {
+        const gv = joinGateView(s, missing);
+        await edit(gv.text, gv.kb);
+        return;
+      }
+    }
+  }
+
 
   if (data === "home") {
     // `user` was just loaded by upsertUser — no second read needed.
