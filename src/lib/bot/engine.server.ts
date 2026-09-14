@@ -4067,19 +4067,41 @@ async function missingJoins(chatId: number, s: Record<string, string>): Promise<
   return results.filter(Boolean) as JoinChannel[];
 }
 
+/** Full checklist: joined chats get a ✅, the rest must be joined one by one. */
 function joinGateView(s: Record<string, string>, missing: JoinChannel[]) {
-  const kb: Button[][] = missing.map((c) => [
-    c.url
-      ? { text: `📢 Join ${c.label}`, url: c.url }
-      : { text: `📢 ${c.label}`, callback_data: "jg:v" },
-  ]);
+  const all = joinChannels(s);
+  const pending = new Set(missing.map((c) => c.chat));
+  const kb: Button[][] = [];
+  const lines: string[] = [];
+  all.forEach((c, i) => {
+    const done = !pending.has(c.chat);
+    lines.push(`${done ? "✅" : "🔸"} <b>${i + 1}.</b> ${escapeHtml(c.label)}${done ? " — joined" : ""}`);
+    if (done) return;
+    kb.push([
+      c.url
+        ? { text: `📢 ${i + 1}. Join ${c.label}`, url: c.url }
+        : { text: `📢 ${i + 1}. ${c.label}`, callback_data: "jg:v" },
+    ]);
+  });
   kb.push([{ text: "✅ Verify & continue", callback_data: "jg:v" }]);
   const title = (s["join_gate_title"] || "🔒 <b>Membership required</b>").trim();
   const body =
     (s["join_gate_text"] || "").trim() ||
-    "Please join our official channel(s) below, then tap <b>Verify &amp; continue</b> to unlock the bot.";
-  return { text: `${title}\n──────────────\n${body}`, kb };
+    "Join our official community below to unlock the bot.\nJoin them <b>one by one</b>, then tap <b>Verify &amp; continue</b> — membership is checked live.";
+  return { text: `${title}\n──────────────\n${body}\n\n${lines.join("\n")}`, kb };
 }
+
+/** Shown once membership checks out. Admin-configurable. */
+function joinSuccessText(s: Record<string, string>) {
+  return (
+    (s["join_gate_success"] || "").trim() ||
+    "🎉 <b>Verification successful!</b>\n──────────────\n" +
+      "✅ Your community membership is confirmed.\n" +
+      "🔓 Full access unlocked — browse products, top up your wallet and order instantly.\n\n" +
+      "<i>Thanks for joining us. Happy shopping!</i>"
+  );
+}
+
 
 async function admJoinGateView() {
   const s = await getSettings();
