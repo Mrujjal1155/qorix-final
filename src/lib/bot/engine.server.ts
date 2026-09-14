@@ -3063,16 +3063,23 @@ async function handleMessage(msg: any) {
   }
   defer(() => trackMessage(chatId, msg.message_id));
 
-  if (text.startsWith("/start")) {
-    await setState(chatId, { msgs: (user.state as any)?.msgs ?? [] });
+  // Community gate: nothing in the bot opens until every required chat is joined.
+  {
     const gateSettings = await getSettings();
     if (joinGateOn(gateSettings) && !(await isAdmin(chatId, gateSettings))) {
       const missing = await missingJoins(chatId, gateSettings);
       if (missing.length) {
+        if (text.startsWith("/start")) await setState(chatId, { msgs: (user.state as any)?.msgs ?? [] });
         const gv = joinGateView(gateSettings, missing);
         await say(chatId, gv.text, gv.kb);
         return;
       }
+    }
+  }
+
+  if (text.startsWith("/start")) {
+    await setState(chatId, { msgs: (user.state as any)?.msgs ?? [] });
+
     }
     // Deep link from a channel post: /start p_<product-id> opens that product.
     if (payload?.startsWith("p_")) {
