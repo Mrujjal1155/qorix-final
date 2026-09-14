@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,18 +12,24 @@ export type JoinRow = { chat: string; label: string; url: string };
 function parseRows(raw: string | undefined): JoinRow[] {
   return (raw ?? "")
     .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
+    .filter((l) => l.trim())
     .map((line) => {
-      const [chat = "", label = "", url = ""] = line.split("|").map((p) => p.trim());
-      return { chat, label: label || chat, url: url || (chat.startsWith("@") ? `https://t.me/${chat.slice(1)}` : "") };
+      const parts = line.split("|");
+      const chat = (parts[0] ?? "").trim();
+      const label = parts[1] ?? "";
+      const url = (parts[2] ?? "").trim();
+      return {
+        chat,
+        label: label || chat,
+        url: url || (chat.startsWith("@") ? `https://t.me/${chat.slice(1)}` : ""),
+      };
     });
 }
 
 function serializeRows(rows: JoinRow[]): string {
   return rows
-    .map((r) => [r.chat.trim(), r.label.trim(), r.url.trim()].join("|").replace(/\|+$/, ""))
-    .filter((line) => line.split("|")[0])
+    .filter((r) => r.chat.trim())
+    .map((r) => `${r.chat.trim()}|${r.label}|${r.url.trim()}`)
     .join("\n");
 }
 
@@ -35,11 +42,26 @@ export function JoinGateCard({
   setValues: (v: Record<string, string>) => void;
   onSave: () => void | Promise<void>;
 }) {
-  const rows = parseRows(values["join_channels"]);
+  const raw = values["join_channels"] ?? "";
+  const [rows, setRows] = useState<JoinRow[]>(() => parseRows(raw));
+  const lastPushed = useRef(raw);
+
+  // Keep local rows in sync when settings load / change externally.
+  useEffect(() => {
+    if (raw !== lastPushed.current) {
+      lastPushed.current = raw;
+      setRows(parseRows(raw));
+    }
+  }, [raw]);
+
   const on = ["on", "true", "1", "yes"].includes((values["join_gate"] ?? "").trim().toLowerCase());
 
-  const update = (next: JoinRow[]) =>
-    setValues({ ...values, join_channels: serializeRows(next) });
+  const update = (next: JoinRow[]) => {
+    setRows(next);
+    const serialized = serializeRows(next);
+    lastPushed.current = serialized;
+    setValues({ ...values, join_channels: serialized });
+  };
 
   return (
     <Card>
