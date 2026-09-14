@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,18 +12,24 @@ export type JoinRow = { chat: string; label: string; url: string };
 function parseRows(raw: string | undefined): JoinRow[] {
   return (raw ?? "")
     .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
+    .filter((l) => l.trim())
     .map((line) => {
-      const [chat = "", label = "", url = ""] = line.split("|").map((p) => p.trim());
-      return { chat, label: label || chat, url: url || (chat.startsWith("@") ? `https://t.me/${chat.slice(1)}` : "") };
+      const parts = line.split("|");
+      const chat = (parts[0] ?? "").trim();
+      const label = parts[1] ?? "";
+      const url = (parts[2] ?? "").trim();
+      return {
+        chat,
+        label: label || chat,
+        url: url || (chat.startsWith("@") ? `https://t.me/${chat.slice(1)}` : ""),
+      };
     });
 }
 
 function serializeRows(rows: JoinRow[]): string {
   return rows
-    .map((r) => [r.chat.trim(), r.label.trim(), r.url.trim()].join("|").replace(/\|+$/, ""))
-    .filter((line) => line.split("|")[0])
+    .filter((r) => r.chat.trim())
+    .map((r) => `${r.chat.trim()}|${r.label}|${r.url.trim()}`)
     .join("\n");
 }
 
