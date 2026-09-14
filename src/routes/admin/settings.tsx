@@ -730,7 +730,15 @@ function SettingsPage() {
       render: () => <HeroItemsCard />,
     },
     {
+      id: "joingate",
+      title: "Force join (community)",
+      description: "Channels every bot user must join before the menu opens.",
+      icon: ShieldCheck,
+      render: () => <JoinGateCard values={values} setValues={setValues} onSave={onSave} />,
+    },
+    {
       id: "announce",
+
       title: "Announcements",
       description: "Channel posts for sales, restocks and new products.",
       icon: Megaphone,
