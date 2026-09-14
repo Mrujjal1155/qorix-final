@@ -14,7 +14,9 @@ import { toast } from "sonner";
 import { BinanceSetupCard } from "@/components/BinanceSetupCard";
 import { HeroItemsCard } from "@/components/HeroItemsCard";
 import { SettingsHub, type HubSection } from "@/components/SettingsHub";
-import { Bot, Wallet, SlidersHorizontal, Smile, Images, Megaphone, Smartphone, Mail, MailOpen, Gift, Coins, Network } from "lucide-react";
+import { Bot, Wallet, SlidersHorizontal, Smile, Images, Megaphone, Smartphone, Mail, MailOpen, Gift, Coins, Network, ShieldCheck } from "lucide-react";
+import { JoinGateCard } from "@/components/JoinGateCard";
+
 import { CurrencyRatesCard } from "@/components/CurrencyRatesCard";
 import { SupplierKeysCard } from "@/components/SupplierKeysCard";
 import { EmailTemplatesCard } from "@/components/EmailTemplatesCard";
@@ -728,7 +730,15 @@ function SettingsPage() {
       render: () => <HeroItemsCard />,
     },
     {
+      id: "joingate",
+      title: "Force join (community)",
+      description: "Channels every bot user must join before the menu opens.",
+      icon: ShieldCheck,
+      render: () => <JoinGateCard values={values} setValues={setValues} onSave={onSave} />,
+    },
+    {
       id: "announce",
+
       title: "Announcements",
       description: "Channel posts for sales, restocks and new products.",
       icon: Megaphone,
