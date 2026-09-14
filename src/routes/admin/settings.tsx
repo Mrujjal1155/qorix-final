@@ -14,7 +14,9 @@ import { toast } from "sonner";
 import { BinanceSetupCard } from "@/components/BinanceSetupCard";
 import { HeroItemsCard } from "@/components/HeroItemsCard";
 import { SettingsHub, type HubSection } from "@/components/SettingsHub";
-import { Bot, Wallet, SlidersHorizontal, Smile, Images, Megaphone, Smartphone, Mail, MailOpen, Gift, Coins, Network } from "lucide-react";
+import { Bot, Wallet, SlidersHorizontal, Smile, Images, Megaphone, Smartphone, Mail, MailOpen, Gift, Coins, Network, ShieldCheck } from "lucide-react";
+import { JoinGateCard } from "@/components/JoinGateCard";
+
 import { CurrencyRatesCard } from "@/components/CurrencyRatesCard";
 import { SupplierKeysCard } from "@/components/SupplierKeysCard";
 import { EmailTemplatesCard } from "@/components/EmailTemplatesCard";
