@@ -3080,7 +3080,7 @@ async function handleMessage(msg: any) {
   if (text.startsWith("/start")) {
     await setState(chatId, { msgs: (user.state as any)?.msgs ?? [] });
 
-    }
+
     // Deep link from a channel post: /start p_<product-id> opens that product.
     if (payload?.startsWith("p_")) {
       const view = await productView(payload.slice(2));
