@@ -42,11 +42,26 @@ export function JoinGateCard({
   setValues: (v: Record<string, string>) => void;
   onSave: () => void | Promise<void>;
 }) {
-  const rows = parseRows(values["join_channels"]);
+  const raw = values["join_channels"] ?? "";
+  const [rows, setRows] = useState<JoinRow[]>(() => parseRows(raw));
+  const lastPushed = useRef(raw);
+
+  // Keep local rows in sync when settings load / change externally.
+  useEffect(() => {
+    if (raw !== lastPushed.current) {
+      lastPushed.current = raw;
+      setRows(parseRows(raw));
+    }
+  }, [raw]);
+
   const on = ["on", "true", "1", "yes"].includes((values["join_gate"] ?? "").trim().toLowerCase());
 
-  const update = (next: JoinRow[]) =>
-    setValues({ ...values, join_channels: serializeRows(next) });
+  const update = (next: JoinRow[]) => {
+    setRows(next);
+    const serialized = serializeRows(next);
+    lastPushed.current = serialized;
+    setValues({ ...values, join_channels: serialized });
+  };
 
   return (
     <Card>
