@@ -105,7 +105,9 @@ const RECENT_KEY = "supplier_notify_recent";
  * partial DM fan-out) must never be thrown away as "history" while it is
  * actively being delivered. Only genuinely abandoned cards expire.
  */
-const STALE_MS = 6 * 60 * 60_000;
+const STALE_MS = 30 * 60_000;
+/** Absolute ceiling — nothing is ever announced later than this, in any state. */
+const HARD_STALE_MS = 2 * 60 * 60_000;
 /**
  * Telegram work is bounded per run so a single invocation can never exceed the
  * Cloudflare subrequest/CPU budget — that is what used to kill the whole run
