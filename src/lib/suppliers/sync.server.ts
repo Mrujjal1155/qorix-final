@@ -476,6 +476,115 @@ export async function syncSupplierCore(
   }
 }
 
+function normalizeName(v: unknown): string {
+  return String(v ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Suppliers such as Canboso/FatBunny and Qamify hand out a fresh product id for
+ * every new batch. Matching only on the stored id then leaves the store product
+ * pointing at an id the supplier no longer knows, and each purchase comes back
+ * "Product not found". Here we re-point those products at the live id using the
+ * product name, and retire the ones that truly disappeared.
+ */
+async function relinkRotatedIds(
+  sb: any,
+  s: SupplierRow & Record<string, any>,
+  uniqueRemote: any[],
+  linkedProducts: any[],
+  byExt: Map<string, any>,
+  productsById: Map<string, any>,
+): Promise<{ relinked: number; retired: number }> {
+  const liveIds = new Set(uniqueRemote.map((p) => String(p.external_id)));
+  const stale = linkedProducts.filter(
+    (p: any) => p.supplier_external_id && !liveIds.has(String(p.supplier_external_id)),
+  );
+  if (!stale.length) return { relinked: 0, retired: 0 };
+
+  const remoteByName = new Map<string, any>();
+  for (const p of uniqueRemote) {
+    const k = normalizeName(p.name);
+    if (k && !remoteByName.has(k)) remoteByName.set(k, p);
+  }
+  // Never hand a live id to two different store products.
+  const takenIds = new Set(linkedProducts.map((p: any) => String(p.supplier_external_id ?? "")));
+
+  let relinked = 0;
+  let retired = 0;
+  const now = new Date().toISOString();
+
+  for (const prod of stale) {
+    const oldId = String(prod.supplier_external_id);
+    const match = remoteByName.get(normalizeName(prod.name));
+    if (match && !takenIds.has(String(match.external_id))) {
+      const newId = String(match.external_id);
+      takenIds.add(newId);
+      const stock = Number(match.stock ?? 0);
+      await sb
+        .from("products")
+        .update({ supplier_external_id: newId, supplier_stock: stock })
+        .eq("id", prod.id);
+      prod.supplier_external_id = newId;
+      prod.supplier_stock = stock;
+      productsById.set(String(prod.id), prod);
+
+      const oldRow = byExt.get(oldId);
+      if (oldRow?.id) {
+        await sb.from("supplier_products").update({ is_listed: false, product_id: null }).eq("id", oldRow.id);
+        oldRow.is_listed = false;
+        oldRow.product_id = null;
+      }
+      const newRow = byExt.get(newId);
+      if (newRow?.id) {
+        await sb
+          .from("supplier_products")
+          .update({ is_listed: true, product_id: prod.id })
+          .eq("id", newRow.id);
+        newRow.is_listed = true;
+        newRow.product_id = prod.id;
+        // Same stock as the live feed → the diff below stays quiet, so a
+        // re-link never fakes a restock alert.
+        newRow.stock = stock;
+      } else {
+        const { data: ins } = await sb
+          .from("supplier_products")
+          .insert({
+            supplier_id: s.id,
+            external_id: newId,
+            name: match.name,
+            description: match.description ?? null,
+            cost_price: match.cost_price ?? 0,
+            stock,
+            currency: match.currency ?? "USD",
+            min_qty: match.min_qty ?? 1,
+            raw: match.raw ?? null,
+            is_listed: true,
+            product_id: prod.id,
+            last_synced_at: now,
+          })
+          .select("*")
+          .maybeSingle();
+        if (ins) byExt.set(newId, ins);
+      }
+      relinked++;
+    } else if (prod.is_active) {
+      // Gone from the supplier catalogue → take it off sale instead of letting
+      // a customer pay for something that can never be delivered.
+      await sb.from("products").update({ is_active: false, supplier_stock: 0 }).eq("id", prod.id);
+      prod.is_active = false;
+      prod.supplier_stock = 0;
+      productsById.set(String(prod.id), prod);
+      retired++;
+    }
+  }
+
+  if (relinked || retired) {
+    console.log(`Supplier ${s.name}: relinked ${relinked} rotated product id(s), retired ${retired}`);
+  }
+  return { relinked, retired };
+}
+
+
 async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string, any>) {
   let remote;
   try {
@@ -526,10 +635,19 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   const uniqueRemote = Array.from(
     new Map(remote.filter((p) => p.external_id != null).map((p) => [String(p.external_id), p])).values(),
   );
+
+  // Some suppliers (Canboso/FatBunny, Qamify) rotate a product's id whenever a
+  // new batch lands. The stored id then points at nothing and every purchase
+  // fails with "Product not found". Re-point the store product at the live id
+  // by matching the product name; if the product is really gone from the
+  // supplier, take it off sale instead of letting customers buy a dead link.
+  const relinked = await relinkRotatedIds(sb, s, uniqueRemote, linkedProducts ?? [], byExt, productsById);
+
   // Every supplier row is written in a few batched upserts instead of one
   // request per product — a 250-item catalogue used to need 250 round trips,
   // which made a single sync run longer than the 15s schedule interval.
   const rowsToWrite: any[] = [];
+
 
   for (const p of uniqueRemote) {
     const prev = byExt.get(String(p.external_id));
@@ -708,7 +826,11 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   // make a healthy run look stale in the admin health panel.
   await sb
     .from("suppliers")
-    .update({ last_synced_at: now, last_status: `Synced ${uniqueRemote.length} products` })
+    .update({
+      last_synced_at: now,
+      last_status: `Synced ${uniqueRemote.length} products${relinked.relinked ? ` · ${relinked.relinked} id relinked` : ""}${relinked.retired ? ` · ${relinked.retired} delisted` : ""}`,
+    })
+
     .eq("id", s.id);
 
 
