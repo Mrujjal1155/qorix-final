@@ -105,7 +105,9 @@ const RECENT_KEY = "supplier_notify_recent";
  * partial DM fan-out) must never be thrown away as "history" while it is
  * actively being delivered. Only genuinely abandoned cards expire.
  */
-const STALE_MS = 6 * 60 * 60_000;
+const STALE_MS = 30 * 60_000;
+/** Absolute ceiling — nothing is ever announced later than this, in any state. */
+const HARD_STALE_MS = 2 * 60 * 60_000;
 /**
  * Telegram work is bounded per run so a single invocation can never exceed the
  * Cloudflare subrequest/CPU budget — that is what used to kill the whole run
@@ -156,6 +158,21 @@ async function enqueueNotifications(sb: any, supplierId: string, items: NotifyIt
   const now = Date.now();
   const key = QUEUE_PREFIX + supplierId;
   const current = (await readJsonSetting(sb, key)) as NotifyItem[];
+
+  // Products the admin has not switched on are invisible in the shop and the
+  // bot — they must never produce a single alert. Filter them out here so an
+  // off-sale catalogue can't flood the channel/DMs with hundreds of cards.
+  const productIds = Array.from(new Set(items.map((it) => it.product_id)));
+  const active = new Set<string>();
+  for (let i = 0; i < productIds.length; i += 200) {
+    const { data } = await sb
+      .from("products")
+      .select("id,is_active")
+      .in("id", productIds.slice(i, i + 200));
+    for (const row of data ?? []) if ((row as any).is_active !== false) active.add(String((row as any).id));
+  }
+  items = items.filter((it) => active.has(it.product_id));
+  if (!items.length && !current.length) return;
 
   // Drop anything the ledger already marked delivered.
   const ids = Array.from(new Set(items.map((it) => `supplier_notify_delivery:${it.event_id}`)));
@@ -257,10 +274,14 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
     Boolean(item.channel_sent) || Number(item.dm_cursor ?? 0) > 0 || Number(item.tries ?? 0) > 0;
   // Legacy queue entries did not carry `at`; they are old by definition and
   // must never survive a live-only cutover forever.
-  const stale = queue.filter(
-    (item) =>
-      !inFlight(item) && (!Number.isFinite(Number(item.at)) || startedAt - Number(item.at) > STALE_MS),
-  );
+  const stale = queue.filter((item) => {
+    const age = startedAt - Number(item.at);
+    const undated = !Number.isFinite(Number(item.at));
+    // Hard ceiling: even a half-delivered card is stale news after this long,
+    // so a stuck queue can never wake up hours later and spam everyone.
+    if (undated || age > HARD_STALE_MS) return true;
+    return !inFlight(item) && age > STALE_MS;
+  });
   if (stale.length) {
     queue = queue.filter((item) => !stale.includes(item));
     await writeJsonSetting(sb, key, queue);
@@ -336,6 +357,13 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
         },
       };
       const { data: prod } = await sb.from("products").select("*").eq("id", item.product_id).maybeSingle();
+      // Off-sale (or deleted) products are invisible to customers — drop their
+      // cards instead of announcing stock nobody can buy.
+      if (!prod || (prod as any).is_active === false) {
+        await finishNotification(sb, item.event_id, true).catch(() => {});
+        await remove();
+        continue;
+      }
       if (item.t === "restock") {
         delivery = await notifyRestock(item.product_id, item.qty, progress);
       } else {
