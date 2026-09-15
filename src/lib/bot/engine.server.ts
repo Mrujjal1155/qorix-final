@@ -2841,6 +2841,8 @@ export async function announceNewProduct(
   },
 ) {
   const s = await getSettings();
+  // Never announce a product the admin has not switched on.
+  if (!product || product.is_active === false) return;
   if ((s["announce_new"] ?? "on").toLowerCase() === "off") return;
   const title = s["announce_new_title"] || "JUST ADDED";
   const footer = s["announce_new_footer"] || "First come, first served — early buyers get the best stock.";
@@ -2899,6 +2901,7 @@ export async function announceLowStock(
   },
 ) {
   const s = await getSettings();
+  if (!product || product.is_active === false) return;
   if ((s["announce_low"] ?? "on").toLowerCase() === "off") return;
   const out = available <= 0;
   const title = out
@@ -2965,6 +2968,7 @@ export async function announcePriceChange(
   },
 ) {
   const s = await getSettings();
+  if (!product || product.is_active === false) return { channel: true, dmComplete: true, dmCursor: 0 };
   if ((s["announce_price"] ?? "on").toLowerCase() === "off") return { channel: true, dmComplete: true, dmCursor: 0 };
   const down = Number(newPrice) < Number(oldPrice);
   if (!down && (s["announce_price_up"] ?? "off").toLowerCase() !== "on") {
