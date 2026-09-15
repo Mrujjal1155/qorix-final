@@ -236,6 +236,18 @@ function OrdersPage() {
                     </Badge>
                   </td>
                   <td className="space-x-1 text-right">
+                    {o.status !== "completed" && o.status !== "refunded" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setDeliverFor(o.id);
+                          setContent("");
+                        }}
+                      >
+                        Deliver now
+                      </Button>
+                    )}
                     {(o.status === "awaiting_payment" || o.status === "failed") && (
                       <>
                         <Button
