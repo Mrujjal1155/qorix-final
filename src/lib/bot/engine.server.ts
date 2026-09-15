@@ -5182,9 +5182,19 @@ async function fulfillCheckout(
           // values even for funded wallets, so never block delivery on it.
           const pre = await supplierPreflight(sup, Number(p.price) * l.qty);
           try {
+            // Buy against the supplier's live product id (it can rotate between
+            // syncs) so a fresh order never hits a dead id.
+            let externalId = String(p.supplier_external_id);
+            try {
+              const { refreshLiveStock } = await import("@/lib/suppliers/live-stock.server");
+              const live = await refreshLiveStock(String(p.id), 8000);
+              if (live) externalId = live.external_id;
+            } catch {
+              /* keep the stored id */
+            }
             const res = await supplierOrder(
               sup as any,
-              String(p.supplier_external_id),
+              externalId,
               l.qty,
               `qorix-${chatId}-${p.id}-${Date.now()}`,
             );
