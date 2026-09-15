@@ -272,10 +272,14 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
     Boolean(item.channel_sent) || Number(item.dm_cursor ?? 0) > 0 || Number(item.tries ?? 0) > 0;
   // Legacy queue entries did not carry `at`; they are old by definition and
   // must never survive a live-only cutover forever.
-  const stale = queue.filter(
-    (item) =>
-      !inFlight(item) && (!Number.isFinite(Number(item.at)) || startedAt - Number(item.at) > STALE_MS),
-  );
+  const stale = queue.filter((item) => {
+    const age = startedAt - Number(item.at);
+    const undated = !Number.isFinite(Number(item.at));
+    // Hard ceiling: even a half-delivered card is stale news after this long,
+    // so a stuck queue can never wake up hours later and spam everyone.
+    if (undated || age > HARD_STALE_MS) return true;
+    return !inFlight(item) && age > STALE_MS;
+  });
   if (stale.length) {
     queue = queue.filter((item) => !stale.includes(item));
     await writeJsonSetting(sb, key, queue);
@@ -351,6 +355,13 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
         },
       };
       const { data: prod } = await sb.from("products").select("*").eq("id", item.product_id).maybeSingle();
+      // Off-sale (or deleted) products are invisible to customers — drop their
+      // cards instead of announcing stock nobody can buy.
+      if (!prod || (prod as any).is_active === false) {
+        await finishNotification(sb, item.event_id, true).catch(() => {});
+        await remove();
+        continue;
+      }
       if (item.t === "restock") {
         delivery = await notifyRestock(item.product_id, item.qty, progress);
       } else {
