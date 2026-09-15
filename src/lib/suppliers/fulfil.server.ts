@@ -50,6 +50,15 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
   if (!product?.supplier_id || !product.supplier_external_id)
     return { ok: false, reason: "This product is not linked to a supplier API — deliver it manually." };
 
+  // Always order against the supplier's live id/stock, never a stale snapshot.
+  try {
+    const { refreshLiveStock } = await import("@/lib/suppliers/live-stock.server");
+    const live = await refreshLiveStock(String(product.id), 8000);
+    if (live) product.supplier_external_id = live.external_id;
+  } catch {
+    /* fall back to the stored id */
+  }
+
   const { data: sup } = await db.from("suppliers").select("*").eq("id", product.supplier_id).maybeSingle();
   if (!sup) return { ok: false, reason: "Supplier record not found" };
   if (!sup.is_enabled) return { ok: false, reason: `Supplier “${sup.name ?? sup.key}” is disabled in admin` };

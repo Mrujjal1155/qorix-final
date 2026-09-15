@@ -1771,7 +1771,19 @@ async function productView(productId: string) {
       .select("id", { count: "exact", head: true })
       .eq("product_id", productId),
   ]);
-  const stock = p.supplier_id ? Number(p.supplier_stock ?? 0) : (count ?? 0);
+  // Supplier products show the supplier's *live* number, not the last sync
+  // snapshot, and the id is re-linked on the fly if the supplier rotated it.
+  let supplierStock = Number(p.supplier_stock ?? 0);
+  if (p.supplier_id) {
+    const { refreshLiveStock } = await import("@/lib/suppliers/live-stock.server");
+    const live = await refreshLiveStock(String(p.id));
+    if (live) {
+      supplierStock = live.stock;
+      p.supplier_stock = live.stock;
+      p.supplier_external_id = live.external_id;
+    }
+  }
+  const stock = p.supplier_id ? supplierStock : (count ?? 0);
   const sold = soldCount ?? 0;
   const hasDrop = p.old_price && Number(p.old_price) > Number(p.price);
   const off = hasDrop
@@ -5170,9 +5182,19 @@ async function fulfillCheckout(
           // values even for funded wallets, so never block delivery on it.
           const pre = await supplierPreflight(sup, Number(p.price) * l.qty);
           try {
+            // Buy against the supplier's live product id (it can rotate between
+            // syncs) so a fresh order never hits a dead id.
+            let externalId = String(p.supplier_external_id);
+            try {
+              const { refreshLiveStock } = await import("@/lib/suppliers/live-stock.server");
+              const live = await refreshLiveStock(String(p.id), 8000);
+              if (live) externalId = live.external_id;
+            } catch {
+              /* keep the stored id */
+            }
             const res = await supplierOrder(
               sup as any,
-              String(p.supplier_external_id),
+              externalId,
               l.qty,
               `qorix-${chatId}-${p.id}-${Date.now()}`,
             );
