@@ -293,9 +293,6 @@ function OrdersPage() {
                             {retrying === o.id ? "Retrying…" : "Retry API"}
                           </Button>
                         )}
-                        <Button size="sm" variant="ghost" onClick={() => setDeliverFor(o.id)}>
-                          Deliver
-                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"
