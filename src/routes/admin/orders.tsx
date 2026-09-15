@@ -338,8 +338,8 @@ function OrdersPage() {
               </div>
             )}
             <Textarea
-              rows={6}
-              placeholder={"Email: user@mail.com\nPassword: ******"}
+              rows={7}
+              placeholder={"Email: user@mail.com\nPassword: ******\nLogin link: https://..."}
               value={content}
               onChange={(e) => setContent(e.target.value)}
             />
@@ -351,9 +351,9 @@ function OrdersPage() {
                 Close
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {refundFor && (
         <Card className="mt-4">
