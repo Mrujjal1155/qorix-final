@@ -157,6 +157,21 @@ async function enqueueNotifications(sb: any, supplierId: string, items: NotifyIt
   const key = QUEUE_PREFIX + supplierId;
   const current = (await readJsonSetting(sb, key)) as NotifyItem[];
 
+  // Products the admin has not switched on are invisible in the shop and the
+  // bot — they must never produce a single alert. Filter them out here so an
+  // off-sale catalogue can't flood the channel/DMs with hundreds of cards.
+  const productIds = Array.from(new Set(items.map((it) => it.product_id)));
+  const active = new Set<string>();
+  for (let i = 0; i < productIds.length; i += 200) {
+    const { data } = await sb
+      .from("products")
+      .select("id,is_active")
+      .in("id", productIds.slice(i, i + 200));
+    for (const row of data ?? []) if ((row as any).is_active !== false) active.add(String((row as any).id));
+  }
+  items = items.filter((it) => active.has(it.product_id));
+  if (!items.length && !current.length) return;
+
   // Drop anything the ledger already marked delivered.
   const ids = Array.from(new Set(items.map((it) => `supplier_notify_delivery:${it.event_id}`)));
   const done = new Set<string>();
