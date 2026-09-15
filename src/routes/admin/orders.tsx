@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/orders")({
@@ -235,6 +236,18 @@ function OrdersPage() {
                     </Badge>
                   </td>
                   <td className="space-x-1 text-right">
+                    {o.status !== "completed" && o.status !== "refunded" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setDeliverFor(o.id);
+                          setContent("");
+                        }}
+                      >
+                        Deliver now
+                      </Button>
+                    )}
                     {(o.status === "awaiting_payment" || o.status === "failed") && (
                       <>
                         <Button
@@ -280,9 +293,6 @@ function OrdersPage() {
                             {retrying === o.id ? "Retrying…" : "Retry API"}
                           </Button>
                         )}
-                        <Button size="sm" variant="ghost" onClick={() => setDeliverFor(o.id)}>
-                          Deliver
-                        </Button>
                         <Button
                           size="sm"
                           variant="ghost"
@@ -300,14 +310,14 @@ function OrdersPage() {
         </CardContent>
       </Card>
 
-      {deliverFor && (
-        <Card className="mt-4">
-          <CardHeader>
-            <CardTitle>
+      <Dialog open={!!deliverFor} onOpenChange={(open) => !open && setDeliverFor("")}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
               Manual delivery{active ? ` — order #${active.order_no}` : ""}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
             {active && (
               <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs">
                 <div>
@@ -328,8 +338,8 @@ function OrdersPage() {
               </div>
             )}
             <Textarea
-              rows={6}
-              placeholder={"Email: user@mail.com\nPassword: ******"}
+              rows={7}
+              placeholder={"Email: user@mail.com\nPassword: ******\nLogin link: https://..."}
               value={content}
               onChange={(e) => setContent(e.target.value)}
             />
@@ -341,9 +351,9 @@ function OrdersPage() {
                 Close
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {refundFor && (
         <Card className="mt-4">
