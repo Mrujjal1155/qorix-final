@@ -526,10 +526,19 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   const uniqueRemote = Array.from(
     new Map(remote.filter((p) => p.external_id != null).map((p) => [String(p.external_id), p])).values(),
   );
+
+  // Some suppliers (Canboso/FatBunny, Qamify) rotate a product's id whenever a
+  // new batch lands. The stored id then points at nothing and every purchase
+  // fails with "Product not found". Re-point the store product at the live id
+  // by matching the product name; if the product is really gone from the
+  // supplier, take it off sale instead of letting customers buy a dead link.
+  const relinked = await relinkRotatedIds(sb, s, uniqueRemote, linkedProducts ?? [], byExt, productsById);
+
   // Every supplier row is written in a few batched upserts instead of one
   // request per product — a 250-item catalogue used to need 250 round trips,
   // which made a single sync run longer than the 15s schedule interval.
   const rowsToWrite: any[] = [];
+
 
   for (const p of uniqueRemote) {
     const prev = byExt.get(String(p.external_id));
