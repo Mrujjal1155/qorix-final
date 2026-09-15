@@ -310,14 +310,14 @@ function OrdersPage() {
         </CardContent>
       </Card>
 
-      {deliverFor && (
-        <Card className="mt-4">
-          <CardHeader>
-            <CardTitle>
+      <Dialog open={!!deliverFor} onOpenChange={(open) => !open && setDeliverFor("")}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
               Manual delivery{active ? ` — order #${active.order_no}` : ""}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
             {active && (
               <div className="rounded-lg border border-border bg-muted/40 p-3 text-xs">
                 <div>
