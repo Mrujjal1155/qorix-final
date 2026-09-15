@@ -101,8 +101,16 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
 
     return { ok: true, items: res.items };
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
+    let msg = e instanceof Error ? e.message : String(e);
+    // The most common supplier failure: the item's id changed on their side.
+    // Say so in plain words instead of echoing the raw API sentence.
+    if (/product not found|not\s*found|invalid product/i.test(msg)) {
+      msg =
+        `Supplier no longer has this product id (it was replaced with a new batch). ` +
+        `Run "Sync catalogue" for ${sup.name ?? sup.key} and retry, or deliver manually. [${msg}]`;
+    }
     return { ok: false, reason: pre.ok ? msg : `${msg} — ${pre.reason}` };
   }
+
 
 }
