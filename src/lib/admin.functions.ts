@@ -497,15 +497,28 @@ export const deliverOrder = createServerFn({ method: "POST" })
     const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const items = parseStock(data.content, "auto");
     const parts = items.length ? items : [data.content];
-    await sendMessage(
-      order.telegram_id,
+    // A silent Telegram failure used to look like a successful delivery in the
+    // admin panel while the buyer got nothing. Surface the real reason instead.
+    const failures: string[] = [];
+    const send = async (text: string) => {
+      try {
+        const res = await sendMessage(order.telegram_id, text);
+        if (!res?.ok) failures.push(String(res?.description ?? "unknown Telegram error"));
+      } catch (e) {
+        failures.push(e instanceof Error ? e.message : String(e));
+      }
+    };
+    await send(
       `✅ <b>Order #${order.order_no}</b> delivered!\n${order.quantity}× ${esc(order.product_name)}\n` +
         `Sending <b>${parts.length}</b> item(s) below 👇`,
     );
     for (let i = 0; i < parts.length; i++) {
-      await sendMessage(
-        order.telegram_id,
-        `📦 <b>${esc(order.product_name)} — ${i + 1} of ${parts.length}</b>\n<pre>${esc(parts[i]!)}</pre>`,
+      await send(`📦 <b>${esc(order.product_name)} — ${i + 1} of ${parts.length}</b>\n<pre>${esc(parts[i]!)}</pre>`);
+    }
+    if (failures.length) {
+      throw new Error(
+        `Saved to the order, but Telegram did not accept the message: ${failures[0]}. ` +
+          `The buyer (${order.telegram_id}) may have blocked or never started the bot.`,
       );
     }
     return { ok: true };
