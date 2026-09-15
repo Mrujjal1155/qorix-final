@@ -116,7 +116,17 @@ export const getStoreProduct = createServerFn({ method: "GET" })
     } catch (e) {
       console.error("[storefront] product stock unavailable:", e);
     }
-    return { ...row, stock: (row as any).supplier_id ? Number((row as any).supplier_stock ?? 0) : count };
+    let supplierStock = Number((row as any).supplier_stock ?? 0);
+    if ((row as any).supplier_id) {
+      try {
+        const { refreshLiveStock } = await import("@/lib/suppliers/live-stock.server");
+        const live = await refreshLiveStock(String((row as any).id));
+        if (live) supplierStock = live.stock;
+      } catch (e) {
+        console.error("[storefront] live stock unavailable:", e);
+      }
+    }
+    return { ...row, stock: (row as any).supplier_id ? supplierStock : count };
   });
 
 export const getStorePayInfo = createServerFn({ method: "GET" }).handler(async () => {
