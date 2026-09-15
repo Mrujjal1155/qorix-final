@@ -826,7 +826,11 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   // make a healthy run look stale in the admin health panel.
   await sb
     .from("suppliers")
-    .update({ last_synced_at: now, last_status: `Synced ${uniqueRemote.length} products` })
+    .update({
+      last_synced_at: now,
+      last_status: `Synced ${uniqueRemote.length} products${relinked.relinked ? ` · ${relinked.relinked} id relinked` : ""}${relinked.retired ? ` · ${relinked.retired} delisted` : ""}`,
+    })
+
     .eq("id", s.id);
 
 
