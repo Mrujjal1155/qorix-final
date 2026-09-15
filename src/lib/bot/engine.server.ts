@@ -1771,7 +1771,19 @@ async function productView(productId: string) {
       .select("id", { count: "exact", head: true })
       .eq("product_id", productId),
   ]);
-  const stock = p.supplier_id ? Number(p.supplier_stock ?? 0) : (count ?? 0);
+  // Supplier products show the supplier's *live* number, not the last sync
+  // snapshot, and the id is re-linked on the fly if the supplier rotated it.
+  let supplierStock = Number(p.supplier_stock ?? 0);
+  if (p.supplier_id) {
+    const { refreshLiveStock } = await import("@/lib/suppliers/live-stock.server");
+    const live = await refreshLiveStock(String(p.id));
+    if (live) {
+      supplierStock = live.stock;
+      p.supplier_stock = live.stock;
+      p.supplier_external_id = live.external_id;
+    }
+  }
+  const stock = p.supplier_id ? supplierStock : (count ?? 0);
   const sold = soldCount ?? 0;
   const hasDrop = p.old_price && Number(p.old_price) > Number(p.price);
   const off = hasDrop
