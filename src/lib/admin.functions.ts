@@ -1621,3 +1621,16 @@ export const closeSupportTicket = createServerFn({ method: "POST" })
     await setTicketStatus(data.id, data.status, "admin");
     return { ok: true };
   });
+
+/** Number of orders still waiting on admin action (used for the sidebar alert dot). */
+export const countPendingOrders = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { count, error } = await (context as any).supabase
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .in("status", ["pending", "awaiting_payment"]);
+    if (error) throw new Error(error.message);
+    return { count: count ?? 0 };
+  });
