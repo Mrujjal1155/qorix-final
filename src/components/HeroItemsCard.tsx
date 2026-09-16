@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ImageUploadField } from "@/components/ImageUploadField";
+import { brandFallbackOnError } from "@/components/SmartImage";
 
 type Row = { id: string; name: string; image_url: string | null; accent: string; sort_order: number; is_active: boolean };
 
@@ -94,7 +95,7 @@ export function HeroItemsCard() {
           {rows.map((row) => (
             <div key={row.id} className="grid items-center gap-2 rounded-xl border border-border p-2 sm:grid-cols-[auto_1fr_1.4fr_auto_auto]">
               {row.image_url ? (
-                <img src={row.image_url} alt={row.name} className="h-9 w-9 rounded-lg object-cover" />
+                <img src={row.image_url} alt={row.name} onError={brandFallbackOnError} className="h-9 w-9 rounded-lg object-cover" />
               ) : (
                 <span className="grid h-9 w-9 place-items-center rounded-lg bg-primary/15 text-xs font-bold text-primary">
                   {row.name.slice(0, 1)}

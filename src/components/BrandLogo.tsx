@@ -41,7 +41,21 @@ export function BrandLogo({
   }, [src]);
 
   const label = (name ?? "").trim();
-  const effective = src ?? cached ?? bundledLogo;
+  // An empty configured value counts as "no logo", never as a blank src.
+  const effective = (src || "").trim() || (cached || "").trim() || bundledLogo;
 
-  return <img src={effective} alt={label ? `${label} logo` : "QORIX STORE logo"} className={className} />;
+  return (
+    <img
+      src={effective}
+      alt={label ? `${label} logo` : "QORIX STORE logo"}
+      className={className}
+      // A configured logo URL that fails must never leave a broken image:
+      // fall straight back to the bundled QORIX STORE logo.
+      onError={(event) => {
+        const el = event.currentTarget;
+        if (el.src.endsWith(bundledLogo)) return;
+        el.src = bundledLogo;
+      }}
+    />
+  );
 }

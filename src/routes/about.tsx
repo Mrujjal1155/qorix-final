@@ -5,6 +5,7 @@ import { useSiteContent } from "@/lib/use-site-content";
 import { siteCards } from "@/lib/site-content";
 import { productionUrlFor } from "@/lib/site-url";
 import aboutHero from "@/assets/about-digital-products.jpg";
+import { brandFallbackOnError } from "@/components/SmartImage";
 
 
 export const Route = createFileRoute("/about")({
@@ -48,6 +49,7 @@ function AboutPage() {
           width={1536}
           height={864}
           loading="lazy"
+          onError={brandFallbackOnError}
           className="mt-8 w-full rounded-3xl border border-border object-cover"
         />
 

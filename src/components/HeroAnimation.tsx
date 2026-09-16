@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { priceTag } from "@/components/StoreShell";
 import type { StoreProduct } from "@/components/ProductCard";
+import { brandFallbackOnError } from "@/components/SmartImage";
 import {
   Bot,
   CreditCard,
@@ -51,6 +52,7 @@ function Logo({
         loading="eager"
         decoding="sync"
         fetchPriority="high"
+        onError={brandFallbackOnError}
         className={`${className} shrink-0 rounded-lg bg-secondary object-cover`}
       />
     );

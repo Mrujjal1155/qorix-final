@@ -14,6 +14,7 @@ import { ImageUploadField } from "@/components/ImageUploadField";
 import { Sparkles, Menu, LayoutList, Link2, LifeBuoy, Phone, Share2, Info, HelpCircle, MessageSquare, Scale, type LucideIcon } from "lucide-react";
 import { SettingsHub, type HubSection } from "@/components/SettingsHub";
 import { broadcastSiteUpdate } from "@/lib/site-refresh";
+import { brandFallbackOnError } from "@/components/SmartImage";
 
 export const Route = createFileRoute("/admin/site")({
   head: () => ({
@@ -293,6 +294,7 @@ function SitePage() {
                             <img
                               src={values[f.key]}
                               alt=""
+                              onError={brandFallbackOnError}
                               className="h-10 w-auto max-w-[160px] rounded border border-border/60 bg-muted/40 object-contain p-1"
                             />
                             <Button
