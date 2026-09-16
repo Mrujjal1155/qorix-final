@@ -75,6 +75,13 @@ export function AdminShell({
   const { v } = useSiteContent();
   const brandLogo = v("site_brand_logo");
   const brandName = v("site_brand_name") || "QORIX";
+  const fetchPending = useServerFn(countPendingOrders);
+  const { data: pending } = useQuery({
+    queryKey: ["pending-orders-count"],
+    queryFn: () => fetchPending(),
+    refetchInterval: 60000,
+  });
+  const pendingCount = pending?.count ?? 0;
 
   useEffect(() => {
     setCollapsed(localStorage.getItem("qorix-admin-rail") === "collapsed");
