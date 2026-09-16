@@ -72,7 +72,7 @@ const GATEWAY_LABEL: Record<string, string> = {
 
 /** What the buyer used to pay — works for both initiated and completed payments. */
 function paymentInfo(o: any): { label: string; detail: string; paid: boolean } {
-  const meta = (o?.meta ?? {}) as Record<string, any>;
+  const meta: any = o?.meta ?? {};
   const gateway = String(meta.gateway ?? "");
   const entity = String(meta.eps_entity ?? "");
   const channel = String(meta.channel ?? "");
