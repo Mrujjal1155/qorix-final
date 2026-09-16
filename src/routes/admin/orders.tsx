@@ -141,6 +141,79 @@ function OrdersPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  function copyCode(id: string) {
+    navigator.clipboard.writeText(orderCode(id));
+    toast.success("Order ID copied");
+  }
+
+  function rowActions(o: any) {
+    return (
+      <>
+        {o.status !== "completed" && o.status !== "refunded" && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setDeliverFor(o.id);
+              setContent("");
+            }}
+          >
+            Deliver now
+          </Button>
+        )}
+        {(o.status === "awaiting_payment" || o.status === "failed") && (
+          <>
+            <Button
+              size="sm"
+              variant="ghost"
+              disabled={busy === o.id}
+              onClick={async () => {
+                setBusy(o.id);
+                try {
+                  await markPaid({ data: { id: o.id } });
+                  toast.success("Order reopened — deliver it now");
+                  refresh();
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Failed");
+                } finally {
+                  setBusy("");
+                }
+              }}
+            >
+              Mark paid
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                setRefundFor(o.id);
+                setRefundAmount(String(Number(o.total ?? 0).toFixed(2)));
+              }}
+            >
+              Refund
+            </Button>
+          </>
+        )}
+        {o.status === "pending" && (
+          <>
+            {o.supplier_name && (
+              <Button size="sm" variant="ghost" disabled={retrying === o.id} onClick={() => runRetry(o.id)}>
+                {retrying === o.id ? "Retrying…" : "Retry API"}
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => changeStatus({ data: { id: o.id, status: "cancelled" } }).then(refresh)}
+            >
+              Cancel
+            </Button>
+          </>
+        )}
+      </>
+    );
+  }
+
   return (
     <AdminShell title="Orders">
       <div className="mb-3 flex gap-2">
