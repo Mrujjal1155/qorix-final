@@ -69,6 +69,7 @@ function OrdersPage() {
   const [refundFor, setRefundFor] = useState<string>("");
   const [refundAmount, setRefundAmount] = useState("");
   const [busy, setBusy] = useState("");
+  const [search, setSearch] = useState("");
 
   const fetchOrders = useServerFn(listOrders);
   const deliver = useServerFn(deliverOrder);
@@ -111,6 +112,20 @@ function OrdersPage() {
     return new Map(names.map((name, index) => [name, index]));
   }, [data]);
   const supplierStyle = (name: string) => supplierBadgeStyle(supplierColorIndexes.get(name) ?? 0);
+  const rows = useMemo(() => {
+    const q = normalizeOrderQuery(search);
+    if (!q) return (data ?? []) as any[];
+    return ((data ?? []) as any[]).filter((o: any) => {
+      const code = orderCode(o.id);
+      return (
+        code.includes(q) ||
+        String(o.order_no ?? "").includes(q) ||
+        String(o.customer_email ?? "").toUpperCase().includes(q) ||
+        String(o.telegram_id ?? "").includes(q) ||
+        String(o.txid ?? "").toUpperCase().includes(q)
+      );
+    });
+  }, [data, search]);
   const refresh = () => qc.invalidateQueries({ queryKey: ["orders"] });
   const active = (data ?? []).find((o: any) => o.id === deliverFor) as any;
 
