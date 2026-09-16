@@ -1213,7 +1213,7 @@ export async function supplierAnnouncements(s: SupplierRow): Promise<SupplierAnn
         const title = String(row?.title ?? row?.subject ?? row?.heading ?? "").trim();
         const body = String(row?.body ?? row?.message ?? row?.content ?? row?.text ?? "").trim();
         const at = row?.created_at ?? row?.published_at ?? row?.date ?? row?.at ?? null;
-        const id = String(row?.id ?? row?.uuid ?? `${title}|${body}`.slice(0, 120) || index);
+        const id = String(row?.id ?? row?.uuid ?? (`${title}|${body}`.slice(0, 120) || index));
         return { id, title, body, at: at ? String(at) : null };
       })
       .filter((a: SupplierAnnouncement) => a.title || a.body);
