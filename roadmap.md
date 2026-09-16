@@ -45,3 +45,4 @@
 - [x] MailReader — min_qty default fix, 23 products live-verified
 - [x] Canboso (FatBunny Hub) — 217 products live-verified; emoji slug guard; customer_email forwarded for slot products
 - [x] Create an order ID at gateway checkout, auto-fail unpaid orders after 30 minutes, and let admin mark paid or refund the paid amount to the wallet
+- [x] Use supplier cost—not customer selling price—for supplier-wallet checks on every fulfilment path

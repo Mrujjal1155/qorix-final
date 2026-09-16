@@ -288,10 +288,15 @@ export async function purchase(
       else if (!sup.is_enabled) failReason = "Supplier is temporarily unavailable";
       else {
         const { supplierOrder } = await import("@/lib/suppliers/api.server");
-        const { supplierPreflight } = await import("@/lib/suppliers/fulfil.server");
+        const { supplierPreflight, supplierUnitCost } = await import("@/lib/suppliers/fulfil.server");
         // Advisory only — supplier balance endpoints can report 0 for funded
         // wallets, so let the supplier API itself accept or reject the order.
-        await supplierPreflight(sup, Number(p.price) * qty);
+        const supplierCost = await supplierUnitCost(
+          String(p.id),
+          String(p.supplier_id),
+          String(p.supplier_external_id),
+        );
+        if (supplierCost) await supplierPreflight(sup, supplierCost * qty);
         const res = await supplierOrder(sup as any, String(p.supplier_external_id), qty, `qorix-api-${reserved.id}`, {
           customerEmail: input.customer_email ?? null,
         });
