@@ -242,11 +242,7 @@ function OrdersPage() {
         )}
         {o.status === "pending" && (
           <>
-            {o.supplier_name && (
-              <Button size="sm" variant="ghost" disabled={retrying === o.id} onClick={() => runRetry(o.id)}>
-                {retrying === o.id ? "Retrying…" : "Retry API"}
-              </Button>
-            )}
+
             <Button
               size="sm"
               variant="ghost"
