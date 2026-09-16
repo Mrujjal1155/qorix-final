@@ -706,12 +706,14 @@ const AWAITING_PAYMENT_MINUTES = 30;
 /** Mark every checkout that stayed unpaid for 30 minutes as failed. */
 async function expireStaleAwaitingOrders(sb: any) {
   const cutoff = new Date(Date.now() - AWAITING_PAYMENT_MINUTES * 60_000).toISOString();
-  const { data } = await sb
+  const { data: rows } = await sb
     .from("orders")
     .select("id,meta")
     .eq("status", "awaiting_payment")
     .lt("created_at", cutoff)
     .limit(200);
+  // A row that already took the buyer's money must never be marked unpaid.
+  const data = (rows ?? []).filter((o: any) => !(o.meta ?? {}).paid);
   if (!data?.length) return 0;
   await sb
     .from("orders")

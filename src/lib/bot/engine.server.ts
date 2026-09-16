@@ -5095,12 +5095,14 @@ function awaitingOrderNote(rows: any[]) {
 /** Fail every checkout that stayed unpaid for 30 minutes (admin can still revive it). */
 export async function expireAwaitingOrders() {
   const cutoff = new Date(Date.now() - AWAITING_PAYMENT_MINUTES * 60_000).toISOString();
-  const { data } = await db
+  const { data: rows } = await db
     .from("orders")
     .select("id,meta")
     .eq("status", "awaiting_payment")
     .lt("created_at", cutoff)
     .limit(200);
+  // Never expire an order whose money was already taken.
+  const data = (rows ?? []).filter((o: any) => !(o.meta ?? {}).paid);
   if (!data?.length) return 0;
   await db
     .from("orders")
@@ -5157,10 +5159,27 @@ async function fulfillCheckout(
   }
   // Clear the checkout basket immediately so the same cart cannot be paid twice.
   await writeCo(chatId, null);
+  // The money is now taken. Mark every reserved row as paid straight away so a
+  // delivery problem later can never let the 30-minute expiry call it "unpaid".
+  if (awaitingRows.length) {
+    for (const row of awaitingRows) {
+      const { data: cur } = await db.from("orders").select("meta").eq("id", row.id).maybeSingle();
+      await db
+        .from("orders")
+        .update({
+          status: "pending",
+          payment_method: methodKey,
+          meta: { ...((cur?.meta as any) ?? {}), awaiting_payment: false, paid: true, paid_at: new Date().toISOString() },
+        })
+        .eq("id", row.id);
+    }
+  }
   await db
     .from("bot_users")
     .update({ membership: membershipFor(Number((charged as any).total_spent ?? 0)) })
     .eq("telegram_id", chatId);
+
+
 
 
   const share = lines.length ? discount / lines.length : 0;
