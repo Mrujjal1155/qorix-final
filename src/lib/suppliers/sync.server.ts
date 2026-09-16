@@ -834,38 +834,73 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
     })),
   ]);
 
-  // LIVE STOCK FIRST. The storefront/bot read `products.supplier_stock`, so the
-  // customer-visible number must never lag behind the snapshot we diff against.
-  // If a run is cut short after the snapshot write but before this one, the
-  // next sync would see "no change" and the shown stock would stay wrong.
-  const productsToWrite = productUpdates.flatMap(({ id, patch }) => {
-    const current = productsById.get(id);
-    return current ? [{ ...current, ...patch }] : [];
+  // ONE ATOMIC WRITE. Catalogue rows, the customer-visible product stock/price
+  // and the supplier's sync stamp all land in a single transaction, so a run
+  // that the platform cuts short can never leave half the data written. The
+  // function also refuses stale responses (see `fetchedAt` above).
+  const productPayload = productUpdates.map(({ id, patch }) => ({
+    id,
+    name: (patch["name"] as string | undefined) ?? null,
+    description: (patch["description"] as string | null | undefined) ?? null,
+    has_description: Object.prototype.hasOwnProperty.call(patch, "description"),
+    price: (patch["price"] as number | undefined) ?? null,
+    supplier_stock: (patch["supplier_stock"] as number | undefined) ?? null,
+    is_active: (patch["is_active"] as boolean | undefined) ?? null,
+    image_url: (patch["image_url"] as string | undefined) ?? null,
+    delivery_time: (patch["delivery_time"] as string | undefined) ?? null,
+    important_note: (patch["important_note"] as string | undefined) ?? null,
+    quick_guide: (patch["quick_guide"] as string | undefined) ?? null,
+    details: (patch["details"] as unknown) ?? null,
+  }));
+  const status = `Synced ${uniqueRemote.length} products${relinked.relinked ? ` · ${relinked.relinked} id relinked` : ""}${relinked.retired ? ` · ${relinked.retired} delisted` : ""}`;
+  const { data: applied, error: applyError } = await sb.rpc("apply_supplier_snapshot", {
+    _supplier_id: s.id,
+    _fetched_at: fetchedAt,
+    _rows: rowsToWrite.map((r) => ({
+      external_id: String(r.external_id),
+      name: r.name ?? null,
+      description: r.description ?? null,
+      cost_price: Number(r.cost_price ?? 0),
+      stock: Number(r.stock ?? 0),
+      currency: r.currency ?? "USD",
+      min_qty: Number(r.min_qty ?? 1),
+      raw: r.raw ?? null,
+    })),
+    _product_updates: productPayload,
+    _status: status,
   });
-  for (let i = 0; i < productsToWrite.length; i += 200) {
-    const { error } = await sb.from("products").upsert(productsToWrite.slice(i, i + 200), { onConflict: "id" });
-    if (error) throw new Error(`Could not update live stock: ${error.message}`);
+  if (applyError) {
+    await recordSyncRun(sb, s.id, startedAtMs, false, uniqueRemote.length, 0, applyError.message);
+    throw new Error(`Could not save ${s.name} catalogue: ${applyError.message}`);
   }
-
-  // Batched catalogue write (chunked so one payload never gets too large).
-  for (let i = 0; i < rowsToWrite.length; i += 200) {
-    const { error } = await sb
-      .from("supplier_products")
-      .upsert(rowsToWrite.slice(i, i + 200), { onConflict: "supplier_id,external_id" });
-    if (error) throw new Error(`Could not save ${s.name} catalogue: ${error.message}`);
+  if ((applied as any)?.stale) {
+    // A newer sync already wrote fresher numbers — drop this response silently.
+    await recordSyncRun(sb, s.id, startedAtMs, true, uniqueRemote.length, 0, "stale response discarded");
+    return {
+      ok: true,
+      message: "Newer data already applied",
+      added: 0,
+      restocked: 0,
+      checked: uniqueRemote.length,
+      priceChanges: 0,
+      lowOrOut: 0,
+    };
   }
+  // Keep the in-memory copies in step with what the database now holds.
+  for (const { id, patch } of productUpdates) {
+    const current = productsById.get(id);
+    if (current) productsById.set(id, { ...current, ...patch });
+  }
+  await recordSyncRun(
+    sb,
+    s.id,
+    startedAtMs,
+    true,
+    uniqueRemote.length,
+    productUpdates.length + restockPosts.length + lowPosts.length + pricePosts.length,
+    null,
+  );
 
-  // Mark the supplier as synced as soon as both writes landed — the remaining
-  // work (alert feed, auto-listing new products) is optional extra and must not
-  // make a healthy run look stale in the admin health panel.
-  await sb
-    .from("suppliers")
-    .update({
-      last_synced_at: now,
-      last_status: `Synced ${uniqueRemote.length} products${relinked.relinked ? ` · ${relinked.relinked} id relinked` : ""}${relinked.retired ? ` · ${relinked.retired} delisted` : ""}`,
-    })
-
-    .eq("id", s.id);
 
 
   // The manual admin sync already has an authenticated admin client. Reuse it
