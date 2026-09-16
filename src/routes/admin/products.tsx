@@ -52,6 +52,8 @@ const EMPTY = {
   details: [] as { label: string; value: string }[],
   price: 0,
   old_price: "" as string | number,
+  price_override: "" as string | number,
+  supplier_id: "" as string,
   image_url: "",
   delivery_time: "",
   badge: "",
