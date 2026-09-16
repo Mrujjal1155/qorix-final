@@ -190,17 +190,23 @@ function OrdersPage() {
     return (
       <>
         {o.status !== "completed" && o.status !== "refunded" && (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => {
-              setDeliverFor(o.id);
-              setContent("");
-            }}
-          >
-            Deliver now
-          </Button>
+          <>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setDeliverFor(o.id);
+                setContent("");
+              }}
+            >
+              Deliver now
+            </Button>
+            <Button size="sm" variant="ghost" disabled={retrying === o.id} onClick={() => runRetry(o.id)}>
+              {retrying === o.id ? "Retrying…" : "Retry API"}
+            </Button>
+          </>
         )}
+
         {(o.status === "awaiting_payment" || o.status === "failed") && (
           <>
             <Button
