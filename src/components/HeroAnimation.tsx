@@ -51,6 +51,7 @@ function Logo({
         loading="eager"
         decoding="sync"
         fetchPriority="high"
+        onError={brandFallbackOnError}
         className={`${className} shrink-0 rounded-lg bg-secondary object-cover`}
       />
     );

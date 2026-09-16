@@ -48,6 +48,7 @@ function AboutPage() {
           width={1536}
           height={864}
           loading="lazy"
+          onError={brandFallbackOnError}
           className="mt-8 w-full rounded-3xl border border-border object-cover"
         />
 

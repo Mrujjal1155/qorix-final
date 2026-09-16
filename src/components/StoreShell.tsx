@@ -521,6 +521,7 @@ export function StoreShell({ children }: { children: ReactNode }) {
           <div className="mt-10 flex justify-center border-t border-border/60 pt-8">
             <div className="w-full max-w-5xl">
               <img
+                onError={hideOnError}
                 src="/footer-pay-desktop-light.png"
                 alt="Pay with EPS — Visa, Mastercard, American Express, bKash, Nagad, Rocket and more"
                 className="hidden w-full rounded-xl dark:hidden md:block"
@@ -528,6 +529,7 @@ export function StoreShell({ children }: { children: ReactNode }) {
                 decoding="async"
               />
               <img
+                onError={hideOnError}
                 src="/footer-pay-desktop-dark.png"
                 alt="Pay with EPS — Visa, Mastercard, American Express, bKash, Nagad, Rocket and more"
                 className="hidden w-full rounded-xl md:dark:block"
@@ -535,6 +537,7 @@ export function StoreShell({ children }: { children: ReactNode }) {
                 decoding="async"
               />
               <img
+                onError={hideOnError}
                 src="/footer-pay-mobile-light.png"
                 alt="Pay with EPS — Visa, Mastercard, American Express, bKash, Nagad, Rocket and more"
                 className="block w-full rounded-xl dark:hidden md:hidden"
@@ -542,6 +545,7 @@ export function StoreShell({ children }: { children: ReactNode }) {
                 decoding="async"
               />
               <img
+                onError={hideOnError}
                 src="/footer-pay-mobile-dark.png"
                 alt="Pay with EPS — Visa, Mastercard, American Express, bKash, Nagad, Rocket and more"
                 className="hidden w-full rounded-xl dark:block md:dark:hidden"
@@ -618,7 +622,7 @@ export function StoreShell({ children }: { children: ReactNode }) {
             className="pointer-events-auto inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-success/40 bg-success text-success-foreground shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg"
           >
             {v("site_whatsapp_icon") ? (
-              <img src={v("site_whatsapp_icon")} alt="WhatsApp" className="h-full w-full object-cover" />
+              <img src={v("site_whatsapp_icon")} alt="WhatsApp" onError={hideOnError} className="h-full w-full object-cover" />
             ) : (
               <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5" aria-hidden="true">
                 <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2 22l5.28-1.38a9.9 9.9 0 0 0 4.76 1.21h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.13.82.84-3.05-.2-.31a8.17 8.17 0 0 1-1.26-4.37c0-4.54 3.7-8.24 8.25-8.24 2.2 0 4.27.86 5.83 2.42a8.18 8.18 0 0 1 2.41 5.83c0 4.54-3.7 8.23-8.24 8.23Zm4.52-6.16c-.25-.13-1.47-.72-1.69-.8-.23-.09-.39-.13-.56.12-.16.25-.64.8-.79.97-.14.16-.29.19-.54.06-.25-.12-1.05-.38-1.99-1.23-.74-.65-1.23-1.46-1.38-1.71-.14-.25-.01-.38.11-.5.11-.11.25-.29.37-.44.13-.15.17-.25.25-.41.08-.17.04-.31-.02-.44-.06-.12-.56-1.35-.77-1.84-.2-.49-.4-.42-.56-.43h-.47c-.17 0-.44.06-.66.31-.23.25-.87.85-.87 2.07s.89 2.4 1.02 2.57c.12.16 1.75 2.67 4.24 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.48-.07 1.47-.6 1.68-1.18.21-.58.21-1.08.14-1.18-.06-.11-.22-.17-.47-.29Z" />

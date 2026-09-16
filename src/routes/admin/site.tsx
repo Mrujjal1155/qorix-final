@@ -293,6 +293,7 @@ function SitePage() {
                             <img
                               src={values[f.key]}
                               alt=""
+                              onError={brandFallbackOnError}
                               className="h-10 w-auto max-w-[160px] rounded border border-border/60 bg-muted/40 object-contain p-1"
                             />
                             <Button

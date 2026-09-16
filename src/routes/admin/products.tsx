@@ -572,7 +572,7 @@ function ProductsPage() {
                   <td className="py-2">
                     <span className="flex items-center gap-2">
                       {p.image_url ? (
-                        <img src={p.image_url} alt="" className="h-8 w-8 rounded object-cover" />
+                        <img src={p.image_url} alt="" onError={brandFallbackOnError} className="h-8 w-8 rounded object-cover" />
                       ) : (
                         <span>{p.emoji}</span>
                       )}

@@ -191,7 +191,12 @@ function CheckoutPage() {
             {/* Order summary — visible on every step */}
             <div className="mb-6 flex items-center gap-3 rounded-2xl border border-border bg-card p-3">
               {product?.image_url ? (
-                <img src={product.image_url} alt={product.name} className="h-14 w-14 rounded-xl object-cover" />
+                <img
+                  src={product.image_url}
+                  alt={product.name}
+                  onError={brandFallbackOnError}
+                  className="h-14 w-14 rounded-xl object-cover"
+                />
               ) : (
                 <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-secondary text-primary">
                   <CategoryIcon name={product?.name} className="h-7 w-7" />
@@ -255,6 +260,7 @@ function CheckoutPage() {
                       >
                         <img
                           src="/footer-pay-eps-light.png"
+                          onError={hideOnError}
                           alt="Pay with bKash, Nagad, Rocket, Card and more via EPS"
                           className="h-auto w-full rounded-xl object-contain"
                           loading="lazy"
