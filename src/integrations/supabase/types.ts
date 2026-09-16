@@ -1030,6 +1030,56 @@ export type Database = {
           },
         ]
       }
+      supplier_sync_runs: {
+        Row: {
+          changed: number
+          checked: number
+          created_at: string
+          duration_ms: number
+          error: string | null
+          finished_at: string
+          id: string
+          ok: boolean
+          source: string
+          started_at: string
+          supplier_id: string | null
+        }
+        Insert: {
+          changed?: number
+          checked?: number
+          created_at?: string
+          duration_ms?: number
+          error?: string | null
+          finished_at?: string
+          id?: string
+          ok?: boolean
+          source?: string
+          started_at?: string
+          supplier_id?: string | null
+        }
+        Update: {
+          changed?: number
+          checked?: number
+          created_at?: string
+          duration_ms?: number
+          error?: string | null
+          finished_at?: string
+          id?: string
+          ok?: boolean
+          source?: string
+          started_at?: string
+          supplier_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_sync_runs_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       suppliers: {
         Row: {
           api_key: string | null
@@ -1244,6 +1294,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_supplier_snapshot: {
+        Args: {
+          _fetched_at: string
+          _product_updates: Json
+          _rows: Json
+          _status?: string
+          _supplier_id: string
+        }
+        Returns: Json
+      }
       bot_user_debit: {
         Args: {
           _amount: number
