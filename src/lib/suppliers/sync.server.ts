@@ -120,6 +120,20 @@ const DM_PER_RUN = 40;
 /** Give up (and log) after this many failed attempts for one event. */
 const MAX_TRIES = 8;
 
+/**
+ * How much catalogue work one worker invocation may take on. Reading every
+ * supplier in a single run exceeded the platform budget and the run died before
+ * writing anything; a slice per tick keeps each run small and every supplier
+ * still refreshes within a few ticks.
+ */
+const SUPPLIERS_PER_RUN = 2;
+/** A supplier that does not answer in this time is skipped for this run. */
+const SUPPLIER_TIMEOUT_MS = 12_000;
+/** Push-webhook registration is verified this often, not on every tick. */
+const WEBHOOK_CHECK_MS = 10 * 60_000;
+/** Supplier announcements are polled this often. */
+const ANNOUNCE_CHECK_MS = 5 * 60_000;
+
 
 async function readJsonSetting(sb: any, key: string): Promise<any[]> {
   const { data } = await sb.from("bot_settings").select("value").eq("key", key).maybeSingle();
