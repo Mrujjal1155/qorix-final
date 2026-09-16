@@ -214,9 +214,22 @@ function OrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {(data ?? []).map((o: any) => (
+              {rows.map((o: any) => (
                 <tr key={o.id} className="border-t border-border align-top">
                   <td className="py-2">{o.order_no}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="rounded bg-muted px-2 py-1 font-mono text-xs hover:bg-muted/70"
+                      title="Copy order ID"
+                      onClick={() => {
+                        navigator.clipboard.writeText(orderCode(o.id));
+                        toast.success("Order ID copied");
+                      }}
+                    >
+                      {orderCode(o.id)}
+                    </button>
+                  </td>
                   <td>
                     <Badge variant={o.source === "website" ? "default" : "secondary"}>{o.source ?? "telegram"}</Badge>
                   </td>
