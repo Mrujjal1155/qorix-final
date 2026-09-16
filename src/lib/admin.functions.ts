@@ -170,7 +170,7 @@ export const getCatalogue = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
-    const [cats, prods, stock, sups] = await Promise.all([
+    const [cats, prods, stock, sups, supProds] = await Promise.all([
       sb.from("categories").select("*").order("sort_order"),
       sb.from("products").select("*").order("sort_order"),
       // Only unsold rows, and never the whole history: pulling every stock row
@@ -178,11 +178,17 @@ export const getCatalogue = createServerFn({ method: "GET" })
       // catalogues and Cloudflare answered the page with Error 1102.
       sb.from("stock_items").select("product_id").eq("is_sold", false).limit(5000),
       sb.from("suppliers").select("id,name,key"),
+      sb.from("supplier_products").select("product_id,price_override").not("product_id", "is", null),
     ]);
     const counts: Record<string, number> = {};
     for (const s of stock.data ?? []) counts[s.product_id] = (counts[s.product_id] ?? 0) + 1;
     const supMap: Record<string, string> = {};
     for (const s of sups.data ?? []) supMap[s.id] = s.name || s.key;
+    // Per-product custom selling price (overrides the percentage markup).
+    const overrideMap: Record<string, number | null> = {};
+    for (const r of (supProds.data ?? []) as any[]) {
+      if (r.product_id) overrideMap[r.product_id] = r.price_override ?? null;
+    }
     return {
       categories: cats.data ?? [],
       suppliers: (sups.data ?? []).map((s: any) => ({ id: s.id, name: s.name || s.key })),
@@ -190,6 +196,7 @@ export const getCatalogue = createServerFn({ method: "GET" })
         ...p,
         stock: p.supplier_id ? Number(p.supplier_stock ?? 0) : (counts[p.id] ?? 0),
         supplier_name: p.supplier_id ? (supMap[p.supplier_id] ?? "Supplier") : null,
+        price_override: overrideMap[p.id] ?? null,
       })),
     };
   });
@@ -280,12 +287,14 @@ export const saveProduct = createServerFn({ method: "POST" })
       badge?: string | null;
       is_active?: boolean;
       sort_order?: number;
+      /** Custom selling price for a supplier product. null clears it. */
+      price_override?: number | null;
     }) => d,
   )
   .handler(async ({ data, context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
-    const { id, ...rest } = data;
+    const { id, price_override, ...rest } = data;
     const row = {
       ...rest,
       category_id: rest.category_id || null,
@@ -302,6 +311,39 @@ export const saveProduct = createServerFn({ method: "POST" })
       const { data: before } = await sb.from("products").select("is_active").eq("id", id).maybeSingle();
       const { data: updated, error } = await sb.from("products").update(row).eq("id", id).select("*").maybeSingle();
       if (error) throw new Error(error.message);
+
+      // Custom selling price for supplier products. Stored on the supplier row
+      // so the 15s catalogue sync keeps it instead of recomputing the markup.
+      if (price_override !== undefined && (updated as any)?.supplier_id) {
+        const value = price_override != null && Number(price_override) > 0 ? Number(price_override) : null;
+        const { data: link } = await sb
+          .from("supplier_products")
+          .select("id,cost_price,markup_percent,markup_fixed,supplier_id")
+          .eq("product_id", id)
+          .maybeSingle();
+        if (link) {
+          await sb.from("supplier_products").update({ price_override: value }).eq("id", (link as any).id);
+          if (value == null) {
+            // Cleared → fall back to the percentage-based default price.
+            const { data: sup } = await sb
+              .from("suppliers")
+              .select("markup_percent,markup_fixed")
+              .eq("id", (link as any).supplier_id)
+              .maybeSingle();
+            const { sellPrice } = await import("@/lib/suppliers/api.server");
+            const price = sellPrice(Number((link as any).cost_price ?? 0), {
+              markup_percent: (link as any).markup_percent,
+              markup_fixed: (link as any).markup_fixed,
+              supplier_percent: (sup as any)?.markup_percent ?? null,
+              supplier_fixed: (sup as any)?.markup_fixed ?? null,
+            });
+            await sb.from("products").update({ price }).eq("id", id);
+          } else {
+            await sb.from("products").update({ price: value }).eq("id", id);
+          }
+        }
+      }
+
       // Turning a product ON/OFF is pushed to reseller webhooks immediately so
       // their sites and bots only ever show what is live here.
       const was = (before as any)?.is_active !== false;

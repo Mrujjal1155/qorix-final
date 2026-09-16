@@ -52,6 +52,8 @@ const EMPTY = {
   details: [] as { label: string; value: string }[],
   price: 0,
   old_price: "" as string | number,
+  price_override: "" as string | number,
+  supplier_id: "" as string,
   image_url: "",
   delivery_time: "",
   badge: "",
@@ -206,6 +208,9 @@ function ProductsPage() {
           category_id: form.category_id || null,
           is_active: form.is_active,
           sort_order: Number(form.sort_order),
+          ...(form.id && form.supplier_id
+            ? { price_override: form.price_override === "" ? null : Number(form.price_override) }
+            : {}),
         },
       }),
     onSuccess: () => {
@@ -353,6 +358,21 @@ function ProductsPage() {
                 onChange={(e) => setForm({ ...form, old_price: e.target.value })}
               />
             </div>
+            {form.id && form.supplier_id ? (
+              <div className="space-y-1">
+                <Label>Custom price (supplier override)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="auto (percentage)"
+                  value={form.price_override}
+                  onChange={(e) => setForm({ ...form, price_override: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Leave empty to use the percentage markup. A custom price stays fixed on supplier sync.
+                </p>
+              </div>
+            ) : null}
             <div className="space-y-1">
               <Label>Category</Label>
               <select
@@ -613,6 +633,8 @@ function ProductsPage() {
                           details: Array.isArray((p as any).details) ? ((p as any).details as any[]).map((d) => ({ label: String(d?.label ?? ""), value: String(d?.value ?? "") })) : [],
                           price: Number(p.price),
                           old_price: p.old_price ?? "",
+                          price_override: (p as any).price_override ?? "",
+                          supplier_id: p.supplier_id ?? "",
                           delivery_type: p.delivery_type,
                           image_url: p.image_url ?? "",
                           delivery_time: p.delivery_time ?? "",
