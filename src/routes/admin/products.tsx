@@ -358,6 +358,21 @@ function ProductsPage() {
                 onChange={(e) => setForm({ ...form, old_price: e.target.value })}
               />
             </div>
+            {form.id && form.supplier_id ? (
+              <div className="space-y-1">
+                <Label>Custom price (supplier override)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="auto (percentage)"
+                  value={form.price_override}
+                  onChange={(e) => setForm({ ...form, price_override: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Leave empty to use the percentage markup. A custom price stays fixed on supplier sync.
+                </p>
+              </div>
+            ) : null}
             <div className="space-y-1">
               <Label>Category</Label>
               <select
