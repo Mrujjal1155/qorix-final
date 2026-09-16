@@ -80,6 +80,7 @@ export async function settleEpsPayment(
   await db
     .from("orders")
     .update({
+      payment_method: `EPS${info.financialEntity ? ` · ${info.financialEntity}` : ""}`,
       meta: {
         ...((order.meta as any) ?? {}),
         eps_paid: true,
