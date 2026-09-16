@@ -614,12 +614,18 @@ async function relinkRotatedIds(
 
 
 async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string, any>) {
+  const startedAtMs = Date.now();
+  // Stamped BEFORE the API call: the database refuses to apply a response that
+  // was read earlier than the snapshot it already holds, so a slow/late reply
+  // can never overwrite fresher data.
+  const fetchedAt = new Date().toISOString();
   let remote;
   try {
     remote = await supplierProducts(s);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Sync failed";
     await sb.from("suppliers").update({ last_status: message }).eq("id", s.id);
+    await recordSyncRun(sb, s.id, startedAtMs, false, 0, 0, message);
     return { ok: false, message, added: 0, restocked: 0 };
   }
 
@@ -629,7 +635,7 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   ]);
   const byExt = new Map<string, any>((existing ?? []).map((r: any) => [String(r.external_id), r]));
   const productsById = new Map<string, any>((linkedProducts ?? []).map((r: any) => [String(r.id), r]));
-  const now = new Date().toISOString();
+  const now = fetchedAt;
   const alerts: SupplierAlert[] = [];
   const restockPosts: Array<{ product_id: string; qty: number; stock: number; event_id: string }> = [];
   const lowPosts: Array<{ product_id: string; stock: number; event_id: string }> = [];
