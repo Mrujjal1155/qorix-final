@@ -532,12 +532,12 @@ function OrdersPage() {
         </DialogContent>
       </Dialog>
 
-      {refundFor && (
-        <Card className="mt-4">
-          <CardHeader>
-            <CardTitle>Refund to wallet</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
+      <Dialog open={!!refundFor} onOpenChange={(open) => !open && setRefundFor("")}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Refund to wallet</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
             <p className="text-xs text-muted-foreground">
               Enter exactly how much the buyer actually paid for this order. The amount is credited to their wallet and
               the order is marked refunded.
@@ -573,9 +573,9 @@ function OrdersPage() {
                 Close
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </AdminShell>
   );
