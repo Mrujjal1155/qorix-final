@@ -60,6 +60,46 @@ const SOURCES = [
   { id: "website", label: "Website orders" },
 ] as const;
 
+const GATEWAY_LABEL: Record<string, string> = {
+  eps_mfs: "EPS · Mobile banking (bKash / Nagad / Rocket)",
+  eps_card: "EPS · Card (Visa / Mastercard)",
+  eps: "EPS gateway",
+  payid: "Binance Pay ID",
+  binance: "Binance Pay",
+  wallet: "Wallet balance",
+  balance: "Wallet balance",
+};
+
+/** What the buyer used to pay — works for both initiated and completed payments. */
+function paymentInfo(o: any): { label: string; detail: string; paid: boolean } {
+  const meta = (o?.meta ?? {}) as Record<string, any>;
+  const gateway = String(meta.gateway ?? "");
+  const entity = String(meta.eps_entity ?? "");
+  const channel = String(meta.channel ?? "");
+
+  const label =
+    (o.payment_method ? String(o.payment_method) : "") ||
+    GATEWAY_LABEL[gateway] ||
+    (gateway ? gateway.replace(/_/g, " ") : "") ||
+    (o.source === "website" ? "Website checkout" : "Wallet balance");
+
+  const paid =
+    Boolean(meta.eps_paid) ||
+    o.status === "completed" ||
+    o.status === "refunded" ||
+    (o.status === "pending" && !meta.awaiting_payment);
+
+  const detail = [
+    entity ? `paid with ${entity}` : channel ? `channel ${channel}` : "",
+    meta.paid_bdt ? `৳${meta.paid_bdt}` : meta.bdt ? `৳${meta.bdt} due` : "",
+    o.txid ? `TX ${String(o.txid)}` : "",
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
+  return { label, detail, paid };
+}
+
 function OrdersPage() {
   const qc = useQueryClient();
   const [status, setStatus] = useState<string>("all");
