@@ -208,6 +208,9 @@ function ProductsPage() {
           category_id: form.category_id || null,
           is_active: form.is_active,
           sort_order: Number(form.sort_order),
+          ...(form.id && form.supplier_id
+            ? { price_override: form.price_override === "" ? null : Number(form.price_override) }
+            : {}),
         },
       }),
     onSuccess: () => {
