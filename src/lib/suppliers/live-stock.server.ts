@@ -12,7 +12,7 @@ const db = supabaseAdmin as any;
 
 type Cached = { at: number; items: any[] };
 const catalogueCache = new Map<string, Cached>();
-const CACHE_TTL_MS = 10_000;
+const CACHE_TTL_MS = 5_000;
 
 function norm(name: unknown) {
   return String(name ?? "")

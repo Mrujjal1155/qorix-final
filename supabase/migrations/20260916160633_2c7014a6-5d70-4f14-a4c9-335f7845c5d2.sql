@@ -1,0 +1,2 @@
+REVOKE ALL ON FUNCTION public.apply_supplier_snapshot(uuid, timestamptz, jsonb, jsonb, text) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.apply_supplier_snapshot(uuid, timestamptz, jsonb, jsonb, text) TO service_role;

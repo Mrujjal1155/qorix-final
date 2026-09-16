@@ -7229,3 +7229,22 @@ export async function handleApiIconState(chatId: number, msg: any, text: string,
   await premiumEmojiNote(chatId, input.value);
   return true;
 }
+
+/**
+ * Post a supplier announcement (from a supplier's announcement API) to the
+ * configured announcement channel/group. Plain notice card — no product data.
+ */
+export async function announceSupplierNotice(supplierName: string, title: string, body: string) {
+  const s = await getSettings();
+  if ((s["announce_supplier_notice"] ?? "on").toLowerCase() === "off") return { sent: false };
+  const line = "──────────────────────";
+  const heading = title || "Supplier announcement";
+  const text =
+    `<b>${escapeHtml(heading)}</b>\n${line}\n\n` +
+    (body ? `${escapeHtml(body)}\n\n` : "") +
+    `<i>${escapeHtml(supplierName)}</i>`;
+  return await postToChannel(s, text).catch((error) => {
+    console.error("Supplier announcement delivery failed:", error);
+    return { sent: false };
+  });
+}

@@ -120,6 +120,20 @@ const DM_PER_RUN = 40;
 /** Give up (and log) after this many failed attempts for one event. */
 const MAX_TRIES = 8;
 
+/**
+ * How much catalogue work one worker invocation may take on. Reading every
+ * supplier in a single run exceeded the platform budget and the run died before
+ * writing anything; a slice per tick keeps each run small and every supplier
+ * still refreshes within a few ticks.
+ */
+const SUPPLIERS_PER_RUN = 2;
+/** A supplier that does not answer in this time is skipped for this run. */
+const SUPPLIER_TIMEOUT_MS = 12_000;
+/** Push-webhook registration is verified this often, not on every tick. */
+const WEBHOOK_CHECK_MS = 10 * 60_000;
+/** Supplier announcements are polled this often. */
+const ANNOUNCE_CHECK_MS = 5 * 60_000;
+
 
 async function readJsonSetting(sb: any, key: string): Promise<any[]> {
   const { data } = await sb.from("bot_settings").select("value").eq("key", key).maybeSingle();
@@ -138,6 +152,67 @@ async function writeJsonSetting(sb: any, key: string, value: any[]) {
 
 async function writeJsonValue(sb: any, key: string, value: unknown) {
   await sb.from("bot_settings").upsert({ key, value: JSON.stringify(value) }, { onConflict: "key" });
+}
+
+/**
+ * Simple time gate stored in the database, so it survives worker restarts and
+ * deployments: returns true (and stamps "now") only when `everyMs` has passed
+ * since the last time this key was due.
+ */
+async function dueEvery(sb: any, key: string, everyMs: number): Promise<boolean> {
+  const { data } = await sb.from("bot_settings").select("value").eq("key", key).maybeSingle();
+  const last = Date.parse(String((data as any)?.value ?? ""));
+  if (Number.isFinite(last) && Date.now() - last < everyMs) return false;
+  await sb.from("bot_settings").upsert({ key, value: new Date().toISOString() }, { onConflict: "key" });
+  return true;
+}
+
+/**
+ * Poll suppliers that publish announcements and forward new ones to the bot's
+ * announcement channel. A supplier without an announcement endpoint is marked
+ * unsupported after the first probe so we never call it again.
+ */
+async function syncSupplierAnnouncements(sb: any, suppliers: any[]) {
+  if (!suppliers.length) return;
+  if (!(await dueEvery(sb, "supplier_announce_check_at", ANNOUNCE_CHECK_MS))) return;
+
+  const { supplierAnnouncements } = await import("./api.server");
+  const { announceSupplierNotice } = await import("@/lib/bot/engine.server");
+
+  for (const s of suppliers) {
+    const supportKey = `supplier_announce_supported:${s.id}`;
+    const { data: flag } = await sb.from("bot_settings").select("value").eq("key", supportKey).maybeSingle();
+    if (String((flag as any)?.value ?? "") === "no") continue;
+
+    let list: Awaited<ReturnType<typeof supplierAnnouncements>> = null;
+    try {
+      list = await withTimeout(supplierAnnouncements(s), 8_000, `${s.name} announcements`);
+    } catch (error) {
+      console.error(`Announcement read failed for ${s.name}:`, error);
+      continue;
+    }
+    if (list === null) {
+      await sb.from("bot_settings").upsert({ key: supportKey, value: "no" }, { onConflict: "key" });
+      continue;
+    }
+    await sb.from("bot_settings").upsert({ key: supportKey, value: "yes" }, { onConflict: "key" });
+
+    const seenKey = `supplier_announce_seen:${s.id}`;
+    const seen = new Set<string>((await readJsonSetting(sb, seenKey)).map((v: any) => String(v)));
+    const fresh = list.filter((a) => !seen.has(a.id)).slice(0, 5);
+    if (!seen.size) {
+      // First look: remember what exists instead of replaying old notices.
+      await writeJsonSetting(sb, seenKey, list.map((a) => a.id).slice(0, 200));
+      continue;
+    }
+    for (const a of fresh) {
+      await announceSupplierNotice(s.name, a.title, a.body).catch((error) =>
+        console.error("Supplier announcement post failed:", error),
+      );
+      seen.add(a.id);
+    }
+    if (fresh.length) await writeJsonSetting(sb, seenKey, Array.from(seen).slice(-200));
+  }
 }
 
 async function appendLog(sb: any, entries: any[]) {
@@ -455,7 +530,9 @@ async function claimSupplierSync(sb: any, supplierId: string) {
   const { data: row } = await sb.from("bot_settings").select("value").eq("key", key).maybeSingle();
   const oldValue = String(row?.value ?? "");
   const oldAt = Date.parse(oldValue);
-  if (Number.isFinite(oldAt) && Date.now() - oldAt < 45_000) return false;
+  // Short lease: a run the platform kills leaves the lock behind, and the next
+  // tick must be able to take it over instead of waiting a whole minute.
+  if (Number.isFinite(oldAt) && Date.now() - oldAt < SUPPLIER_TIMEOUT_MS + 5_000) return false;
   const value = new Date().toISOString();
   if (!row) {
     const { error } = await sb.from("bot_settings").insert({ key, value });
@@ -473,6 +550,53 @@ async function claimSupplierSync(sb: any, supplierId: string) {
 
 async function releaseSupplierSync(sb: any, supplierId: string) {
   await sb.from("bot_settings").update({ value: "" }).eq("key", `supplier_sync_lock:${supplierId}`);
+}
+
+/**
+ * Durable per-supplier sync history: when it ran, how long it took, whether it
+ * worked and the real error text. Without this a run that the platform kills
+ * mid-way leaves no trace at all and the admin panel keeps showing "healthy".
+ */
+async function recordSyncRun(
+  sb: any,
+  supplierId: string,
+  startedAtMs: number,
+  ok: boolean,
+  checked: number,
+  changed: number,
+  error: string | null,
+  source = "auto",
+) {
+  try {
+    await sb.from("supplier_sync_runs").insert({
+      supplier_id: supplierId,
+      started_at: new Date(startedAtMs).toISOString(),
+      finished_at: new Date().toISOString(),
+      duration_ms: Math.max(0, Date.now() - startedAtMs),
+      ok,
+      source,
+      checked,
+      changed,
+      error: error ? error.slice(0, 500) : null,
+    });
+  } catch (e) {
+    console.error("Could not record supplier sync run:", e);
+  }
+}
+
+/** Reject a promise that outlives `ms` so one dead supplier can't eat the run. */
+async function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: any;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function syncSupplierCore(
@@ -614,12 +738,18 @@ async function relinkRotatedIds(
 
 
 async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string, any>) {
+  const startedAtMs = Date.now();
+  // Stamped BEFORE the API call: the database refuses to apply a response that
+  // was read earlier than the snapshot it already holds, so a slow/late reply
+  // can never overwrite fresher data.
+  const fetchedAt = new Date().toISOString();
   let remote;
   try {
     remote = await supplierProducts(s);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Sync failed";
     await sb.from("suppliers").update({ last_status: message }).eq("id", s.id);
+    await recordSyncRun(sb, s.id, startedAtMs, false, 0, 0, message);
     return { ok: false, message, added: 0, restocked: 0 };
   }
 
@@ -629,7 +759,7 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   ]);
   const byExt = new Map<string, any>((existing ?? []).map((r: any) => [String(r.external_id), r]));
   const productsById = new Map<string, any>((linkedProducts ?? []).map((r: any) => [String(r.id), r]));
-  const now = new Date().toISOString();
+  const now = fetchedAt;
   const alerts: SupplierAlert[] = [];
   const restockPosts: Array<{ product_id: string; qty: number; stock: number; event_id: string }> = [];
   const lowPosts: Array<{ product_id: string; stock: number; event_id: string }> = [];
@@ -828,38 +958,73 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
     })),
   ]);
 
-  // LIVE STOCK FIRST. The storefront/bot read `products.supplier_stock`, so the
-  // customer-visible number must never lag behind the snapshot we diff against.
-  // If a run is cut short after the snapshot write but before this one, the
-  // next sync would see "no change" and the shown stock would stay wrong.
-  const productsToWrite = productUpdates.flatMap(({ id, patch }) => {
-    const current = productsById.get(id);
-    return current ? [{ ...current, ...patch }] : [];
+  // ONE ATOMIC WRITE. Catalogue rows, the customer-visible product stock/price
+  // and the supplier's sync stamp all land in a single transaction, so a run
+  // that the platform cuts short can never leave half the data written. The
+  // function also refuses stale responses (see `fetchedAt` above).
+  const productPayload = productUpdates.map(({ id, patch }) => ({
+    id,
+    name: (patch["name"] as string | undefined) ?? null,
+    description: (patch["description"] as string | null | undefined) ?? null,
+    has_description: Object.prototype.hasOwnProperty.call(patch, "description"),
+    price: (patch["price"] as number | undefined) ?? null,
+    supplier_stock: (patch["supplier_stock"] as number | undefined) ?? null,
+    is_active: (patch["is_active"] as boolean | undefined) ?? null,
+    image_url: (patch["image_url"] as string | undefined) ?? null,
+    delivery_time: (patch["delivery_time"] as string | undefined) ?? null,
+    important_note: (patch["important_note"] as string | undefined) ?? null,
+    quick_guide: (patch["quick_guide"] as string | undefined) ?? null,
+    details: (patch["details"] as unknown) ?? null,
+  }));
+  const status = `Synced ${uniqueRemote.length} products${relinked.relinked ? ` · ${relinked.relinked} id relinked` : ""}${relinked.retired ? ` · ${relinked.retired} delisted` : ""}`;
+  const { data: applied, error: applyError } = await sb.rpc("apply_supplier_snapshot", {
+    _supplier_id: s.id,
+    _fetched_at: fetchedAt,
+    _rows: rowsToWrite.map((r) => ({
+      external_id: String(r.external_id),
+      name: r.name ?? null,
+      description: r.description ?? null,
+      cost_price: Number(r.cost_price ?? 0),
+      stock: Number(r.stock ?? 0),
+      currency: r.currency ?? "USD",
+      min_qty: Number(r.min_qty ?? 1),
+      raw: r.raw ?? null,
+    })),
+    _product_updates: productPayload,
+    _status: status,
   });
-  for (let i = 0; i < productsToWrite.length; i += 200) {
-    const { error } = await sb.from("products").upsert(productsToWrite.slice(i, i + 200), { onConflict: "id" });
-    if (error) throw new Error(`Could not update live stock: ${error.message}`);
+  if (applyError) {
+    await recordSyncRun(sb, s.id, startedAtMs, false, uniqueRemote.length, 0, applyError.message);
+    throw new Error(`Could not save ${s.name} catalogue: ${applyError.message}`);
   }
-
-  // Batched catalogue write (chunked so one payload never gets too large).
-  for (let i = 0; i < rowsToWrite.length; i += 200) {
-    const { error } = await sb
-      .from("supplier_products")
-      .upsert(rowsToWrite.slice(i, i + 200), { onConflict: "supplier_id,external_id" });
-    if (error) throw new Error(`Could not save ${s.name} catalogue: ${error.message}`);
+  if ((applied as any)?.stale) {
+    // A newer sync already wrote fresher numbers — drop this response silently.
+    await recordSyncRun(sb, s.id, startedAtMs, true, uniqueRemote.length, 0, "stale response discarded");
+    return {
+      ok: true,
+      message: "Newer data already applied",
+      added: 0,
+      restocked: 0,
+      checked: uniqueRemote.length,
+      priceChanges: 0,
+      lowOrOut: 0,
+    };
   }
+  // Keep the in-memory copies in step with what the database now holds.
+  for (const { id, patch } of productUpdates) {
+    const current = productsById.get(id);
+    if (current) productsById.set(id, { ...current, ...patch });
+  }
+  await recordSyncRun(
+    sb,
+    s.id,
+    startedAtMs,
+    true,
+    uniqueRemote.length,
+    productUpdates.length + restockPosts.length + lowPosts.length + pricePosts.length,
+    null,
+  );
 
-  // Mark the supplier as synced as soon as both writes landed — the remaining
-  // work (alert feed, auto-listing new products) is optional extra and must not
-  // make a healthy run look stale in the admin health panel.
-  await sb
-    .from("suppliers")
-    .update({
-      last_synced_at: now,
-      last_status: `Synced ${uniqueRemote.length} products${relinked.relinked ? ` · ${relinked.relinked} id relinked` : ""}${relinked.retired ? ` · ${relinked.retired} delisted` : ""}`,
-    })
-
-    .eq("id", s.id);
 
 
   // The manual admin sync already has an authenticated admin client. Reuse it
@@ -985,7 +1150,13 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
 /** Sync every enabled supplier. Used by the background/auto sync. */
 export async function syncAllSuppliers() {
   const db = await adminDb();
-  const { data: sups } = await db.from("suppliers").select("*").eq("is_enabled", true);
+  const { data: sups } = await db
+    .from("suppliers")
+    .select("*")
+    .eq("is_enabled", true)
+    // Longest-waiting supplier first: every supplier gets its turn even when a
+    // single invocation only has room for a couple of them.
+    .order("last_synced_at", { ascending: true, nullsFirst: true });
 
   // Delivery FIRST. Catalogue polling is the heavy part of a run; when it used
   // to go first, a slow supplier API could eat the whole invocation and the
@@ -995,18 +1166,25 @@ export async function syncAllSuppliers() {
     return { sent: 0, failed: 1 };
   });
 
-  // Keep push webhooks registered on their own — no admin button needed. The
-  // helper is a no-op unless the endpoint is missing, moved or unverified.
-  {
+  // Keep push webhooks registered on their own — no admin button needed, but
+  // only every few minutes: re-checking on every 15s tick used to spend the
+  // whole invocation budget before a single catalogue was read.
+  if (await dueEvery(db, "supplier_webhook_check_at", WEBHOOK_CHECK_MS)) {
     const { ensureSupplierWebhook } = await import("./webhook.server");
     await Promise.allSettled(
       (sups ?? []).map((s: any) =>
-        ensureSupplierWebhook(db, s).catch((error) => {
+        withTimeout(ensureSupplierWebhook(db, s), 6_000, `${s.name} webhook check`).catch((error) => {
           console.error(`Webhook registration failed for ${s.name}:`, error);
         }),
       ),
     );
   }
+
+  // Supplier announcements (only for APIs that expose them) go out as bot
+  // messages; probing is cheap and self-disables for suppliers without one.
+  await syncSupplierAnnouncements(db, sups ?? []).catch((error) =>
+    console.error("Supplier announcement sync failed:", error),
+  );
 
   let added = 0;
   let restocked = 0;
@@ -1015,9 +1193,15 @@ export async function syncAllSuppliers() {
   let lowOrOut = 0;
   let failedSuppliers = 0;
   let lastError = "";
-  // Suppliers run side by side so one slow API can't push a single run past the
-  // 15s schedule interval.
-  const results = await Promise.allSettled((sups ?? []).map((s: any) => syncSupplierCore(db, s)));
+  // Only a slice of the suppliers per invocation, each with its own timeout:
+  // reading four full catalogues (hundreds of products) in one worker run is
+  // what used to blow the platform's CPU/subrequest budget, killing the run
+  // before anything was written. One supplier going down never stops the rest.
+  const batch = (sups ?? []).slice(0, SUPPLIERS_PER_RUN);
+  const results = await Promise.allSettled(
+    batch.map((s: any) => withTimeout(syncSupplierCore(db, s), SUPPLIER_TIMEOUT_MS, `${s.name} sync`)),
+  );
+
 
   for (const r of results) {
     if (r.status === "fulfilled" && r.value.ok) {
@@ -1077,11 +1261,16 @@ const FAST_POLL_MS = 15_000;
  * scheduler tick and deliver whatever they produce right away.
  */
 async function fastPollPushlessSuppliers(db: any) {
-  const { data: sups } = await db.from("suppliers").select("*").eq("is_enabled", true);
+  const { data: sups } = await db
+    .from("suppliers")
+    .select("*")
+    .eq("is_enabled", true)
+    .order("last_synced_at", { ascending: true, nullsFirst: true });
   const api = await import("./api.server");
   const due: any[] = [];
   for (const s of sups ?? []) {
     if (api.supplierSupportsWebhooks(s)) continue; // push already covers these
+    if (due.length >= SUPPLIERS_PER_RUN) break; // keep each invocation small
     const key = `supplier_fastpoll_at:${String(s.id)}`;
     const { data: row } = await db.from("bot_settings").select("value").eq("key", key).maybeSingle();
     const at = Date.parse(String((row as any)?.value ?? ""));
@@ -1091,7 +1280,9 @@ async function fastPollPushlessSuppliers(db: any) {
   }
   if (!due.length) return { polled: 0 };
 
-  await Promise.allSettled(due.map((s) => syncSupplierCore(db, s)));
+  await Promise.allSettled(
+    due.map((s) => withTimeout(syncSupplierCore(db, s), SUPPLIER_TIMEOUT_MS, `${s.name} sync`)),
+  );
   // Anything the poll produced should reach Telegram in the same tick.
   await drainAllNotifications(db).catch(() => ({ sent: 0, failed: 1 }));
   return { polled: due.length };
