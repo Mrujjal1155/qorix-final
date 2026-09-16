@@ -77,11 +77,15 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
   if (!product?.supplier_id || !product.supplier_external_id)
     return { ok: false, reason: "This product is not linked to a supplier API — deliver it manually." };
 
-  // Always order against the supplier's live id/stock, never a stale snapshot.
+  // Always order against the supplier's live id/stock/cost, never a stale snapshot.
+  let liveCost: number | undefined;
   try {
     const { refreshLiveStock } = await import("@/lib/suppliers/live-stock.server");
     const live = await refreshLiveStock(String(product.id), 8000);
-    if (live) product.supplier_external_id = live.external_id;
+    if (live) {
+      product.supplier_external_id = live.external_id;
+      liveCost = live.price;
+    }
   } catch {
     /* fall back to the stored id */
   }
@@ -97,6 +101,7 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
     String(product.id),
     String(product.supplier_id),
     String(product.supplier_external_id),
+    liveCost,
   );
   const pre = supplierCost
     ? await supplierPreflight(sup, supplierCost * Number(order.quantity ?? 1))
