@@ -1073,7 +1073,13 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
 /** Sync every enabled supplier. Used by the background/auto sync. */
 export async function syncAllSuppliers() {
   const db = await adminDb();
-  const { data: sups } = await db.from("suppliers").select("*").eq("is_enabled", true);
+  const { data: sups } = await db
+    .from("suppliers")
+    .select("*")
+    .eq("is_enabled", true)
+    // Longest-waiting supplier first: every supplier gets its turn even when a
+    // single invocation only has room for a couple of them.
+    .order("last_synced_at", { ascending: true, nullsFirst: true });
 
   // Delivery FIRST. Catalogue polling is the heavy part of a run; when it used
   // to go first, a slow supplier API could eat the whole invocation and the
@@ -1083,18 +1089,25 @@ export async function syncAllSuppliers() {
     return { sent: 0, failed: 1 };
   });
 
-  // Keep push webhooks registered on their own — no admin button needed. The
-  // helper is a no-op unless the endpoint is missing, moved or unverified.
-  {
+  // Keep push webhooks registered on their own — no admin button needed, but
+  // only every few minutes: re-checking on every 15s tick used to spend the
+  // whole invocation budget before a single catalogue was read.
+  if (await dueEvery(db, "supplier_webhook_check_at", WEBHOOK_CHECK_MS)) {
     const { ensureSupplierWebhook } = await import("./webhook.server");
     await Promise.allSettled(
       (sups ?? []).map((s: any) =>
-        ensureSupplierWebhook(db, s).catch((error) => {
+        withTimeout(ensureSupplierWebhook(db, s), 6_000, `${s.name} webhook check`).catch((error) => {
           console.error(`Webhook registration failed for ${s.name}:`, error);
         }),
       ),
     );
   }
+
+  // Supplier announcements (only for APIs that expose them) go out as bot
+  // messages; probing is cheap and self-disables for suppliers without one.
+  await syncSupplierAnnouncements(db, sups ?? []).catch((error) =>
+    console.error("Supplier announcement sync failed:", error),
+  );
 
   let added = 0;
   let restocked = 0;
@@ -1103,9 +1116,15 @@ export async function syncAllSuppliers() {
   let lowOrOut = 0;
   let failedSuppliers = 0;
   let lastError = "";
-  // Suppliers run side by side so one slow API can't push a single run past the
-  // 15s schedule interval.
-  const results = await Promise.allSettled((sups ?? []).map((s: any) => syncSupplierCore(db, s)));
+  // Only a slice of the suppliers per invocation, each with its own timeout:
+  // reading four full catalogues (hundreds of products) in one worker run is
+  // what used to blow the platform's CPU/subrequest budget, killing the run
+  // before anything was written. One supplier going down never stops the rest.
+  const batch = (sups ?? []).slice(0, SUPPLIERS_PER_RUN);
+  const results = await Promise.allSettled(
+    batch.map((s: any) => withTimeout(syncSupplierCore(db, s), SUPPLIER_TIMEOUT_MS, `${s.name} sync`)),
+  );
+
 
   for (const r of results) {
     if (r.status === "fulfilled" && r.value.ok) {
