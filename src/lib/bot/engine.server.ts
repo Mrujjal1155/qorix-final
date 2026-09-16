@@ -5095,12 +5095,14 @@ function awaitingOrderNote(rows: any[]) {
 /** Fail every checkout that stayed unpaid for 30 minutes (admin can still revive it). */
 export async function expireAwaitingOrders() {
   const cutoff = new Date(Date.now() - AWAITING_PAYMENT_MINUTES * 60_000).toISOString();
-  const { data } = await db
+  const { data: rows } = await db
     .from("orders")
     .select("id,meta")
     .eq("status", "awaiting_payment")
     .lt("created_at", cutoff)
     .limit(200);
+  // Never expire an order whose money was already taken.
+  const data = (rows ?? []).filter((o: any) => !(o.meta ?? {}).paid);
   if (!data?.length) return 0;
   await db
     .from("orders")
