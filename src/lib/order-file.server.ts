@@ -11,7 +11,8 @@ function secret() {
   );
 }
 
-export { orderCode } from "@/lib/order-code";
+import { orderCode } from "@/lib/order-code";
+export { orderCode };
 
 /** Signed, unguessable token for the public download endpoint. */
 export function signOrderToken(orderId: string, kind: "full" | "plain") {
