@@ -530,7 +530,9 @@ async function claimSupplierSync(sb: any, supplierId: string) {
   const { data: row } = await sb.from("bot_settings").select("value").eq("key", key).maybeSingle();
   const oldValue = String(row?.value ?? "");
   const oldAt = Date.parse(oldValue);
-  if (Number.isFinite(oldAt) && Date.now() - oldAt < 45_000) return false;
+  // Short lease: a run the platform kills leaves the lock behind, and the next
+  // tick must be able to take it over instead of waiting a whole minute.
+  if (Number.isFinite(oldAt) && Date.now() - oldAt < SUPPLIER_TIMEOUT_MS + 5_000) return false;
   const value = new Date().toISOString();
   if (!row) {
     const { error } = await sb.from("bot_settings").insert({ key, value });
