@@ -357,7 +357,7 @@ function OrdersPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              Manual delivery{active ? ` — order #${active.order_no}` : ""}
+              Manual delivery{active ? ` — order #${active.order_no} · ${orderCode(active.id)}` : ""}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
