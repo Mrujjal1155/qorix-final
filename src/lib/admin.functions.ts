@@ -308,32 +308,62 @@ export const saveProduct = createServerFn({ method: "POST" })
       telegram_custom_emoji_id: rest.telegram_custom_emoji_id || null,
     };
     if (id) {
-      const { data: before } = await sb.from("products").select("is_active").eq("id", id).maybeSingle();
+      const { data: before } = await sb
+        .from("products")
+        .select("is_active,price,supplier_id,supplier_external_id")
+        .eq("id", id)
+        .maybeSingle();
       const { data: updated, error } = await sb.from("products").update(row).eq("id", id).select("*").maybeSingle();
       if (error) throw new Error(error.message);
 
       // Custom selling price for supplier products. Stored on the supplier row
       // so the 15s catalogue sync keeps it instead of recomputing the markup.
-      if (price_override !== undefined && (updated as any)?.supplier_id) {
-        const value = price_override != null && Number(price_override) > 0 ? Number(price_override) : null;
-        const { data: link } = await sb
+      // A plain edit of the Price field on a supplier product counts as a
+      // custom price too — otherwise the next sync would overwrite it.
+      const priceEdited =
+        rest.price !== undefined && Number(rest.price) !== Number((before as any)?.price ?? NaN);
+      const effectiveOverride =
+        price_override !== undefined ? price_override : priceEdited ? Number(rest.price) : undefined;
+
+      if (effectiveOverride !== undefined && (updated as any)?.supplier_id) {
+        const value =
+          effectiveOverride != null && Number(effectiveOverride) > 0 ? Number(effectiveOverride) : null;
+        let link: any = null;
+        const byProduct = await sb
           .from("supplier_products")
           .select("id,cost_price,markup_percent,markup_fixed,supplier_id")
           .eq("product_id", id)
-          .maybeSingle();
+          .limit(1);
+        link = (byProduct.data ?? [])[0] ?? null;
+        if (!link && (updated as any).supplier_external_id) {
+          // Link lost (id rotation / earlier failed save): find the catalogue
+          // row by supplier + external id and re-attach it to this product.
+          const byExternal = await sb
+            .from("supplier_products")
+            .select("id,cost_price,markup_percent,markup_fixed,supplier_id")
+            .eq("supplier_id", (updated as any).supplier_id)
+            .eq("external_id", (updated as any).supplier_external_id)
+            .limit(1);
+          link = (byExternal.data ?? [])[0] ?? null;
+          if (link) await sb.from("supplier_products").update({ product_id: id }).eq("id", link.id);
+        }
         if (link) {
-          await sb.from("supplier_products").update({ price_override: value }).eq("id", (link as any).id);
+          const { error: ovErr } = await sb
+            .from("supplier_products")
+            .update({ price_override: value })
+            .eq("id", link.id);
+          if (ovErr) throw new Error(ovErr.message);
           if (value == null) {
             // Cleared → fall back to the percentage-based default price.
             const { data: sup } = await sb
               .from("suppliers")
               .select("markup_percent,markup_fixed")
-              .eq("id", (link as any).supplier_id)
+              .eq("id", link.supplier_id)
               .maybeSingle();
             const { sellPrice } = await import("@/lib/suppliers/api.server");
-            const price = sellPrice(Number((link as any).cost_price ?? 0), {
-              markup_percent: (link as any).markup_percent,
-              markup_fixed: (link as any).markup_fixed,
+            const price = sellPrice(Number(link.cost_price ?? 0), {
+              markup_percent: link.markup_percent,
+              markup_fixed: link.markup_fixed,
               supplier_percent: (sup as any)?.markup_percent ?? null,
               supplier_fixed: (sup as any)?.markup_fixed ?? null,
             });
