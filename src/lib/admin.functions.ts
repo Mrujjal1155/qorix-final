@@ -311,6 +311,39 @@ export const saveProduct = createServerFn({ method: "POST" })
       const { data: before } = await sb.from("products").select("is_active").eq("id", id).maybeSingle();
       const { data: updated, error } = await sb.from("products").update(row).eq("id", id).select("*").maybeSingle();
       if (error) throw new Error(error.message);
+
+      // Custom selling price for supplier products. Stored on the supplier row
+      // so the 15s catalogue sync keeps it instead of recomputing the markup.
+      if (price_override !== undefined && (updated as any)?.supplier_id) {
+        const value = price_override != null && Number(price_override) > 0 ? Number(price_override) : null;
+        const { data: link } = await sb
+          .from("supplier_products")
+          .select("id,cost_price,markup_percent,markup_fixed,supplier_id")
+          .eq("product_id", id)
+          .maybeSingle();
+        if (link) {
+          await sb.from("supplier_products").update({ price_override: value }).eq("id", (link as any).id);
+          if (value == null) {
+            // Cleared → fall back to the percentage-based default price.
+            const { data: sup } = await sb
+              .from("suppliers")
+              .select("markup_percent,markup_fixed")
+              .eq("id", (link as any).supplier_id)
+              .maybeSingle();
+            const { sellPrice } = await import("@/lib/suppliers/api.server");
+            const price = sellPrice(Number((link as any).cost_price ?? 0), {
+              markup_percent: (link as any).markup_percent,
+              markup_fixed: (link as any).markup_fixed,
+              supplier_percent: (sup as any)?.markup_percent ?? null,
+              supplier_fixed: (sup as any)?.markup_fixed ?? null,
+            });
+            await sb.from("products").update({ price }).eq("id", id);
+          } else {
+            await sb.from("products").update({ price: value }).eq("id", id);
+          }
+        }
+      }
+
       // Turning a product ON/OFF is pushed to reseller webhooks immediately so
       // their sites and bots only ever show what is live here.
       const was = (before as any)?.is_active !== false;
