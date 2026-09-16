@@ -1172,3 +1172,51 @@ export function extraDetailsFromRaw(raw: any, depth = 0): ProductDetailRow[] {
   }
   return rows.slice(0, 40);
 }
+
+/** One supplier announcement/notice, normalised across the different APIs. */
+export type SupplierAnnouncement = {
+  id: string;
+  title: string;
+  body: string;
+  at: string | null;
+};
+
+/** Candidate announcement endpoints per API dialect. */
+function announcementPaths(s: SupplierRow): string[] {
+  if (isCanboso(s)) return ["/api/v2/telegram-buyer/announcements"];
+  if (isActionDialect(s)) return [actionPath("announcements"), actionPath("notices")];
+  return ["/v1/announcements", "/api/announcements"];
+}
+
+/**
+ * Read a supplier's announcements. Returns `null` when the supplier has no
+ * announcement endpoint at all, so the caller can stop probing it.
+ */
+export async function supplierAnnouncements(s: SupplierRow): Promise<SupplierAnnouncement[] | null> {
+  for (const path of announcementPaths(s)) {
+    let json: any;
+    try {
+      json = await call(s, path);
+    } catch {
+      continue; // endpoint missing / not supported — try the next candidate
+    }
+    const list =
+      (Array.isArray(json) && json) ||
+      (Array.isArray(json?.announcements) && json.announcements) ||
+      (Array.isArray(json?.data) && json.data) ||
+      (Array.isArray(json?.notices) && json.notices) ||
+      (Array.isArray(json?.items) && json.items) ||
+      null;
+    if (!list) continue;
+    return list
+      .map((row: any, index: number): SupplierAnnouncement => {
+        const title = String(row?.title ?? row?.subject ?? row?.heading ?? "").trim();
+        const body = String(row?.body ?? row?.message ?? row?.content ?? row?.text ?? "").trim();
+        const at = row?.created_at ?? row?.published_at ?? row?.date ?? row?.at ?? null;
+        const id = String(row?.id ?? row?.uuid ?? `${title}|${body}`.slice(0, 120) || index);
+        return { id, title, body, at: at ? String(at) : null };
+      })
+      .filter((a: SupplierAnnouncement) => a.title || a.body);
+  }
+  return null;
+}
