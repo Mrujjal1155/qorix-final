@@ -5205,33 +5205,14 @@ async function fulfillCheckout(
             // Buy against the supplier's live product id (it can rotate between
             // syncs) so a fresh order never hits a dead id.
             let externalId = String(p.supplier_external_id);
+            let liveCost: number | undefined;
             try {
               const { refreshLiveStock } = await import("@/lib/suppliers/live-stock.server");
               const live = await refreshLiveStock(String(p.id), 8000);
-              if (live) externalId = live.external_id;
-              const supplierCost = await supplierUnitCost(
-                String(p.id),
-                String(p.supplier_id),
-                externalId,
-                live?.price,
-              );
-              // Advisory only — use supplier cost, never the customer selling price.
-              const pre = supplierCost ? await supplierPreflight(sup, supplierCost * l.qty) : { ok: true };
-              const res = await supplierOrder(
-                sup as any,
-                externalId,
-                l.qty,
-                `qorix-${chatId}-${p.id}-${Date.now()}`,
-              );
-              if (res.items.length) {
-                deliveredItems = res.items;
-                delivered = deliveredItems.join("\n---\n");
-                status = "completed";
-              } else {
-                autoFailReason = `Supplier accepted the order but returned no items${res.code ? ` (ref ${res.code})` : ""}`;
+              if (live) {
+                externalId = live.external_id;
+                liveCost = live.price;
               }
-              void pre;
-              continue;
             } catch {
               /* keep the stored id */
             }
@@ -5239,7 +5220,9 @@ async function fulfillCheckout(
               String(p.id),
               String(p.supplier_id),
               externalId,
+              liveCost,
             );
+            // Advisory only — use supplier cost, never the customer selling price.
             const pre = supplierCost ? await supplierPreflight(sup, supplierCost * l.qty) : { ok: true };
             const res = await supplierOrder(
               sup as any,
