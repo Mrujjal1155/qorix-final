@@ -633,6 +633,8 @@ function ProductsPage() {
                           details: Array.isArray((p as any).details) ? ((p as any).details as any[]).map((d) => ({ label: String(d?.label ?? ""), value: String(d?.value ?? "") })) : [],
                           price: Number(p.price),
                           old_price: p.old_price ?? "",
+                          price_override: (p as any).price_override ?? "",
+                          supplier_id: p.supplier_id ?? "",
                           delivery_type: p.delivery_type,
                           image_url: p.image_url ?? "",
                           delivery_time: p.delivery_time ?? "",
