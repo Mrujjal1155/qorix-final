@@ -1259,11 +1259,16 @@ const FAST_POLL_MS = 15_000;
  * scheduler tick and deliver whatever they produce right away.
  */
 async function fastPollPushlessSuppliers(db: any) {
-  const { data: sups } = await db.from("suppliers").select("*").eq("is_enabled", true);
+  const { data: sups } = await db
+    .from("suppliers")
+    .select("*")
+    .eq("is_enabled", true)
+    .order("last_synced_at", { ascending: true, nullsFirst: true });
   const api = await import("./api.server");
   const due: any[] = [];
   for (const s of sups ?? []) {
     if (api.supplierSupportsWebhooks(s)) continue; // push already covers these
+    if (due.length >= SUPPLIERS_PER_RUN) break; // keep each invocation small
     const key = `supplier_fastpoll_at:${String(s.id)}`;
     const { data: row } = await db.from("bot_settings").select("value").eq("key", key).maybeSingle();
     const at = Date.parse(String((row as any)?.value ?? ""));
@@ -1273,7 +1278,9 @@ async function fastPollPushlessSuppliers(db: any) {
   }
   if (!due.length) return { polled: 0 };
 
-  await Promise.allSettled(due.map((s) => syncSupplierCore(db, s)));
+  await Promise.allSettled(
+    due.map((s) => withTimeout(syncSupplierCore(db, s), SUPPLIER_TIMEOUT_MS, `${s.name} sync`)),
+  );
   // Anything the poll produced should reach Telegram in the same tick.
   await drainAllNotifications(db).catch(() => ({ sent: 0, failed: 1 }));
   return { polled: due.length };
