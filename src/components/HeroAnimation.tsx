@@ -12,6 +12,7 @@ import {
 import { priceTag } from "@/components/StoreShell";
 import type { StoreProduct } from "@/components/ProductCard";
 import {
+import { brandFallbackOnError } from "@/components/SmartImage";
   Bot,
   CreditCard,
   Globe,

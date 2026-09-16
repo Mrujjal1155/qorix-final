@@ -14,6 +14,7 @@ import { ImageUploadField } from "@/components/ImageUploadField";
 import { Sparkles, Menu, LayoutList, Link2, LifeBuoy, Phone, Share2, Info, HelpCircle, MessageSquare, Scale, type LucideIcon } from "lucide-react";
 import { SettingsHub, type HubSection } from "@/components/SettingsHub";
 import { broadcastSiteUpdate } from "@/lib/site-refresh";
+import { brandFallbackOnError } from "@/components/SmartImage";
 
 export const Route = createFileRoute("/admin/site")({
   head: () => ({

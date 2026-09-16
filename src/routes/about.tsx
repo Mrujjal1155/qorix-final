@@ -5,6 +5,7 @@ import { useSiteContent } from "@/lib/use-site-content";
 import { siteCards } from "@/lib/site-content";
 import { productionUrlFor } from "@/lib/site-url";
 import aboutHero from "@/assets/about-digital-products.jpg";
+import { brandFallbackOnError } from "@/components/SmartImage";
 
 
 export const Route = createFileRoute("/about")({

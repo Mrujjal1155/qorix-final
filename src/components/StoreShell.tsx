@@ -53,6 +53,7 @@ import { siteContacts, type SiteLink } from "@/lib/site-content";
 
 
 import { Clock } from "lucide-react";
+import { hideOnError } from "@/components/SmartImage";
 
 function useSignedIn() {
   const [signedIn, setSignedIn] = useState(false);

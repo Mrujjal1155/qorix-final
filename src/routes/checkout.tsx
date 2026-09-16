@@ -27,6 +27,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { usePrefs } from "@/lib/prefs";
 import { productionUrlFor } from "@/lib/site-url";
+import { brandFallbackOnError, hideOnError } from "@/components/SmartImage";
 
 const STEPS = ["details", "pay", "confirm"] as const;
 type Step = (typeof STEPS)[number];

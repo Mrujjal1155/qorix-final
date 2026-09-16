@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ImageUploadField } from "@/components/ImageUploadField";
+import { brandFallbackOnError } from "@/components/SmartImage";
 
 type Row = { id: string; name: string; image_url: string | null; accent: string; sort_order: number; is_active: boolean };
 

@@ -43,5 +43,18 @@ export function BrandLogo({
   const label = (name ?? "").trim();
   const effective = src ?? cached ?? bundledLogo;
 
-  return <img src={effective} alt={label ? `${label} logo` : "QORIX STORE logo"} className={className} />;
+  return (
+    <img
+      src={effective}
+      alt={label ? `${label} logo` : "QORIX STORE logo"}
+      className={className}
+      // A configured logo URL that fails must never leave a broken image:
+      // fall straight back to the bundled QORIX STORE logo.
+      onError={(event) => {
+        const el = event.currentTarget;
+        if (el.src.endsWith(bundledLogo)) return;
+        el.src = bundledLogo;
+      }}
+    />
+  );
 }
