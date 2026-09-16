@@ -195,14 +195,91 @@ function OrdersPage() {
         )}
       </div>
 
-      <Card>
+      {/* Mobile: one card per order */}
+      <div className="space-y-3 md:hidden">
+        {rows.map((o: any) => {
+          const pay = paymentInfo(o);
+          return (
+            <Card key={o.id}>
+              <CardContent className="space-y-3 pt-5 text-sm">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                  <div className="min-w-0">
+                    <div className="font-semibold">#{o.order_no}</div>
+                    <button
+                      type="button"
+                      className="mt-1 rounded bg-muted px-2 py-1 font-mono text-xs"
+                      onClick={() => copyCode(o.id)}
+                    >
+                      {orderCode(o.id)}
+                    </button>
+                  </div>
+                  <Badge
+                    className="shrink-0"
+                    variant={o.status === "completed" ? "default" : o.status === "failed" ? "destructive" : "secondary"}
+                  >
+                    {STATUS_LABEL[o.status] ?? o.status}
+                  </Badge>
+                </div>
+
+                <div className="min-w-0 break-words">
+                  {o.quantity}× {o.product_name}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <Badge variant={o.source === "website" ? "default" : "secondary"}>{o.source ?? "telegram"}</Badge>
+                  <span>{money(o.total)}</span>
+                  <span>{o.delivery_type}</span>
+                </div>
+
+                <div className="rounded-lg border border-border/70 bg-muted/40 p-2 text-xs">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-semibold">{pay.label}</span>
+                    <Badge variant={pay.paid ? "default" : "secondary"}>{pay.paid ? "paid" : "not paid"}</Badge>
+                  </div>
+                  {pay.detail && <div className="mt-1 break-all text-muted-foreground">{pay.detail}</div>}
+                </div>
+
+                <div className="text-xs text-muted-foreground">
+                  {o.source === "website" ? (
+                    <>
+                      <div className="break-all">{o.customer_name}</div>
+                      <div className="break-all">{o.customer_email}</div>
+                    </>
+                  ) : (
+                    <div>Telegram: {o.telegram_id}</div>
+                  )}
+                  {o.supplier_name ? (
+                    <div className="mt-1">
+                      API · {o.supplier_name}
+                      {o.supplier_external_id ? ` · ${o.supplier_external_id}` : ""}
+                    </div>
+                  ) : (
+                    <div className="mt-1">Own stock</div>
+                  )}
+                </div>
+
+                {o.delivered_content && (
+                  <pre className="overflow-x-auto rounded bg-muted p-2 text-xs">{o.delivered_content}</pre>
+                )}
+
+                <div className="flex flex-wrap gap-2">{rowActions(o)}</div>
+              </CardContent>
+            </Card>
+          );
+        })}
+        {!rows.length && <p className="text-sm text-muted-foreground">No orders found.</p>}
+      </div>
+
+      {/* Desktop table */}
+      <Card className="hidden md:block">
         <CardContent className="overflow-x-auto pt-6">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[60rem] text-sm">
             <thead className="text-left text-muted-foreground">
               <tr>
                 <th className="py-2">#</th>
                 <th>Order ID</th>
                 <th>Source</th>
+                <th>Payment</th>
                 <th>Supplier</th>
                 <th>Customer</th>
                 <th>Product</th>
@@ -214,140 +291,82 @@ function OrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((o: any) => (
-                <tr key={o.id} className="border-t border-border align-top">
-                  <td className="py-2">{o.order_no}</td>
-                  <td>
-                    <button
-                      type="button"
-                      className="rounded bg-muted px-2 py-1 font-mono text-xs hover:bg-muted/70"
-                      title="Copy order ID"
-                      onClick={() => {
-                        navigator.clipboard.writeText(orderCode(o.id));
-                        toast.success("Order ID copied");
-                      }}
-                    >
-                      {orderCode(o.id)}
-                    </button>
-                  </td>
-                  <td>
-                    <Badge variant={o.source === "website" ? "default" : "secondary"}>{o.source ?? "telegram"}</Badge>
-                  </td>
-                  <td>
-                    {o.supplier_name ? (
-                      <div className="text-xs">
-                        <Badge variant="outline" style={supplierStyle(o.supplier_name)}>
-                          API · {o.supplier_name}
-                        </Badge>
-                        {o.supplier_external_id && (
-                          <div className="mt-1 text-muted-foreground">ID: {o.supplier_external_id}</div>
-                        )}
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">Own stock</span>
-                    )}
-                  </td>
-                  <td>
-                    {o.source === "website" ? (
-                      <div className="text-xs">
-                        <div>{o.customer_name}</div>
-                        <div className="text-muted-foreground">{o.customer_email}</div>
-                        {o.txid && <div className="text-muted-foreground">TX: {String(o.txid).slice(0, 18)}…</div>}
-                      </div>
-                    ) : (
-                      o.telegram_id
-                    )}
-                  </td>
-                  <td>
-                    {o.product_name}
-                    {o.delivered_content && (
-                      <pre className="mt-1 max-w-xs overflow-x-auto rounded bg-muted p-2 text-xs">
-                        {o.delivered_content}
-                      </pre>
-                    )}
-                  </td>
-                  <td>{o.quantity}</td>
-                  <td>{money(o.total)}</td>
-                  <td>{o.delivery_type}</td>
-                  <td>
-                    <Badge
-                      variant={
-                        o.status === "completed" ? "default" : o.status === "failed" ? "destructive" : "secondary"
-                      }
-                    >
-                      {STATUS_LABEL[o.status] ?? o.status}
-                    </Badge>
-                  </td>
-                  <td className="space-x-1 text-right">
-                    {o.status !== "completed" && o.status !== "refunded" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setDeliverFor(o.id);
-                          setContent("");
-                        }}
+              {rows.map((o: any) => {
+                const pay = paymentInfo(o);
+                return (
+                  <tr key={o.id} className="border-t border-border align-top">
+                    <td className="py-2">{o.order_no}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="rounded bg-muted px-2 py-1 font-mono text-xs hover:bg-muted/70"
+                        title="Copy order ID"
+                        onClick={() => copyCode(o.id)}
                       >
-                        Deliver now
-                      </Button>
-                    )}
-                    {(o.status === "awaiting_payment" || o.status === "failed") && (
-                      <>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          disabled={busy === o.id}
-                          onClick={async () => {
-                            setBusy(o.id);
-                            try {
-                              await markPaid({ data: { id: o.id } });
-                              toast.success("Order reopened — deliver it now");
-                              refresh();
-                            } catch (e) {
-                              toast.error(e instanceof Error ? e.message : "Failed");
-                            } finally {
-                              setBusy("");
-                            }
-                          }}
-                        >
-                          Mark paid
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            setRefundFor(o.id);
-                            setRefundAmount(String(Number(o.total ?? 0).toFixed(2)));
-                          }}
-                        >
-                          Refund
-                        </Button>
-                      </>
-                    )}
-                    {o.status === "pending" && (
-                      <>
-                        {o.supplier_name && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            disabled={retrying === o.id}
-                            onClick={() => runRetry(o.id)}
-                          >
-                            {retrying === o.id ? "Retrying…" : "Retry API"}
-                          </Button>
-                        )}
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => changeStatus({ data: { id: o.id, status: "cancelled" } }).then(refresh)}
-                        >
-                          Cancel
-                        </Button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                        {orderCode(o.id)}
+                      </button>
+                    </td>
+                    <td>
+                      <Badge variant={o.source === "website" ? "default" : "secondary"}>{o.source ?? "telegram"}</Badge>
+                    </td>
+                    <td>
+                      <div className="text-xs">
+                        <div className="font-medium">{pay.label}</div>
+                        <div className={pay.paid ? "text-success" : "text-muted-foreground"}>
+                          {pay.paid ? "paid" : "not paid"}
+                        </div>
+                        {pay.detail && <div className="max-w-[12rem] break-all text-muted-foreground">{pay.detail}</div>}
+                      </div>
+                    </td>
+                    <td>
+                      {o.supplier_name ? (
+                        <div className="text-xs">
+                          <Badge variant="outline" style={supplierStyle(o.supplier_name)}>
+                            API · {o.supplier_name}
+                          </Badge>
+                          {o.supplier_external_id && (
+                            <div className="mt-1 text-muted-foreground">ID: {o.supplier_external_id}</div>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">Own stock</span>
+                      )}
+                    </td>
+                    <td>
+                      {o.source === "website" ? (
+                        <div className="text-xs">
+                          <div>{o.customer_name}</div>
+                          <div className="text-muted-foreground">{o.customer_email}</div>
+                          {o.txid && <div className="text-muted-foreground">TX: {String(o.txid).slice(0, 18)}…</div>}
+                        </div>
+                      ) : (
+                        o.telegram_id
+                      )}
+                    </td>
+                    <td>
+                      {o.product_name}
+                      {o.delivered_content && (
+                        <pre className="mt-1 max-w-xs overflow-x-auto rounded bg-muted p-2 text-xs">
+                          {o.delivered_content}
+                        </pre>
+                      )}
+                    </td>
+                    <td>{o.quantity}</td>
+                    <td>{money(o.total)}</td>
+                    <td>{o.delivery_type}</td>
+                    <td>
+                      <Badge
+                        variant={
+                          o.status === "completed" ? "default" : o.status === "failed" ? "destructive" : "secondary"
+                        }
+                      >
+                        {STATUS_LABEL[o.status] ?? o.status}
+                      </Badge>
+                    </td>
+                    <td className="space-x-1 text-right">{rowActions(o)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </CardContent>
