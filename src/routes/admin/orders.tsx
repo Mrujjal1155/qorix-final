@@ -182,12 +182,26 @@ function OrdersPage() {
         </Card>
       )}
 
+      <div className="mb-4 max-w-md">
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search order ID (ORD-XXXXXXXX), #order no, email, telegram id or TX"
+        />
+        {search && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {rows.length} order(s) matched “{search}”.
+          </p>
+        )}
+      </div>
+
       <Card>
         <CardContent className="overflow-x-auto pt-6">
           <table className="w-full text-sm">
             <thead className="text-left text-muted-foreground">
               <tr>
                 <th className="py-2">#</th>
+                <th>Order ID</th>
                 <th>Source</th>
                 <th>Supplier</th>
                 <th>Customer</th>
