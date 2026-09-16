@@ -11,6 +11,33 @@ function esc(t: string) {
 
 export type SupplierPreflight = { ok: boolean; reason?: string | undefined; balance?: number | undefined; currency?: string | undefined };
 
+/** Resolve the supplier's own unit cost; customer selling prices must never be used here. */
+export async function supplierUnitCost(
+  productId: string,
+  supplierId: string,
+  externalId: string,
+  liveCost?: number,
+): Promise<number | null> {
+  if (Number.isFinite(liveCost) && Number(liveCost) > 0) return Number(liveCost);
+
+  const exact = await db
+    .from("supplier_products")
+    .select("cost_price")
+    .eq("supplier_id", supplierId)
+    .eq("external_id", externalId)
+    .maybeSingle();
+  if (Number(exact.data?.cost_price) > 0) return Number(exact.data.cost_price);
+
+  const linked = await db
+    .from("supplier_products")
+    .select("cost_price")
+    .eq("product_id", productId)
+    .order("last_synced_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return Number(linked.data?.cost_price) > 0 ? Number(linked.data.cost_price) : null;
+}
+
 /** Check the supplier wallet the API key sees, so "insufficient balance" is reported clearly. */
 export async function supplierPreflight(supplier: any, needed: number): Promise<SupplierPreflight> {
   try {
@@ -50,11 +77,15 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
   if (!product?.supplier_id || !product.supplier_external_id)
     return { ok: false, reason: "This product is not linked to a supplier API — deliver it manually." };
 
-  // Always order against the supplier's live id/stock, never a stale snapshot.
+  // Always order against the supplier's live id/stock/cost, never a stale snapshot.
+  let liveCost: number | undefined;
   try {
     const { refreshLiveStock } = await import("@/lib/suppliers/live-stock.server");
     const live = await refreshLiveStock(String(product.id), 8000);
-    if (live) product.supplier_external_id = live.external_id;
+    if (live) {
+      product.supplier_external_id = live.external_id;
+      liveCost = live.price;
+    }
   } catch {
     /* fall back to the stored id */
   }
@@ -66,7 +97,15 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
   // Advisory only: some supplier balance endpoints under-report (or return 0)
   // even when the API wallet is funded, so never block the purchase on it —
   // the supplier API itself is the authority and rejects unfunded orders.
-  const pre = await supplierPreflight(sup, Number(order.total ?? 0));
+  const supplierCost = await supplierUnitCost(
+    String(product.id),
+    String(product.supplier_id),
+    String(product.supplier_external_id),
+    liveCost,
+  );
+  const pre = supplierCost
+    ? await supplierPreflight(sup, supplierCost * Number(order.quantity ?? 1))
+    : { ok: true };
 
   try {
     const { supplierOrder } = await import("@/lib/suppliers/api.server");

@@ -5196,25 +5196,34 @@ async function fulfillCheckout(
     if (p.supplier_id && p.supplier_external_id) {
       try {
         const { supplierOrder } = await import("@/lib/suppliers/api.server");
-        const { supplierPreflight } = await import("@/lib/suppliers/fulfil.server");
+        const { supplierPreflight, supplierUnitCost } = await import("@/lib/suppliers/fulfil.server");
         const { data: sup } = await db.from("suppliers").select("*").eq("id", p.supplier_id).maybeSingle();
         if (!sup) autoFailReason = "Supplier record not found";
         else if (!sup.is_enabled) autoFailReason = `Supplier “${sup.name ?? sup.code}” is disabled in admin`;
         else {
-          // Advisory only — several supplier balance endpoints report 0/stale
-          // values even for funded wallets, so never block delivery on it.
-          const pre = await supplierPreflight(sup, Number(p.price) * l.qty);
           try {
             // Buy against the supplier's live product id (it can rotate between
             // syncs) so a fresh order never hits a dead id.
             let externalId = String(p.supplier_external_id);
+            let liveCost: number | undefined;
             try {
               const { refreshLiveStock } = await import("@/lib/suppliers/live-stock.server");
               const live = await refreshLiveStock(String(p.id), 8000);
-              if (live) externalId = live.external_id;
+              if (live) {
+                externalId = live.external_id;
+                liveCost = live.price;
+              }
             } catch {
               /* keep the stored id */
             }
+            const supplierCost = await supplierUnitCost(
+              String(p.id),
+              String(p.supplier_id),
+              externalId,
+              liveCost,
+            );
+            // Advisory only — use supplier cost, never the customer selling price.
+            const pre = supplierCost ? await supplierPreflight(sup, supplierCost * l.qty) : { ok: true };
             const res = await supplierOrder(
               sup as any,
               externalId,
@@ -5228,9 +5237,10 @@ async function fulfillCheckout(
             } else {
               autoFailReason = `Supplier accepted the order but returned no items${res.code ? ` (ref ${res.code})` : ""}`;
             }
+            void pre;
           } catch (err) {
             const msg = err instanceof Error ? err.message : String(err);
-            autoFailReason = pre.ok ? msg : `${msg} — ${pre.reason}`;
+            autoFailReason = msg;
           }
         }
 
