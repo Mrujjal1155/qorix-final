@@ -287,12 +287,14 @@ export const saveProduct = createServerFn({ method: "POST" })
       badge?: string | null;
       is_active?: boolean;
       sort_order?: number;
+      /** Custom selling price for a supplier product. null clears it. */
+      price_override?: number | null;
     }) => d,
   )
   .handler(async ({ data, context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
-    const { id, ...rest } = data;
+    const { id, price_override, ...rest } = data;
     const row = {
       ...rest,
       category_id: rest.category_id || null,
