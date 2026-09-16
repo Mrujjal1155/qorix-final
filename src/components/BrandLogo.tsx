@@ -41,7 +41,8 @@ export function BrandLogo({
   }, [src]);
 
   const label = (name ?? "").trim();
-  const effective = src ?? cached ?? bundledLogo;
+  // An empty configured value counts as "no logo", never as a blank src.
+  const effective = (src || "").trim() || (cached || "").trim() || bundledLogo;
 
   return (
     <img
