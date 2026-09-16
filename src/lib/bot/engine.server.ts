@@ -5157,10 +5157,27 @@ async function fulfillCheckout(
   }
   // Clear the checkout basket immediately so the same cart cannot be paid twice.
   await writeCo(chatId, null);
+  // The money is now taken. Mark every reserved row as paid straight away so a
+  // delivery problem later can never let the 30-minute expiry call it "unpaid".
+  if (awaitingRows.length) {
+    for (const row of awaitingRows) {
+      const { data: cur } = await db.from("orders").select("meta").eq("id", row.id).maybeSingle();
+      await db
+        .from("orders")
+        .update({
+          status: "pending",
+          payment_method: methodKey,
+          meta: { ...((cur?.meta as any) ?? {}), awaiting_payment: false, paid: true, paid_at: new Date().toISOString() },
+        })
+        .eq("id", row.id);
+    }
+  }
   await db
     .from("bot_users")
     .update({ membership: membershipFor(Number((charged as any).total_spent ?? 0)) })
     .eq("telegram_id", chatId);
+
+
 
 
   const share = lines.length ? discount / lines.length : 0;
