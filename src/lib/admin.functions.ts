@@ -170,7 +170,7 @@ export const getCatalogue = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
-    const [cats, prods, stock, sups] = await Promise.all([
+    const [cats, prods, stock, sups, supProds] = await Promise.all([
       sb.from("categories").select("*").order("sort_order"),
       sb.from("products").select("*").order("sort_order"),
       // Only unsold rows, and never the whole history: pulling every stock row
@@ -178,11 +178,17 @@ export const getCatalogue = createServerFn({ method: "GET" })
       // catalogues and Cloudflare answered the page with Error 1102.
       sb.from("stock_items").select("product_id").eq("is_sold", false).limit(5000),
       sb.from("suppliers").select("id,name,key"),
+      sb.from("supplier_products").select("product_id,price_override").not("product_id", "is", null),
     ]);
     const counts: Record<string, number> = {};
     for (const s of stock.data ?? []) counts[s.product_id] = (counts[s.product_id] ?? 0) + 1;
     const supMap: Record<string, string> = {};
     for (const s of sups.data ?? []) supMap[s.id] = s.name || s.key;
+    // Per-product custom selling price (overrides the percentage markup).
+    const overrideMap: Record<string, number | null> = {};
+    for (const r of (supProds.data ?? []) as any[]) {
+      if (r.product_id) overrideMap[r.product_id] = r.price_override ?? null;
+    }
     return {
       categories: cats.data ?? [],
       suppliers: (sups.data ?? []).map((s: any) => ({ id: s.id, name: s.name || s.key })),
@@ -190,6 +196,7 @@ export const getCatalogue = createServerFn({ method: "GET" })
         ...p,
         stock: p.supplier_id ? Number(p.supplier_stock ?? 0) : (counts[p.id] ?? 0),
         supplier_name: p.supplier_id ? (supMap[p.supplier_id] ?? "Supplier") : null,
+        price_override: overrideMap[p.id] ?? null,
       })),
     };
   });
