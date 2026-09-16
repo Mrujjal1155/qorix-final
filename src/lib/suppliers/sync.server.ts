@@ -154,6 +154,67 @@ async function writeJsonValue(sb: any, key: string, value: unknown) {
   await sb.from("bot_settings").upsert({ key, value: JSON.stringify(value) }, { onConflict: "key" });
 }
 
+/**
+ * Simple time gate stored in the database, so it survives worker restarts and
+ * deployments: returns true (and stamps "now") only when `everyMs` has passed
+ * since the last time this key was due.
+ */
+async function dueEvery(sb: any, key: string, everyMs: number): Promise<boolean> {
+  const { data } = await sb.from("bot_settings").select("value").eq("key", key).maybeSingle();
+  const last = Date.parse(String((data as any)?.value ?? ""));
+  if (Number.isFinite(last) && Date.now() - last < everyMs) return false;
+  await sb.from("bot_settings").upsert({ key, value: new Date().toISOString() }, { onConflict: "key" });
+  return true;
+}
+
+/**
+ * Poll suppliers that publish announcements and forward new ones to the bot's
+ * announcement channel. A supplier without an announcement endpoint is marked
+ * unsupported after the first probe so we never call it again.
+ */
+async function syncSupplierAnnouncements(sb: any, suppliers: any[]) {
+  if (!suppliers.length) return;
+  if (!(await dueEvery(sb, "supplier_announce_check_at", ANNOUNCE_CHECK_MS))) return;
+
+  const { supplierAnnouncements } = await import("./api.server");
+  const { announceSupplierNotice } = await import("@/lib/bot/engine.server");
+
+  for (const s of suppliers) {
+    const supportKey = `supplier_announce_supported:${s.id}`;
+    const { data: flag } = await sb.from("bot_settings").select("value").eq("key", supportKey).maybeSingle();
+    if (String((flag as any)?.value ?? "") === "no") continue;
+
+    let list: Awaited<ReturnType<typeof supplierAnnouncements>> = null;
+    try {
+      list = await withTimeout(supplierAnnouncements(s), 8_000, `${s.name} announcements`);
+    } catch (error) {
+      console.error(`Announcement read failed for ${s.name}:`, error);
+      continue;
+    }
+    if (list === null) {
+      await sb.from("bot_settings").upsert({ key: supportKey, value: "no" }, { onConflict: "key" });
+      continue;
+    }
+    await sb.from("bot_settings").upsert({ key: supportKey, value: "yes" }, { onConflict: "key" });
+
+    const seenKey = `supplier_announce_seen:${s.id}`;
+    const seen = new Set<string>((await readJsonSetting(sb, seenKey)).map((v: any) => String(v)));
+    const fresh = list.filter((a) => !seen.has(a.id)).slice(0, 5);
+    if (!seen.size) {
+      // First look: remember what exists instead of replaying old notices.
+      await writeJsonSetting(sb, seenKey, list.map((a) => a.id).slice(0, 200));
+      continue;
+    }
+    for (const a of fresh) {
+      await announceSupplierNotice(s.name, a.title, a.body).catch((error) =>
+        console.error("Supplier announcement post failed:", error),
+      );
+      seen.add(a.id);
+    }
+    if (fresh.length) await writeJsonSetting(sb, seenKey, Array.from(seen).slice(-200));
+  }
+}
+
 async function appendLog(sb: any, entries: any[]) {
   if (!entries.length) return;
   const prev = await readJsonSetting(sb, NOTIFY_LOG_KEY);
