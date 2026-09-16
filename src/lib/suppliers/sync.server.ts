@@ -475,6 +475,53 @@ async function releaseSupplierSync(sb: any, supplierId: string) {
   await sb.from("bot_settings").update({ value: "" }).eq("key", `supplier_sync_lock:${supplierId}`);
 }
 
+/**
+ * Durable per-supplier sync history: when it ran, how long it took, whether it
+ * worked and the real error text. Without this a run that the platform kills
+ * mid-way leaves no trace at all and the admin panel keeps showing "healthy".
+ */
+async function recordSyncRun(
+  sb: any,
+  supplierId: string,
+  startedAtMs: number,
+  ok: boolean,
+  checked: number,
+  changed: number,
+  error: string | null,
+  source = "auto",
+) {
+  try {
+    await sb.from("supplier_sync_runs").insert({
+      supplier_id: supplierId,
+      started_at: new Date(startedAtMs).toISOString(),
+      finished_at: new Date().toISOString(),
+      duration_ms: Math.max(0, Date.now() - startedAtMs),
+      ok,
+      source,
+      checked,
+      changed,
+      error: error ? error.slice(0, 500) : null,
+    });
+  } catch (e) {
+    console.error("Could not record supplier sync run:", e);
+  }
+}
+
+/** Reject a promise that outlives `ms` so one dead supplier can't eat the run. */
+async function withTimeout<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: any;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(ms / 1000)}s`)), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function syncSupplierCore(
   sb: any,
   s: SupplierRow & Record<string, any>,
