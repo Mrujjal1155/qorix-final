@@ -11,10 +11,8 @@ function secret() {
   );
 }
 
-/** Short human code shown in Telegram, e.g. ORD-7706FE87. */
-export function orderCode(orderId: string) {
-  return "ORD-" + String(orderId).replace(/-/g, "").slice(-8).toUpperCase();
-}
+import { orderCode } from "@/lib/order-code";
+export { orderCode };
 
 /** Signed, unguessable token for the public download endpoint. */
 export function signOrderToken(orderId: string, kind: "full" | "plain") {

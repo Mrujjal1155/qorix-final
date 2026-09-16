@@ -12,6 +12,7 @@ import {
   setOrderStatus,
 } from "@/lib/admin.functions";
 import { AdminShell, money } from "@/components/AdminShell";
+import { orderCode, normalizeOrderQuery } from "@/lib/order-code";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -68,6 +69,7 @@ function OrdersPage() {
   const [refundFor, setRefundFor] = useState<string>("");
   const [refundAmount, setRefundAmount] = useState("");
   const [busy, setBusy] = useState("");
+  const [search, setSearch] = useState("");
 
   const fetchOrders = useServerFn(listOrders);
   const deliver = useServerFn(deliverOrder);
@@ -110,6 +112,20 @@ function OrdersPage() {
     return new Map(names.map((name, index) => [name, index]));
   }, [data]);
   const supplierStyle = (name: string) => supplierBadgeStyle(supplierColorIndexes.get(name) ?? 0);
+  const rows = useMemo(() => {
+    const q = normalizeOrderQuery(search);
+    if (!q) return (data ?? []) as any[];
+    return ((data ?? []) as any[]).filter((o: any) => {
+      const code = orderCode(o.id);
+      return (
+        code.includes(q) ||
+        String(o.order_no ?? "").includes(q) ||
+        String(o.customer_email ?? "").toUpperCase().includes(q) ||
+        String(o.telegram_id ?? "").includes(q) ||
+        String(o.txid ?? "").toUpperCase().includes(q)
+      );
+    });
+  }, [data, search]);
   const refresh = () => qc.invalidateQueries({ queryKey: ["orders"] });
   const active = (data ?? []).find((o: any) => o.id === deliverFor) as any;
 
@@ -166,12 +182,26 @@ function OrdersPage() {
         </Card>
       )}
 
+      <div className="mb-4 max-w-md">
+        <Input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search order ID (ORD-XXXXXXXX), #order no, email, telegram id or TX"
+        />
+        {search && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            {rows.length} order(s) matched “{search}”.
+          </p>
+        )}
+      </div>
+
       <Card>
         <CardContent className="overflow-x-auto pt-6">
           <table className="w-full text-sm">
             <thead className="text-left text-muted-foreground">
               <tr>
                 <th className="py-2">#</th>
+                <th>Order ID</th>
                 <th>Source</th>
                 <th>Supplier</th>
                 <th>Customer</th>
@@ -184,9 +214,22 @@ function OrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {(data ?? []).map((o: any) => (
+              {rows.map((o: any) => (
                 <tr key={o.id} className="border-t border-border align-top">
                   <td className="py-2">{o.order_no}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="rounded bg-muted px-2 py-1 font-mono text-xs hover:bg-muted/70"
+                      title="Copy order ID"
+                      onClick={() => {
+                        navigator.clipboard.writeText(orderCode(o.id));
+                        toast.success("Order ID copied");
+                      }}
+                    >
+                      {orderCode(o.id)}
+                    </button>
+                  </td>
                   <td>
                     <Badge variant={o.source === "website" ? "default" : "secondary"}>{o.source ?? "telegram"}</Badge>
                   </td>
@@ -314,7 +357,7 @@ function OrdersPage() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
-              Manual delivery{active ? ` — order #${active.order_no}` : ""}
+              Manual delivery{active ? ` — order #${active.order_no} · ${orderCode(active.id)}` : ""}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
