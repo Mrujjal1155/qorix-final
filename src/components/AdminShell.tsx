@@ -1,5 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { countPendingOrders } from "@/lib/admin.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -73,6 +75,13 @@ export function AdminShell({
   const { v } = useSiteContent();
   const brandLogo = v("site_brand_logo");
   const brandName = v("site_brand_name") || "QORIX";
+  const fetchPending = useServerFn(countPendingOrders);
+  const { data: pending } = useQuery({
+    queryKey: ["pending-orders-count"],
+    queryFn: () => fetchPending(),
+    refetchInterval: 60000,
+  });
+  const pendingCount = pending?.count ?? 0;
 
   useEffect(() => {
     setCollapsed(localStorage.getItem("qorix-admin-rail") === "collapsed");
@@ -156,8 +165,23 @@ export function AdminShell({
                     className: "admin-rail-active text-foreground hover:text-foreground",
                   }}
                 >
-                  <item.icon className="size-[1.15rem] shrink-0" />
-                  <span className={labelCls}>{item.label}</span>
+                  <span className="relative shrink-0">
+                    <item.icon className="size-[1.15rem]" />
+                    {item.to === "/admin/orders" && pendingCount > 0 && (
+                      <span
+                        aria-label={`${pendingCount} pending orders`}
+                        className="absolute -right-1.5 -top-1.5 size-2.5 animate-pulse rounded-full bg-destructive ring-2 ring-sidebar"
+                      />
+                    )}
+                  </span>
+                  <span className={cn("flex min-w-0 items-center gap-2", labelCls)}>
+                    {item.label}
+                    {item.to === "/admin/orders" && pendingCount > 0 && (
+                      <span className="rounded-full bg-destructive px-1.5 py-0.5 text-[0.65rem] font-bold leading-none text-destructive-foreground">
+                        {pendingCount}
+                      </span>
+                    )}
+                  </span>
                 </Link>
               ))}
             </div>
