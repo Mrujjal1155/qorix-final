@@ -54,7 +54,7 @@ export function CategoryIcon({
 }: {
   name?: string | null;
   /** Admin-uploaded category logo; falls back to the matching icon when missing or broken. */
-  src?: string | null;
+  src?: string | null | undefined;
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
