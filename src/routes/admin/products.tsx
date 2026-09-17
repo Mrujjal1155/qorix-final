@@ -356,15 +356,43 @@ function ProductsPage() {
             Add
           </Button>
         </div>
+        <div className="space-y-1">
+          <Label>Category logo (optional)</Label>
+          <ImageUploadField
+            value={cat.image_url}
+            onChange={(url) => setCat({ ...cat, image_url: url })}
+            placeholder="Logo image URL"
+          />
+          <p className="text-xs text-muted-foreground">
+            Recommended: square <strong>512×512 px (1:1)</strong> PNG with transparent background (min 128×128 px).
+            JPG / WEBP also work. Max file size <strong>3MB</strong> (ideal 50–200KB). No logo = default icon.
+          </p>
+        </div>
         <ul className="space-y-1 text-sm">
           {(data?.categories ?? []).map((c: any) => (
             <li key={c.id} className="rounded-md bg-muted px-3 py-2">
-              <div className="flex items-center justify-between">
-                <span>
-                  {c.emoji} {c.name}
-                  <Badge variant="secondary" className="ml-2">{c.channel ?? "both"}</Badge>
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-2">
+                  {c.image_url ? (
+                    <img src={c.image_url} alt="" className="h-6 w-6 shrink-0 rounded object-contain" />
+                  ) : (
+                    <span>{c.emoji}</span>
+                  )}
+                  <span className="truncate">{c.name}</span>
+                  <Badge variant="secondary">{c.channel ?? "both"}</Badge>
                 </span>
-                <div className="flex gap-1">
+                <div className="flex shrink-0 gap-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const open = logoFor === c.id;
+                      setLogoFor(open ? "" : c.id);
+                      setLogoUrl(open ? "" : (c.image_url ?? ""));
+                    }}
+                  >
+                    {logoFor === c.id ? "Close" : "Logo"}
+                  </Button>
                   <Button size="sm" variant="secondary" onClick={() => openManager(c.id)}>
                     {manageCat === c.id ? "Close" : "Manage products"}
                   </Button>
@@ -373,6 +401,23 @@ function ProductsPage() {
                   </Button>
                 </div>
               </div>
+              {logoFor === c.id && (
+                <div className="mt-3 space-y-2">
+                  <ImageUploadField value={logoUrl} onChange={setLogoUrl} placeholder="Logo image URL" />
+                  <p className="text-xs text-muted-foreground">
+                    Best size: <strong>512×512 px (1:1)</strong>, PNG with transparent background. Max <strong>3MB</strong>.
+                    Clear the field and save to go back to the default icon.
+                  </p>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => catLogoMut.mutate(c)} disabled={catLogoMut.isPending}>
+                      Save logo
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setLogoUrl("")}>
+                      Remove logo
+                    </Button>
+                  </div>
+                </div>
+              )}
               {manageCat === c.id && (
                 <div className="mt-3 space-y-2">
                   <Input
