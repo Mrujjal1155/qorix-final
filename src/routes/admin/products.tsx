@@ -87,7 +87,9 @@ function ProductsPage() {
   const delProd = useServerFn(deleteProduct);
 
   const [view, setView] = useState<View>("hub");
-  const [cat, setCat] = useState({ name: "", emoji: "📁", channel: "both" });
+  const [cat, setCat] = useState({ name: "", emoji: "📁", channel: "both", image_url: "" });
+  const [logoFor, setLogoFor] = useState<string>("");
+  const [logoUrl, setLogoUrl] = useState<string>("");
   const [manageCat, setManageCat] = useState<string>("");
   const [manageSearch, setManageSearch] = useState("");
   const [picked, setPicked] = useState<string[]>([]);
