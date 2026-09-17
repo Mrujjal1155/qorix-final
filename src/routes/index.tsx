@@ -83,7 +83,7 @@ function Landing() {
                 className="group rounded-2xl border border-border bg-card px-4 py-6 text-center transition-all hover:-translate-y-1 hover:border-primary/60 hover:card-glow"
               >
                 <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-primary/12 text-primary">
-                  <CategoryIcon name={c.name} />
+                  <CategoryIcon name={c.name} src={c.image_url} className="h-7 w-7" />
                 </span>
                 <h3 className="mt-3 text-sm font-semibold group-hover:text-primary">{c.name}</h3>
                 <p className="text-xs text-muted-foreground">{countFor(c.id)} {t("products")}</p>

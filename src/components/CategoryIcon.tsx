@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Bot,
   Boxes,
@@ -46,7 +47,29 @@ export function categoryIcon(name?: string | null): LucideIcon {
   return Boxes;
 }
 
-export function CategoryIcon({ name, className = "h-5 w-5" }: { name?: string | null; className?: string }) {
+export function CategoryIcon({
+  name,
+  src,
+  className = "h-5 w-5",
+}: {
+  name?: string | null;
+  /** Admin-uploaded category logo; falls back to the matching icon when missing or broken. */
+  src?: string | null | undefined;
+  className?: string;
+}) {
+  const [failed, setFailed] = useState(false);
   const Icon = categoryIcon(name);
+  if (src && !failed) {
+    return (
+      <img
+        src={src}
+        alt={name ?? "Category"}
+        loading="lazy"
+        decoding="async"
+        onError={() => setFailed(true)}
+        className={`${className} object-contain`}
+      />
+    );
+  }
   return <Icon className={className} />;
 }

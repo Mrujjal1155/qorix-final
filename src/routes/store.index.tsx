@@ -80,7 +80,13 @@ function StorePage() {
         <div className="mt-6 flex flex-wrap gap-2">
           <CatPill active={activeCat === "all"} onClick={() => setCat("all")} label={t("All")} />
           {categories.map((c: any) => (
-            <CatPill key={c.id} active={activeCat === c.id} onClick={() => setCat(c.id)} label={c.name} />
+            <CatPill
+              key={c.id}
+              active={activeCat === c.id}
+              onClick={() => setCat(c.id)}
+              label={c.name}
+              image={c.image_url}
+            />
           ))}
         </div>
 
@@ -115,10 +121,12 @@ function CatPill({
   active,
   onClick,
   label,
+  image,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
+  image?: string | null | undefined;
 }) {
   return (
     <button
@@ -129,7 +137,7 @@ function CatPill({
           : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
       }`}
     >
-      <CategoryIcon name={label} className="h-4 w-4" />
+      <CategoryIcon name={label} src={image} className="h-4 w-4" />
       {label}
     </button>
   );

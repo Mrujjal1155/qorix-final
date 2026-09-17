@@ -203,16 +203,26 @@ export const getCatalogue = createServerFn({ method: "GET" })
 
 export const saveCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id?: string; name: string; emoji?: string; sort_order?: number; channel?: string }) => d)
+  .inputValidator(
+    (d: {
+      id?: string;
+      name: string;
+      emoji?: string;
+      sort_order?: number;
+      channel?: string;
+      image_url?: string | null;
+    }) => d,
+  )
   .handler(async ({ data, context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
-    const row = {
+    const row: Record<string, unknown> = {
       name: data.name,
       emoji: data.emoji ?? "📁",
       sort_order: data.sort_order ?? 0,
       channel: data.channel ?? "both",
     };
+    if (data.image_url !== undefined) row["image_url"] = data.image_url?.trim() ? data.image_url.trim() : null;
     const { error } = data.id
       ? await sb.from("categories").update(row).eq("id", data.id)
       : await sb.from("categories").insert(row);
