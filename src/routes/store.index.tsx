@@ -137,7 +137,7 @@ function CatPill({
           : "border-border bg-card text-muted-foreground hover:border-primary/50 hover:text-foreground"
       }`}
     >
-      <CategoryIcon name={label} className="h-4 w-4" />
+      <CategoryIcon name={label} src={image} className="h-4 w-4" />
       {label}
     </button>
   );
