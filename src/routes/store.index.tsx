@@ -121,10 +121,12 @@ function CatPill({
   active,
   onClick,
   label,
+  image,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
+  image?: string | null;
 }) {
   return (
     <button
