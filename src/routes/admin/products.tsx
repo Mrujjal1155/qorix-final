@@ -182,11 +182,36 @@ function ProductsPage() {
 
 
   const catMut = useMutation({
-    mutationFn: () => saveCat({ data: { name: cat.name, emoji: cat.emoji, channel: cat.channel } }),
+    mutationFn: () =>
+      saveCat({
+        data: { name: cat.name, emoji: cat.emoji, channel: cat.channel, image_url: cat.image_url || null },
+      }),
     onSuccess: () => {
-      setCat({ name: "", emoji: "📁", channel: "both" });
+      setCat({ name: "", emoji: "📁", channel: "both", image_url: "" });
       refresh();
       toast.success("Category saved");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  /** Save (or clear) the uploaded logo of an existing category. */
+  const catLogoMut = useMutation({
+    mutationFn: (c: any) =>
+      saveCat({
+        data: {
+          id: c.id,
+          name: c.name,
+          emoji: c.emoji ?? "📁",
+          sort_order: c.sort_order ?? 0,
+          channel: c.channel ?? "both",
+          image_url: logoUrl.trim() || null,
+        },
+      }),
+    onSuccess: () => {
+      setLogoFor("");
+      setLogoUrl("");
+      refresh();
+      toast.success("Category logo saved");
     },
     onError: (e: Error) => toast.error(e.message),
   });
