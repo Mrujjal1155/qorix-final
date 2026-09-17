@@ -36,7 +36,11 @@ export const listStorefront = createServerFn({ method: "GET" }).handler(async ()
 
   const sb = await anonSupabase();
   const [cats, prods, hero] = await Promise.all([
-    sb.from("categories").select("id,name,emoji,sort_order,channel").eq("is_active", true).order("sort_order"),
+    sb
+      .from("categories")
+      .select("id,name,emoji,image_url,sort_order,channel")
+      .eq("is_active", true)
+      .order("sort_order"),
     sb
       .from("products")
       .select(
