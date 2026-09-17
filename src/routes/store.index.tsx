@@ -80,7 +80,13 @@ function StorePage() {
         <div className="mt-6 flex flex-wrap gap-2">
           <CatPill active={activeCat === "all"} onClick={() => setCat("all")} label={t("All")} />
           {categories.map((c: any) => (
-            <CatPill key={c.id} active={activeCat === c.id} onClick={() => setCat(c.id)} label={c.name} />
+            <CatPill
+              key={c.id}
+              active={activeCat === c.id}
+              onClick={() => setCat(c.id)}
+              label={c.name}
+              image={c.image_url}
+            />
           ))}
         </div>
 
