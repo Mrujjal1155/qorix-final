@@ -1033,7 +1033,16 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
     quick_guide: (patch["quick_guide"] as string | undefined) ?? null,
     details: (patch["details"] as unknown) ?? null,
   }));
+  // Persist lifted custom prices first: the snapshot below writes the new
+  // product price that was computed from them.
+  for (const b of overrideBumps) {
+    await sb
+      .from("supplier_products")
+      .update({ price_override: b.price_override, override_cost_base: b.override_cost_base })
+      .eq("id", b.id);
+  }
   const status = `Synced ${uniqueRemote.length} products${relinked.relinked ? ` · ${relinked.relinked} id relinked` : ""}${relinked.retired ? ` · ${relinked.retired} delisted` : ""}`;
+
   const { data: applied, error: applyError } = await sb.rpc("apply_supplier_snapshot", {
     _supplier_id: s.id,
     _fetched_at: fetchedAt,
