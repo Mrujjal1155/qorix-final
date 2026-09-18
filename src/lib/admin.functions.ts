@@ -470,13 +470,28 @@ export const listStock = createServerFn({ method: "GET" })
   .inputValidator((d: { product_id: string }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const { data: rows } = await (context as any).supabase
-      .from("stock_items")
-      .select("id,content,is_sold,sold_to,created_at")
-      .eq("product_id", data.product_id)
-      .order("created_at", { ascending: true })
-      .limit(200);
-    return rows ?? [];
+    const sb = (context as any).supabase;
+    // The list itself stays paged (a worker cannot ship 1000+ rows), but the
+    // numbers next to it are counted in the database, so they are exact.
+    const [list, total, available] = await Promise.all([
+      sb
+        .from("stock_items")
+        .select("id,content,is_sold,sold_to,created_at")
+        .eq("product_id", data.product_id)
+        .order("created_at", { ascending: true })
+        .limit(200),
+      sb.from("stock_items").select("id", { count: "exact", head: true }).eq("product_id", data.product_id),
+      sb
+        .from("stock_items")
+        .select("id", { count: "exact", head: true })
+        .eq("product_id", data.product_id)
+        .eq("is_sold", false),
+    ]);
+    return {
+      items: list.data ?? [],
+      total: Number(total.count ?? 0),
+      available: Number(available.count ?? 0),
+    };
   });
 
 export const deleteStockItem = createServerFn({ method: "POST" })
