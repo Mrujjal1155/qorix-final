@@ -1444,12 +1444,12 @@ export const listBotProducts = createServerFn({ method: "GET" })
         )
         .order("name"),
       sb.from("suppliers").select("id,name"),
-      sb.from("stock_items").select("product_id,is_sold"),
+      sb.rpc("stock_counts"),
     ]);
     const supplierNames: Record<string, string> = {};
     for (const s of sups.data ?? []) supplierNames[s.id] = s.name;
     const counts: Record<string, number> = {};
-    for (const s of stock.data ?? []) if (!s.is_sold) counts[s.product_id] = (counts[s.product_id] ?? 0) + 1;
+    for (const s of (stock.data ?? []) as any[]) counts[s.product_id] = Number(s.available ?? 0);
 
     const rows = (prods.data ?? []).map((p: any) => ({
       ...p,
