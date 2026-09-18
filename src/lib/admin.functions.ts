@@ -616,9 +616,12 @@ export const deliverOrder = createServerFn({ method: "POST" })
       `✅ <b>Order #${order.order_no}</b> delivered!\n${order.quantity}× ${esc(order.product_name)}\n` +
         `Sending <b>${parts.length}</b> item(s) below 👇`,
     );
-    for (let i = 0; i < parts.length; i++) {
-      await send(`📦 <b>${esc(order.product_name)} — ${i + 1} of ${parts.length}</b>\n<pre>${esc(parts[i]!)}</pre>`);
-    }
+    const { deliverItemsToChat } = await import("@/lib/bot/deliver-items.server");
+    const out = await deliverItemsToChat(order.telegram_id, order.product_name, parts, {
+      orderNo: order.order_no,
+      orderId: order.id,
+    });
+    if (out.failed && !out.fallbackFile) failures.push(`${out.failed} item(s) were not accepted by Telegram`);
     if (failures.length) {
       throw new Error(
         `Saved to the order, but Telegram did not accept the message: ${failures[0]}. ` +
