@@ -131,17 +131,16 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
     if (order.telegram_id) {
       try {
         const { sendMessage } = await import("@/lib/telegram.server");
+        const { deliverItemsToChat } = await import("@/lib/bot/deliver-items.server");
         await sendMessage(
           order.telegram_id,
           `✅ <b>Order #${order.order_no}</b> delivered!\n${order.quantity}× ${esc(order.product_name)}\n` +
             `Sending <b>${res.items.length}</b> item(s) below 👇`,
         );
-        for (let i = 0; i < res.items.length; i++) {
-          await sendMessage(
-            order.telegram_id,
-            `📦 <b>${esc(order.product_name)} — ${i + 1} of ${res.items.length}</b>\n<pre>${esc(res.items[i]!)}</pre>`,
-          );
-        }
+        await deliverItemsToChat(order.telegram_id, order.product_name, res.items, {
+          orderNo: order.order_no,
+          orderId: order.id,
+        });
       } catch (sendErr) {
         console.error("Delivery saved but Telegram send failed:", sendErr);
       }
