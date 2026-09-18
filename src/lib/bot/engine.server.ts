@@ -1449,9 +1449,10 @@ async function productsWithStock() {
     .eq("is_active", true)
     .is("owner_reseller_id", null)
     .order("sort_order", { ascending: true });
-  const { data: stock } = await db.from("stock_items").select("product_id").eq("is_sold", false);
+  // Exact counts from the database (row reads were capped at 1000).
+  const { data: stock } = await db.rpc("stock_counts");
   const counts: Record<string, number> = {};
-  for (const s of stock ?? []) counts[s.product_id] = (counts[s.product_id] ?? 0) + 1;
+  for (const s of ((stock ?? []) as any[])) counts[String(s.product_id)] = Number(s.available ?? 0);
   const rows = (products ?? []).map((p: any) => ({
     ...p,
     stock: p.supplier_id ? Number(p.supplier_stock ?? 0) : (counts[p.id] ?? 0),
@@ -1905,16 +1906,11 @@ async function cartDetails(user: any) {
       "id",
       cart.map((l) => l.product_id),
     );
-  const { data: stock } = await db
-    .from("stock_items")
-    .select("product_id")
-    .eq("is_sold", false)
-    .in(
-      "product_id",
-      cart.map((l) => l.product_id),
-    );
+  const { data: stock } = await db.rpc("stock_counts", {
+    _product_ids: cart.map((l) => l.product_id),
+  });
   const counts: Record<string, number> = {};
-  for (const s of stock ?? []) counts[s.product_id] = (counts[s.product_id] ?? 0) + 1;
+  for (const s of ((stock ?? []) as any[])) counts[String(s.product_id)] = Number(s.available ?? 0);
 
   const lines = cart
     .map((l) => {

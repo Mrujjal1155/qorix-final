@@ -173,15 +173,15 @@ export const getCatalogue = createServerFn({ method: "GET" })
     const [cats, prods, stock, sups, supProds] = await Promise.all([
       sb.from("categories").select("*").order("sort_order"),
       sb.from("products").select("*").order("sort_order"),
-      // Only unsold rows, and never the whole history: pulling every stock row
-      // (sold ones included) blew the worker's memory/CPU budget on big
-      // catalogues and Cloudflare answered the page with Error 1102.
-      sb.from("stock_items").select("product_id").eq("is_sold", false).limit(5000),
+      // Counted in the database. Reading the rows and counting them here was
+      // capped at 1000 rows by the API, so a product with 1100 items showed
+      // a wrong, smaller number in admin while the bot showed the real one.
+      sb.rpc("stock_counts"),
       sb.from("suppliers").select("id,name,key"),
       sb.from("supplier_products").select("product_id,price_override").not("product_id", "is", null),
     ]);
     const counts: Record<string, number> = {};
-    for (const s of stock.data ?? []) counts[s.product_id] = (counts[s.product_id] ?? 0) + 1;
+    for (const s of (stock.data ?? []) as any[]) counts[s.product_id] = Number(s.available ?? 0);
     const supMap: Record<string, string> = {};
     for (const s of sups.data ?? []) supMap[s.id] = s.name || s.key;
     // Per-product custom selling price (overrides the percentage markup).
@@ -447,15 +447,22 @@ export const addStock = createServerFn({ method: "POST" })
     const items = parseStock(data.lines, data.format ?? "auto");
     const rows = items.map((content) => ({ product_id: data.product_id, content }));
     if (!rows.length) return { added: 0 };
-    const { error } = await sb.from("stock_items").insert(rows);
-    if (error) throw new Error(error.message);
+    // Insert in chunks: one huge insert can exceed the request budget and
+    // silently drop part of a big upload.
+    for (let i = 0; i < rows.length; i += 500) {
+      const { error } = await sb.from("stock_items").insert(rows.slice(i, i + 500));
+      if (error) throw new Error(error.message);
+    }
+    // Queue the "back in stock" card durably (added qty + new total) so it is
+    // retried until Telegram accepts it, instead of dying with this request.
     try {
-      const { notifyRestock } = await import("@/lib/bot/engine.server");
-      await notifyRestock(data.product_id, rows.length);
+      const { enqueueManualRestock } = await import("@/lib/suppliers/sync.server");
+      await enqueueManualRestock(sb, data.product_id, rows.length);
     } catch (e) {
       console.error("restock notify failed:", e);
     }
-    return { added: rows.length };
+    const { data: totals } = await sb.rpc("stock_counts", { _product_ids: [data.product_id] });
+    return { added: rows.length, available: Number((totals ?? [])[0]?.available ?? 0) };
   });
 
 export const listStock = createServerFn({ method: "GET" })
@@ -463,13 +470,28 @@ export const listStock = createServerFn({ method: "GET" })
   .inputValidator((d: { product_id: string }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const { data: rows } = await (context as any).supabase
-      .from("stock_items")
-      .select("id,content,is_sold,sold_to,created_at")
-      .eq("product_id", data.product_id)
-      .order("created_at", { ascending: true })
-      .limit(200);
-    return rows ?? [];
+    const sb = (context as any).supabase;
+    // The list itself stays paged (a worker cannot ship 1000+ rows), but the
+    // numbers next to it are counted in the database, so they are exact.
+    const [list, total, available] = await Promise.all([
+      sb
+        .from("stock_items")
+        .select("id,content,is_sold,sold_to,created_at")
+        .eq("product_id", data.product_id)
+        .order("created_at", { ascending: true })
+        .limit(200),
+      sb.from("stock_items").select("id", { count: "exact", head: true }).eq("product_id", data.product_id),
+      sb
+        .from("stock_items")
+        .select("id", { count: "exact", head: true })
+        .eq("product_id", data.product_id)
+        .eq("is_sold", false),
+    ]);
+    return {
+      items: list.data ?? [],
+      total: Number(total.count ?? 0),
+      available: Number(available.count ?? 0),
+    };
   });
 
 export const deleteStockItem = createServerFn({ method: "POST" })
@@ -1444,12 +1466,12 @@ export const listBotProducts = createServerFn({ method: "GET" })
         )
         .order("name"),
       sb.from("suppliers").select("id,name"),
-      sb.from("stock_items").select("product_id,is_sold"),
+      sb.rpc("stock_counts"),
     ]);
     const supplierNames: Record<string, string> = {};
     for (const s of sups.data ?? []) supplierNames[s.id] = s.name;
     const counts: Record<string, number> = {};
-    for (const s of stock.data ?? []) if (!s.is_sold) counts[s.product_id] = (counts[s.product_id] ?? 0) + 1;
+    for (const s of (stock.data ?? []) as any[]) counts[s.product_id] = Number(s.available ?? 0);
 
     const rows = (prods.data ?? []).map((p: any) => ({
       ...p,

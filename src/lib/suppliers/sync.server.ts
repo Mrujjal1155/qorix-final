@@ -274,6 +274,27 @@ async function enqueueNotifications(sb: any, supplierId: string, items: NotifyIt
   await writeJsonSetting(sb, key, Array.from(merged.values()).slice(0, 200));
 }
 
+/** Queue id used for in-house (manually uploaded) stock alerts. */
+const MANUAL_QUEUE_ID = "manual";
+
+/**
+ * Admin uploaded stock by hand → announce it through the exact same durable
+ * queue the supplier sync uses, so the restock card (added qty + new total)
+ * is retried until Telegram accepts it instead of dying with the request.
+ */
+export async function enqueueManualRestock(sb: any, productId: string, qty: number) {
+  if (!productId || qty <= 0) return;
+  await enqueueNotifications(sb, MANUAL_QUEUE_ID, [
+    {
+      t: "restock",
+      qty,
+      product_id: productId,
+      event_id: `restock:manual:${productId}:${Date.now()}`,
+      at: Date.now(),
+    } as NotifyItem,
+  ]);
+}
+
 
 
 type DeliveryClaim = "claimed" | "delivered" | "busy";
@@ -506,6 +527,14 @@ export async function drainAllNotifications(sb?: any) {
   const budget = { cards: CARDS_PER_RUN };
   let sent = 0;
   let failed = 0;
+  // In-house (manual) stock uploads share the same durable delivery path.
+  try {
+    const res = await drainSupplierQueue(db, MANUAL_QUEUE_ID, budget);
+    sent += res.sent;
+    failed += res.failed;
+  } catch (error) {
+    console.error("Manual stock notifications failed:", error);
+  }
   for (const supplier of sups ?? []) {
     if (budget.cards <= 0) break;
     try {

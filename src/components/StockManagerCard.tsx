@@ -63,8 +63,9 @@ export function StockManagerCard({ productId, productName, onClose }: Props) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
-  const rows = (stock ?? []) as any[];
-  const unsold = rows.filter((r) => !r.is_sold).length;
+  const rows = ((stock as any)?.items ?? []) as any[];
+  const unsold = Number((stock as any)?.available ?? 0);
+  const totalCount = Number((stock as any)?.total ?? 0);
 
   return (
     <Card className="mt-4">
@@ -72,7 +73,7 @@ export function StockManagerCard({ productId, productName, onClose }: Props) {
         <div className="min-w-0">
           <CardTitle className="truncate">Bulk stock — {productName}</CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
-            {unsold} available / {rows.length} total. Once payment completes, each item is sent to the buyer in a separate message as “1 of N”, “2 of N”.
+            {unsold} available / {totalCount} total (exact). The list below shows the first {rows.length}. Once payment completes, each item is sent to the buyer in a separate message as “1 of N”, “2 of N”.
             
           </p>
         </div>
