@@ -13,6 +13,8 @@ import { sendMessage, sendDocumentUpload } from "@/lib/telegram.server";
 
 const MAX_CHARS = 3400;
 const MAX_ITEMS_PER_MESSAGE = 6;
+/** Up to this many items are sent as individual messages; above it, one .txt file. */
+const BULK_THRESHOLD = 5;
 
 function esc(t: string) {
   return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -57,9 +59,31 @@ export async function deliverItemsToChat(
   if (!list.length) return { sent: 0, failed: 0, fallbackFile: false };
 
   const orderLine = opts.orderNo ? `\nOrder #${opts.orderNo}` : "";
-  const batches = batchItems(list);
+  const fileText = () =>
+    opts.fileText ??
+    list.map((it, i) => `--- Credential ${i + 1} of ${list.length} ---\n${it}\n`).join("\n");
+
+  // 1–5 items: keep the familiar one-message-per-item delivery.
+  // More than 5 (bulk): deliver as a single .txt file right away.
+  if (list.length > BULK_THRESHOLD) {
+    const doc = await sendDocumentUpload(
+      chatId,
+      `order-${opts.orderNo ?? "items"}-${list.length}.txt`,
+      fileText(),
+      `📦 <b>${esc(productName)}</b> — all <b>${list.length}</b> item(s) in this file.${orderLine}`,
+    );
+    if (doc?.ok) return { sent: list.length, failed: 0, fallbackFile: true };
+    console.error(
+      `Bulk file delivery failed for order ${opts.orderNo ?? opts.orderId ?? "unknown"} — falling back to messages`,
+    );
+  }
+
+  const batches = list.length <= BULK_THRESHOLD
+    ? list.map((it, i) => ({ from: i + 1, to: i + 1, items: [esc(String(it))] }))
+    : batchItems(list);
   let sent = 0;
   const missed: number[] = [];
+
 
   for (const b of batches) {
     const range = b.from === b.to ? `${b.from} of ${list.length}` : `${b.from}–${b.to} of ${list.length}`;
