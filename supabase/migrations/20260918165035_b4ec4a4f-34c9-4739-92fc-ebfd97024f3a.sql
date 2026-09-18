@@ -1,0 +1,2 @@
+ALTER TABLE public.supplier_products ADD COLUMN IF NOT EXISTS override_cost_base numeric;
+UPDATE public.supplier_products SET override_cost_base = cost_price WHERE price_override IS NOT NULL AND price_override > 0 AND override_cost_base IS NULL;

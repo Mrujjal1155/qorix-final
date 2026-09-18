@@ -972,6 +972,7 @@ export type Database = {
           markup_percent: number | null
           min_qty: number
           name: string
+          override_cost_base: number | null
           price_override: number | null
           product_id: string | null
           raw: Json | null
@@ -991,6 +992,7 @@ export type Database = {
           markup_percent?: number | null
           min_qty?: number
           name: string
+          override_cost_base?: number | null
           price_override?: number | null
           product_id?: string | null
           raw?: Json | null
@@ -1010,6 +1012,7 @@ export type Database = {
           markup_percent?: number | null
           min_qty?: number
           name?: string
+          override_cost_base?: number | null
           price_override?: number | null
           product_id?: string | null
           raw?: Json | null
