@@ -869,6 +869,30 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
       continue;
     }
 
+    // --- Custom price protection ---------------------------------------
+    // A custom (override) price never follows the supplier down, but it always
+    // follows the supplier UP by exactly the same amount, so a supplier cost
+    // increase can never turn a sale into a loss. `override_cost_base` is the
+    // supplier cost recorded when the custom price was set/last bumped.
+    let overrideNow = prev.price_override;
+    if (Number(prev.price_override ?? 0) > 0) {
+      const newCost = Number(p.cost_price ?? 0);
+      const base = prev.override_cost_base == null ? null : Number(prev.override_cost_base);
+      if (base == null || !Number.isFinite(base)) {
+        // First sync after the column landed — remember today's cost as the base.
+        overrideBumps.push({
+          id: prev.id,
+          price_override: Number(prev.price_override),
+          override_cost_base: newCost,
+        });
+        prev.override_cost_base = newCost;
+      } else if (newCost - base >= 0.01) {
+        overrideNow = Math.round((Number(prev.price_override) + (newCost - base)) * 100) / 100;
+        overrideBumps.push({ id: prev.id, price_override: overrideNow, override_cost_base: newCost });
+        prev.price_override = overrideNow;
+        prev.override_cost_base = newCost;
+      }
+    }
 
     const wasOut = Number(prev.stock ?? 0) <= 0;
 
@@ -880,12 +904,13 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
 
     if (prev.is_listed && prev.product_id) {
       const price = sellPrice(p.cost_price, {
-        price_override: prev.price_override,
+        price_override: overrideNow,
         markup_percent: prev.markup_percent,
         markup_fixed: prev.markup_fixed,
         supplier_percent: s.markup_percent ?? null,
         supplier_fixed: s.markup_fixed ?? null,
       });
+
       const d = detailsFromRaw(p.raw);
       const productPatch: any = {
         name: p.name,
