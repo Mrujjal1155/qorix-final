@@ -360,8 +360,15 @@ export const saveProduct = createServerFn({ method: "POST" })
         if (link) {
           const { error: ovErr } = await sb
             .from("supplier_products")
-            .update({ price_override: value })
+            // Remember the supplier cost this custom price was based on, so a
+            // later supplier price increase lifts the custom price by the same
+            // amount (a supplier price drop never lowers it).
+            .update({
+              price_override: value,
+              override_cost_base: value == null ? null : Number(link.cost_price ?? 0),
+            })
             .eq("id", link.id);
+
           if (ovErr) throw new Error(ovErr.message);
           if (value == null) {
             // Cleared → fall back to the percentage-based default price.
