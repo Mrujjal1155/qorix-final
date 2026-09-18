@@ -834,6 +834,9 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   // request per product — a 250-item catalogue used to need 250 round trips,
   // which made a single sync run longer than the 15s schedule interval.
   const rowsToWrite: any[] = [];
+  // Custom prices lifted because the supplier raised its cost (see below).
+  const overrideBumps: { id: string; price_override: number; override_cost_base: number }[] = [];
+
 
 
   for (const p of uniqueRemote) {
@@ -869,6 +872,30 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
       continue;
     }
 
+    // --- Custom price protection ---------------------------------------
+    // A custom (override) price never follows the supplier down, but it always
+    // follows the supplier UP by exactly the same amount, so a supplier cost
+    // increase can never turn a sale into a loss. `override_cost_base` is the
+    // supplier cost recorded when the custom price was set/last bumped.
+    let overrideNow = prev.price_override;
+    if (Number(prev.price_override ?? 0) > 0) {
+      const newCost = Number(p.cost_price ?? 0);
+      const base = prev.override_cost_base == null ? null : Number(prev.override_cost_base);
+      if (base == null || !Number.isFinite(base)) {
+        // First sync after the column landed — remember today's cost as the base.
+        overrideBumps.push({
+          id: prev.id,
+          price_override: Number(prev.price_override),
+          override_cost_base: newCost,
+        });
+        prev.override_cost_base = newCost;
+      } else if (newCost - base >= 0.01) {
+        overrideNow = Math.round((Number(prev.price_override) + (newCost - base)) * 100) / 100;
+        overrideBumps.push({ id: prev.id, price_override: overrideNow, override_cost_base: newCost });
+        prev.price_override = overrideNow;
+        prev.override_cost_base = newCost;
+      }
+    }
 
     const wasOut = Number(prev.stock ?? 0) <= 0;
 
@@ -880,12 +907,13 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
 
     if (prev.is_listed && prev.product_id) {
       const price = sellPrice(p.cost_price, {
-        price_override: prev.price_override,
+        price_override: overrideNow,
         markup_percent: prev.markup_percent,
         markup_fixed: prev.markup_fixed,
         supplier_percent: s.markup_percent ?? null,
         supplier_fixed: s.markup_fixed ?? null,
       });
+
       const d = detailsFromRaw(p.raw);
       const productPatch: any = {
         name: p.name,
@@ -1005,7 +1033,16 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
     quick_guide: (patch["quick_guide"] as string | undefined) ?? null,
     details: (patch["details"] as unknown) ?? null,
   }));
+  // Persist lifted custom prices first: the snapshot below writes the new
+  // product price that was computed from them.
+  for (const b of overrideBumps) {
+    await sb
+      .from("supplier_products")
+      .update({ price_override: b.price_override, override_cost_base: b.override_cost_base })
+      .eq("id", b.id);
+  }
   const status = `Synced ${uniqueRemote.length} products${relinked.relinked ? ` · ${relinked.relinked} id relinked` : ""}${relinked.retired ? ` · ${relinked.retired} delisted` : ""}`;
+
   const { data: applied, error: applyError } = await sb.rpc("apply_supplier_snapshot", {
     _supplier_id: s.id,
     _fetched_at: fetchedAt,
