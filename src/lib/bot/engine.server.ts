@@ -3501,17 +3501,9 @@ async function handleMessage(msg: any) {
         .eq("id", orderId);
       const parts = parseStock(text, "auto");
       const items = parts.length ? parts : [text];
-      for (let i = 0; i < items.length; i++) {
-        await sendMessage(
-          o.telegram_id,
-          `📦 <b>${escapeHtml(o.product_name)} — ${i + 1} of ${items.length}</b>\nOrder #${o.order_no}\n` +
-            `<pre>${escapeHtml(items[i]!)}</pre>`,
-        );
-      }
-      await sendMessage(
-        o.telegram_id,
-        `📦 <b>Order #${o.order_no} delivered!</b>\n\n<pre>${escapeHtml(text)}</pre>`,
-      );
+      const { deliverItemsToChat } = await import("@/lib/bot/deliver-items.server");
+      await sendMessage(o.telegram_id, `📦 <b>Order #${o.order_no} delivered!</b>`);
+      await deliverItemsToChat(o.telegram_id, o.product_name, items, { orderNo: o.order_no, orderId: o.id });
       await say(chatId, `✅ Order #${o.order_no} delivered.`, ADM_BACK);
       return;
     }
