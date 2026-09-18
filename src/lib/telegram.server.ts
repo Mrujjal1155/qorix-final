@@ -303,7 +303,7 @@ export async function sendDocumentUpload(
   const token = process.env["TELEGRAM_BOT_TOKEN"];
   if (!token) return { ok: false, description: "no bot token for file upload" };
 
-  const send = async (cap?: string) => {
+  const once = async (cap?: string) => {
     const form = new FormData();
     form.append("chat_id", String(chat_id));
     form.append("document", new Blob([content], { type: "text/plain" }), filename);
@@ -319,10 +319,33 @@ export async function sendDocumentUpload(
     return (await res.json().catch(() => ({ ok: false }))) as TgResult;
   };
 
+  // A bulk order's whole delivery lives in this one file, so never give up on
+  // the first hiccup: retry rate limits, network errors and transient 5xx.
+  const send = async (cap?: string): Promise<TgResult> => {
+    let last: TgResult = { ok: false, description: "upload not attempted" };
+    for (let attempt = 0; attempt < 5; attempt++) {
+      try {
+        last = await once(cap);
+      } catch (e) {
+        last = { ok: false, description: e instanceof Error ? e.message : String(e) };
+      }
+      if (last.ok !== false) return last;
+      const code = Number((last as any).error_code ?? 0);
+      const retryAfter = Number((last as any).parameters?.retry_after ?? 0);
+      const retriable = retryAfter > 0 || code === 429 || code >= 500 || code === 0;
+      if (!retriable) return last;
+      const waitMs = retryAfter > 0 ? Math.min(retryAfter, 30) * 1000 : 1000 * (attempt + 1);
+      await new Promise((r) => setTimeout(r, waitMs));
+    }
+    return last;
+  };
+
   let json = await send(caption);
   if (json.ok === false && caption && /<tg-emoji/i.test(caption) && isCustomEmojiError(json)) {
     json = await send(caption.replace(TG_EMOJI_RE, "$1"));
   }
+  // Caption problems (bad HTML entity, too long) must not cost the buyer the file.
+  if (json.ok === false && caption) json = await send(undefined);
   if (json.ok === false) console.error("Telegram sendDocument (upload) failed:", JSON.stringify(json));
   return json;
 }
