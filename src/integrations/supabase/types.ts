@@ -1356,6 +1356,13 @@ export type Database = {
         }
         Returns: number
       }
+      stock_counts: {
+        Args: { _product_ids?: string[] }
+        Returns: {
+          available: number
+          product_id: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
