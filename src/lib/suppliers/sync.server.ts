@@ -834,6 +834,9 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   // request per product — a 250-item catalogue used to need 250 round trips,
   // which made a single sync run longer than the 15s schedule interval.
   const rowsToWrite: any[] = [];
+  // Custom prices lifted because the supplier raised its cost (see below).
+  const overrideBumps: { id: string; price_override: number; override_cost_base: number }[] = [];
+
 
 
   for (const p of uniqueRemote) {
