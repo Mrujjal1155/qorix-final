@@ -177,7 +177,13 @@ export const updateSupplierProduct = createServerFn({ method: "POST" })
     for (const k of ["is_listed", "markup_percent", "markup_fixed", "price_override"] as const) {
       if (data[k] !== undefined) patch[k] = data[k];
     }
+    // Base cost for the custom price: later supplier increases are added on top.
+    if (data.price_override !== undefined) {
+      patch.override_cost_base =
+        data.price_override != null && Number(data.price_override) > 0 ? Number(row.cost_price ?? 0) : null;
+    }
     const merged = { ...row, ...patch };
+
 
     const { sellPrice, detailsFromRaw, extraDetailsFromRaw, supplierDeliveryType } = await import(
       "@/lib/suppliers/api.server"
