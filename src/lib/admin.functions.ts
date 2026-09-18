@@ -447,15 +447,22 @@ export const addStock = createServerFn({ method: "POST" })
     const items = parseStock(data.lines, data.format ?? "auto");
     const rows = items.map((content) => ({ product_id: data.product_id, content }));
     if (!rows.length) return { added: 0 };
-    const { error } = await sb.from("stock_items").insert(rows);
-    if (error) throw new Error(error.message);
+    // Insert in chunks: one huge insert can exceed the request budget and
+    // silently drop part of a big upload.
+    for (let i = 0; i < rows.length; i += 500) {
+      const { error } = await sb.from("stock_items").insert(rows.slice(i, i + 500));
+      if (error) throw new Error(error.message);
+    }
+    // Queue the "back in stock" card durably (added qty + new total) so it is
+    // retried until Telegram accepts it, instead of dying with this request.
     try {
-      const { notifyRestock } = await import("@/lib/bot/engine.server");
-      await notifyRestock(data.product_id, rows.length);
+      const { enqueueManualRestock } = await import("@/lib/suppliers/sync.server");
+      await enqueueManualRestock(sb, data.product_id, rows.length);
     } catch (e) {
       console.error("restock notify failed:", e);
     }
-    return { added: rows.length };
+    const { data: totals } = await sb.rpc("stock_counts", { _product_ids: [data.product_id] });
+    return { added: rows.length, available: Number((totals ?? [])[0]?.available ?? 0) };
   });
 
 export const listStock = createServerFn({ method: "GET" })
