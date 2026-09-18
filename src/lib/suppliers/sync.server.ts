@@ -527,6 +527,14 @@ export async function drainAllNotifications(sb?: any) {
   const budget = { cards: CARDS_PER_RUN };
   let sent = 0;
   let failed = 0;
+  // In-house (manual) stock uploads share the same durable delivery path.
+  try {
+    const res = await drainSupplierQueue(db, MANUAL_QUEUE_ID, budget);
+    sent += res.sent;
+    failed += res.failed;
+  } catch (error) {
+    console.error("Manual stock notifications failed:", error);
+  }
   for (const supplier of sups ?? []) {
     if (budget.cards <= 0) break;
     try {
