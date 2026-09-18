@@ -63,8 +63,9 @@ export function StockManagerCard({ productId, productName, onClose }: Props) {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
 
-  const rows = (stock ?? []) as any[];
-  const unsold = rows.filter((r) => !r.is_sold).length;
+  const rows = ((stock as any)?.items ?? []) as any[];
+  const unsold = Number((stock as any)?.available ?? 0);
+  const totalCount = Number((stock as any)?.total ?? 0);
 
   return (
     <Card className="mt-4">
