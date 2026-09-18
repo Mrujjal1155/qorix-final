@@ -5365,23 +5365,9 @@ async function fulfillCheckout(
     // first, then flushBackground keeps Cloudflare alive until every credential
     // reaches Telegram. A detached promise was cancelled after the first item.
     defer(async () => {
+      const { deliverItemsToChat } = await import("@/lib/bot/deliver-items.server");
       for (const q of serialQueue) {
-        for (let i = 0; i < q.items.length; i++) {
-          const item = q.items[i];
-          if (!item) continue;
-          const sent = await sendMessage(
-            chatId,
-            `📦 <b>${escapeHtml(q.name)} — ${i + 1} of ${q.items.length}</b>` +
-              (q.orderNo ? `\nOrder #${q.orderNo}` : "") +
-              `\n<pre>${escapeHtml(item)}</pre>`,
-          );
-          if (!sent.ok) {
-            console.error(
-              `Telegram delivery item ${i + 1}/${q.items.length} failed for order ${q.orderNo ?? "unknown"}:`,
-              sent.description ?? "Unknown Telegram error",
-            );
-          }
-        }
+        await deliverItemsToChat(chatId, q.name, q.items, { orderNo: q.orderNo ?? null });
       }
     });
   }
