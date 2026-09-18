@@ -3501,17 +3501,9 @@ async function handleMessage(msg: any) {
         .eq("id", orderId);
       const parts = parseStock(text, "auto");
       const items = parts.length ? parts : [text];
-      for (let i = 0; i < items.length; i++) {
-        await sendMessage(
-          o.telegram_id,
-          `📦 <b>${escapeHtml(o.product_name)} — ${i + 1} of ${items.length}</b>\nOrder #${o.order_no}\n` +
-            `<pre>${escapeHtml(items[i]!)}</pre>`,
-        );
-      }
-      await sendMessage(
-        o.telegram_id,
-        `📦 <b>Order #${o.order_no} delivered!</b>\n\n<pre>${escapeHtml(text)}</pre>`,
-      );
+      const { deliverItemsToChat } = await import("@/lib/bot/deliver-items.server");
+      await sendMessage(o.telegram_id, `📦 <b>Order #${o.order_no} delivered!</b>`);
+      await deliverItemsToChat(o.telegram_id, o.product_name, items, { orderNo: o.order_no, orderId: o.id });
       await say(chatId, `✅ Order #${o.order_no} delivered.`, ADM_BACK);
       return;
     }
@@ -5365,23 +5357,9 @@ async function fulfillCheckout(
     // first, then flushBackground keeps Cloudflare alive until every credential
     // reaches Telegram. A detached promise was cancelled after the first item.
     defer(async () => {
+      const { deliverItemsToChat } = await import("@/lib/bot/deliver-items.server");
       for (const q of serialQueue) {
-        for (let i = 0; i < q.items.length; i++) {
-          const item = q.items[i];
-          if (!item) continue;
-          const sent = await sendMessage(
-            chatId,
-            `📦 <b>${escapeHtml(q.name)} — ${i + 1} of ${q.items.length}</b>` +
-              (q.orderNo ? `\nOrder #${q.orderNo}` : "") +
-              `\n<pre>${escapeHtml(item)}</pre>`,
-          );
-          if (!sent.ok) {
-            console.error(
-              `Telegram delivery item ${i + 1}/${q.items.length} failed for order ${q.orderNo ?? "unknown"}:`,
-              sent.description ?? "Unknown Telegram error",
-            );
-          }
-        }
+        await deliverItemsToChat(chatId, q.name, q.items, { orderNo: q.orderNo ?? null });
       }
     });
   }
