@@ -1,0 +1,2 @@
+GRANT EXECUTE ON FUNCTION public.apply_supplier_snapshot(uuid, timestamptz, jsonb, jsonb, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.apply_supplier_snapshot(uuid, timestamptz, jsonb, jsonb, text) TO service_role;
