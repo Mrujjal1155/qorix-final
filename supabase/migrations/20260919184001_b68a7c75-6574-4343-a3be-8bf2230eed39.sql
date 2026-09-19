@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.apply_supplier_snapshot(uuid, timestamptz, jsonb, jsonb, text) FROM authenticated;
