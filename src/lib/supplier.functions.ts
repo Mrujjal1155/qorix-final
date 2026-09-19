@@ -80,8 +80,11 @@ export const syncSupplier = createServerFn({ method: "POST" })
     const { data: s } = await sb.from("suppliers").select("*").eq("id", data.id).maybeSingle();
     if (!s) throw new Error("Supplier not found");
 
+    // Use the service client so the snapshot function (service_role-only
+    // EXECUTE) is reachable; admin access is already verified above.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { syncSupplierCore } = await import("@/lib/suppliers/sync.server");
-    return await syncSupplierCore(sb, s, { wait: true });
+    return await syncSupplierCore(supabaseAdmin as any, s, { wait: true });
   });
 
 /** Recent "new product" / "restock" alerts coming from the supplier APIs. */
