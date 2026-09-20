@@ -13,6 +13,7 @@ import {
   saveCategory,
   saveCategoryProducts,
   saveProduct,
+  setProductActive,
 } from "@/lib/admin.functions";
 
 import { AdminShell, money } from "@/components/AdminShell";
