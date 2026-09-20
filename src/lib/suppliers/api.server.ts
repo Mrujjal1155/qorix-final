@@ -532,7 +532,11 @@ async function call(
       }
       if (!res.ok || json?.ok === false || json?.success === false) {
         const msg =
-          json?.error?.message || json?.message || json?.code || `HTTP ${res.status}`;
+          (typeof json?.error === "string" ? json.error : json?.error?.message) ||
+          json?.message ||
+          json?.error_description ||
+          json?.code ||
+          `HTTP ${res.status}`;
         const rateLimited = res.status === 429 || json?.code === "RATE_LIMITED";
         const err = new Error(
           rateLimited && canbosoCall
