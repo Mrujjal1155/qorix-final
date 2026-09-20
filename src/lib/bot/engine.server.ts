@@ -311,6 +311,15 @@ function productIconButton(product: any, text: string, callback_data: string): B
   };
 }
 
+/** A product with zero stock (auto delivery) renders as a red row until restocked. */
+function isOutOfStock(p: any): boolean {
+  return p.delivery_type !== "manual" && Number(p.stock ?? 0) <= 0;
+}
+
+function prodRowStyle(p: any, base: ButtonStyle): ButtonStyle {
+  return isOutOfStock(p) ? "danger" : base;
+}
+
 
 /** Keep the glyph the admin sent next to the Premium id, so buttons show it too. */
 function iconValue(customEmojiId: string, raw: string) {
