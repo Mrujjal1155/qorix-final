@@ -13,6 +13,7 @@ import {
   saveCategory,
   saveCategoryProducts,
   saveProduct,
+  setProductActive,
 } from "@/lib/admin.functions";
 
 import { AdminShell, money } from "@/components/AdminShell";
@@ -26,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { brandFallbackOnError } from "@/components/SmartImage";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/admin/products")({
   head: () => ({
@@ -179,6 +181,16 @@ function ProductsPage() {
   });
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["catalogue"] });
+
+  const setActive = useServerFn(setProductActive);
+  const activeMut = useMutation({
+    mutationFn: (v: { id: string; is_active: boolean }) => setActive({ data: v }),
+    onSuccess: (r: any) => {
+      refresh();
+      toast.success(r?.is_active ? "Product is now active" : "Product turned off");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
 
   const catMut = useMutation({
@@ -739,6 +751,7 @@ function ProductsPage() {
                 <th>Price</th>
                 <th>Delivery</th>
                 <th>Stock</th>
+                <th>Active</th>
                 <th></th>
               </tr>
             </thead>
@@ -772,6 +785,19 @@ function ProductsPage() {
                     <Badge variant="secondary">{p.delivery_type}</Badge>
                   </td>
                   <td>{p.delivery_type === "manual" ? "—" : p.stock}</td>
+                  <td>
+                    <span className="flex items-center gap-2">
+                      <Switch
+                        checked={p.is_active !== false}
+                        disabled={activeMut.isPending}
+                        onCheckedChange={(v) => activeMut.mutate({ id: p.id, is_active: v })}
+                        aria-label={`Toggle ${p.name}`}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        {p.is_active !== false ? "On" : "Off"}
+                      </span>
+                    </span>
+                  </td>
                   <td className="space-x-1 text-right">
                     <Button size="sm" variant="ghost" onClick={() => editProduct(p)}>
                       Edit

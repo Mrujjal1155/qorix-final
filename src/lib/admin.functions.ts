@@ -421,6 +421,27 @@ export const saveProduct = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Quick on/off switch for a product (in-house or supplier) from the catalogue list. */
+export const setProductActive = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; is_active: boolean }) => d)
+  .handler(async ({ data, context }) => {
+    const sb = (context as any).supabase;
+    await assertAdmin(context);
+    const { data: updated, error } = await sb
+      .from("products")
+      .update({ is_active: data.is_active })
+      .eq("id", data.id)
+      .select("*")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (updated) {
+      const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
+      await pushResellerEvent(data.is_active ? "new" : "removed", updated);
+    }
+    return { ok: true, is_active: data.is_active };
+  });
+
 export const deleteProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => d)
