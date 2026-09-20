@@ -1654,7 +1654,7 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
           `${p.name} | ${money(p.price)} | ${p.delivery_type === "manual" ? "manual" : `📦 ${p.stock}`}`,
           `p:${p.id}`,
         ),
-        prodStyle,
+        prodRowStyle(p, prodStyle),
       ),
     ]);
   }
