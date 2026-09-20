@@ -1743,7 +1743,7 @@ async function flashView() {
     .join("\n");
   const kb: Button[][] = products
     .slice(0, 20)
-    .map((p: any) => [productIconButton(p, `${p.name} · ${money(p.price)}`, `p:${p.id}`)]);
+    .map((p: any) => [styled(productIconButton(p, `${p.name} · ${money(p.price)}`, `p:${p.id}`), prodRowStyle(p, "primary"))]);
   kb.push([iconButton(settings, "refresh", "flash")]);
   kb.push([iconButton(settings, "shop", "shop:0"), iconButton(settings, "back", "home")]);
   return {
