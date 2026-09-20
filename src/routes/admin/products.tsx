@@ -27,6 +27,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { brandFallbackOnError } from "@/components/SmartImage";
+import { Switch } from "@/components/ui/switch";
 
 export const Route = createFileRoute("/admin/products")({
   head: () => ({
