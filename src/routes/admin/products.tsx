@@ -751,6 +751,7 @@ function ProductsPage() {
                 <th>Price</th>
                 <th>Delivery</th>
                 <th>Stock</th>
+                <th>Active</th>
                 <th></th>
               </tr>
             </thead>
