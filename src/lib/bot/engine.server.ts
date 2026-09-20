@@ -311,6 +311,15 @@ function productIconButton(product: any, text: string, callback_data: string): B
   };
 }
 
+/** A product with zero stock (auto delivery) renders as a red row until restocked. */
+function isOutOfStock(p: any): boolean {
+  return p.delivery_type !== "manual" && Number(p.stock ?? 0) <= 0;
+}
+
+function prodRowStyle(p: any, base: ButtonStyle): ButtonStyle {
+  return isOutOfStock(p) ? "danger" : base;
+}
+
 
 /** Keep the glyph the admin sent next to the Premium id, so buttons show it too. */
 function iconValue(customEmojiId: string, raw: string) {
@@ -1645,7 +1654,7 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
           `${p.name} | ${money(p.price)} | ${p.delivery_type === "manual" ? "manual" : `📦 ${p.stock}`}`,
           `p:${p.id}`,
         ),
-        prodStyle,
+        prodRowStyle(p, prodStyle),
       ),
     ]);
   }
@@ -1734,7 +1743,7 @@ async function flashView() {
     .join("\n");
   const kb: Button[][] = products
     .slice(0, 20)
-    .map((p: any) => [productIconButton(p, `${p.name} · ${money(p.price)}`, `p:${p.id}`)]);
+    .map((p: any) => [styled(productIconButton(p, `${p.name} · ${money(p.price)}`, `p:${p.id}`), prodRowStyle(p, "primary"))]);
   kb.push([iconButton(settings, "refresh", "flash")]);
   kb.push([iconButton(settings, "shop", "shop:0"), iconButton(settings, "back", "home")]);
   return {
