@@ -182,6 +182,16 @@ function ProductsPage() {
 
   const refresh = () => qc.invalidateQueries({ queryKey: ["catalogue"] });
 
+  const setActive = useServerFn(setProductActive);
+  const activeMut = useMutation({
+    mutationFn: (v: { id: string; is_active: boolean }) => setActive({ data: v }),
+    onSuccess: (r: any) => {
+      refresh();
+      toast.success(r?.is_active ? "Product is now active" : "Product turned off");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
 
   const catMut = useMutation({
     mutationFn: () =>
