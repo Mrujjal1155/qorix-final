@@ -785,6 +785,19 @@ function ProductsPage() {
                     <Badge variant="secondary">{p.delivery_type}</Badge>
                   </td>
                   <td>{p.delivery_type === "manual" ? "—" : p.stock}</td>
+                  <td>
+                    <span className="flex items-center gap-2">
+                      <Switch
+                        checked={p.is_active !== false}
+                        disabled={activeMut.isPending}
+                        onCheckedChange={(v) => activeMut.mutate({ id: p.id, is_active: v })}
+                        aria-label={`Toggle ${p.name}`}
+                      />
+                      <span className="text-xs text-muted-foreground">
+                        {p.is_active !== false ? "On" : "Off"}
+                      </span>
+                    </span>
+                  </td>
                   <td className="space-x-1 text-right">
                     <Button size="sm" variant="ghost" onClick={() => editProduct(p)}>
                       Edit
