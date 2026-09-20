@@ -1575,7 +1575,7 @@ async function shopView(page: number) {
             categoryButton(
               settings,
               c,
-              ic.customId ? `${c.name} (${c.items.length})` : `${ic.glyph} ${c.name} (${c.items.length})`,
+              ic.customId ? c.name : `${ic.glyph} ${c.name}`,
               `cat:${c.id}:0`,
             ),
             catStyle,
