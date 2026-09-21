@@ -1,0 +1,2 @@
+ALTER FUNCTION public.enqueue_stock_notification(text, uuid, text, text, integer, integer, numeric, numeric) SECURITY INVOKER;
+ALTER FUNCTION public.retry_latest_stock_notification(uuid) SECURITY INVOKER;
