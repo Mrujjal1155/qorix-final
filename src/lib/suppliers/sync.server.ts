@@ -813,6 +813,63 @@ async function relinkRotatedIds(
 }
 
 
+/**
+ * Items the supplier no longer returns at all. Their catalogue rows are zeroed
+ * and unlisted, any store product still on sale is switched off (a customer
+ * could never be delivered), and the admin gets one Telegram notice per sync.
+ */
+async function retireMissingSupplierItems(
+  sb: any,
+  s: SupplierRow & Record<string, any>,
+  liveIds: Set<string>,
+  existingRows: any[],
+  productsById: Map<string, any>,
+) {
+  const gone = (existingRows ?? []).filter((r: any) => !liveIds.has(String(r.external_id)));
+  if (!gone.length) return { retired: 0, names: [] as string[] };
+
+  const toClear = gone.filter((r: any) => Number(r.stock ?? 0) !== 0 || r.is_listed === true).map((r: any) => r.id);
+  for (let i = 0; i < toClear.length; i += 200) {
+    await sb
+      .from("supplier_products")
+      .update({ stock: 0, is_listed: false })
+      .in("id", toClear.slice(i, i + 200));
+  }
+
+  const names: string[] = [];
+  const offIds: string[] = [];
+  for (const r of gone) {
+    const prod = r.product_id ? productsById.get(String(r.product_id)) : null;
+    if (prod && prod.is_active) {
+      offIds.push(String(prod.id));
+      names.push(String(prod.name ?? r.name ?? ""));
+      prod.is_active = false;
+      prod.supplier_stock = 0;
+      productsById.set(String(prod.id), prod);
+    }
+  }
+  for (let i = 0; i < offIds.length; i += 200) {
+    await sb
+      .from("products")
+      .update({ is_active: false, supplier_stock: 0 })
+      .in("id", offIds.slice(i, i + 200));
+  }
+
+  if (names.length) {
+    try {
+      const { announceSupplierNotice } = await import("@/lib/bot/engine.server");
+      await announceSupplierNotice(
+        s.name,
+        `${names.length} product${names.length > 1 ? "s" : ""} removed by supplier — switched off`,
+        names.slice(0, 20).join("\n") + (names.length > 20 ? `\n… +${names.length - 20} more` : ""),
+      );
+    } catch (error) {
+      console.error("Removed-product notice failed:", error);
+    }
+  }
+  return { retired: offIds.length, names };
+}
+
 
 async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string, any>) {
   const startedAtMs = Date.now();
@@ -1156,6 +1213,19 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   // The manual admin sync already has an authenticated admin client. Reuse it
   // instead of requiring the separately configured service-role secret.
   await pushAlerts(alerts, sb);
+
+  // Products the supplier no longer offers → off sale + admin notice.
+  await retireMissingSupplierItems(
+    sb,
+    s,
+    new Set(uniqueRemote.map((p) => String(p.external_id))),
+    existing ?? [],
+    productsById,
+  ).catch((error) => {
+    console.error("Retire missing supplier items failed:", error);
+    return { retired: 0, names: [] as string[] };
+  });
+
 
   // Quarantine: new / rotated supplier items wait for an admin decision.
   if (reviewRows.length) {
