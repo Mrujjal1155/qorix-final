@@ -4078,6 +4078,8 @@ export function adminKeyboard(): Button[][] {
       { text: "🧩 Menu icons", callback_data: "adm:menuicons" },
 
     ],
+    [{ text: "⌨️ Bottom menu buttons", callback_data: "adm:bottommenu" }],
+
     [
       { text: "💳 Payment icons", callback_data: "adm:paymenticons" },
       { text: "🖼 Page icons", callback_data: "adm:pageicons" },
