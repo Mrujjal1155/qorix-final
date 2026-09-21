@@ -59,8 +59,8 @@ async function reportLeak(rows: Row[], surface: LeakSurface) {
     });
 
     try {
-      const { announceSupplierNotice } = await import("@/lib/bot/engine.server");
-      await announceSupplierNotice(
+      const { notifyAdminNotice } = await import("@/lib/bot/engine.server");
+      await notifyAdminNotice(
         "Qorix safety check",
         "⚠️ Disabled product was about to be shown",
         `${row.name ?? id}\nSurface: ${surfaceLabel(surface)}\nIt was blocked before any customer could see it. Please check the product settings.`,
