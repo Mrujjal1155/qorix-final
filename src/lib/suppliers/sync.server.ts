@@ -465,14 +465,15 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
         await remove();
         continue;
       }
-      if (item.t === "restock") {
-        delivery = await notifyRestock(item.product_id, item.qty, progress);
-      } else {
-        if (!prod) throw new Error("Linked product no longer exists");
-        if (item.t === "low") delivery = await announceLowStock(prod, item.stock, progress);
-        else if (item.t === "price") delivery = await announcePriceChange(prod, item.old_price, item.new_price, progress);
-        else delivery = await announceNewProduct(prod, progress);
-      }
+      // A hung Telegram call must never eat the whole invocation: cap it, so a
+      // failure is recorded and retried on the next tick.
+      const send = async () => {
+        if (item.t === "restock") return await notifyRestock(item.product_id, item.qty, progress);
+        if (item.t === "low") return await announceLowStock(prod, item.stock, progress);
+        if (item.t === "price") return await announcePriceChange(prod, item.old_price, item.new_price, progress);
+        return await announceNewProduct(prod, progress);
+      };
+      delivery = await withTimeout(send(), CARD_TIMEOUT_MS, `${item.t} card`);
 
       if (delivery && !delivery.dmComplete) {
         // Channel post is done; bot DMs continue on the next tick from the cursor.
