@@ -741,12 +741,13 @@ async function relinkRotatedIds(
         oldRow.product_id = null;
       }
       const newRow = byExt.get(newId);
+      const wasListed = Boolean(prod.is_active);
       if (newRow?.id) {
         await sb
           .from("supplier_products")
-          .update({ is_listed: true, product_id: prod.id })
+          .update({ is_listed: wasListed, product_id: prod.id })
           .eq("id", newRow.id);
-        newRow.is_listed = true;
+        newRow.is_listed = wasListed;
         newRow.product_id = prod.id;
         // Same stock as the live feed → the diff below stays quiet, so a
         // re-link never fakes a restock alert.
@@ -764,7 +765,7 @@ async function relinkRotatedIds(
             currency: match.currency ?? "USD",
             min_qty: match.min_qty ?? 1,
             raw: match.raw ?? null,
-            is_listed: true,
+            is_listed: wasListed,
             product_id: prod.id,
             last_synced_at: now,
           })
@@ -819,7 +820,6 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   const alerts: SupplierAlert[] = [];
   const restockPosts: Array<{ product_id: string; qty: number; stock: number; event_id: string }> = [];
   const lowPosts: Array<{ product_id: string; stock: number; event_id: string }> = [];
-  const newPosts: Array<{ product_id: string; event_id: string }> = [];
   const pricePosts: Array<{ product_id: string; old_price: number; new_price: number; event_id: string }> = [];
   const productUpdates: Array<{ id: string; patch: Record<string, unknown> }> = [];
 
@@ -1115,13 +1115,6 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   // instead of requiring the separately configured service-role secret.
   await pushAlerts(alerts, sb);
 
-
-  // New-product cards only come from the explicit admin listing action.
-  await enqueueNotifications(
-    sb,
-    s.id,
-    newPosts.map((n) => ({ t: "new" as const, product_id: n.product_id, event_id: n.event_id })),
-  );
 
   const added = alerts.filter((a) => a.kind === "new").length;
   const restocked = restockPosts.length;
