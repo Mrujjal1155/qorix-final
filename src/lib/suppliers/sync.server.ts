@@ -1193,13 +1193,13 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
         if (!created) continue;
 
 
+        // The product row exists so the admin can see and price it, but it stays
+        // unlisted and inactive until the admin switches it on.
         await sb
           .from("supplier_products")
-          .update({ is_listed: true, product_id: (created as any).id })
+          .update({ product_id: (created as any).id })
           .eq("supplier_id", s.id)
           .eq("external_id", String(p.external_id));
-
-        newPosts.push({ product_id: created.id, event_id: `new:${s.id}:${item.external_id}` });
       } catch (e) {
         console.error("Auto-list of new supplier product failed:", e);
       }
