@@ -933,8 +933,10 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
 
         price,
         supplier_stock: p.stock,
-        is_active: Boolean(s["is_enabled"]),
       };
+      // On/off is the admin's decision — a sync must never switch a product
+      // back on. Disabling the whole supplier still takes its products off sale.
+      if (!s["is_enabled"]) productPatch.is_active = false;
       // Only overwrite the rich fields when the supplier actually sent them —
       // otherwise a sparse sync response would wipe the banner/notes the admin
       // (or an earlier, richer response) already stored.
