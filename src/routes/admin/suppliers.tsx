@@ -760,3 +760,133 @@ function SyncHealthCard() {
     </Card>
   );
 }
+
+/**
+ * Quarantine list: supplier items that appeared on their own (brand new, or the
+ * supplier rotated an id). Nothing here is visible in the bot, website or
+ * reseller API until an admin approves it.
+ */
+function ReviewQueuePanel() {
+  const qc = useQueryClient();
+  const fetchQueue = useServerFn(listReviewQueue);
+  const decide = useServerFn(decideReviewItems);
+  const fetchCatalogue = useServerFn(getCatalogue);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [categoryId, setCategoryId] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const { data: items } = useQuery({ queryKey: ["review-queue"], queryFn: () => fetchQueue({ data: {} }) });
+  const { data: catalogue } = useQuery({ queryKey: ["catalogue"], queryFn: () => fetchCatalogue() });
+  const rows: any[] = (items as any[]) ?? [];
+  const allPicked = rows.length > 0 && picked.length === rows.length;
+
+  const run = async (action: "approve" | "reject", ids: string[]) => {
+    if (!ids.length) return;
+    setBusy(true);
+    try {
+      const res: any = await decide({
+        data: { ids, action, ...(action === "approve" && categoryId ? { category_id: categoryId } : {}) },
+      });
+      toast.success(action === "approve" ? `${res.approved} product approved` : `${res.rejected} product rejected`);
+      if (res.failed?.length) toast.error(`${res.failed.length} item could not be approved`);
+      setPicked([]);
+      qc.invalidateQueries({ queryKey: ["review-queue"] });
+      qc.invalidateQueries({ queryKey: ["review-queue-count"] });
+      qc.invalidateQueries({ queryKey: ["supplier-products"] });
+    } catch (e: any) {
+      toast.error(e?.message ?? "Action failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">
+          Waiting for approval {rows.length ? <Badge variant="secondary">{rows.length}</Badge> : null}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="mb-3 text-sm text-muted-foreground">
+          New supplier items land here first. They stay hidden from the bot, website and API until you approve them.
+        </p>
+
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={allPicked}
+              onChange={(e) => setPicked(e.target.checked ? rows.map((r) => r.id) : [])}
+            />
+            Select all
+          </label>
+          <select
+            className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+          >
+            <option value="">Keep current category</option>
+            {(catalogue?.categories ?? []).map((c: any) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <Button size="sm" disabled={busy || !picked.length} onClick={() => run("approve", picked)}>
+            Approve selected
+          </Button>
+          <Button
+            size="sm"
+            variant="destructive"
+            disabled={busy || !picked.length}
+            onClick={() => run("reject", picked)}
+          >
+            Reject selected
+          </Button>
+        </div>
+
+        {!rows.length ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Nothing is waiting for approval.</p>
+        ) : (
+          <div className="space-y-2">
+            {rows.map((r) => (
+              <div
+                key={r.id}
+                className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-3 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  checked={picked.includes(r.id)}
+                  onChange={(e) =>
+                    setPicked((prev) => (e.target.checked ? [...prev, r.id] : prev.filter((x) => x !== r.id)))
+                  }
+                />
+                <div className="min-w-[220px] flex-1">
+                  <div className="font-medium">{r.name || r.external_id}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {r.supplier_name} · {r.external_id} · {new Date(r.created_at).toLocaleString()}
+                  </div>
+                </div>
+                <Badge variant={r.reason === "rotated" ? "destructive" : "secondary"}>
+                  {r.reason === "rotated" ? "ID changed" : "New item"}
+                </Badge>
+                <div className="text-xs text-muted-foreground">
+                  cost {money(Number(r.cost_price ?? 0))} · sell {money(Number(r.price ?? 0))} · stock {r.stock ?? 0}
+                </div>
+                <div className="ml-auto flex gap-2">
+                  <Button size="sm" disabled={busy} onClick={() => run("approve", [r.id])}>
+                    Approve
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={busy} onClick={() => run("reject", [r.id])}>
+                    Reject
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
