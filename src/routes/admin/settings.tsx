@@ -61,7 +61,6 @@ const FIELDS: { key: string; label: string; long?: boolean; help?: string }[] = 
   { key: "admin_ids", label: "Admin telegram IDs (comma separated)" },
   { key: "support_link", label: "Support link (t.me/...)" },
   { key: "support_text", label: "Support page text", long: true },
-  { key: "referral_percent", label: "Referral commission % (Telegram bot)" },
   { key: "referral_credit_per_invite", label: "Referral credits per invite (default 1)" },
   { key: "referral_daily_cap", label: "Counted invites per day (default 10)" },
   { key: "referral_redeem_rate", label: "Wallet value per credit (0 = disable redeem)" },
