@@ -534,7 +534,7 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
 export async function drainAllNotifications(sb?: any) {
   const db = sb ?? (await adminDb());
   const { data: sups } = await db.from("suppliers").select("id,name").eq("is_enabled", true);
-  const budget = { cards: CARDS_PER_RUN };
+  const budget = { cards: CARDS_PER_RUN, until: Date.now() + DRAIN_BUDGET_MS };
   let sent = 0;
   let failed = 0;
   // In-house (manual) stock uploads share the same durable delivery path.
@@ -546,7 +546,7 @@ export async function drainAllNotifications(sb?: any) {
     console.error("Manual stock notifications failed:", error);
   }
   for (const supplier of sups ?? []) {
-    if (budget.cards <= 0) break;
+    if (budget.cards <= 0 || Date.now() > budget.until) break;
     try {
       const res = await drainSupplierQueue(db, (supplier as any).id, budget);
       sent += res.sent;
