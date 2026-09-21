@@ -283,7 +283,7 @@ const MANUAL_QUEUE_ID = "manual";
  * queue the supplier sync uses, so the restock card (added qty + new total)
  * is retried until Telegram accepts it instead of dying with the request.
  */
-export async function enqueueManualRestock(sb: any, productId: string, qty: number, actionId = crypto.randomUUID()) {
+export async function enqueueManualRestock(sb: any, productId: string, qty: number, actionId: string = crypto.randomUUID()) {
   if (!productId || qty <= 0) return;
   await enqueueNotifications(sb, MANUAL_QUEUE_ID, [
     {
@@ -297,7 +297,7 @@ export async function enqueueManualRestock(sb: any, productId: string, qty: numb
 }
 
 /** A product becoming customer-visible uses the same durable, deduplicated sender. */
-export async function enqueueNewProduct(sb: any, productId: string, source: string, actionId = crypto.randomUUID()) {
+export async function enqueueNewProduct(sb: any, productId: string, source: string, actionId: string = crypto.randomUUID()) {
   if (!productId) return;
   await enqueueNotifications(sb, source, [
     {
