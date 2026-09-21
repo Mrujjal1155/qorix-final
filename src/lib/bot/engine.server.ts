@@ -3176,7 +3176,7 @@ async function handleMessage(msg: any) {
   const menuChoice = text.replace(/^[^\p{L}\p{N}]+/u, "").trim().toLowerCase();
   if (menuChoice === "products" || menuChoice === "deposit" || menuChoice === "my orders") {
     if (menuChoice === "products") {
-      const v = await shopView(0);
+      const v = await allProductsView(0);
       await say(chatId, v.text, v.kb);
     } else if (menuChoice === "deposit") {
       const v = await walletView(user);
