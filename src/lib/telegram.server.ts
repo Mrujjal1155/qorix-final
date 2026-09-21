@@ -210,14 +210,14 @@ function toPlainText(body: Record<string, unknown>): Record<string, unknown> {
 
 
 
-export type ButtonStyle = "primary" | "success" | "danger";
+export type ButtonStyle = "primary" | "success" | "danger" | "default";
 
 export type Button = {
   text: string;
   callback_data?: string;
   url?: string;
   icon_custom_emoji_id?: string;
-  /** Bot API 10+: "primary" (blue), "success" (green), "danger" (red). */
+  /** Bot API 10+: "primary" (blue), "success" (green), "danger" (red), "default" (no highlight — Telegram's normal button colour). */
   style?: ButtonStyle;
 };
 
@@ -233,10 +233,15 @@ export function styled(button: Button, style: ButtonStyle): Button {
 /**
  * Every menu / navigation button is green by default. Buttons that already
  * declare a style (e.g. product rows = primary/blue) keep their own style.
+ * "default" is stripped so Telegram renders the plain, uncoloured button.
  */
 function withDefaultStyle(rows: Button[][]): Button[][] {
   return rows.map((row) =>
     row.map((b) => {
+      if (b.style === "default") {
+        const { style: _plain, ...rest } = b;
+        return rest;
+      }
       if (b.style) return b;
       const label = b.text.replace(/[^\p{L}\p{N}& ]/gu, " ").replace(/\s+/g, " ").trim();
       const isBackNavigation = /^(?:back(?: to .+)?|main menu)$/i.test(label);
