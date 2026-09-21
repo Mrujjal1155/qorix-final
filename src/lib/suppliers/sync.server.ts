@@ -700,6 +700,7 @@ async function relinkRotatedIds(
   linkedProducts: any[],
   byExt: Map<string, any>,
   productsById: Map<string, any>,
+  reviewRows: ReviewInput[],
 ): Promise<{ relinked: number; retired: number }> {
   const liveIds = new Set(uniqueRemote.map((p) => String(p.external_id)));
   const stale = linkedProducts.filter(
