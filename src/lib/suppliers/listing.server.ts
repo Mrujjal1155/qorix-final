@@ -123,15 +123,8 @@ export async function applySupplierProductUpdate(sb: any, data: SupplierListingI
   const wasListed = Boolean(row.is_listed);
   const productId = patch.product_id ?? merged.product_id;
   if (!wasListed && merged.is_listed && productId) {
-    try {
-      const { data: prod } = await sb.from("products").select("*").eq("id", productId).maybeSingle();
-      if (prod) {
-        const { announceNewProduct } = await import("@/lib/bot/engine.server");
-        await announceNewProduct(prod);
-      }
-    } catch (e) {
-      console.error("New product announcement failed:", e);
-    }
+    const { enqueueNewProduct } = await import("@/lib/suppliers/sync.server");
+    await enqueueNewProduct(sb, productId, `supplier_listing:${row.supplier_id}`, `listing:${data.id}`);
   }
 
   return { ok: true, price };

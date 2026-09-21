@@ -296,6 +296,19 @@ export async function enqueueManualRestock(sb: any, productId: string, qty: numb
   ]);
 }
 
+/** A product becoming customer-visible uses the same durable, deduplicated sender. */
+export async function enqueueNewProduct(sb: any, productId: string, source: string, actionId = crypto.randomUUID()) {
+  if (!productId) return;
+  await enqueueNotifications(sb, source, [
+    {
+      t: "new",
+      product_id: productId,
+      event_id: `new:${source}:${productId}:${actionId}`,
+      at: Date.now(),
+    } as NotifyItem,
+  ]);
+}
+
 
 
 async function drainNotificationEvents(sb: any, budget: { cards: number; until?: number }) {
