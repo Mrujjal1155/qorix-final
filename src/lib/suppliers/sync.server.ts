@@ -845,8 +845,8 @@ async function relinkRotatedIds(
   if (idAlerts.length) {
     await recordSupplierAlerts(sb, idAlerts);
     try {
-      const { announceSupplierNotice } = await import("@/lib/bot/engine.server");
-      await announceSupplierNotice(
+      const { notifyAdminNotice } = await import("@/lib/bot/engine.server");
+      await notifyAdminNotice(
         s.name,
         `${idAlerts.length} product id${idAlerts.length > 1 ? "s" : ""} changed by supplier`,
         idLines.slice(0, 20).join("\n") + (idLines.length > 20 ? `\n… +${idLines.length - 20} more` : ""),
@@ -912,8 +912,8 @@ async function retireMissingSupplierItems(
       })),
     );
     try {
-      const { announceSupplierNotice } = await import("@/lib/bot/engine.server");
-      await announceSupplierNotice(
+      const { notifyAdminNotice } = await import("@/lib/bot/engine.server");
+      await notifyAdminNotice(
         s.name,
         `${names.length} product${names.length > 1 ? "s" : ""} removed by supplier — switched off`,
         names.slice(0, 20).join("\n") + (names.length > 20 ? `\n… +${names.length - 20} more` : ""),
