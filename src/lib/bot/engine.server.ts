@@ -1273,39 +1273,26 @@ async function handleSupportCallback(
 
 
 /* ------------------------------------------------- referral credit store */
+// Credits live in dedicated tables (referral_credits / referral_credit_events /
+// referral_credit_purchases) — never in the fragile user.state JSON blob.
 
-type RefState = {
-  earned: number;
-  spent: number;
-  day: string;
-  dayCount: number;
-  credited?: boolean;
-  purchases: { name: string; credits: number; at: string }[];
-};
-
-function today() {
-  return new Date().toISOString().slice(0, 10);
+async function refCredits(telegramId: number) {
+  const { data } = await db
+    .from("referral_credits")
+    .select("earned,spent")
+    .eq("telegram_id", telegramId)
+    .maybeSingle();
+  return Math.max(0, Number(data?.earned ?? 0) - Number(data?.spent ?? 0));
 }
 
-function refState(user: any): RefState {
-  const raw = ((user?.state ?? {}) as any).refstore ?? {};
-  return {
-    earned: Number(raw.earned ?? 0),
-    spent: Number(raw.spent ?? 0),
-    day: String(raw.day ?? today()),
-    dayCount: Number(raw.dayCount ?? 0),
-    credited: Boolean(raw.credited),
-    purchases: Array.isArray(raw.purchases) ? raw.purchases : [],
-  };
-}
-
-async function saveRefState(user: any, next: RefState) {
-  await setState(user.telegram_id, { ...((user.state ?? {}) as any), refstore: next });
-}
-
-function refCredits(user: any) {
-  const st = refState(user);
-  return Math.max(0, st.earned - st.spent);
+async function refPurchases(telegramId: number) {
+  const { data } = await db
+    .from("referral_credit_purchases")
+    .select("name,credits,created_at")
+    .eq("telegram_id", telegramId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  return (data ?? []) as { name: string; credits: number; created_at: string }[];
 }
 
 /** Rewards catalog: one per line — `Name|credits` */
@@ -1323,37 +1310,51 @@ function refRewards(settings: Record<string, string>) {
 
 /**
  * Credit the inviter once the invited friend actually views a product.
- * Respects a configurable daily cap on counted invites.
+ * Over the daily cap the credit is queued (never lost) and lands the next day.
  */
 async function awardReferralCredit(user: any) {
   if (!user?.referred_by) return;
-  const mine = refState(user);
-  if (mine.credited) return;
-  await saveRefState(user, { ...mine, credited: true });
 
   const s = await getSettings();
   const per = Math.max(1, Number(s["referral_credit_per_invite"] || 1));
   const cap = Math.max(1, Number(s["referral_daily_cap"] || 10));
 
-  const inviter = await getUser(user.referred_by);
-  if (!inviter) return;
-  const st = refState(inviter);
-  const day = today();
-  const dayCount = st.day === day ? st.dayCount : 0;
-  if (dayCount >= cap) return;
+  const { data: awarded } = await db.rpc("referral_credit_award", {
+    _inviter: Number(user.referred_by),
+    _invitee: Number(user.telegram_id),
+    _credits: per,
+    _cap: cap,
+  });
 
-  await saveRefState(inviter, { ...st, earned: st.earned + per, day, dayCount: dayCount + 1 });
-  await sendMessage(
-    inviter.telegram_id,
-    `🎯 <b>+${per} referral credit!</b>\nYour invite just viewed a product. Open the Referral Store to spend your credits.`,
-    [[uiBtn(s, "prof_refer_btn", "refstore")]],
-  ).catch(() => undefined);
+  if (Number(awarded ?? 0) > 0) {
+    await sendMessage(
+      Number(user.referred_by),
+      `🎯 <b>+${Number(awarded)} referral credit!</b>\nYour invite just viewed a product. Open the Referral Store to spend your credits.`,
+      [[uiBtn(s, "prof_refer_btn", "refstore")]],
+    ).catch(() => undefined);
+  }
+}
+
+/** Release any invites that were queued once the daily cap frees up. */
+async function flushReferralCredits(user: any) {
+  const s = await getSettings();
+  const cap = Math.max(1, Number(s["referral_daily_cap"] || 10));
+  await db.rpc("referral_credit_flush", { _inviter: Number(user.telegram_id), _cap: cap }).then(
+    () => undefined,
+    () => undefined,
+  );
 }
 
 async function refStoreView(user: any) {
   const s = await getSettings();
-  const st = refState(user);
-  const credits = refCredits(user);
+  await flushReferralCredits(user);
+  const credits = await refCredits(Number(user.telegram_id));
+  const purchases = await refPurchases(Number(user.telegram_id));
+  const { count: queued } = await db
+    .from("referral_credit_events")
+    .select("id", { count: "exact", head: true })
+    .eq("inviter_telegram_id", Number(user.telegram_id))
+    .eq("status", "pending");
   const per = Math.max(1, Number(s["referral_credit_per_invite"] || 1));
   const cap = Math.max(1, Number(s["referral_daily_cap"] || 10));
   const rate = Number(s["referral_redeem_rate"] || 0);
@@ -1365,14 +1366,16 @@ async function refStoreView(user: any) {
     `<b>How it works</b>\n` +
     `• Invite a brand-new member with <b>your link</b> — each one earns you <b>${per} credit${per > 1 ? "s" : ""}</b>.\n` +
     `• The credit lands once your friend opens the shop and <b>views a product</b>.\n` +
-    `• Up to <b>${cap} invites per day</b> are counted — extra invites that day are skipped.\n` +
+    `• Up to <b>${cap} invites per day</b> are counted — extra invites simply wait for the next day.\n` +
     (rate > 0
       ? `• Spend credits on the rewards below, or redeem them to your wallet (<b>${money(rate)} per credit</b>).\n\n`
       : `• Spend credits on the rewards below.\n\n`) +
     `${uiTag(s, "prof_link")}\n<code>${escapeHtml(link)}</code>\n` +
     `${uiTag(s, "ref_code")}  <code>${escapeHtml(String(user.ref_code ?? ""))}</code>\n\n` +
     `${uiTag(s, "prof_refs")}  <b>${user.referral_count ?? 0}</b>\n` +
-    `${uiTag(s, "ref_credits")}  <b>${credits}</b>\n\n` +
+    `${uiTag(s, "ref_credits")}  <b>${credits}</b>` +
+    (Number(queued ?? 0) > 0 ? `  <i>(+${queued} waiting for tomorrow)</i>` : "") +
+    `\n\n` +
     (rewards.some((r) => credits >= r.credits)
       ? `<i>Tap a reward below to claim it instantly.</i>`
       : `<i>Not enough credits for any reward yet — invite more friends${rate > 0 ? " or redeem your credits to your wallet" : ""}.</i>`);
@@ -1393,7 +1396,7 @@ async function refStoreView(user: any) {
     ...(rate > 0 ? [uiBtn(s, "ref_cash_btn", "refcash")] : []),
   ]);
   kb.push([
-    uiBtn(s, "ref_purch_btn", "refbought", `(${st.purchases.length})`),
+    uiBtn(s, "ref_purch_btn", "refbought", `(${purchases.length})`),
     uiBtn(s, "ref_earn_btn", "refearn"),
   ]);
   kb.push([styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")]);
@@ -1402,16 +1405,19 @@ async function refStoreView(user: any) {
 
 async function refPurchasesView(user: any) {
   const s = await getSettings();
-  const st = refState(user);
-  const list = st.purchases.length
-    ? st.purchases
-        .map((p, i) => `${i + 1}. <b>${escapeHtml(p.name)}</b> — ${p.credits} ${uiIconHtml(s, "ref_credits")} <i>(${fmtDate(p.at)})</i>`)
+  const purchases = await refPurchases(Number(user.telegram_id));
+  const list = purchases.length
+    ? purchases
+        .map(
+          (p, i) =>
+            `${i + 1}. <b>${escapeHtml(p.name)}</b> — ${p.credits} ${uiIconHtml(s, "ref_credits")} <i>(${fmtDate(p.created_at)})</i>`,
+        )
         .join("\n")
     : "No reward claimed yet.";
   const text = `<b>${escapeHtml(uiText(s, "ref_purch_title"))}</b>\n──────────────\n${list}\n──────────────\n${uiIconHtml(
     s,
     "ref_credits",
-  )} Credits left: <b>${refCredits(user)}</b>`;
+  )} Credits left: <b>${await refCredits(Number(user.telegram_id))}</b>`;
   return { text, kb: [[uiBtn(s, "prof_refer_btn", "refstore")], [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")]] };
 }
 
@@ -1421,19 +1427,25 @@ async function claimRefReward(user: any, rewardId: string) {
   const s = await getSettings();
   const reward = refRewards(s).find((r) => r.id === rewardId);
   if (!reward) return { text: "That reward is no longer available.", kb: [[uiBtn(s, "prof_refer_btn", "refstore")]] };
-  const st = refState(user);
-  const credits = Math.max(0, st.earned - st.spent);
+  const credits = await refCredits(Number(user.telegram_id));
   if (credits < reward.credits) {
     return {
       text: `🔒 You need <b>${reward.credits - credits}</b> more credit(s) for <b>${escapeHtml(reward.name)}</b>.`,
       kb: [[uiBtn(s, "prof_refer_btn", "refstore")]],
     };
   }
-  await saveRefState(user, {
-    ...st,
-    spent: st.spent + reward.credits,
-    purchases: [...st.purchases, { name: reward.name, credits: reward.credits, at: new Date().toISOString() }],
+  // Atomic spend: the DB refuses to go below zero, so double taps cannot overspend.
+  const { data: ok } = await db.rpc("referral_credit_spend", {
+    _tid: Number(user.telegram_id),
+    _credits: reward.credits,
+    _name: reward.name,
   });
+  if (!ok) {
+    return {
+      text: "That claim could not be completed — your credit balance changed. Please try again.",
+      kb: [[uiBtn(s, "prof_refer_btn", "refstore")]],
+    };
+  }
   for (const adminId of adminIds(s)) {
     await sendMessage(
       Number(adminId),
@@ -1454,13 +1466,19 @@ async function claimRefReward(user: any, rewardId: string) {
 async function redeemRefCredits(user: any) {
   const s = await getSettings();
   const rate = Number(s["referral_redeem_rate"] || 0);
-  const st = refState(user);
-  const credits = Math.max(0, st.earned - st.spent);
+  const credits = await refCredits(Number(user.telegram_id));
   if (rate <= 0 || credits <= 0) {
     return { text: "You have no credits to redeem right now.", kb: [[uiBtn(s, "prof_refer_btn", "refstore")]] };
   }
+  const { data: ok } = await db.rpc("referral_credit_spend", {
+    _tid: Number(user.telegram_id),
+    _credits: credits,
+    _name: null,
+  });
+  if (!ok) {
+    return { text: "Your credit balance just changed — please open the store again.", kb: [[uiBtn(s, "prof_refer_btn", "refstore")]] };
+  }
   const amount = credits * rate;
-  await saveRefState(user, { ...st, spent: st.spent + credits });
   await db
     .from("bot_users")
     .update({ balance: Number(user.balance ?? 0) + amount })
@@ -1477,6 +1495,7 @@ async function redeemRefCredits(user: any) {
     kb: [[uiBtn(s, "prof_refer_btn", "refstore")], [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")]],
   };
 }
+
 
 
 async function productsWithStock() {
