@@ -6707,7 +6707,11 @@ async function handleCallback(cq: any) {
       await edit(v.text, v.kb);
     } else if (action.startsWith("pda:")) {
       const { data: p } = await db.from("products").select("is_active").eq("id", arg).maybeSingle();
-      await db.from("products").update({ is_active: p?.is_active === false }).eq("id", arg);
+      const isActive = p?.is_active === false;
+      await Promise.all([
+        db.from("products").update({ is_active: isActive }).eq("id", arg),
+        db.from("supplier_products").update({ is_listed: isActive }).eq("product_id", arg),
+      ]);
       const v = await admDetailView(arg);
       await edit(v.text, v.kb);
     } else if (action.startsWith("pdd:") || action.startsWith("pdi:") || action.startsWith("pdg:")) {

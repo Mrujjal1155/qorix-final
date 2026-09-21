@@ -34,6 +34,21 @@ async function adminDb() {
   return supabaseAdmin as any;
 }
 
+async function readAllSupplierRows(sb: any, table: "supplier_products" | "products", supplierId: string) {
+  const rows: any[] = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await sb
+      .from(table)
+      .select("*")
+      .eq("supplier_id", supplierId)
+      .range(from, from + pageSize - 1);
+    if (error) throw new Error(error.message);
+    rows.push(...(data ?? []));
+    if ((data ?? []).length < pageSize) return rows;
+  }
+}
+
 export async function readAlerts(): Promise<SupplierAlert[]> {
   const db = await adminDb();
   const { data } = await db.from("bot_settings").select("value").eq("key", ALERTS_KEY).maybeSingle();
@@ -726,12 +741,13 @@ async function relinkRotatedIds(
         oldRow.product_id = null;
       }
       const newRow = byExt.get(newId);
+      const wasListed = Boolean(prod.is_active);
       if (newRow?.id) {
         await sb
           .from("supplier_products")
-          .update({ is_listed: true, product_id: prod.id })
+          .update({ is_listed: wasListed, product_id: prod.id })
           .eq("id", newRow.id);
-        newRow.is_listed = true;
+        newRow.is_listed = wasListed;
         newRow.product_id = prod.id;
         // Same stock as the live feed → the diff below stays quiet, so a
         // re-link never fakes a restock alert.
@@ -749,7 +765,7 @@ async function relinkRotatedIds(
             currency: match.currency ?? "USD",
             min_qty: match.min_qty ?? 1,
             raw: match.raw ?? null,
-            is_listed: true,
+            is_listed: wasListed,
             product_id: prod.id,
             last_synced_at: now,
           })
@@ -792,9 +808,11 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
     return { ok: false, message, added: 0, restocked: 0 };
   }
 
-  const [{ data: existing }, { data: linkedProducts }] = await Promise.all([
-    sb.from("supplier_products").select("*").eq("supplier_id", s.id),
-    sb.from("products").select("*").eq("supplier_id", s.id),
+  // Supabase returns at most 1,000 rows per request. Read every page so a large
+  // catalogue never treats row 1,001+ as a brand-new product on every sync.
+  const [existing, linkedProducts] = await Promise.all([
+    readAllSupplierRows(sb, "supplier_products", s.id),
+    readAllSupplierRows(sb, "products", s.id),
   ]);
   const byExt = new Map<string, any>((existing ?? []).map((r: any) => [String(r.external_id), r]));
   const productsById = new Map<string, any>((linkedProducts ?? []).map((r: any) => [String(r.id), r]));
@@ -802,26 +820,17 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   const alerts: SupplierAlert[] = [];
   const restockPosts: Array<{ product_id: string; qty: number; stock: number; event_id: string }> = [];
   const lowPosts: Array<{ product_id: string; stock: number; event_id: string }> = [];
-  const newPosts: Array<{ product_id: string; event_id: string }> = [];
   const pricePosts: Array<{ product_id: string; old_price: number; new_price: number; event_id: string }> = [];
-  const newListings: Array<{ external_id: string; remote: any }> = [];
   const productUpdates: Array<{ id: string; patch: Record<string, unknown> }> = [];
 
-  // Settings that control how the automatic supplier feed behaves.
+  // Settings that control supplier alerts. Supplier products are never put on
+  // sale automatically; only an explicit admin action may list them.
   const { data: cfgRows } = await sb
     .from("bot_settings")
     .select("key,value")
-    .in("key", ["supplier_autolist", "announce_low_threshold"]);
+    .in("key", ["announce_low_threshold"]);
   const cfg: Record<string, string> = {};
   for (const r of cfgRows ?? []) cfg[(r as any).key] = (r as any).value ?? "";
-  // New supplier products stay OFF by default: they only land in the admin bell
-  // feed and go live once the admin approves them. Turning `supplier_autolist`
-  // on makes them list (and announce) automatically.
-  // On a supplier's very first import everything looks "new" — stay silent then
-  // so the channel never gets a few hundred cards at once.
-  const firstImport = (existing ?? []).length === 0;
-  const autoList = (cfg["supplier_autolist"] || "off").toLowerCase() === "on" && !firstImport;
-
   const lowThresholdRaw = Number(cfg["announce_low_threshold"]);
   const lowThreshold = Number.isFinite(lowThresholdRaw) && lowThresholdRaw > 0 ? lowThresholdRaw : 5;
 
@@ -866,9 +875,6 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
     rowsToWrite.push(row);
 
     if (!prev) {
-      // Brand new product from the supplier API. With auto-list ON it goes live
-      // straight away and gets a NEW PRODUCT card in the channel + bot DMs.
-      if (autoList) newListings.push({ external_id: String(p.external_id), remote: p });
       alerts.push({
         id: `${s.id}:${p.external_id}:new`,
         at: now,
@@ -877,7 +883,7 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
         supplier_id: s.id,
         product: p.name,
         qty: p.stock,
-        listed: autoList,
+        listed: false,
       });
       continue;
     }
@@ -1109,110 +1115,6 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   // instead of requiring the separately configured service-role secret.
   await pushAlerts(alerts, sb);
 
-
-  // Brand new supplier products: create the store product, link it and post the
-  // NEW PRODUCT card to the channel + bot DMs.
-  if (newListings.length) {
-    const { data: iconRow } = await sb
-      .from("bot_settings")
-      .select("value")
-      .eq("key", "ui_icon_prod_icon_default")
-      .maybeSingle();
-    const { parseIconValue } = await import("@/lib/bot/ui.server");
-    const icon = parseIconValue(String((iconRow as any)?.value ?? ""), "📦");
-
-    for (const item of newListings) {
-      const p = item.remote;
-      try {
-        const price = sellPrice(p.cost_price, {
-          price_override: null,
-          markup_percent: null,
-          markup_fixed: null,
-          supplier_percent: s.markup_percent ?? null,
-          supplier_fixed: s.markup_fixed ?? null,
-        });
-        const d = detailsFromRaw(p.raw);
-        // Canboso sends a per-product `emoji`, but as a slug ("claude",
-        // "chatgpt", "none"), not a glyph — only adopt it when it is an
-        // actual emoji character, otherwise keep the default icon.
-        const rawEmojiValue = typeof (p.raw as any)?.emoji === "string" ? (p.raw as any).emoji.trim() : "";
-        const rawEmoji = /[^\x00-\x7F]/u.test(rawEmojiValue) ? rawEmojiValue : "";
-        const productRow: any = {
-          name: p.name,
-          description: d.description ?? (d.quick_guide || d.important_note ? null : p.description),
-          price,
-          delivery_type: supplierDeliveryType(p.raw),
-          supplier_id: s.id,
-          supplier_external_id: String(p.external_id),
-          supplier_stock: p.stock,
-          // Brand new supplier products land switched OFF: the admin decides
-          // what the website and bot actually sell.
-          is_active: false,
-          emoji: rawEmoji || icon.glyph || "📦",
-          telegram_custom_emoji_id: rawEmoji ? null : icon.customId || null,
-        };
-        if (d.image_url) productRow.image_url = d.image_url;
-        if (d.delivery_time) productRow.delivery_time = d.delivery_time;
-        if (d.important_note) productRow.important_note = d.important_note;
-        if (d.quick_guide) productRow.quick_guide = d.quick_guide;
-        productRow.details = extraDetailsFromRaw(p.raw);
-
-
-        // products only has a PARTIAL unique index on
-        // (supplier_id, supplier_external_id), so ON CONFLICT cannot be used:
-        // look the row up, then update or insert.
-        const { data: existingProd } = await sb
-          .from("products")
-          .select("id,image_url")
-          .eq("supplier_id", s.id)
-          .eq("supplier_external_id", String(p.external_id))
-          .maybeSingle();
-        let created: any = null;
-        if ((existingProd as any)?.id) {
-          // Keep the banner the admin uploaded — never replace it with the
-          // supplier's own image on a re-sync.
-          const patch = { ...productRow };
-          if ((existingProd as any).image_url) delete patch.image_url;
-          // Re-linking an existing product must not flip the admin's on/off.
-          delete patch.is_active;
-          const { data: upd } = await sb
-            .from("products")
-            .update(patch)
-            .eq("id", (existingProd as any).id)
-            .select("*")
-            .maybeSingle();
-          created = upd;
-        } else {
-          const { data: ins } = await sb
-            .from("products")
-            .insert(productRow)
-            .select("*")
-            .maybeSingle();
-          created = ins;
-        }
-        if (!created) continue;
-
-
-        // The product row exists so the admin can see and price it, but it stays
-        // unlisted and inactive until the admin switches it on.
-        await sb
-          .from("supplier_products")
-          .update({ product_id: (created as any).id })
-          .eq("supplier_id", s.id)
-          .eq("external_id", String(p.external_id));
-      } catch (e) {
-        console.error("Auto-list of new supplier product failed:", e);
-      }
-    }
-  }
-
-  // Newly auto-listed products are queued here (they only exist after the
-  // product rows above were created). Stock/price events were queued earlier.
-  await enqueueNotifications(
-    sb,
-    s.id,
-    newPosts.map((n) => ({ t: "new" as const, product_id: n.product_id, event_id: n.event_id })),
-  );
 
   const added = alerts.filter((a) => a.kind === "new").length;
   const restocked = restockPosts.length;

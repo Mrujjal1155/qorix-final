@@ -2,6 +2,19 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertSupplierAdmin } from "@/lib/suppliers/admin-support";
 
+async function readAllSupplierProducts(sb: any, supplierId?: string) {
+  const rows: any[] = [];
+  const pageSize = 1000;
+  for (let from = 0; ; from += pageSize) {
+    let query = sb.from("supplier_products").select("*").order("name").range(from, from + pageSize - 1);
+    if (supplierId) query = query.eq("supplier_id", supplierId);
+    const { data, error } = await query;
+    if (error) throw error;
+    rows.push(...(data ?? []));
+    if ((data ?? []).length < pageSize) return rows;
+  }
+}
+
 export const listSuppliers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -124,13 +137,13 @@ export const listSupplierProducts = createServerFn({ method: "GET" })
   .handler(async ({ data, context }) => {
     const sb = (context as any).supabase;
     await assertSupplierAdmin(context);
-    let q = sb.from("supplier_products").select("*").order("name");
-    if (data.supplier_id) q = q.eq("supplier_id", data.supplier_id);
-    const [{ data: rows, error }, { data: sups }] = await Promise.all([
-      q,
+    const [rowsResult, { data: sups }] = await Promise.all([
+      readAllSupplierProducts(sb, data.supplier_id),
       sb.from("suppliers").select("id,key,name,markup_percent,markup_fixed"),
     ]);
-    if (error) {
+    let rows = rowsResult;
+    if (!rows) {
+      const error = new Error("Supplier catalogue unavailable") as Error & { code?: string };
       const missingTable =
         error.code === "PGRST205" ||
         error.code === "42P01" ||
@@ -140,7 +153,7 @@ export const listSupplierProducts = createServerFn({ method: "GET" })
     }
     const { sellPrice } = await import("@/lib/suppliers/api.server");
     const supMap = new Map<string, any>((sups ?? []).map((s: any) => [s.id, s]));
-    return (rows ?? []).map((r: any) => {
+    return rows.map((r: any) => {
       const s = supMap.get(r.supplier_id);
       return {
         ...r,
