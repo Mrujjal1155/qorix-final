@@ -694,6 +694,22 @@ function normalizeName(v: unknown): string {
  * "Product not found". Here we re-point those products at the live id using the
  * product name, and retire the ones that truly disappeared.
  */
+/**
+ * Dashboard record for supplier-side catalogue events (id rotation, removal).
+ * Written to the same `visibility_alerts` table the admin banner already reads.
+ */
+async function recordSupplierAlerts(
+  sb: any,
+  rows: Array<{ product_id: string | null; product_name: string; surface: string; detail: string }>,
+) {
+  if (!rows.length) return;
+  try {
+    await sb.from("visibility_alerts").insert(rows.slice(0, 50));
+  } catch (error) {
+    console.error("Supplier alert insert failed:", error);
+  }
+}
+
 async function relinkRotatedIds(
   sb: any,
   s: SupplierRow & Record<string, any>,
