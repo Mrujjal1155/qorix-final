@@ -61,7 +61,13 @@ function SuppliersPage() {
   });
   const { data: catalogue } = useQuery({ queryKey: ["catalogue"], queryFn: () => fetchCatalogue() });
 
-  const [view, setView] = useState<"suppliers" | "bot">("suppliers");
+  const [view, setView] = useState<"suppliers" | "review" | "bot">("suppliers");
+  const fetchPendingReview = useServerFn(countReviewQueue);
+  const { data: pendingReview } = useQuery({
+    queryKey: ["review-queue-count"],
+    queryFn: () => fetchPendingReview(),
+    refetchInterval: 60000,
+  });
   const [query, setQuery] = useState("");
   const [stockFilter, setStockFilter] = useState<"all" | "in" | "out">("all");
   const [busy, setBusy] = useState(false);
