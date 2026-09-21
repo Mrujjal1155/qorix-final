@@ -1,10 +1,26 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getOverview } from "@/lib/admin.functions";
+import {
+  getOverview,
+  listVisibilityAlerts,
+  dismissVisibilityAlerts,
+  countReviewQueue,
+} from "@/lib/admin.functions";
 import { AdminShell, AdminPanel, money } from "@/components/AdminShell";
 import { Button } from "@/components/ui/button";
-import { Plus, Users, DollarSign, ShoppingBag, TrendingUp, Package, Boxes, PlugZap, CheckCircle2 } from "lucide-react";
+import {
+  Plus,
+  Users,
+  DollarSign,
+  ShoppingBag,
+  TrendingUp,
+  Package,
+  Boxes,
+  PlugZap,
+  CheckCircle2,
+  ShieldAlert,
+} from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
   head: () => ({
