@@ -798,6 +798,13 @@ async function relinkRotatedIds(
         if (ins) byExt.set(newId, ins);
       }
       relinked++;
+      idAlerts.push({
+        product_id: String(prod.id),
+        product_name: String(prod.name ?? ""),
+        surface: "supplier_id",
+        detail: `${s.name}: supplier id changed ${oldId} → ${newId}. The product was re-linked automatically — please verify.`,
+      });
+      idLines.push(`${prod.name} · ${oldId} → ${newId} (re-linked)`);
     } else {
       // A name match exists but the previous supplier row was not an approved
       // listing → quarantine it for admin review instead of guessing.
