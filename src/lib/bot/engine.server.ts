@@ -3758,7 +3758,10 @@ async function handleMessage(msg: any) {
         await say(chatId, saveFailText(e), ADM_BACK);
         return;
       }
-      const mv = await admMenuIconView();
+      const mv = (BOTTOM_KEYS as readonly string[]).includes(menuKey)
+        ? await admBottomMenuView()
+        : await admMenuIconView();
+
       await say(
         chatId,
         `✅ ${MENU_ICONS[menuKey][1]} icon updated → ${iconPreviewHtml(value, MENU_ICONS[menuKey][0])}\n\n${mv.text}`,
