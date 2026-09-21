@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { Check, Copy, Gift, Users, Wallet } from "lucide-react";
 import { toast } from "sonner";
-import { getMyReferral } from "@/lib/referral.functions";
+import { getMyReferral, linkTelegramAccount } from "@/lib/referral.functions";
 import { AccountShell } from "@/components/AccountShell";
 import { priceTag } from "@/components/StoreShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
