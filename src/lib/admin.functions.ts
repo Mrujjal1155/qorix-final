@@ -1783,3 +1783,87 @@ export const countPendingOrders = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     return { count: count ?? 0 };
   });
+
+// ── Supplier review queue (quarantine) ───────────────────────────────────────
+
+/** Items waiting for an admin decision: brand-new or supplier-id-rotated. */
+export const listReviewQueue = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { status?: string } | undefined) => d ?? {})
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const sb = (context as any).supabase;
+    const { data: rows, error } = await sb
+      .from("supplier_review_queue")
+      .select("*")
+      .eq("status", data.status || "pending")
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (error) {
+      if (/schema cache|does not exist/i.test(error.message ?? "")) return [] as any[];
+      throw new Error(error.message);
+    }
+    const { data: sups } = await sb.from("suppliers").select("id,name");
+    const names = new Map<string, string>((sups ?? []).map((s: any) => [s.id, s.name]));
+    return (rows ?? []).map((r: any) => ({ ...r, supplier_name: names.get(r.supplier_id) ?? "—" }));
+  });
+
+/** Approve or reject one or many queued items in a single action. */
+export const decideReviewItems = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { ids: string[]; action: "approve" | "reject"; category_id?: string | null }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const sb = (context as any).supabase;
+    const ids = (data.ids ?? []).filter(Boolean);
+    if (!ids.length) return { ok: true, approved: 0, rejected: 0, failed: [] as string[] };
+    const { approveReviewItems, rejectReviewItems } = await import("@/lib/suppliers/review.server");
+    if (data.action === "approve") {
+      const res = await approveReviewItems(sb, ids, data.category_id);
+      return { ok: true, approved: res.approved, rejected: 0, failed: res.failed };
+    }
+    const res = await rejectReviewItems(sb, ids);
+    return { ok: true, approved: 0, rejected: res.rejected, failed: [] as string[] };
+  });
+
+/** Pending review count for the admin badge. */
+export const countReviewQueue = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { count, error } = await (context as any).supabase
+      .from("supplier_review_queue")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending");
+    if (error) return { count: 0 };
+    return { count: count ?? 0 };
+  });
+
+// ── Visibility alerts (an Off product reached a customer surface) ────────────
+
+export const listVisibilityAlerts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { data, error } = await (context as any).supabase
+      .from("visibility_alerts")
+      .select("*")
+      .eq("resolved", false)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (error) return [] as any[];
+    return data ?? [];
+  });
+
+export const dismissVisibilityAlerts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { ids?: string[] } | undefined) => d ?? {})
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const sb = (context as any).supabase;
+    let q = sb.from("visibility_alerts").update({ resolved: true }).eq("resolved", false);
+    if (data.ids?.length) q = q.in("id", data.ids);
+    const { error } = await q;
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

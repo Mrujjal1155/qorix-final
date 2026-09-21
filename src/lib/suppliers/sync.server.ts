@@ -14,6 +14,7 @@ import {
   supplierDeliveryType,
   type SupplierRow,
 } from "./api.server";
+import type { ReviewInput } from "./review.server";
 
 export type SupplierAlert = {
   id: string;
@@ -700,6 +701,7 @@ async function relinkRotatedIds(
   linkedProducts: any[],
   byExt: Map<string, any>,
   productsById: Map<string, any>,
+  reviewRows: ReviewInput[],
 ): Promise<{ relinked: number; retired: number }> {
   const liveIds = new Set(uniqueRemote.map((p) => String(p.external_id)));
   const stale = linkedProducts.filter(
@@ -777,14 +779,30 @@ async function relinkRotatedIds(
         if (ins) byExt.set(newId, ins);
       }
       relinked++;
-    } else if (prod.is_active) {
-      // Gone from the supplier catalogue → take it off sale instead of letting
-      // a customer pay for something that can never be delivered.
-      await sb.from("products").update({ is_active: false, supplier_stock: 0 }).eq("id", prod.id);
-      prod.is_active = false;
-      prod.supplier_stock = 0;
-      productsById.set(String(prod.id), prod);
-      retired++;
+    } else {
+      // A name match exists but the previous supplier row was not an approved
+      // listing → quarantine it for admin review instead of guessing.
+      if (match) {
+        reviewRows.push({
+          supplier_id: String(s.id),
+          external_id: String(match.external_id),
+          reason: "rotated",
+          name: String(match.name ?? prod.name ?? ""),
+          cost_price: Number(match.cost_price ?? 0),
+          stock: Number(match.stock ?? 0),
+          product_id: String(prod.id),
+          snapshot: { previous_external_id: oldId, previous_product: prod.name },
+        });
+      }
+      if (prod.is_active) {
+        // Gone from the supplier catalogue → take it off sale instead of letting
+        // a customer pay for something that can never be delivered.
+        await sb.from("products").update({ is_active: false, supplier_stock: 0 }).eq("id", prod.id);
+        prod.is_active = false;
+        prod.supplier_stock = 0;
+        productsById.set(String(prod.id), prod);
+        retired++;
+      }
     }
   }
 
@@ -793,6 +811,7 @@ async function relinkRotatedIds(
   }
   return { relinked, retired };
 }
+
 
 
 async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string, any>) {
@@ -850,7 +869,9 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   // fails with "Product not found". Re-point the store product at the live id
   // by matching the product name; if the product is really gone from the
   // supplier, take it off sale instead of letting customers buy a dead link.
-  const relinked = await relinkRotatedIds(sb, s, uniqueRemote, linkedProducts ?? [], byExt, productsById);
+  // Quarantine queue rows collected during this sync (new + rotated items).
+  const reviewRows: ReviewInput[] = [];
+  const relinked = await relinkRotatedIds(sb, s, uniqueRemote, linkedProducts ?? [], byExt, productsById, reviewRows);
 
   // Every supplier row is written in a few batched upserts instead of one
   // request per product — a 250-item catalogue used to need 250 round trips,
@@ -888,8 +909,26 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
         qty: p.stock,
         listed: false,
       });
+      // Brand-new supplier item → admin review queue (quarantined, invisible
+      // everywhere until an admin approves it).
+      reviewRows.push({
+        supplier_id: String(s.id),
+        external_id: String(p.external_id),
+        reason: "new",
+        name: String(p.name ?? ""),
+        cost_price: Number(p.cost_price ?? 0),
+        price: Number(
+          sellPrice(Number(p.cost_price ?? 0), {
+            supplier_percent: s.markup_percent ?? null,
+            supplier_fixed: s.markup_fixed ?? null,
+          }),
+        ),
+        stock: Number(p.stock ?? 0),
+        snapshot: { currency: p.currency ?? "USD", min_qty: p.min_qty ?? 1 },
+      });
       continue;
     }
+
 
     // --- Custom price protection ---------------------------------------
     // A custom (override) price never follows the supplier down, but it always
@@ -1117,6 +1156,13 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   // The manual admin sync already has an authenticated admin client. Reuse it
   // instead of requiring the separately configured service-role secret.
   await pushAlerts(alerts, sb);
+
+  // Quarantine: new / rotated supplier items wait for an admin decision.
+  if (reviewRows.length) {
+    const { enqueueReview } = await import("./review.server");
+    await enqueueReview(reviewRows, sb);
+  }
+
 
 
   const added = alerts.filter((a) => a.kind === "new").length;

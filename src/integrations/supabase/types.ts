@@ -1036,6 +1036,72 @@ export type Database = {
           },
         ]
       }
+      supplier_review_queue: {
+        Row: {
+          cost_price: number
+          created_at: string
+          decided_at: string | null
+          external_id: string
+          id: string
+          name: string
+          price: number
+          product_id: string | null
+          reason: string
+          snapshot: Json
+          status: string
+          stock: number
+          supplier_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          cost_price?: number
+          created_at?: string
+          decided_at?: string | null
+          external_id: string
+          id?: string
+          name?: string
+          price?: number
+          product_id?: string | null
+          reason?: string
+          snapshot?: Json
+          status?: string
+          stock?: number
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cost_price?: number
+          created_at?: string
+          decided_at?: string | null
+          external_id?: string
+          id?: string
+          name?: string
+          price?: number
+          product_id?: string | null
+          reason?: string
+          snapshot?: Json
+          status?: string
+          stock?: number
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_review_queue_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_review_queue_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_sync_runs: {
         Row: {
           changed: number
@@ -1261,6 +1327,44 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      visibility_alerts: {
+        Row: {
+          created_at: string
+          detail: string | null
+          id: string
+          product_id: string | null
+          product_name: string
+          resolved: boolean
+          surface: string
+        }
+        Insert: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          product_id?: string | null
+          product_name?: string
+          resolved?: boolean
+          surface?: string
+        }
+        Update: {
+          created_at?: string
+          detail?: string | null
+          id?: string
+          product_id?: string | null
+          product_name?: string
+          resolved?: boolean
+          surface?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visibility_alerts_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       wallet_transactions: {
         Row: {
