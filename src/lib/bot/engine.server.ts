@@ -3758,7 +3758,10 @@ async function handleMessage(msg: any) {
         await say(chatId, saveFailText(e), ADM_BACK);
         return;
       }
-      const mv = await admMenuIconView();
+      const mv = (BOTTOM_KEYS as readonly string[]).includes(menuKey)
+        ? await admBottomMenuView()
+        : await admMenuIconView();
+
       await say(
         chatId,
         `✅ ${MENU_ICONS[menuKey][1]} icon updated → ${iconPreviewHtml(value, MENU_ICONS[menuKey][0])}\n\n${mv.text}`,
@@ -4078,6 +4081,8 @@ export function adminKeyboard(): Button[][] {
       { text: "🧩 Menu icons", callback_data: "adm:menuicons" },
 
     ],
+    [{ text: "⌨️ Bottom menu buttons", callback_data: "adm:bottommenu" }],
+
     [
       { text: "💳 Payment icons", callback_data: "adm:paymenticons" },
       { text: "🖼 Page icons", callback_data: "adm:pageicons" },
@@ -4665,6 +4670,30 @@ async function admMenuIconView() {
     kb,
   };
 }
+
+const BOTTOM_KEYS = ["bottom_products", "bottom_deposit", "bottom_orders"] as const;
+
+/** The three persistent buttons below the composer (Products · Deposit · My Orders). */
+async function admBottomMenuView() {
+  const settings = await getSettings();
+  const kb: Button[][] = BOTTOM_KEYS.map((key) => [iconButton(settings, key, `adm:mi:${key}`, MENU_ICONS[key][1])]);
+  kb.push(ADM_BACK[0]!);
+  const list = iconPreviewLines(
+    settings,
+    "menu_icon_",
+    BOTTOM_KEYS.map((k) => [k, MENU_ICONS[k][1], MENU_ICONS[k][0]]),
+  );
+  return {
+    text:
+      "⌨️ <b>Bottom menu buttons</b>\n\nThese are the three buttons under the chat box.\n" +
+      "Pick one, then send a normal emoji or a <b>Telegram Premium custom emoji</b> (just send the emoji itself). " +
+      "Send <code>-</code> to reset.\n\n" +
+      `<b>Current icons</b>\n${list}`,
+    kb,
+  };
+}
+
+
 
 async function admPageIconView() {
   const settings = await getSettings();
@@ -6664,6 +6693,10 @@ async function handleCallback(cq: any) {
     } else if (action === "menuicons") {
       const v = await admMenuIconView();
       await edit(v.text, v.kb);
+    } else if (action === "bottommenu") {
+      const v = await admBottomMenuView();
+      await edit(v.text, v.kb);
+
     } else if (action.startsWith("mi:")) {
       const menuKey = arg as MenuIconKey;
       if (!(menuKey in MENU_ICONS)) return;
