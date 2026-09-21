@@ -209,7 +209,9 @@ export const updateSupplierProduct = createServerFn({ method: "POST" })
         supplier_id: merged.supplier_id,
         supplier_external_id: merged.external_id,
         supplier_stock: merged.stock,
-        is_active: Boolean(sup?.is_enabled),
+        // Only an explicit "list it" switch turns a product on; editing markup
+        // or a custom price must never re-enable something the admin turned off.
+        ...(data.is_listed === true ? { is_active: Boolean(sup?.is_enabled) } : {}),
       };
       if (d.image_url) productRow.image_url = d.image_url;
       if (d.delivery_time) productRow.delivery_time = d.delivery_time;
