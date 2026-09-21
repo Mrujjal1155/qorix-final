@@ -6,6 +6,7 @@ import {
   listVisibilityAlerts,
   dismissVisibilityAlerts,
   countReviewQueue,
+  countUnreadTickets,
 } from "@/lib/admin.functions";
 import { AdminShell, AdminPanel, money } from "@/components/AdminShell";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import {
   PlugZap,
   CheckCircle2,
   ShieldAlert,
+  LifeBuoy,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
