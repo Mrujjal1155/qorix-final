@@ -1490,7 +1490,9 @@ async function productsWithStock() {
   const { data: stock } = await db.rpc("stock_counts");
   const counts: Record<string, number> = {};
   for (const s of ((stock ?? []) as any[])) counts[String(s.product_id)] = Number(s.available ?? 0);
-  const rows = (products ?? []).map((p: any) => ({
+  // Safety net: a switched-off product must never reach the bot menu.
+  const { guardVisibleProducts } = await import("@/lib/suppliers/visibility-guard.server");
+  const rows = guardVisibleProducts(products ?? [], "bot").map((p: any) => ({
     ...p,
     stock: p.supplier_id ? Number(p.supplier_stock ?? 0) : (counts[p.id] ?? 0),
   }));
