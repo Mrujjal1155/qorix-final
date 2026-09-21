@@ -1104,6 +1104,80 @@ export type Database = {
           },
         ]
       }
+      stock_notification_events: {
+        Row: {
+          added_qty: number
+          attempts: number
+          channel_sent: boolean
+          claimed_at: string | null
+          created_at: string
+          delivered_at: string | null
+          dm_cursor: number
+          event_key: string
+          id: string
+          kind: string
+          last_error: string | null
+          new_price: number | null
+          next_attempt_at: string
+          old_price: number | null
+          product_id: string
+          source: string
+          status: string
+          stock: number
+          updated_at: string
+        }
+        Insert: {
+          added_qty?: number
+          attempts?: number
+          channel_sent?: boolean
+          claimed_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          dm_cursor?: number
+          event_key: string
+          id?: string
+          kind: string
+          last_error?: string | null
+          new_price?: number | null
+          next_attempt_at?: string
+          old_price?: number | null
+          product_id: string
+          source: string
+          status?: string
+          stock?: number
+          updated_at?: string
+        }
+        Update: {
+          added_qty?: number
+          attempts?: number
+          channel_sent?: boolean
+          claimed_at?: string | null
+          created_at?: string
+          delivered_at?: string | null
+          dm_cursor?: number
+          event_key?: string
+          id?: string
+          kind?: string
+          last_error?: string | null
+          new_price?: number | null
+          next_attempt_at?: string
+          old_price?: number | null
+          product_id?: string
+          source?: string
+          status?: string
+          stock?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_notification_events_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_products: {
         Row: {
           cost_price: number
@@ -1588,6 +1662,53 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_stock_notification: {
+        Args: never
+        Returns: {
+          added_qty: number
+          attempts: number
+          channel_sent: boolean
+          claimed_at: string | null
+          created_at: string
+          delivered_at: string | null
+          dm_cursor: number
+          event_key: string
+          id: string
+          kind: string
+          last_error: string | null
+          new_price: number | null
+          next_attempt_at: string
+          old_price: number | null
+          product_id: string
+          source: string
+          status: string
+          stock: number
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "stock_notification_events"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      enqueue_stock_notification: {
+        Args: {
+          _added_qty?: number
+          _event_key: string
+          _kind: string
+          _new_price?: number
+          _old_price?: number
+          _product_id: string
+          _source: string
+          _stock?: number
+        }
+        Returns: string
+      }
+      finish_stock_notification: {
+        Args: { _delivered: boolean; _error?: string; _id: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1632,12 +1753,20 @@ export type Database = {
         }
         Returns: number
       }
+      retry_latest_stock_notification: {
+        Args: { _product_id: string }
+        Returns: boolean
+      }
       stock_counts: {
         Args: { _product_ids?: string[] }
         Returns: {
           available: number
           product_id: string
         }[]
+      }
+      update_stock_notification_progress: {
+        Args: { _channel_sent?: boolean; _dm_cursor?: number; _id: string }
+        Returns: undefined
       }
     }
     Enums: {
