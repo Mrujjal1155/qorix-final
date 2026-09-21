@@ -1156,6 +1156,13 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   // instead of requiring the separately configured service-role secret.
   await pushAlerts(alerts, sb);
 
+  // Quarantine: new / rotated supplier items wait for an admin decision.
+  if (reviewRows.length) {
+    const { enqueueReview } = await import("./review.server");
+    await enqueueReview(reviewRows, sb);
+  }
+
+
 
   const added = alerts.filter((a) => a.kind === "new").length;
   const restocked = restockPosts.length;
