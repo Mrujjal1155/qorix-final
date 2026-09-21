@@ -4666,6 +4666,30 @@ async function admMenuIconView() {
   };
 }
 
+const BOTTOM_KEYS = ["bottom_products", "bottom_deposit", "bottom_orders"] as const;
+
+/** The three persistent buttons below the composer (Products · Deposit · My Orders). */
+async function admBottomMenuView() {
+  const settings = await getSettings();
+  const kb: Button[][] = BOTTOM_KEYS.map((key) => [iconButton(settings, key, `adm:mi:${key}`, MENU_ICONS[key][1])]);
+  kb.push(ADM_BACK[0]!);
+  const list = iconPreviewLines(
+    settings,
+    "menu_icon_",
+    BOTTOM_KEYS.map((k) => [k, MENU_ICONS[k][1], MENU_ICONS[k][0]]),
+  );
+  return {
+    text:
+      "⌨️ <b>Bottom menu buttons</b>\n\nThese are the three buttons under the chat box.\n" +
+      "Pick one, then send a normal emoji or a <b>Telegram Premium custom emoji</b> (just send the emoji itself). " +
+      "Send <code>-</code> to reset.\n\n" +
+      `<b>Current icons</b>\n${list}`,
+    kb,
+  };
+}
+
+
+
 async function admPageIconView() {
   const settings = await getSettings();
   const kb: Button[][] = (Object.keys(PAGE_ICONS) as PageIconKey[]).map((key) => {
