@@ -1173,6 +1173,8 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
           // supplier's own image on a re-sync.
           const patch = { ...productRow };
           if ((existingProd as any).image_url) delete patch.image_url;
+          // Re-linking an existing product must not flip the admin's on/off.
+          delete patch.is_active;
           const { data: upd } = await sb
             .from("products")
             .update(patch)
