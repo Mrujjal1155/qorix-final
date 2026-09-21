@@ -116,6 +116,10 @@ const HARD_STALE_MS = 2 * 60 * 60_000;
  */
 const CARDS_PER_RUN = 8;
 const DM_PER_RUN = 40;
+/** Hard cap for one card's channel post + DM batch. */
+const CARD_TIMEOUT_MS = 9_000;
+/** Wall-clock budget for one delivery run (scheduler cuts us off at ~28s). */
+const DRAIN_BUDGET_MS = 14_000;
 
 /** Give up (and log) after this many failed attempts for one event. */
 const MAX_TRIES = 8;
@@ -357,7 +361,7 @@ function backoffMs(tries: number) {
  * The queue is rewritten to the database after EVERY card, so a run that is cut
  * short by the platform never loses (or repeats) delivered work.
  */
-async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: number }) {
+async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: number; until?: number }) {
   const key = QUEUE_PREFIX + supplierId;
   let queue = (await readJsonSetting(sb, key)) as NotifyItem[];
   if (!queue.length) return { sent: 0, failed: 0 };
@@ -412,7 +416,12 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
     const index = queue.findIndex((item) => !item.next_at || item.next_at <= now);
     if (index < 0) break;
     const item = queue[index]!;
+    // Wall-clock guard: the scheduler cuts the request off at ~28s. Stop before
+    // that so a claimed card is always released (failed → retried) instead of
+    // being left half-claimed as "sending", which silently froze the queue.
+    if (budget.until && Date.now() > budget.until) break;
     budget.cards -= 1;
+
 
 
     const remove = async () => {
@@ -460,14 +469,15 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
         await remove();
         continue;
       }
-      if (item.t === "restock") {
-        delivery = await notifyRestock(item.product_id, item.qty, progress);
-      } else {
-        if (!prod) throw new Error("Linked product no longer exists");
-        if (item.t === "low") delivery = await announceLowStock(prod, item.stock, progress);
-        else if (item.t === "price") delivery = await announcePriceChange(prod, item.old_price, item.new_price, progress);
-        else delivery = await announceNewProduct(prod, progress);
-      }
+      // A hung Telegram call must never eat the whole invocation: cap it, so a
+      // failure is recorded and retried on the next tick.
+      const send = async () => {
+        if (item.t === "restock") return await notifyRestock(item.product_id, item.qty, progress);
+        if (item.t === "low") return await announceLowStock(prod, item.stock, progress);
+        if (item.t === "price") return await announcePriceChange(prod, item.old_price, item.new_price, progress);
+        return await announceNewProduct(prod, progress);
+      };
+      delivery = await withTimeout(send(), CARD_TIMEOUT_MS, `${item.t} card`);
 
       if (delivery && !delivery.dmComplete) {
         // Channel post is done; bot DMs continue on the next tick from the cursor.
@@ -524,7 +534,7 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
 export async function drainAllNotifications(sb?: any) {
   const db = sb ?? (await adminDb());
   const { data: sups } = await db.from("suppliers").select("id,name").eq("is_enabled", true);
-  const budget = { cards: CARDS_PER_RUN };
+  const budget = { cards: CARDS_PER_RUN, until: Date.now() + DRAIN_BUDGET_MS };
   let sent = 0;
   let failed = 0;
   // In-house (manual) stock uploads share the same durable delivery path.
@@ -536,7 +546,7 @@ export async function drainAllNotifications(sb?: any) {
     console.error("Manual stock notifications failed:", error);
   }
   for (const supplier of sups ?? []) {
-    if (budget.cards <= 0) break;
+    if (budget.cards <= 0 || Date.now() > budget.until) break;
     try {
       const res = await drainSupplierQueue(db, (supplier as any).id, budget);
       sent += res.sent;
@@ -1373,10 +1383,14 @@ export async function maybeAutoSyncSuppliers(minutes = 2) {
   if (Number.isFinite(last) && Date.now() - last < every * 60_000) {
     // Throttled for catalogue polling, but pending Telegram cards must never
     // wait for the next window — deliver them on every tick.
+    const startedAt = Date.now();
     const delivery = await drainAllNotifications(db).catch(() => ({ sent: 0, failed: 1 }));
     // Suppliers that push changes to us (Vexoran-style webhooks) are already
     // realtime. The rest have no push API at all, so they only look realtime
     // if we keep polling them on every tick instead of once per window.
+    // Alerts come first: if delivery already used the request budget, polling
+    // waits for the next tick instead of getting this request killed.
+    if (Date.now() - startedAt > DRAIN_BUDGET_MS - 2_000) return { skipped: true, ...delivery, polled: 0 };
     const fast = await fastPollPushlessSuppliers(db).catch((error) => {
       console.error("Fast poll failed:", error);
       return { polled: 0 };
