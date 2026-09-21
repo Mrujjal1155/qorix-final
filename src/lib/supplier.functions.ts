@@ -267,6 +267,7 @@ export const updateSupplierProduct = createServerFn({ method: "POST" })
             emoji: icon.glyph || "📦",
             telegram_custom_emoji_id: icon.customId || null,
             ...productRow,
+            is_active: Boolean(sup?.is_enabled),
           })
           .select("id")
           .maybeSingle();
