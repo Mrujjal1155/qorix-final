@@ -6,6 +6,7 @@ import {
   listVisibilityAlerts,
   dismissVisibilityAlerts,
   countReviewQueue,
+  countUnreadTickets,
 } from "@/lib/admin.functions";
 import { AdminShell, AdminPanel, money } from "@/components/AdminShell";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import {
   PlugZap,
   CheckCircle2,
   ShieldAlert,
+  LifeBuoy,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
@@ -156,18 +158,39 @@ function VisibilityAlertBanner() {
     queryFn: () => fetchPending(),
     refetchInterval: 60000,
   });
+  const fetchTickets = useServerFn(countUnreadTickets);
+  const { data: tickets } = useQuery({
+    queryKey: ["unread-tickets-count"],
+    queryFn: () => fetchTickets(),
+    refetchInterval: 30000,
+  });
 
   const all: any[] = (alerts as any[]) ?? [];
   // Supplier-side events (id rotation, removal) get their own amber banner.
   const supplierRows = all.filter((a) => a.surface === "supplier_id" || a.surface === "supplier_removed");
   const rows = all.filter((a) => !supplierRows.includes(a));
   const pendingCount = pending?.count ?? 0;
-  if (!all.length && !pendingCount) return null;
+  const ticketCount = tickets?.count ?? 0;
+  if (!all.length && !pendingCount && !ticketCount) return null;
 
   const surfaceName = (s: string) => (s === "bot" ? "Telegram bot" : s === "web" ? "website" : "reseller API");
 
   return (
     <div className="mb-5 space-y-3">
+      {ticketCount > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-sky-500/50 bg-sky-500/10 p-4">
+          <LifeBuoy className="size-5 shrink-0 text-sky-500" />
+          <p className="min-w-0 flex-1 text-sm font-medium">
+            {ticketCount} support ticket{ticketCount > 1 ? "s" : ""} waiting for your reply.
+          </p>
+          <Link to="/admin/support">
+            <Button size="sm" variant="secondary">
+              Open support
+            </Button>
+          </Link>
+        </div>
+      )}
+
       {pendingCount > 0 && (
         <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-primary/40 bg-primary/10 p-4">
           <ShieldAlert className="size-5 shrink-0 text-primary" />

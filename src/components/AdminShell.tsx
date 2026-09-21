@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { countPendingOrders } from "@/lib/admin.functions";
+import { countPendingOrders, countUnreadTickets } from "@/lib/admin.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -82,6 +82,15 @@ export function AdminShell({
     refetchInterval: 60000,
   });
   const pendingCount = pending?.count ?? 0;
+  const fetchTickets = useServerFn(countUnreadTickets);
+  const { data: tickets } = useQuery({
+    queryKey: ["unread-tickets-count"],
+    queryFn: () => fetchTickets(),
+    refetchInterval: 30000,
+  });
+  const ticketCount = tickets?.count ?? 0;
+  const badgeFor = (to: string) =>
+    to === "/admin/orders" ? pendingCount : to === "/admin/support" ? ticketCount : 0;
 
   useEffect(() => {
     setCollapsed(localStorage.getItem("qorix-admin-rail") === "collapsed");
@@ -167,18 +176,18 @@ export function AdminShell({
                 >
                   <span className="relative shrink-0">
                     <item.icon className="size-[1.15rem]" />
-                    {item.to === "/admin/orders" && pendingCount > 0 && (
+                    {badgeFor(item.to) > 0 && (
                       <span
-                        aria-label={`${pendingCount} pending orders`}
+                        aria-label={`${badgeFor(item.to)} items need attention`}
                         className="absolute -right-1.5 -top-1.5 size-2.5 animate-pulse rounded-full bg-destructive ring-2 ring-sidebar"
                       />
                     )}
                   </span>
                   <span className={cn("flex min-w-0 items-center gap-2", labelCls)}>
                     {item.label}
-                    {item.to === "/admin/orders" && pendingCount > 0 && (
+                    {badgeFor(item.to) > 0 && (
                       <span className="rounded-full bg-destructive px-1.5 py-0.5 text-[0.65rem] font-bold leading-none text-destructive-foreground">
-                        {pendingCount}
+                        {badgeFor(item.to)}
                       </span>
                     )}
                   </span>

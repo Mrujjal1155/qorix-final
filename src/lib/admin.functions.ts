@@ -1784,6 +1784,21 @@ export const countPendingOrders = createServerFn({ method: "GET" })
     return { count: count ?? 0 };
   });
 
+/** Support tickets waiting on an admin reply (sidebar badge + dashboard alert). */
+export const countUnreadTickets = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const sb = (context as any).supabase;
+    const [unread, open] = await Promise.all([
+      sb.from("support_tickets").select("id", { count: "exact", head: true }).gt("unread_admin", 0),
+      sb.from("support_tickets").select("id", { count: "exact", head: true }).eq("status", "open"),
+    ]);
+    if (unread.error) throw new Error(unread.error.message);
+    return { count: unread.count ?? 0, open: open.count ?? 0 };
+  });
+
+
 // ── Supplier review queue (quarantine) ───────────────────────────────────────
 
 /** Items waiting for an admin decision: brand-new or supplier-id-rotated. */
