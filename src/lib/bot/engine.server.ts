@@ -6690,6 +6690,10 @@ async function handleCallback(cq: any) {
     } else if (action === "menuicons") {
       const v = await admMenuIconView();
       await edit(v.text, v.kb);
+    } else if (action === "bottommenu") {
+      const v = await admBottomMenuView();
+      await edit(v.text, v.kb);
+
     } else if (action.startsWith("mi:")) {
       const menuKey = arg as MenuIconKey;
       if (!(menuKey in MENU_ICONS)) return;
