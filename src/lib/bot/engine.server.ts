@@ -1520,7 +1520,7 @@ const COLOR_SLOTS: { key: ColorSlot; label: string; def: ButtonStyle }[] = [
   { key: "pagination", label: "Pagination (Prev/Next)", def: "primary" },
   { key: "wallet", label: "Wallet & payment buttons", def: "primary" },
   { key: "api", label: "Reseller API buttons", def: "primary" },
-  { key: "nav", label: "Navigation & actions", def: "success" },
+  { key: "nav", label: "Navigation & actions", def: "default" },
   { key: "menu", label: "Main menu", def: "primary" },
 ];
 
@@ -1528,9 +1528,10 @@ const COLOR_LABEL: Record<ButtonStyle, string> = {
   primary: "🔵 Blue",
   success: "🟢 Green",
   danger: "🔴 Red",
+  default: "⚪ Default",
 };
 
-const COLOR_ORDER: ButtonStyle[] = ["primary", "success", "danger"];
+const COLOR_ORDER: ButtonStyle[] = ["primary", "success", "danger", "default"];
 
 /** Colour for a button slot — admin configurable via bot_settings (btn_color_<slot>). */
 function btnColor(settings: Record<string, string>, slot: ColorSlot): ButtonStyle {
@@ -4668,7 +4669,7 @@ async function admButtonColorView() {
   ).join("\n");
   return {
     text:
-      "🎨 <b>Button colors</b>\n\nTap a group to switch its colour — 🔵 Blue → 🟢 Green → 🔴 Red.\n" +
+      "🎨 <b>Button colors</b>\n\nTap a group to switch its colour — 🔵 Blue → 🟢 Green → 🔴 Red → ⚪ Default.\n" +
       "New messages sent by the bot use the colour you pick here.\n\n" +
       `<b>Current colors</b>\n${list}`,
     kb,
