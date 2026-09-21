@@ -1214,6 +1214,19 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   // instead of requiring the separately configured service-role secret.
   await pushAlerts(alerts, sb);
 
+  // Products the supplier no longer offers → off sale + admin notice.
+  await retireMissingSupplierItems(
+    sb,
+    s,
+    new Set(uniqueRemote.map((p) => String(p.external_id))),
+    existing ?? [],
+    productsById,
+  ).catch((error) => {
+    console.error("Retire missing supplier items failed:", error);
+    return { retired: 0, names: [] as string[] };
+  });
+
+
   // Quarantine: new / rotated supplier items wait for an admin decision.
   if (reviewRows.length) {
     const { enqueueReview } = await import("./review.server");
