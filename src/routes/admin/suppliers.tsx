@@ -145,7 +145,7 @@ function SuppliersPage() {
   return (
     <AdminShell title="Supplier APIs" subtitle="External catalogues, your markup, automatic delivery">
       <div className="mb-4 flex w-fit rounded-lg border border-border bg-background p-1">
-        {(["suppliers", "bot"] as const).map((key) => (
+        {(["suppliers", "review", "bot"] as const).map((key) => (
           <button
             key={key}
             onClick={() => setView(key)}
@@ -153,10 +153,19 @@ function SuppliersPage() {
               view === key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {key === "suppliers" ? "Supplier catalogue" : "My bot · all products"}
+            {key === "suppliers" ? "Supplier catalogue" : key === "review" ? "Review queue" : "My bot · all products"}
+            {key === "review" && (pendingReview?.count ?? 0) > 0 ? (
+              <span className="ml-2 rounded-full bg-destructive px-1.5 py-0.5 text-[11px] font-semibold text-destructive-foreground">
+                {pendingReview?.count}
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
+
+      {view === "review" && <ReviewQueuePanel />}
+
+
 
       {view === "suppliers" && (
         <>
