@@ -776,9 +776,9 @@ function homeKeyboard(settings: Record<string, string>): Button[][] {
 
 
     [
-      mBtn(iconButton(settings, "wallet", "wallet")),
-      mBtn(iconButton(settings, "freebies", "freebies")),
-      mBtn(iconButton(settings, "profile", "profile")),
+      styled(iconButton(settings, "wallet", "wallet"), "default"),
+      styled(iconButton(settings, "freebies", "freebies"), "default"),
+      styled(iconButton(settings, "profile", "profile"), "default"),
     ],
     [iconButton(settings, "referral", "refstore")],
     [
