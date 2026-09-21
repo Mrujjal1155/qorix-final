@@ -44,7 +44,7 @@ export const listStorefront = createServerFn({ method: "GET" }).handler(async ()
     sb
       .from("products")
       .select(
-        "id,name,emoji,description,price,old_price,delivery_type,category_id,sort_order,featured_rank,image_url,delivery_time,badge,supplier_id,supplier_stock",
+        "id,name,emoji,description,price,old_price,delivery_type,category_id,sort_order,featured_rank,image_url,delivery_time,badge,supplier_id,supplier_stock,is_active",
       )
       .eq("is_active", true)
       .is("owner_reseller_id", null)
