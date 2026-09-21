@@ -736,6 +736,9 @@ async function relinkRotatedIds(
   let relinked = 0;
   let retired = 0;
   const now = new Date().toISOString();
+  // Supplier-side id rotations, surfaced to the admin dashboard + Telegram.
+  const idAlerts: Array<{ product_id: string | null; product_name: string; surface: string; detail: string }> = [];
+  const idLines: string[] = [];
 
   for (const prod of stale) {
     const oldId = String(prod.supplier_external_id);
