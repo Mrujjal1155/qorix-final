@@ -933,8 +933,10 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
 
         price,
         supplier_stock: p.stock,
-        is_active: Boolean(s["is_enabled"]),
       };
+      // On/off is the admin's decision — a sync must never switch a product
+      // back on. Disabling the whole supplier still takes its products off sale.
+      if (!s["is_enabled"]) productPatch.is_active = false;
       // Only overwrite the rich fields when the supplier actually sent them —
       // otherwise a sparse sync response would wipe the banner/notes the admin
       // (or an earlier, richer response) already stored.
@@ -1143,7 +1145,9 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
           supplier_id: s.id,
           supplier_external_id: String(p.external_id),
           supplier_stock: p.stock,
-          is_active: Boolean(s["is_enabled"]),
+          // Brand new supplier products land switched OFF: the admin decides
+          // what the website and bot actually sell.
+          is_active: false,
           emoji: rawEmoji || icon.glyph || "📦",
           telegram_custom_emoji_id: rawEmoji ? null : icon.customId || null,
         };
@@ -1169,6 +1173,8 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
           // supplier's own image on a re-sync.
           const patch = { ...productRow };
           if ((existingProd as any).image_url) delete patch.image_url;
+          // Re-linking an existing product must not flip the admin's on/off.
+          delete patch.is_active;
           const { data: upd } = await sb
             .from("products")
             .update(patch)
@@ -1187,13 +1193,13 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
         if (!created) continue;
 
 
+        // The product row exists so the admin can see and price it, but it stays
+        // unlisted and inactive until the admin switches it on.
         await sb
           .from("supplier_products")
-          .update({ is_listed: true, product_id: (created as any).id })
+          .update({ product_id: (created as any).id })
           .eq("supplier_id", s.id)
           .eq("external_id", String(p.external_id));
-
-        newPosts.push({ product_id: created.id, event_id: `new:${s.id}:${item.external_id}` });
       } catch (e) {
         console.error("Auto-list of new supplier product failed:", e);
       }
