@@ -57,7 +57,8 @@ export const listStorefront = createServerFn({ method: "GET" }).handler(async ()
   const { data: links } = await sb.from("product_categories").select("product_id,category_id");
   const linkMap: Record<string, string[]> = {};
   for (const l of links ?? []) (linkMap[l.product_id as string] ??= []).push(l.category_id as string);
-  const base = (prods.data ?? [])
+  const { guardVisibleProducts } = await import("@/lib/suppliers/visibility-guard.server");
+  const base = guardVisibleProducts(prods.data ?? [], "web")
     .map((p: any) => ({
       ...p,
       category_ids: Array.from(new Set([...(linkMap[p.id] ?? []), ...(p.category_id ? [p.category_id] : [])])),
