@@ -1383,10 +1383,14 @@ export async function maybeAutoSyncSuppliers(minutes = 2) {
   if (Number.isFinite(last) && Date.now() - last < every * 60_000) {
     // Throttled for catalogue polling, but pending Telegram cards must never
     // wait for the next window — deliver them on every tick.
+    const startedAt = Date.now();
     const delivery = await drainAllNotifications(db).catch(() => ({ sent: 0, failed: 1 }));
     // Suppliers that push changes to us (Vexoran-style webhooks) are already
     // realtime. The rest have no push API at all, so they only look realtime
     // if we keep polling them on every tick instead of once per window.
+    // Alerts come first: if delivery already used the request budget, polling
+    // waits for the next tick instead of getting this request killed.
+    if (Date.now() - startedAt > DRAIN_BUDGET_MS - 2_000) return { skipped: true, ...delivery, polled: 0 };
     const fast = await fastPollPushlessSuppliers(db).catch((error) => {
       console.error("Fast poll failed:", error);
       return { polled: 0 };
