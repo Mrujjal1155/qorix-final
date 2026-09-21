@@ -63,6 +63,8 @@ function OverviewPage() {
         </Button>
       }
     >
+      <VisibilityAlertBanner />
+
       <div className="flex flex-wrap items-center gap-x-10 gap-y-5 border-b border-border/70 pb-7">
         {highlights.map((h) => (
           <div key={h.note} className="flex min-w-0 items-center gap-3">
