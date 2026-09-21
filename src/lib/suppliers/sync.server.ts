@@ -842,6 +842,19 @@ async function relinkRotatedIds(
   if (relinked || retired) {
     console.log(`Supplier ${s.name}: relinked ${relinked} rotated product id(s), retired ${retired}`);
   }
+  if (idAlerts.length) {
+    await recordSupplierAlerts(sb, idAlerts);
+    try {
+      const { announceSupplierNotice } = await import("@/lib/bot/engine.server");
+      await announceSupplierNotice(
+        s.name,
+        `${idAlerts.length} product id${idAlerts.length > 1 ? "s" : ""} changed by supplier`,
+        idLines.slice(0, 20).join("\n") + (idLines.length > 20 ? `\n… +${idLines.length - 20} more` : ""),
+      );
+    } catch (error) {
+      console.error("Supplier id-change notice failed:", error);
+    }
+  }
   return { relinked, retired };
 }
 
