@@ -116,6 +116,10 @@ const HARD_STALE_MS = 2 * 60 * 60_000;
  */
 const CARDS_PER_RUN = 8;
 const DM_PER_RUN = 40;
+/** Hard cap for one card's channel post + DM batch. */
+const CARD_TIMEOUT_MS = 9_000;
+/** Wall-clock budget for one delivery run (scheduler cuts us off at ~28s). */
+const DRAIN_BUDGET_MS = 14_000;
 
 /** Give up (and log) after this many failed attempts for one event. */
 const MAX_TRIES = 8;
