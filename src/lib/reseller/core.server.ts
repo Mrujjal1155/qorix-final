@@ -81,7 +81,7 @@ export async function catalogue(reseller: Reseller, channel: Channel) {
     db
       .from("products")
       .select(
-        "id,name,emoji,description,important_note,quick_guide,price,old_price,delivery_type,category_id,sort_order,image_url,delivery_time,badge,featured_rank,supplier_id,supplier_stock,owner_reseller_id",
+        "id,name,emoji,description,important_note,quick_guide,price,old_price,delivery_type,category_id,sort_order,image_url,delivery_time,badge,featured_rank,supplier_id,supplier_stock,owner_reseller_id,is_active",
       )
       .eq("is_active", true)
       .or(`owner_reseller_id.is.null,owner_reseller_id.eq.${reseller.id}`)
