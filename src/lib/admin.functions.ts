@@ -325,6 +325,12 @@ export const saveProduct = createServerFn({ method: "POST" })
         .maybeSingle();
       const { data: updated, error } = await sb.from("products").update(row).eq("id", id).select("*").maybeSingle();
       if (error) throw new Error(error.message);
+      if ((before as any)?.supplier_id && rest.is_active !== undefined) {
+        await sb
+          .from("supplier_products")
+          .update({ is_listed: Boolean(rest.is_active) })
+          .eq("product_id", id);
+      }
 
       // Custom selling price for supplier products. Stored on the supplier row
       // so the 15s catalogue sync keeps it instead of recomputing the markup.
@@ -404,6 +410,12 @@ export const saveProduct = createServerFn({ method: "POST" })
 
     const { data: created, error } = await sb.from("products").insert(row).select("*").maybeSingle();
     if (error) throw new Error(error.message);
+    if ((updated as any)?.supplier_id) {
+      await sb
+        .from("supplier_products")
+        .update({ is_listed: data.is_active })
+        .eq("product_id", data.id);
+    }
     // A brand-new live product gets the NEW PRODUCT card in the channel and in
     // every bot chat, exactly like an auto-listed supplier product.
     if (created && (created as any).is_active !== false) {
