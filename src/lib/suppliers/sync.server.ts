@@ -694,6 +694,22 @@ function normalizeName(v: unknown): string {
  * "Product not found". Here we re-point those products at the live id using the
  * product name, and retire the ones that truly disappeared.
  */
+/**
+ * Dashboard record for supplier-side catalogue events (id rotation, removal).
+ * Written to the same `visibility_alerts` table the admin banner already reads.
+ */
+async function recordSupplierAlerts(
+  sb: any,
+  rows: Array<{ product_id: string | null; product_name: string; surface: string; detail: string }>,
+) {
+  if (!rows.length) return;
+  try {
+    await sb.from("visibility_alerts").insert(rows.slice(0, 50));
+  } catch (error) {
+    console.error("Supplier alert insert failed:", error);
+  }
+}
+
 async function relinkRotatedIds(
   sb: any,
   s: SupplierRow & Record<string, any>,
@@ -720,6 +736,9 @@ async function relinkRotatedIds(
   let relinked = 0;
   let retired = 0;
   const now = new Date().toISOString();
+  // Supplier-side id rotations, surfaced to the admin dashboard + Telegram.
+  const idAlerts: Array<{ product_id: string | null; product_name: string; surface: string; detail: string }> = [];
+  const idLines: string[] = [];
 
   for (const prod of stale) {
     const oldId = String(prod.supplier_external_id);
@@ -779,6 +798,13 @@ async function relinkRotatedIds(
         if (ins) byExt.set(newId, ins);
       }
       relinked++;
+      idAlerts.push({
+        product_id: String(prod.id),
+        product_name: String(prod.name ?? ""),
+        surface: "supplier_id",
+        detail: `${s.name}: supplier id changed ${oldId} → ${newId}. The product was re-linked automatically — please verify.`,
+      });
+      idLines.push(`${prod.name} · ${oldId} → ${newId} (re-linked)`);
     } else {
       // A name match exists but the previous supplier row was not an approved
       // listing → quarantine it for admin review instead of guessing.
@@ -793,6 +819,13 @@ async function relinkRotatedIds(
           product_id: String(prod.id),
           snapshot: { previous_external_id: oldId, previous_product: prod.name },
         });
+        idAlerts.push({
+          product_id: String(prod.id),
+          product_name: String(prod.name ?? ""),
+          surface: "supplier_id",
+          detail: `${s.name}: supplier id changed ${oldId} → ${match.external_id}. Waiting in the review queue for your approval.`,
+        });
+        idLines.push(`${prod.name} · ${oldId} → ${match.external_id} (needs approval)`);
       }
       if (prod.is_active) {
         // Gone from the supplier catalogue → take it off sale instead of letting
@@ -808,6 +841,19 @@ async function relinkRotatedIds(
 
   if (relinked || retired) {
     console.log(`Supplier ${s.name}: relinked ${relinked} rotated product id(s), retired ${retired}`);
+  }
+  if (idAlerts.length) {
+    await recordSupplierAlerts(sb, idAlerts);
+    try {
+      const { announceSupplierNotice } = await import("@/lib/bot/engine.server");
+      await announceSupplierNotice(
+        s.name,
+        `${idAlerts.length} product id${idAlerts.length > 1 ? "s" : ""} changed by supplier`,
+        idLines.slice(0, 20).join("\n") + (idLines.length > 20 ? `\n… +${idLines.length - 20} more` : ""),
+      );
+    } catch (error) {
+      console.error("Supplier id-change notice failed:", error);
+    }
   }
   return { relinked, retired };
 }
@@ -856,6 +902,15 @@ async function retireMissingSupplierItems(
   }
 
   if (names.length) {
+    await recordSupplierAlerts(
+      sb,
+      offIds.map((id, i) => ({
+        product_id: id,
+        product_name: names[i] ?? "",
+        surface: "supplier_removed",
+        detail: `${s.name} removed this product from their API — it was switched off automatically.`,
+      })),
+    );
     try {
       const { announceSupplierNotice } = await import("@/lib/bot/engine.server");
       await announceSupplierNotice(

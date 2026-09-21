@@ -268,12 +268,12 @@ export function AdminPanel({
   return (
     <section className={cn("admin-panel rounded-2xl", className)}>
       {(title || action) && (
-        <div className="flex items-center gap-3 border-b border-border/70 px-5 py-3.5">
+        <div className="flex flex-wrap items-center gap-3 border-b border-border/70 px-4 py-3.5 sm:px-5">
           {title && <h2 className="text-base font-bold tracking-tight">{title}</h2>}
           {action && <div className="ml-auto">{action}</div>}
         </div>
       )}
-      <div className="p-5">{children}</div>
+      <div className="min-w-0 p-4 sm:p-5">{children}</div>
     </section>
   );
 }
