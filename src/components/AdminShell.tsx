@@ -273,7 +273,7 @@ export function AdminPanel({
           {action && <div className="ml-auto">{action}</div>}
         </div>
       )}
-      <div className="p-5">{children}</div>
+      <div className="min-w-0 p-4 sm:p-5">{children}</div>
     </section>
   );
 }
