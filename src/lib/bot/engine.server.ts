@@ -7309,3 +7309,22 @@ export async function announceSupplierNotice(supplierName: string, title: string
     return { sent: false };
   });
 }
+
+/**
+ * Internal operations notice (supplier id change, removed product, blocked
+ * disabled product). ADMIN DM ONLY — never the public announcement channel.
+ */
+export async function notifyAdminNotice(source: string, title: string, body: string) {
+  const line = "──────────────────────";
+  const text =
+    `🛠 <b>${escapeHtml(title || "Admin notice")}</b>\n${line}\n\n` +
+    (body ? `${escapeHtml(body)}\n\n` : "") +
+    `<i>${escapeHtml(source)}</i>`;
+  try {
+    await notifyAdmins(text);
+    return { sent: true };
+  } catch (error) {
+    console.error("Admin notice delivery failed:", error);
+    return { sent: false };
+  }
+}
