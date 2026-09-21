@@ -98,7 +98,8 @@ export async function catalogue(reseller: Reseller, channel: Channel) {
   const catName: Record<string, string> = {};
   for (const c of categories) catName[c.id] = c.name;
 
-  const products = (prods ?? [])
+  const { guardVisibleProducts } = await import("@/lib/suppliers/visibility-guard.server");
+  const products = guardVisibleProducts(prods ?? [], "api")
     .filter((p: any) => !p.category_id || allowed.has(p.category_id))
     .map((p: any) => publicProduct(p, reseller, counts, catName));
 
