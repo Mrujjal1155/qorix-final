@@ -182,6 +182,35 @@ function VisibilityAlertBanner() {
         </div>
       )}
 
+      {supplierRows.length > 0 && (
+        <div className="rounded-2xl border border-amber-500/50 bg-amber-500/10 p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <ShieldAlert className="size-5 shrink-0 text-amber-500" />
+            <p className="min-w-0 flex-1 text-sm font-semibold">
+              {supplierRows.length} supplier change{supplierRows.length > 1 ? "s" : ""} detected (product removed or
+              supplier ID changed).
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                await dismiss({ data: { ids: supplierRows.map((a) => a.id) } });
+                qc.invalidateQueries({ queryKey: ["visibility-alerts"] });
+              }}
+            >
+              Dismiss
+            </Button>
+          </div>
+          <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
+            {supplierRows.slice(0, 8).map((a) => (
+              <li key={a.id} className="break-words">
+                <span className="font-medium text-foreground">{a.product_name || a.product_id}</span> · {a.detail}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {rows.length > 0 && (
         <div className="rounded-2xl border border-destructive/50 bg-destructive/10 p-4">
           <div className="flex flex-wrap items-center gap-3">
