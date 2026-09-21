@@ -1743,6 +1743,7 @@ export type Database = {
         Args: { _fallback: string; _key: string }
         Returns: string
       }
+      release_stock_notification: { Args: { _id: string }; Returns: undefined }
       reseller_adjust_balance: {
         Args: {
           _amount: number
