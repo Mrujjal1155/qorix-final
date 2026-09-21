@@ -777,14 +777,30 @@ async function relinkRotatedIds(
         if (ins) byExt.set(newId, ins);
       }
       relinked++;
-    } else if (prod.is_active) {
-      // Gone from the supplier catalogue → take it off sale instead of letting
-      // a customer pay for something that can never be delivered.
-      await sb.from("products").update({ is_active: false, supplier_stock: 0 }).eq("id", prod.id);
-      prod.is_active = false;
-      prod.supplier_stock = 0;
-      productsById.set(String(prod.id), prod);
-      retired++;
+    } else {
+      // A name match exists but the previous supplier row was not an approved
+      // listing → quarantine it for admin review instead of guessing.
+      if (match) {
+        reviewRows.push({
+          supplier_id: String(s.id),
+          external_id: String(match.external_id),
+          reason: "rotated",
+          name: String(match.name ?? prod.name ?? ""),
+          cost_price: Number(match.cost_price ?? 0),
+          stock: Number(match.stock ?? 0),
+          product_id: String(prod.id),
+          snapshot: { previous_external_id: oldId, previous_product: prod.name },
+        });
+      }
+      if (prod.is_active) {
+        // Gone from the supplier catalogue → take it off sale instead of letting
+        // a customer pay for something that can never be delivered.
+        await sb.from("products").update({ is_active: false, supplier_stock: 0 }).eq("id", prod.id);
+        prod.is_active = false;
+        prod.supplier_stock = 0;
+        productsById.set(String(prod.id), prod);
+        retired++;
+      }
     }
   }
 
@@ -793,6 +809,7 @@ async function relinkRotatedIds(
   }
   return { relinked, retired };
 }
+
 
 
 async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string, any>) {
