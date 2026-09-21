@@ -1145,7 +1145,9 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
           supplier_id: s.id,
           supplier_external_id: String(p.external_id),
           supplier_stock: p.stock,
-          is_active: Boolean(s["is_enabled"]),
+          // Brand new supplier products land switched OFF: the admin decides
+          // what the website and bot actually sell.
+          is_active: false,
           emoji: rawEmoji || icon.glyph || "📦",
           telegram_custom_emoji_id: rawEmoji ? null : icon.customId || null,
         };
