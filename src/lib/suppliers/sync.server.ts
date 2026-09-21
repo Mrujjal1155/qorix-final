@@ -357,7 +357,7 @@ function backoffMs(tries: number) {
  * The queue is rewritten to the database after EVERY card, so a run that is cut
  * short by the platform never loses (or repeats) delivered work.
  */
-async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: number }) {
+async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: number; until?: number }) {
   const key = QUEUE_PREFIX + supplierId;
   let queue = (await readJsonSetting(sb, key)) as NotifyItem[];
   if (!queue.length) return { sent: 0, failed: 0 };
@@ -412,7 +412,12 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
     const index = queue.findIndex((item) => !item.next_at || item.next_at <= now);
     if (index < 0) break;
     const item = queue[index]!;
+    // Wall-clock guard: the scheduler cuts the request off at ~28s. Stop before
+    // that so a claimed card is always released (failed → retried) instead of
+    // being left half-claimed as "sending", which silently froze the queue.
+    if (budget.until && Date.now() > budget.until) break;
     budget.cards -= 1;
+
 
 
     const remove = async () => {
