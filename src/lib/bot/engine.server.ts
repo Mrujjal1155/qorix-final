@@ -80,6 +80,7 @@ const MENU_ICONS = {
   referral: ["🏪", "Referral Store"], support: ["🆘", "Support"], emails: ["📧", "Emails & Trials"],
   api: ["🔌", "Reseller API"], clear: ["🧹", "Clear Chat"], refresh: ["🔄", "Refresh Stock"],
   back: ["◀️", "Main Menu"],
+  bottom_products: ["🛍", "Products"], bottom_deposit: ["💳", "Deposit"], bottom_orders: ["📦", "My Orders"],
 } as const;
 
 type MenuIconKey = keyof typeof MENU_ICONS;
@@ -92,6 +93,7 @@ function menuButtonText(settings: Record<string, string>, key: MenuIconKey, labe
   return {
     text: `${glyph} ${label ?? defaultLabel}`.replace(/\s+/g, " ").trim(),
     customId,
+    glyph,
   };
 }
 
@@ -112,6 +114,32 @@ function iconButton(settings: Record<string, string>, key: MenuIconKey, callback
     ...(customId ? { icon_custom_emoji_id: customId } : {}),
     ...(key === "back" ? { style: "danger" as const } : {}),
   };
+}
+
+/** Persistent Telegram menu shown below the message composer. */
+function bottomMenuMarkup(settings: Record<string, string>) {
+  const keyButton = (key: "bottom_products" | "bottom_deposit" | "bottom_orders") => {
+    const { customId, glyph } = menuButtonText(settings, key);
+    const label = MENU_ICONS[key][1];
+    return {
+      text: customId ? label : `${glyph} ${label}`.trim(),
+      ...(customId ? { icon_custom_emoji_id: customId } : {}),
+      style: "primary" as const,
+    };
+  };
+  return {
+    keyboard: [[keyButton("bottom_products"), keyButton("bottom_deposit"), keyButton("bottom_orders")]],
+    resize_keyboard: true,
+    is_persistent: true,
+    input_field_placeholder: "Choose an option below",
+  };
+}
+
+async function sayWithBottomMenu(chatId: number, text: string, settings: Record<string, string>, kb?: Button[][]) {
+  const res = await sendMessage(chatId, text, undefined, { reply_markup: bottomMenuMarkup(settings) });
+  defer(() => trackMessage(chatId, res?.result?.message_id));
+  if (kb) await say(chatId, "<b>Quick actions</b>", kb);
+  return res;
 }
 
 
@@ -3111,7 +3139,8 @@ async function handleMessage(msg: any) {
         return;
       }
     }
-    await say(chatId, await homeText(user), homeKeyboard(await getSettings()));
+    const settings = await getSettings();
+    await sayWithBottomMenu(chatId, await homeText(user), settings, homeKeyboard(settings));
     return;
   }
 
@@ -3127,7 +3156,8 @@ async function handleMessage(msg: any) {
       const v = await apiPanelView(fresh);
       await say(chatId, v.text, v.kb);
     } else if (cmd === "menu") {
-      await say(chatId, await homeText(fresh), homeKeyboard(await getSettings()));
+      const settings = await getSettings();
+      await sayWithBottomMenu(chatId, await homeText(fresh), settings, homeKeyboard(settings));
     } else if (cmd === "products") {
       const v = await shopView(0);
       await say(chatId, v.text, v.kb);
@@ -3136,6 +3166,23 @@ async function handleMessage(msg: any) {
       await say(chatId, v.text, v.kb);
     } else {
       const v = await supportView();
+      await say(chatId, v.text, v.kb);
+    }
+    return;
+  }
+
+  // Persistent reply-keyboard shortcuts. Match the visible labels as well as
+  // their plain names, because Telegram sends the button text back verbatim.
+  const menuChoice = text.replace(/^[^\p{L}\p{N}]+/u, "").trim().toLowerCase();
+  if (menuChoice === "products" || menuChoice === "deposit" || menuChoice === "my orders") {
+    if (menuChoice === "products") {
+      const v = await shopView(0);
+      await say(chatId, v.text, v.kb);
+    } else if (menuChoice === "deposit") {
+      const v = await walletView(user);
+      await say(chatId, v.text, v.kb);
+    } else {
+      const v = await ordersView(chatId, 0);
       await say(chatId, v.text, v.kb);
     }
     return;

@@ -102,6 +102,9 @@ const MENU_ICON_FIELDS = [
   ["menu_icon_clear", "Clear Chat"],
   ["menu_icon_refresh", "Refresh"],
   ["menu_icon_back", "Back / Main Menu"],
+  ["menu_icon_bottom_products", "Bottom menu · Products"],
+  ["menu_icon_bottom_deposit", "Bottom menu · Deposit"],
+  ["menu_icon_bottom_orders", "Bottom menu · My Orders"],
 ] as const;
 
 function SettingsPage() {

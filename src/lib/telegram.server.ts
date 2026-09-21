@@ -109,8 +109,13 @@ export async function tg(method: string, body: Record<string, unknown> = {}): Pr
 const TG_EMOJI_RE = /<tg-emoji[^>]*>(.*?)<\/tg-emoji>/gis;
 
 function buttonRows(body: Record<string, unknown>): any[][] | null {
-  const rows = (body as any)?.reply_markup?.inline_keyboard;
+  const markup = (body as any)?.reply_markup;
+  const rows = markup?.inline_keyboard ?? markup?.keyboard;
   return Array.isArray(rows) ? rows : null;
+}
+
+function isReplyKeyboard(body: Record<string, unknown>): boolean {
+  return Array.isArray((body as any)?.reply_markup?.keyboard);
 }
 
 function hasCustomEmoji(body: Record<string, unknown>): boolean {
@@ -135,9 +140,10 @@ function stripCustomEmoji(body: Record<string, unknown>): Record<string, unknown
   }
   const rows = buttonRows(out);
   if (rows) {
+    const keyboardKey = isReplyKeyboard(out) ? "keyboard" : "inline_keyboard";
     out["reply_markup"] = {
       ...(out["reply_markup"] as any),
-      inline_keyboard: rows.map((row) =>
+      [keyboardKey]: rows.map((row) =>
         (row ?? []).map((b: any) => {
           if (!b?.icon_custom_emoji_id) return b;
           const { icon_custom_emoji_id: _drop, ...rest } = b;
@@ -176,11 +182,12 @@ function isButtonError(json: TgResult): boolean {
 /** Keyboard without styles or button icons — accepted by every Bot API build. */
 function plainButtons(body: Record<string, unknown>): Record<string, unknown> {
   const rows = buttonRows(body) ?? [];
+  const keyboardKey = isReplyKeyboard(body) ? "keyboard" : "inline_keyboard";
   return {
     ...body,
     reply_markup: {
       ...((body as any).reply_markup ?? {}),
-      inline_keyboard: rows.map((row) =>
+      [keyboardKey]: rows.map((row) =>
         (row ?? []).map((b: any) => {
           const { style: _s, icon_custom_emoji_id: _i, ...rest } = b ?? {};
           return rest;
