@@ -31,11 +31,33 @@ export const Route = createFileRoute("/_authenticated/account/referrals")({
 
 function ReferralsPage() {
   const fetchReferral = useServerFn(getMyReferral);
+  const linkTelegram = useServerFn(linkTelegramAccount);
+  const qc = useQueryClient();
   const { data } = useQuery({ queryKey: ["my-referral"], queryFn: () => fetchReferral() });
   const [copied, setCopied] = useState(false);
+  const [botCode, setBotCode] = useState("");
+  const [linking, setLinking] = useState(false);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const link = data?.ref_code ? `${origin}/?ref=${data.ref_code}` : "";
+
+  async function linkBot() {
+    setLinking(true);
+    try {
+      const res = await linkTelegram({ data: { code: botCode.trim() } });
+      if (res.ok) {
+        toast.success("Telegram account linked");
+        setBotCode("");
+        await qc.invalidateQueries({ queryKey: ["my-referral"] });
+      } else if (res.reason === "taken") toast.error("That Telegram account is already linked elsewhere");
+      else if (res.reason === "banned") toast.error("That Telegram account is suspended");
+      else toast.error("That code did not match any Telegram account");
+    } catch {
+      toast.error("Could not link right now — please try again");
+    } finally {
+      setLinking(false);
+    }
+  }
 
   async function copy() {
     if (!link) return;
