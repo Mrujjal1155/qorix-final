@@ -908,8 +908,26 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
         qty: p.stock,
         listed: false,
       });
+      // Brand-new supplier item → admin review queue (quarantined, invisible
+      // everywhere until an admin approves it).
+      reviewRows.push({
+        supplier_id: String(s.id),
+        external_id: String(p.external_id),
+        reason: "new",
+        name: String(p.name ?? ""),
+        cost_price: Number(p.cost_price ?? 0),
+        price: Number(
+          sellPrice(Number(p.cost_price ?? 0), {
+            supplier_percent: s.markup_percent ?? null,
+            supplier_fixed: s.markup_fixed ?? null,
+          }),
+        ),
+        stock: Number(p.stock ?? 0),
+        snapshot: { currency: p.currency ?? "USD", min_qty: p.min_qty ?? 1 },
+      });
       continue;
     }
+
 
     // --- Custom price protection ---------------------------------------
     // A custom (override) price never follows the supplier down, but it always
