@@ -61,7 +61,6 @@ const FIELDS: { key: string; label: string; long?: boolean; help?: string }[] = 
   { key: "admin_ids", label: "Admin telegram IDs (comma separated)" },
   { key: "support_link", label: "Support link (t.me/...)" },
   { key: "support_text", label: "Support page text", long: true },
-  { key: "referral_percent", label: "Referral commission % (Telegram bot)" },
   { key: "referral_credit_per_invite", label: "Referral credits per invite (default 1)" },
   { key: "referral_daily_cap", label: "Counted invites per day (default 10)" },
   { key: "referral_redeem_rate", label: "Wallet value per credit (0 = disable redeem)" },
@@ -618,12 +617,13 @@ function SettingsPage() {
   const referralCard = (
     <Card>
       <CardHeader>
-        <CardTitle>Referral program (website)</CardTitle>
+        <CardTitle>Referral program (website + Telegram bot)</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
         <p className="text-sm text-muted-foreground">
-          When someone signs up through a referral link and completes an order, commission is credited automatically to the referrer's wallet at the rate below.
-          The Telegram bot referral program is separate (Bot configuration section).
+          One set of rules for both channels. When a referred buyer completes an order, commission is credited
+          automatically to the referrer's wallet. If that order is later cancelled or refunded, the commission is taken
+          back automatically. Banned users never earn commission.
         </p>
 
         <div className="flex items-start justify-between gap-4 rounded-xl border border-border/70 bg-card/50 p-4">
@@ -632,8 +632,8 @@ function SettingsPage() {
             <p className="text-xs text-muted-foreground">When turned off, no new commission is credited.</p>
           </div>
           <Switch
-            checked={isOn(values["web_referral_enabled"] ?? "on")}
-            onCheckedChange={(c) => setToggle("web_referral_enabled", c)}
+            checked={isOn(values["referral_enabled"] ?? values["web_referral_enabled"] ?? "on")}
+            onCheckedChange={(c) => setToggle("referral_enabled", c)}
             aria-label="Referral program enabled"
           />
         </div>
@@ -643,8 +643,8 @@ function SettingsPage() {
             <Label>Commission percent (%)</Label>
             <Input
               inputMode="decimal"
-              value={values["web_referral_percent"] ?? ""}
-              onChange={(e) => setValues({ ...values, web_referral_percent: e.target.value.trim() })}
+              value={values["referral_percent"] ?? ""}
+              onChange={(e) => setValues({ ...values, referral_percent: e.target.value.trim() })}
               placeholder="2"
             />
             <p className="text-xs text-muted-foreground">The referrer gets this % of every completed order (default 2).</p>
@@ -653,8 +653,8 @@ function SettingsPage() {
             <Label>Minimum order amount (USD)</Label>
             <Input
               inputMode="decimal"
-              value={values["web_referral_min_order"] ?? ""}
-              onChange={(e) => setValues({ ...values, web_referral_min_order: e.target.value.trim() })}
+              value={values["referral_min_order"] ?? ""}
+              onChange={(e) => setValues({ ...values, referral_min_order: e.target.value.trim() })}
               placeholder="0"
             />
             <p className="text-xs text-muted-foreground">No commission for orders below this amount (0 = no condition).</p>
@@ -663,13 +663,14 @@ function SettingsPage() {
             <Label>Max commission per order (USD)</Label>
             <Input
               inputMode="decimal"
-              value={values["web_referral_max_commission"] ?? ""}
-              onChange={(e) => setValues({ ...values, web_referral_max_commission: e.target.value.trim() })}
+              value={values["referral_max_commission"] ?? ""}
+              onChange={(e) => setValues({ ...values, referral_max_commission: e.target.value.trim() })}
               placeholder="0"
             />
             <p className="text-xs text-muted-foreground">Maximum commission per order (0 = no limit).</p>
           </div>
         </div>
+
 
         <Button onClick={onSave}>Save referral settings</Button>
       </CardContent>

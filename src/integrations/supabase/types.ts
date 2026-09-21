@@ -585,10 +585,12 @@ export type Database = {
           email: string | null
           full_name: string
           id: string
+          is_banned: boolean
           ref_code: string | null
           referral_count: number
           referral_earnings: number
           referred_by: string | null
+          telegram_id: number | null
           updated_at: string
           wallet_balance: number
         }
@@ -597,10 +599,12 @@ export type Database = {
           email?: string | null
           full_name?: string
           id: string
+          is_banned?: boolean
           ref_code?: string | null
           referral_count?: number
           referral_earnings?: number
           referred_by?: string | null
+          telegram_id?: number | null
           updated_at?: string
           wallet_balance?: number
         }
@@ -609,10 +613,12 @@ export type Database = {
           email?: string | null
           full_name?: string
           id?: string
+          is_banned?: boolean
           ref_code?: string | null
           referral_count?: number
           referral_earnings?: number
           referred_by?: string | null
+          telegram_id?: number | null
           updated_at?: string
           wallet_balance?: number
         }
@@ -645,6 +651,146 @@ export type Database = {
           is_active?: boolean
           used_at?: string | null
           used_by?: number | null
+        }
+        Relationships: []
+      }
+      referral_commissions: {
+        Row: {
+          amount: number
+          buyer_telegram_id: number | null
+          buyer_user_id: string | null
+          channel: string
+          created_at: string
+          id: string
+          order_id: string | null
+          order_no: number | null
+          percent: number
+          reason: string | null
+          referrer_telegram_id: number | null
+          referrer_user_id: string | null
+          reversed_amount: number
+          reversed_at: string | null
+          status: string
+        }
+        Insert: {
+          amount?: number
+          buyer_telegram_id?: number | null
+          buyer_user_id?: string | null
+          channel?: string
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          order_no?: number | null
+          percent?: number
+          reason?: string | null
+          referrer_telegram_id?: number | null
+          referrer_user_id?: string | null
+          reversed_amount?: number
+          reversed_at?: string | null
+          status?: string
+        }
+        Update: {
+          amount?: number
+          buyer_telegram_id?: number | null
+          buyer_user_id?: string | null
+          channel?: string
+          created_at?: string
+          id?: string
+          order_id?: string | null
+          order_no?: number | null
+          percent?: number
+          reason?: string | null
+          referrer_telegram_id?: number | null
+          referrer_user_id?: string | null
+          reversed_amount?: number
+          reversed_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_commissions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_credit_events: {
+        Row: {
+          awarded_on: string | null
+          created_at: string
+          credits: number
+          id: string
+          invitee_telegram_id: number
+          inviter_telegram_id: number
+          status: string
+        }
+        Insert: {
+          awarded_on?: string | null
+          created_at?: string
+          credits?: number
+          id?: string
+          invitee_telegram_id: number
+          inviter_telegram_id: number
+          status?: string
+        }
+        Update: {
+          awarded_on?: string | null
+          created_at?: string
+          credits?: number
+          id?: string
+          invitee_telegram_id?: number
+          inviter_telegram_id?: number
+          status?: string
+        }
+        Relationships: []
+      }
+      referral_credit_purchases: {
+        Row: {
+          created_at: string
+          credits: number
+          id: string
+          name: string
+          telegram_id: number
+        }
+        Insert: {
+          created_at?: string
+          credits?: number
+          id?: string
+          name: string
+          telegram_id: number
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          id?: string
+          name?: string
+          telegram_id?: number
+        }
+        Relationships: []
+      }
+      referral_credits: {
+        Row: {
+          created_at: string
+          earned: number
+          spent: number
+          telegram_id: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          earned?: number
+          spent?: number
+          telegram_id: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          earned?: number
+          spent?: number
+          telegram_id?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1452,6 +1598,29 @@ export type Database = {
       redeem_code_claim: {
         Args: { _code: string; _telegram_id: number }
         Returns: Json
+      }
+      referral_award: { Args: { _order_id: string }; Returns: Json }
+      referral_credit_award: {
+        Args: {
+          _cap: number
+          _credits: number
+          _invitee: number
+          _inviter: number
+        }
+        Returns: number
+      }
+      referral_credit_flush: {
+        Args: { _cap: number; _inviter: number }
+        Returns: number
+      }
+      referral_credit_spend: {
+        Args: { _credits: number; _name?: string; _tid: number }
+        Returns: boolean
+      }
+      referral_reverse: { Args: { _order_id: string }; Returns: Json }
+      referral_setting: {
+        Args: { _fallback: string; _key: string }
+        Returns: string
       }
       reseller_adjust_balance: {
         Args: {

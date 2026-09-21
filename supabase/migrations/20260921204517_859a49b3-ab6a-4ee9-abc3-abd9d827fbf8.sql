@@ -1,0 +1,13 @@
+REVOKE ALL ON FUNCTION public.referral_setting(text, text) FROM anon, authenticated, public;
+REVOKE ALL ON FUNCTION public.referral_award(uuid) FROM anon, authenticated, public;
+REVOKE ALL ON FUNCTION public.referral_reverse(uuid) FROM anon, authenticated, public;
+REVOKE ALL ON FUNCTION public.referral_credit_flush(bigint, integer) FROM anon, authenticated, public;
+REVOKE ALL ON FUNCTION public.referral_credit_award(bigint, bigint, numeric, integer) FROM anon, authenticated, public;
+REVOKE ALL ON FUNCTION public.referral_credit_spend(bigint, numeric, text) FROM anon, authenticated, public;
+REVOKE ALL ON FUNCTION public.orders_referral_sync() FROM anon, authenticated, public;
+GRANT EXECUTE ON FUNCTION public.referral_setting(text, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.referral_award(uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.referral_reverse(uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.referral_credit_flush(bigint, integer) TO service_role;
+GRANT EXECUTE ON FUNCTION public.referral_credit_award(bigint, bigint, numeric, integer) TO service_role;
+GRANT EXECUTE ON FUNCTION public.referral_credit_spend(bigint, numeric, text) TO service_role;

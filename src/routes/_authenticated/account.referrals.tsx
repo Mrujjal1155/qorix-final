@@ -1,10 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { Check, Copy, Gift, Users, Wallet } from "lucide-react";
 import { toast } from "sonner";
-import { getMyReferral } from "@/lib/referral.functions";
+import { getMyReferral, linkTelegramAccount } from "@/lib/referral.functions";
 import { AccountShell } from "@/components/AccountShell";
 import { priceTag } from "@/components/StoreShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,11 +31,33 @@ export const Route = createFileRoute("/_authenticated/account/referrals")({
 
 function ReferralsPage() {
   const fetchReferral = useServerFn(getMyReferral);
+  const linkTelegram = useServerFn(linkTelegramAccount);
+  const qc = useQueryClient();
   const { data } = useQuery({ queryKey: ["my-referral"], queryFn: () => fetchReferral() });
   const [copied, setCopied] = useState(false);
+  const [botCode, setBotCode] = useState("");
+  const [linking, setLinking] = useState(false);
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const link = data?.ref_code ? `${origin}/?ref=${data.ref_code}` : "";
+
+  async function linkBot() {
+    setLinking(true);
+    try {
+      const res = await linkTelegram({ data: { code: botCode.trim() } });
+      if (res.ok) {
+        toast.success("Telegram account linked");
+        setBotCode("");
+        await qc.invalidateQueries({ queryKey: ["my-referral"] });
+      } else if (res.reason === "taken") toast.error("That Telegram account is already linked elsewhere");
+      else if (res.reason === "banned") toast.error("That Telegram account is suspended");
+      else toast.error("That code did not match any Telegram account");
+    } catch {
+      toast.error("Could not link right now — please try again");
+    } finally {
+      setLinking(false);
+    }
+  }
 
   async function copy() {
     if (!link) return;
@@ -86,8 +108,53 @@ function ReferralsPage() {
             someone signs up through your link and completes an order, {data?.percent ?? 2}% of that order is added to
             your wallet automatically.
           </p>
+          {data?.min_order ? (
+            <p className="text-xs text-muted-foreground">
+              Commission applies to orders of {priceTag(data.min_order)} or more
+              {data?.max_commission ? `, up to ${priceTag(data.max_commission)} per order` : ""}. If an order is
+              cancelled or refunded, its commission is reversed.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              If an order is cancelled or refunded, its commission is reversed automatically.
+            </p>
+          )}
         </CardContent>
       </Card>
+
+      <Card className="mt-6 bg-card/70">
+        <CardHeader>
+          <CardTitle>Telegram account</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {data?.telegram_id ? (
+            <p className="text-sm text-muted-foreground">
+              Linked to Telegram ID <span className="font-mono text-foreground">{data.telegram_id}</span>. Your bot and
+              website referrals now share this one wallet ({data.telegram_referrals} invite
+              {data.telegram_referrals === 1 ? "" : "s"} from Telegram).
+            </p>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Using our Telegram bot too? Paste your bot referral code to merge both into a single wallet.
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  value={botCode}
+                  onChange={(e) => setBotCode(e.target.value.toUpperCase())}
+                  placeholder="Bot referral code"
+                  className="font-mono text-xs sm:text-sm"
+                />
+                <Button onClick={linkBot} disabled={!botCode.trim() || linking} className="shrink-0">
+                  Link account
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+
 
       <Card className="mt-6 bg-card/70">
         <CardHeader>
