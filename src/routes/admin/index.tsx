@@ -118,3 +118,79 @@ function OverviewPage() {
     </AdminShell>
   );
 }
+
+/**
+ * Red banner shown when a switched-off product was about to appear in the bot,
+ * on the website or through the reseller API. The item is blocked automatically;
+ * this is the record of it happening.
+ */
+function VisibilityAlertBanner() {
+  const qc = useQueryClient();
+  const fetchAlerts = useServerFn(listVisibilityAlerts);
+  const dismiss = useServerFn(dismissVisibilityAlerts);
+  const fetchPending = useServerFn(countReviewQueue);
+
+  const { data: alerts } = useQuery({
+    queryKey: ["visibility-alerts"],
+    queryFn: () => fetchAlerts(),
+    refetchInterval: 60000,
+  });
+  const { data: pending } = useQuery({
+    queryKey: ["review-queue-count"],
+    queryFn: () => fetchPending(),
+    refetchInterval: 60000,
+  });
+
+  const rows: any[] = (alerts as any[]) ?? [];
+  const pendingCount = pending?.count ?? 0;
+  if (!rows.length && !pendingCount) return null;
+
+  const surfaceName = (s: string) => (s === "bot" ? "Telegram bot" : s === "web" ? "website" : "reseller API");
+
+  return (
+    <div className="mb-5 space-y-3">
+      {pendingCount > 0 && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-primary/40 bg-primary/10 p-4">
+          <ShieldAlert className="size-5 shrink-0 text-primary" />
+          <p className="min-w-0 flex-1 text-sm font-medium">
+            {pendingCount} supplier product waiting for your approval. They stay hidden until you approve them.
+          </p>
+          <Link to="/admin/suppliers">
+            <Button size="sm" variant="secondary">
+              Open review queue
+            </Button>
+          </Link>
+        </div>
+      )}
+
+      {rows.length > 0 && (
+        <div className="rounded-2xl border border-destructive/50 bg-destructive/10 p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <ShieldAlert className="size-5 shrink-0 text-destructive" />
+            <p className="min-w-0 flex-1 text-sm font-semibold text-destructive">
+              {rows.length} switched-off product was blocked before customers could see it.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={async () => {
+                await dismiss({ data: {} });
+                qc.invalidateQueries({ queryKey: ["visibility-alerts"] });
+              }}
+            >
+              Dismiss all
+            </Button>
+          </div>
+          <ul className="mt-3 space-y-1 text-sm text-muted-foreground">
+            {rows.slice(0, 6).map((a) => (
+              <li key={a.id}>
+                <span className="font-medium text-foreground">{a.product_name || a.product_id}</span> ·{" "}
+                {surfaceName(a.surface)} · {new Date(a.created_at).toLocaleString()}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
