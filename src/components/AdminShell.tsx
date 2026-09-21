@@ -82,6 +82,15 @@ export function AdminShell({
     refetchInterval: 60000,
   });
   const pendingCount = pending?.count ?? 0;
+  const fetchTickets = useServerFn(countUnreadTickets);
+  const { data: tickets } = useQuery({
+    queryKey: ["unread-tickets-count"],
+    queryFn: () => fetchTickets(),
+    refetchInterval: 30000,
+  });
+  const ticketCount = tickets?.count ?? 0;
+  const badgeFor = (to: string) =>
+    to === "/admin/orders" ? pendingCount : to === "/admin/support" ? ticketCount : 0;
 
   useEffect(() => {
     setCollapsed(localStorage.getItem("qorix-admin-rail") === "collapsed");
