@@ -85,7 +85,7 @@ const MENU_ICONS = {
 
 type MenuIconKey = keyof typeof MENU_ICONS;
 
-const DEFAULT_EMAILS_LINK = "https://mailreader.lovable.app/";
+const DEFAULT_EMAILS_LINK = "https://mailreader.click/";
 
 function menuButtonText(settings: Record<string, string>, key: MenuIconKey, label?: string) {
   const [fallback, defaultLabel] = MENU_ICONS[key];
