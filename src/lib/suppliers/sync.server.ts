@@ -721,8 +721,12 @@ async function relinkRotatedIds(
 
   for (const prod of stale) {
     const oldId = String(prod.supplier_external_id);
+    const oldRow = byExt.get(oldId);
     const match = remoteByName.get(normalizeName(prod.name));
-    if (match && !takenIds.has(String(match.external_id))) {
+    // ID rotation may carry an existing listing forward only when the exact
+    // previous supplier row was explicitly listed by an admin. A name match
+    // alone must never promote an unreviewed supplier catalogue item.
+    if (oldRow?.is_listed === true && match && !takenIds.has(String(match.external_id))) {
       const newId = String(match.external_id);
       takenIds.add(newId);
       const stock = Number(match.stock ?? 0);
@@ -734,14 +738,13 @@ async function relinkRotatedIds(
       prod.supplier_stock = stock;
       productsById.set(String(prod.id), prod);
 
-      const oldRow = byExt.get(oldId);
       if (oldRow?.id) {
         await sb.from("supplier_products").update({ is_listed: false, product_id: null }).eq("id", oldRow.id);
         oldRow.is_listed = false;
         oldRow.product_id = null;
       }
       const newRow = byExt.get(newId);
-      const wasListed = Boolean(prod.is_active);
+      const wasListed = oldRow.is_listed === true && prod.is_active === true;
       if (newRow?.id) {
         await sb
           .from("supplier_products")
