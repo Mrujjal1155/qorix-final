@@ -5390,35 +5390,11 @@ async function fulfillCheckout(
     await announcePurchase(user, p, l.qty);
   }
 
-  // referral commission on the paid total
+  // Referral commission is awarded by the database (referral_award) the moment an
+  // order row becomes `completed` — one ledger entry per order, with ban checks,
+  // min-order / max-commission caps and automatic clawback on refund.
   user = await getUser(chatId);
-  if (user?.referred_by) {
-    const s = await getSettings();
-    const pct = Number(s["referral_percent"] || 0);
-    const commission = Number(((total * pct) / 100).toFixed(2));
-    if (commission > 0) {
-      const { data: ref } = await db
-        .from("bot_users")
-        .select("balance,referral_earnings")
-        .eq("telegram_id", user.referred_by)
-        .maybeSingle();
-      if (ref) {
-        await db
-          .from("bot_users")
-          .update({
-            balance: Number(ref.balance) + commission,
-            referral_earnings: Number(ref.referral_earnings) + commission,
-          })
-          .eq("telegram_id", user.referred_by);
-        await db.from("transactions").insert({
-          telegram_id: user.referred_by,
-          type: "referral",
-          amount: commission,
-          note: `Referral commission from ${maskUsername(user.username, user.first_name)}`,
-        });
-      }
-    }
-  }
+
 
   if (meta.coupon) {
     const { data: c } = await db.from("coupons").select("id,used_count").eq("code", meta.coupon.code).maybeSingle();
