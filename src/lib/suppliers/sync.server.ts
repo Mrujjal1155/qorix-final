@@ -902,6 +902,15 @@ async function retireMissingSupplierItems(
   }
 
   if (names.length) {
+    await recordSupplierAlerts(
+      sb,
+      offIds.map((id, i) => ({
+        product_id: id,
+        product_name: names[i] ?? "",
+        surface: "supplier_removed",
+        detail: `${s.name} removed this product from their API — it was switched off automatically.`,
+      })),
+    );
     try {
       const { announceSupplierNotice } = await import("@/lib/bot/engine.server");
       await announceSupplierNotice(
