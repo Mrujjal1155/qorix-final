@@ -14,6 +14,7 @@ import {
   supplierDeliveryType,
   type SupplierRow,
 } from "./api.server";
+import type { ReviewInput } from "./review.server";
 
 export type SupplierAlert = {
   id: string;
