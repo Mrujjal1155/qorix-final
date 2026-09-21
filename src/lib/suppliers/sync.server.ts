@@ -868,7 +868,9 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   // fails with "Product not found". Re-point the store product at the live id
   // by matching the product name; if the product is really gone from the
   // supplier, take it off sale instead of letting customers buy a dead link.
-  const relinked = await relinkRotatedIds(sb, s, uniqueRemote, linkedProducts ?? [], byExt, productsById);
+  // Quarantine queue rows collected during this sync (new + rotated items).
+  const reviewRows: ReviewInput[] = [];
+  const relinked = await relinkRotatedIds(sb, s, uniqueRemote, linkedProducts ?? [], byExt, productsById, reviewRows);
 
   // Every supplier row is written in a few batched upserts instead of one
   // request per product — a 250-item catalogue used to need 250 round trips,
