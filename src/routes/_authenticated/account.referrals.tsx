@@ -86,8 +86,53 @@ function ReferralsPage() {
             someone signs up through your link and completes an order, {data?.percent ?? 2}% of that order is added to
             your wallet automatically.
           </p>
+          {data?.min_order ? (
+            <p className="text-xs text-muted-foreground">
+              Commission applies to orders of {priceTag(data.min_order)} or more
+              {data?.max_commission ? `, up to ${priceTag(data.max_commission)} per order` : ""}. If an order is
+              cancelled or refunded, its commission is reversed.
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              If an order is cancelled or refunded, its commission is reversed automatically.
+            </p>
+          )}
         </CardContent>
       </Card>
+
+      <Card className="mt-6 bg-card/70">
+        <CardHeader>
+          <CardTitle>Telegram account</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {data?.telegram_id ? (
+            <p className="text-sm text-muted-foreground">
+              Linked to Telegram ID <span className="font-mono text-foreground">{data.telegram_id}</span>. Your bot and
+              website referrals now share this one wallet ({data.telegram_referrals} invite
+              {data.telegram_referrals === 1 ? "" : "s"} from Telegram).
+            </p>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Using our Telegram bot too? Paste your bot referral code to merge both into a single wallet.
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Input
+                  value={botCode}
+                  onChange={(e) => setBotCode(e.target.value.toUpperCase())}
+                  placeholder="Bot referral code"
+                  className="font-mono text-xs sm:text-sm"
+                />
+                <Button onClick={linkBot} disabled={!botCode.trim() || linking} className="shrink-0">
+                  Link account
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+
 
       <Card className="mt-6 bg-card/70">
         <CardHeader>
