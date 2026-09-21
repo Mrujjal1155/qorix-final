@@ -345,7 +345,7 @@ async function drainNotificationEvents(sb: any, budget: { cards: number; until?:
         if (item.kind === "price") return await announcePriceChange(prod, item.old_price, item.new_price, progress);
         return await announceNewProduct(prod, progress);
       };
-      delivery = await withTimeout(send(), CARD_TIMEOUT_MS, `${item.t} card`);
+      delivery = await withTimeout(send(), CARD_TIMEOUT_MS, `${item.kind} card`);
 
       if (delivery && !delivery.dmComplete) {
         await sb.rpc("update_stock_notification_progress", {
@@ -997,21 +997,6 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   // the next healthy response look like a fresh restock and caused the same old
   // cards to repeat. Explicit stock=0 values are still handled above.
 
-  // Persist detected events BEFORE the snapshot is overwritten. If this run is
-  // cut short afterwards, the transition is already queued instead of lost
-  // forever (the old snapshot would otherwise be gone with no card sent).
-  await enqueueNotifications(sb, s.id, [
-    ...restockPosts.map((r) => ({ t: "restock" as const, product_id: r.product_id, qty: r.qty, event_id: r.event_id })),
-    ...lowPosts.map((l) => ({ t: "low" as const, product_id: l.product_id, stock: l.stock, event_id: l.event_id })),
-    ...pricePosts.map((pp) => ({
-      t: "price" as const,
-      product_id: pp.product_id,
-      old_price: pp.old_price,
-      new_price: pp.new_price,
-      event_id: pp.event_id,
-    })),
-  ]);
-
   // ONE ATOMIC WRITE. Catalogue rows, the customer-visible product stock/price
   // and the supplier's sync stamp all land in a single transaction, so a run
   // that the platform cuts short can never leave half the data written. The
@@ -1073,6 +1058,19 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
       lowOrOut: 0,
     };
   }
+  // Only committed, non-stale snapshots may create alerts. The unique event
+  // key makes webhook/poll overlap harmless even when both observed the change.
+  await enqueueNotifications(sb, s.id, [
+    ...restockPosts.map((r) => ({ t: "restock" as const, product_id: r.product_id, qty: r.qty, event_id: r.event_id })),
+    ...lowPosts.map((l) => ({ t: "low" as const, product_id: l.product_id, stock: l.stock, event_id: l.event_id })),
+    ...pricePosts.map((pp) => ({
+      t: "price" as const,
+      product_id: pp.product_id,
+      old_price: pp.old_price,
+      new_price: pp.new_price,
+      event_id: pp.event_id,
+    })),
+  ]);
   // Keep the in-memory copies in step with what the database now holds.
   for (const { id, patch } of productUpdates) {
     const current = productsById.get(id);

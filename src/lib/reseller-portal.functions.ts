@@ -686,6 +686,8 @@ export const addMyStock = createServerFn({ method: "POST" })
 
     const { error } = await db.from("stock_items").insert(lines.map((content) => ({ product_id: data.product_id, content })));
     if (error) throw new Error(error.message);
+    const { enqueueManualRestock } = await import("@/lib/suppliers/sync.server");
+    await enqueueManualRestock(db, data.product_id, lines.length);
     return { ok: true, added: lines.length, products: await loadMyProducts(db, reseller.id) };
   });
 
