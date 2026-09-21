@@ -250,13 +250,6 @@ async function appendLog(sb: any, entries: any[]) {
  */
 async function enqueueNotifications(sb: any, supplierId: string, items: NotifyItem[]) {
   if (!items.length) return;
-  const now = Date.now();
-  const key = QUEUE_PREFIX + supplierId;
-  const current = (await readJsonSetting(sb, key)) as NotifyItem[];
-
-  // Products the admin has not switched on are invisible in the shop and the
-  // bot — they must never produce a single alert. Filter them out here so an
-  // off-sale catalogue can't flood the channel/DMs with hundreds of cards.
   const productIds = Array.from(new Set(items.map((it) => it.product_id)));
   const active = new Set<string>();
   for (let i = 0; i < productIds.length; i += 200) {
@@ -267,31 +260,19 @@ async function enqueueNotifications(sb: any, supplierId: string, items: NotifyIt
     for (const row of data ?? []) if ((row as any).is_active !== false) active.add(String((row as any).id));
   }
   items = items.filter((it) => active.has(it.product_id));
-  if (!items.length && !current.length) return;
-
-  // Drop anything the ledger already marked delivered.
-  const ids = Array.from(new Set(items.map((it) => `supplier_notify_delivery:${it.event_id}`)));
-  const done = new Set<string>();
-  for (let i = 0; i < ids.length; i += 100) {
-    const { data } = await sb.from("bot_settings").select("key,value").in("key", ids.slice(i, i + 100));
-    for (const row of data ?? []) {
-      let status = "";
-      try {
-        status = String(JSON.parse(String((row as any).value || "{}"))?.status ?? "");
-      } catch {
-        status = "";
-      }
-      if (status === "delivered" || status === "sending") done.add(String((row as any).key).split(":").slice(1).join(":"));
-    }
+  for (const item of items) {
+    const { error } = await sb.rpc("enqueue_stock_notification", {
+      _event_key: item.event_id,
+      _product_id: item.product_id,
+      _kind: item.t === "low" && Number((item as any).stock ?? 0) <= 0 ? "out" : item.t,
+      _source: supplierId === MANUAL_QUEUE_ID ? "manual" : `supplier:${supplierId}`,
+      _added_qty: item.t === "restock" ? item.qty : 0,
+      _stock: item.t === "low" ? item.stock : 0,
+      _old_price: item.t === "price" ? item.old_price : null,
+      _new_price: item.t === "price" ? item.new_price : null,
+    });
+    if (error) throw new Error(`Could not enqueue stock notification: ${error.message}`);
   }
-  const fresh = items.filter((it) => !done.has(it.event_id));
-  if (!fresh.length && !current.length) return;
-
-  const merged = new Map<string, NotifyItem>();
-  // Existing entries win: they may already carry delivery progress (cursor).
-  for (const it of fresh) merged.set(it.event_id, { ...it, at: now });
-  for (const it of current) merged.set(it.event_id, it);
-  await writeJsonSetting(sb, key, Array.from(merged.values()).slice(0, 200));
 }
 
 /** Queue id used for in-house (manually uploaded) stock alerts. */
@@ -302,14 +283,27 @@ const MANUAL_QUEUE_ID = "manual";
  * queue the supplier sync uses, so the restock card (added qty + new total)
  * is retried until Telegram accepts it instead of dying with the request.
  */
-export async function enqueueManualRestock(sb: any, productId: string, qty: number) {
+export async function enqueueManualRestock(sb: any, productId: string, qty: number, actionId: string = crypto.randomUUID()) {
   if (!productId || qty <= 0) return;
   await enqueueNotifications(sb, MANUAL_QUEUE_ID, [
     {
       t: "restock",
       qty,
       product_id: productId,
-      event_id: `restock:manual:${productId}:${Date.now()}`,
+      event_id: `restock:manual:${productId}:${actionId}`,
+      at: Date.now(),
+    } as NotifyItem,
+  ]);
+}
+
+/** A product becoming customer-visible uses the same durable, deduplicated sender. */
+export async function enqueueNewProduct(sb: any, productId: string, source: string, actionId: string = crypto.randomUUID()) {
+  if (!productId) return;
+  await enqueueNotifications(sb, source, [
+    {
+      t: "new",
+      product_id: productId,
+      event_id: `new:${source}:${productId}:${actionId}`,
       at: Date.now(),
     } as NotifyItem,
   ]);
@@ -317,109 +311,7 @@ export async function enqueueManualRestock(sb: any, productId: string, qty: numb
 
 
 
-type DeliveryClaim = "claimed" | "delivered" | "busy";
-
-/**
- * Atomically claim one stock transition before touching Telegram. This closes
- * the race where cron, a storefront visit and an admin sync all compare the
- * same old snapshot and would otherwise post the same card more than once.
- */
-async function claimNotification(sb: any, eventId: string): Promise<DeliveryClaim> {
-  const key = `supplier_notify_delivery:${eventId}`;
-  const { data: row } = await sb.from("bot_settings").select("value").eq("key", key).maybeSingle();
-  const oldValue = String(row?.value ?? "");
-  let old: { status?: string; at?: string } = {};
-  try {
-    old = JSON.parse(oldValue || "{}");
-  } catch {
-    old = {};
-  }
-  if (old.status === "delivered") return "delivered";
-  const claimedAt = Date.parse(old.at ?? "");
-  // A run that was cut off mid-send leaves a stale "sending" marker behind.
-  // Keep the window short so the next tick retries instead of going silent.
-  if (old.status === "sending" && Number.isFinite(claimedAt) && Date.now() - claimedAt < 45_000) return "busy";
-
-  const value = JSON.stringify({ status: "sending", at: new Date().toISOString() });
-  if (!row) {
-    const { error } = await sb.from("bot_settings").insert({ key, value });
-    return error ? "busy" : "claimed";
-  }
-  const { data: claimed, error } = await sb
-    .from("bot_settings")
-    .update({ value })
-    .eq("key", key)
-    .eq("value", oldValue)
-    .select("key")
-    .maybeSingle();
-  if (error) throw new Error(`Could not claim notification: ${error.message}`);
-  return claimed ? "claimed" : "busy";
-}
-
-async function finishNotification(sb: any, eventId: string, delivered: boolean, error?: string) {
-  const key = `supplier_notify_delivery:${eventId}`;
-  const value = JSON.stringify({
-    status: delivered ? "delivered" : "failed",
-    at: new Date().toISOString(),
-    ...(error ? { error: error.slice(0, 300) } : {}),
-  });
-  const { error: saveError } = await sb.from("bot_settings").update({ value }).eq("key", key);
-  if (saveError) throw new Error(`Could not finish notification: ${saveError.message}`);
-}
-
-/** Exponential backoff (capped) so a broken Telegram config is not hammered. */
-function backoffMs(tries: number) {
-  return Math.min(15 * 60_000, 30_000 * 2 ** Math.max(0, tries - 1));
-}
-
-/**
- * Send queued cards for one supplier to the channel and to bot users.
- * The queue is rewritten to the database after EVERY card, so a run that is cut
- * short by the platform never loses (or repeats) delivered work.
- */
-async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: number; until?: number }) {
-  const key = QUEUE_PREFIX + supplierId;
-  let queue = (await readJsonSetting(sb, key)) as NotifyItem[];
-  if (!queue.length) return { sent: 0, failed: 0 };
-
-  // Anything abandoned for hours is history, not news. A card that is still
-  // being delivered (channel posted, DM cursor moving, retry pending) is NEVER
-  // dropped — that silent drop is what made live restocks disappear.
-  const startedAt = Date.now();
-  const inFlight = (item: NotifyItem) =>
-    Boolean(item.channel_sent) || Number(item.dm_cursor ?? 0) > 0 || Number(item.tries ?? 0) > 0;
-  // Legacy queue entries did not carry `at`; they are old by definition and
-  // must never survive a live-only cutover forever.
-  const stale = queue.filter((item) => {
-    const age = startedAt - Number(item.at);
-    const undated = !Number.isFinite(Number(item.at));
-    // Hard ceiling: even a half-delivered card is stale news after this long,
-    // so a stuck queue can never wake up hours later and spam everyone.
-    if (undated || age > HARD_STALE_MS) return true;
-    return !inFlight(item) && age > STALE_MS;
-  });
-  if (stale.length) {
-    queue = queue.filter((item) => !stale.includes(item));
-    await writeJsonSetting(sb, key, queue);
-    for (const item of stale) {
-      await finishNotification(sb, item.event_id, true).catch(() => {});
-      console.warn("Supplier alert expired before delivery:", item.event_id);
-    }
-    await appendLog(
-      sb,
-      stale.map((item) => ({
-        at: new Date().toISOString(),
-        kind: item.t,
-        product_id: item.product_id,
-        ok: false,
-        dropped: true,
-        error: "expired before delivery",
-      })),
-    ).catch(() => {});
-  }
-
-  if (!queue.length) return { sent: 0, failed: 0 };
-
+async function drainNotificationEvents(sb: any, budget: { cards: number; until?: number }) {
   const { notifyRestock, announceLowStock, announceNewProduct, announcePriceChange } = await import(
     "@/lib/bot/engine.server"
   );
@@ -428,114 +320,81 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
   let failed = 0;
 
   while (budget.cards > 0) {
-    const now = Date.now();
-    const index = queue.findIndex((item) => !item.next_at || item.next_at <= now);
-    if (index < 0) break;
-    const item = queue[index]!;
-    // Wall-clock guard: the scheduler cuts the request off at ~28s. Stop before
-    // that so a claimed card is always released (failed → retried) instead of
-    // being left half-claimed as "sending", which silently froze the queue.
     if (budget.until && Date.now() > budget.until) break;
     budget.cards -= 1;
-
-
-
-    const remove = async () => {
-      queue = queue.filter((q) => q.event_id !== item.event_id);
-      await writeJsonSetting(sb, key, queue);
-    };
-    const keepWith = async (patch: Partial<NotifyItem>) => {
-      queue = queue.map((q) => (q.event_id === item.event_id ? ({ ...q, ...patch } as NotifyItem) : q));
-      await writeJsonSetting(sb, key, queue);
-    };
-
+    const { data: claimed, error: claimError } = await sb.rpc("claim_stock_notification");
+    if (claimError) throw new Error(`Could not claim stock notification: ${claimError.message}`);
+    const item = (claimed ?? [])[0] as any;
+    if (!item) break;
     try {
-      const claim = await claimNotification(sb, item.event_id);
-      if (claim === "delivered") {
-        await remove();
-        continue;
-      }
-      if (claim === "busy") {
-        await keepWith({ next_at: now + 30_000 });
-        continue;
-      }
-
       let delivery: { channel?: boolean; dmComplete?: boolean; dmCursor?: number } | undefined;
       const progress = {
-        channelSent: item.channel_sent ?? false,
-        dmAfter: item.dm_cursor ?? 0,
+        channelSent: Boolean(item.channel_sent),
+        dmAfter: Number(item.dm_cursor ?? 0),
         dmLimit: DM_PER_RUN,
-        // Persist each successful stage before continuing. Previously this was
-        // saved only after the whole channel + DM fan-out returned, so a worker
-        // timeout retried the event from the beginning and produced duplicates.
         beforeChannelSend: async () => {
-          item.channel_sent = true;
-          await keepWith({ channel_sent: true });
+          await sb.rpc("update_stock_notification_progress", {
+            _id: item.id,
+            _channel_sent: true,
+            _dm_cursor: Number(item.dm_cursor ?? 0),
+          });
         },
         beforeDmSend: async (cursor: number) => {
-          item.dm_cursor = cursor;
-          await keepWith({ channel_sent: true, dm_cursor: cursor });
+          await sb.rpc("update_stock_notification_progress", {
+            _id: item.id,
+            _channel_sent: true,
+            _dm_cursor: cursor,
+          });
         },
       };
       const { data: prod } = await sb.from("products").select("*").eq("id", item.product_id).maybeSingle();
-      // Off-sale (or deleted) products are invisible to customers — drop their
-      // cards instead of announcing stock nobody can buy.
       if (!prod || (prod as any).is_active === false) {
-        await finishNotification(sb, item.event_id, true).catch(() => {});
-        await remove();
+        await sb.rpc("finish_stock_notification", { _id: item.id, _delivered: true, _error: null });
         continue;
       }
-      // A hung Telegram call must never eat the whole invocation: cap it, so a
-      // failure is recorded and retried on the next tick.
       const send = async () => {
-        if (item.t === "restock") return await notifyRestock(item.product_id, item.qty, progress);
-        if (item.t === "low") return await announceLowStock(prod, item.stock, progress);
-        if (item.t === "price") return await announcePriceChange(prod, item.old_price, item.new_price, progress);
+        if (item.kind === "restock") return await notifyRestock(item.product_id, item.added_qty, progress);
+        if (item.kind === "low" || item.kind === "out") return await announceLowStock(prod, item.stock, progress);
+        if (item.kind === "price") return await announcePriceChange(prod, item.old_price, item.new_price, progress);
         return await announceNewProduct(prod, progress);
       };
-      delivery = await withTimeout(send(), CARD_TIMEOUT_MS, `${item.t} card`);
+      delivery = await withTimeout(send(), CARD_TIMEOUT_MS, `${item.kind} card`);
 
       if (delivery && !delivery.dmComplete) {
-        // Channel post is done; bot DMs continue on the next tick from the cursor.
-        await keepWith({ channel_sent: true, dm_cursor: delivery.dmCursor ?? item.dm_cursor ?? 0, next_at: 0, tries: 0 });
-        await finishNotification(sb, item.event_id, false, "Bot-user delivery continues on the next automatic run");
+        await sb.rpc("update_stock_notification_progress", {
+          _id: item.id,
+          _channel_sent: true,
+          _dm_cursor: delivery.dmCursor ?? Number(item.dm_cursor ?? 0),
+        });
+        await sb.rpc("release_stock_notification", { _id: item.id });
         continue;
       }
 
-      await finishNotification(sb, item.event_id, true);
-      await remove();
+      await sb.rpc("finish_stock_notification", { _id: item.id, _delivered: true, _error: null });
       sent += 1;
-      // Same event, same moment: push it to every reseller webhook too.
       if (prod && (prod as any).is_active !== false) {
         const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
         const stockNow = Number((prod as any).supplier_stock ?? 0);
         await pushResellerEvent(
-          item.t === "low" && stockNow <= 0 ? "out" : (item.t as any),
+          item.kind === "out" ? "out" : (item.kind as any),
           prod,
-          item.t === "restock"
-            ? { added: item.qty }
-            : item.t === "low"
+          item.kind === "restock"
+            ? { added: item.added_qty }
+            : item.kind === "low" || item.kind === "out"
               ? { stock: item.stock }
-              : item.t === "price"
+              : item.kind === "price"
                 ? { old_retail_price: item.old_price, new_retail_price: item.new_price }
                 : {},
         );
       }
-      log.push({ at: new Date().toISOString(), kind: item.t, product_id: item.product_id, ok: true });
+      log.push({ at: new Date().toISOString(), kind: item.kind, product_id: item.product_id, ok: true });
 
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       failed += 1;
-      console.error("Supplier alert failed:", item.event_id, message);
-      await finishNotification(sb, item.event_id, false, message).catch(() => {});
-      const tries = (item.tries ?? 0) + 1;
-      if (tries >= MAX_TRIES) {
-        await remove();
-        log.push({ at: new Date().toISOString(), kind: item.t, product_id: item.product_id, ok: false, dropped: true, error: message });
-      } else {
-        await keepWith({ tries, next_at: Date.now() + backoffMs(tries) });
-        log.push({ at: new Date().toISOString(), kind: item.t, product_id: item.product_id, ok: false, tries, error: message });
-      }
+      console.error("Stock alert failed:", item.event_key, message);
+      await sb.rpc("finish_stock_notification", { _id: item.id, _delivered: false, _error: message }).catch(() => {});
+      log.push({ at: new Date().toISOString(), kind: item.kind, product_id: item.product_id, ok: false, error: message });
     }
   }
 
@@ -549,29 +408,8 @@ async function drainSupplierQueue(sb: any, supplierId: string, budget: { cards: 
  */
 export async function drainAllNotifications(sb?: any) {
   const db = sb ?? (await adminDb());
-  const { data: sups } = await db.from("suppliers").select("id,name").eq("is_enabled", true);
   const budget = { cards: CARDS_PER_RUN, until: Date.now() + DRAIN_BUDGET_MS };
-  let sent = 0;
-  let failed = 0;
-  // In-house (manual) stock uploads share the same durable delivery path.
-  try {
-    const res = await drainSupplierQueue(db, MANUAL_QUEUE_ID, budget);
-    sent += res.sent;
-    failed += res.failed;
-  } catch (error) {
-    console.error("Manual stock notifications failed:", error);
-  }
-  for (const supplier of sups ?? []) {
-    if (budget.cards <= 0 || Date.now() > budget.until) break;
-    try {
-      const res = await drainSupplierQueue(db, (supplier as any).id, budget);
-      sent += res.sent;
-      failed += res.failed;
-    } catch (error) {
-      console.error(`Supplier notifications failed for ${(supplier as any).name}:`, error);
-    }
-  }
-  return { sent, failed };
+  return await drainNotificationEvents(db, budget);
 }
 
 
@@ -1172,21 +1010,6 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   // the next healthy response look like a fresh restock and caused the same old
   // cards to repeat. Explicit stock=0 values are still handled above.
 
-  // Persist detected events BEFORE the snapshot is overwritten. If this run is
-  // cut short afterwards, the transition is already queued instead of lost
-  // forever (the old snapshot would otherwise be gone with no card sent).
-  await enqueueNotifications(sb, s.id, [
-    ...restockPosts.map((r) => ({ t: "restock" as const, product_id: r.product_id, qty: r.qty, event_id: r.event_id })),
-    ...lowPosts.map((l) => ({ t: "low" as const, product_id: l.product_id, stock: l.stock, event_id: l.event_id })),
-    ...pricePosts.map((pp) => ({
-      t: "price" as const,
-      product_id: pp.product_id,
-      old_price: pp.old_price,
-      new_price: pp.new_price,
-      event_id: pp.event_id,
-    })),
-  ]);
-
   // ONE ATOMIC WRITE. Catalogue rows, the customer-visible product stock/price
   // and the supplier's sync stamp all land in a single transaction, so a run
   // that the platform cuts short can never leave half the data written. The
@@ -1248,6 +1071,19 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
       lowOrOut: 0,
     };
   }
+  // Only committed, non-stale snapshots may create alerts. The unique event
+  // key makes webhook/poll overlap harmless even when both observed the change.
+  await enqueueNotifications(sb, s.id, [
+    ...restockPosts.map((r) => ({ t: "restock" as const, product_id: r.product_id, qty: r.qty, event_id: r.event_id })),
+    ...lowPosts.map((l) => ({ t: "low" as const, product_id: l.product_id, stock: l.stock, event_id: l.event_id })),
+    ...pricePosts.map((pp) => ({
+      t: "price" as const,
+      product_id: pp.product_id,
+      old_price: pp.old_price,
+      new_price: pp.new_price,
+      event_id: pp.event_id,
+    })),
+  ]);
   // Keep the in-memory copies in step with what the database now holds.
   for (const { id, patch } of productUpdates) {
     const current = productsById.get(id);

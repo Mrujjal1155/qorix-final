@@ -686,6 +686,11 @@ export const addMyStock = createServerFn({ method: "POST" })
 
     const { error } = await db.from("stock_items").insert(lines.map((content) => ({ product_id: data.product_id, content })));
     if (error) throw new Error(error.message);
+    const [{ enqueueManualRestock }, { supabaseAdmin }] = await Promise.all([
+      import("@/lib/suppliers/sync.server"),
+      import("@/integrations/supabase/client.server"),
+    ]);
+    await enqueueManualRestock(supabaseAdmin, data.product_id, lines.length);
     return { ok: true, added: lines.length, products: await loadMyProducts(db, reseller.id) };
   });
 

@@ -404,6 +404,10 @@ export const saveProduct = createServerFn({ method: "POST" })
       if (updated && was !== now) {
         const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
         await pushResellerEvent(now ? "new" : "removed", updated);
+        if (now) {
+          const { enqueueNewProduct } = await import("@/lib/suppliers/sync.server");
+          await enqueueNewProduct(sb, id, "admin_reenable", `admin:${id}:${String((updated as any).updated_at ?? Date.now())}`);
+        }
       }
       return { ok: true };
     }
@@ -413,12 +417,8 @@ export const saveProduct = createServerFn({ method: "POST" })
     // A brand-new live product gets the NEW PRODUCT card in the channel and in
     // every bot chat, exactly like an auto-listed supplier product.
     if (created && (created as any).is_active !== false) {
-      try {
-        const { announceNewProduct } = await import("@/lib/bot/engine.server");
-        await announceNewProduct(created);
-      } catch (e) {
-        console.error("new-product announce failed:", e);
-      }
+      const { enqueueNewProduct } = await import("@/lib/suppliers/sync.server");
+      await enqueueNewProduct(sb, created.id, "admin_create", `admin:${created.id}`);
     }
     if (created) {
       const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
@@ -450,6 +450,10 @@ export const setProductActive = createServerFn({ method: "POST" })
     if (updated) {
       const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
       await pushResellerEvent(data.is_active ? "new" : "removed", updated);
+      if (data.is_active) {
+        const { enqueueNewProduct } = await import("@/lib/suppliers/sync.server");
+        await enqueueNewProduct(sb, data.id, "admin_toggle", `admin:${data.id}:${String((updated as any).updated_at ?? Date.now())}`);
+      }
     }
     return { ok: true, is_active: data.is_active };
   });
@@ -495,12 +499,8 @@ export const addStock = createServerFn({ method: "POST" })
     }
     // Queue the "back in stock" card durably (added qty + new total) so it is
     // retried until Telegram accepts it, instead of dying with this request.
-    try {
-      const { enqueueManualRestock } = await import("@/lib/suppliers/sync.server");
-      await enqueueManualRestock(sb, data.product_id, rows.length);
-    } catch (e) {
-      console.error("restock notify failed:", e);
-    }
+    const { enqueueManualRestock } = await import("@/lib/suppliers/sync.server");
+    await enqueueManualRestock(sb, data.product_id, rows.length);
     const { data: totals } = await sb.rpc("stock_counts", { _product_ids: [data.product_id] });
     return { added: rows.length, available: Number((totals ?? [])[0]?.available ?? 0) };
   });

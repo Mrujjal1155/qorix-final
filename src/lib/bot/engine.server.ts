@@ -3658,7 +3658,12 @@ async function handleMessage(msg: any) {
         return;
       }
       await db.from("stock_items").insert(lines.map((content) => ({ product_id: productId, content })));
-      defer(() => notifyRestock(productId, lines.length));
+      const { enqueueManualRestock } = await import("@/lib/suppliers/sync.server");
+      await enqueueManualRestock(db, productId, lines.length, `bot:${chatId}:${msg?.message_id ?? Date.now()}`);
+      defer(async () => {
+        const { drainAllNotifications } = await import("@/lib/suppliers/sync.server");
+        await drainAllNotifications(db);
+      });
       await say(
         chatId,
         `✅ Added <b>${lines.length}</b> stock item(s).\n\n<b>Preview 1 of ${lines.length}</b>\n<pre>${escapeHtml(lines[0]!)}</pre>`,
@@ -6545,9 +6550,11 @@ async function handleCallback(cq: any) {
       const v = await admStockView(arg);
       await edit(v.text, v.kb);
     } else if (action.startsWith("pdrs:")) {
-      await notifyRestock(arg, 0);
+      await db.rpc("retry_latest_stock_notification", { _product_id: arg });
+      const { drainAllNotifications } = await import("@/lib/suppliers/sync.server");
+      await drainAllNotifications(db);
       const v = await admStockView(arg);
-      await edit(`✅ Restock post sent.\n\n${v.text}`, v.kb);
+      await edit(`✅ Pending restock alert checked.\n\n${v.text}`, v.kb);
     } else if (action === "stock") {
       const v = await admPickView("stock", 0, pickQuery(st, "stock"));
       await edit(v.text, v.kb);
