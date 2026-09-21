@@ -93,6 +93,7 @@ function menuButtonText(settings: Record<string, string>, key: MenuIconKey, labe
   return {
     text: `${glyph} ${label ?? defaultLabel}`.replace(/\s+/g, " ").trim(),
     customId,
+    glyph,
   };
 }
 
@@ -135,8 +136,9 @@ function bottomMenuMarkup(settings: Record<string, string>) {
 }
 
 async function sayWithBottomMenu(chatId: number, text: string, settings: Record<string, string>, kb?: Button[][]) {
-  const res = await sendMessage(chatId, text, kb, { reply_markup: bottomMenuMarkup(settings) });
+  const res = await sendMessage(chatId, text, undefined, { reply_markup: bottomMenuMarkup(settings) });
   defer(() => trackMessage(chatId, res?.result?.message_id));
+  if (kb) await say(chatId, "<b>Quick actions</b>", kb);
   return res;
 }
 
