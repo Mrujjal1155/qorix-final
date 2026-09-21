@@ -157,9 +157,12 @@ function VisibilityAlertBanner() {
     refetchInterval: 60000,
   });
 
-  const rows: any[] = (alerts as any[]) ?? [];
+  const all: any[] = (alerts as any[]) ?? [];
+  // Supplier-side events (id rotation, removal) get their own amber banner.
+  const supplierRows = all.filter((a) => a.surface === "supplier_id" || a.surface === "supplier_removed");
+  const rows = all.filter((a) => !supplierRows.includes(a));
   const pendingCount = pending?.count ?? 0;
-  if (!rows.length && !pendingCount) return null;
+  if (!all.length && !pendingCount) return null;
 
   const surfaceName = (s: string) => (s === "bot" ? "Telegram bot" : s === "web" ? "website" : "reseller API");
 
