@@ -2722,8 +2722,15 @@ async function postToChannel(
   text: string,
   kb?: Button[][],
   photo?: string | null,
+  product?: any,
 ) {
-  const chat = settings["announce_chat_id"];
+  // Per-source recipient: supplier-specific first, then in-house, then default.
+  const scoped = product
+    ? product.supplier_id
+      ? settings[`announce_chat_supplier:${product.supplier_id}`]
+      : settings["announce_chat_inhouse"]
+    : undefined;
+  const chat = (scoped ?? "").trim() || settings["announce_chat_id"];
   if (!chat) return { sent: false, reason: "No announcement channel/group ID configured" };
   if (photo) {
     const photoResult = await sendPhoto(chat, photo, text, kb);
@@ -2857,7 +2864,7 @@ export async function announceRestock(
   if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
     ? { sent: true }
-    : await postToChannel(s, text, kb, banner).catch((error) => {
+    : await postToChannel(s, text, kb, banner, product).catch((error) => {
         console.error("Restock channel delivery failed:", error);
         return { sent: false, reason: error instanceof Error ? error.message : String(error) };
       });
@@ -2916,7 +2923,7 @@ export async function announceNewProduct(
   if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
     ? { sent: true }
-    : await postToChannel(s, text, await channelProductButton(s, product), banner).catch((error) => {
+    : await postToChannel(s, text, await channelProductButton(s, product), banner, product).catch((error) => {
         console.error("New-product channel delivery failed:", error);
         return { sent: false, reason: error instanceof Error ? error.message : String(error) };
       });
@@ -2982,7 +2989,7 @@ export async function announceLowStock(
   if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
     ? { sent: true }
-    : await postToChannel(s, text, await channelProductButton(s, product), banner).catch((error) => {
+    : await postToChannel(s, text, await channelProductButton(s, product), banner, product).catch((error) => {
         console.error("Low-stock channel delivery failed:", error);
         return { sent: false, reason: error instanceof Error ? error.message : String(error) };
       });
@@ -3051,7 +3058,7 @@ export async function announcePriceChange(
   if (!delivery?.channelSent && delivery?.beforeChannelSend) await delivery.beforeChannelSend();
   const channel = delivery?.channelSent
     ? { sent: true }
-    : await postToChannel(s, text, await channelProductButton(s, product), banner).catch((error) => {
+    : await postToChannel(s, text, await channelProductButton(s, product), banner, product).catch((error) => {
         console.error("Price-change channel delivery failed:", error);
         return { sent: false, reason: error instanceof Error ? error.message : String(error) };
       });

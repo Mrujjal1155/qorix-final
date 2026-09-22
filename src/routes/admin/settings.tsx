@@ -14,12 +14,13 @@ import { toast } from "sonner";
 import { BinanceSetupCard } from "@/components/BinanceSetupCard";
 import { HeroItemsCard } from "@/components/HeroItemsCard";
 import { SettingsHub, type HubSection } from "@/components/SettingsHub";
-import { Bot, Wallet, SlidersHorizontal, Smile, Images, Megaphone, Smartphone, Mail, MailOpen, Gift, Coins, Network, ShieldCheck } from "lucide-react";
+import { Bot, Wallet, SlidersHorizontal, Smile, Images, Megaphone, Smartphone, Mail, MailOpen, Gift, Coins, Network, ShieldCheck, BellRing } from "lucide-react";
 import { JoinGateCard } from "@/components/JoinGateCard";
 
 import { CurrencyRatesCard } from "@/components/CurrencyRatesCard";
 import { SupplierKeysCard } from "@/components/SupplierKeysCard";
 import { EmailTemplatesCard } from "@/components/EmailTemplatesCard";
+import { StockAlertSettingsCard } from "@/components/StockAlertSettingsCard";
 import { PRODUCTION_SITE_URL } from "@/lib/site-url";
 
 
@@ -741,7 +742,15 @@ function SettingsPage() {
       render: () => <JoinGateCard values={values} setValues={setValues} onSave={onSave} />,
     },
     {
+      id: "stock-alerts",
+      title: "Stock alerts",
+      description: "Low stock threshold, restock alerts and recipients per supplier.",
+      icon: BellRing,
+      render: () => <StockAlertSettingsCard values={values} setValues={setValues} onSave={onSave} />,
+    },
+    {
       id: "announce",
+
 
       title: "Announcements",
       description: "Channel posts for sales, restocks and new products.",

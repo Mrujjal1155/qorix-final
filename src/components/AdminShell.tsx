@@ -24,6 +24,7 @@ import {
   Ticket,
   Users,
   BarChart3,
+  BellRing,
   LifeBuoy,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -41,6 +42,7 @@ const NAV_GROUPS = [
       { to: "/admin/orders", label: "Orders", icon: ReceiptText },
       { to: "/admin/payments", label: "Payments", icon: CreditCard },
       { to: "/admin/suppliers", label: "Supplier APIs", icon: Network },
+      { to: "/admin/alerts", label: "Alert health", icon: BellRing },
     ],
   },
   {
