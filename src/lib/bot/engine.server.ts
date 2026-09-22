@@ -3543,13 +3543,15 @@ async function handleMessage(msg: any) {
         await say(chatId, "❌ Invalid amount or user.", ADM_BACK);
         return;
       }
-      await db
-        .from("bot_users")
-        .update({ balance: Number(target.balance) + amount })
-        .eq("telegram_id", targetId);
-      await db
-        .from("transactions")
-        .insert({ telegram_id: targetId, type: "admin", amount, note: "Admin balance adjustment" });
+      const { data: adjUser } = await db.rpc("bot_user_admin_adjust", {
+        _telegram_id: targetId,
+        _amount: amount,
+        _note: "Admin balance adjustment",
+      });
+      if (!(adjUser as any)?.ok) {
+        await say(chatId, "❌ Could not update that balance.", ADM_BACK);
+        return;
+      }
       await sendMessage(targetId, `💰 An admin updated your balance by ${money(amount)}.`);
       const v = await admUserView(targetId);
       await say(chatId, `✅ Done.\n\n${v.text}`, v.kb);
