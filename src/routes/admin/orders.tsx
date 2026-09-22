@@ -253,9 +253,10 @@ function OrdersPage() {
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => changeStatus({ data: { id: o.id, status: "cancelled" } }).then(refresh)}
+              disabled={busy === o.id}
+              onClick={() => setCancelFor(o)}
             >
-              Cancel
+              {busy === o.id ? "Cancelling…" : "Cancel"}
             </Button>
           </>
         )}
