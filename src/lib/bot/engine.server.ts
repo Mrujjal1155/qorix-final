@@ -4950,6 +4950,52 @@ async function coTotals(meta: CoMeta, chatId?: number) {
   return { lines, subtotal, discount, total, tierPct, tierOff };
 }
 
+/**
+ * Last-second stock guard for checkout.
+ *
+ * A product can be switched on while the supplier has nothing left (or the
+ * in-house serial pool ran dry after the item was added to the cart). Before a
+ * single cent is charged we re-read the real availability — live from the
+ * supplier API for supplier-linked items, from `stock_counts` for in-house auto
+ * items — and report every line that can no longer be delivered.
+ */
+async function checkoutStockIssues(lines: any[]): Promise<string[]> {
+  const issues: string[] = [];
+  const autoIds = lines.filter((l) => !l.product.supplier_id && l.product.delivery_type === "auto").map((l) => l.product.id);
+  const counts: Record<string, number> = {};
+  if (autoIds.length) {
+    const { data: stock } = await db.rpc("stock_counts", { _product_ids: autoIds });
+    for (const s of ((stock ?? []) as any[])) counts[String(s.product_id)] = Number(s.available ?? 0);
+  }
+  for (const l of lines) {
+    const p = l.product;
+    if (p.delivery_type === "manual") continue;
+    let available: number;
+    if (p.supplier_id) {
+      available = Number(p.supplier_stock ?? 0);
+      try {
+        const { refreshLiveStock } = await import("@/lib/suppliers/live-stock.server");
+        const live = await refreshLiveStock(String(p.id), 6000);
+        if (live) available = live.stock;
+      } catch {
+        /* fall back to the stored snapshot */
+      }
+    } else {
+      available = counts[p.id] ?? 0;
+    }
+    if (available < l.qty) {
+      issues.push(
+        available > 0
+          ? `• ${escapeHtml(p.name)} — only <b>${available}</b> left (you asked for ${l.qty})`
+          : `• ${escapeHtml(p.name)} — <b>out of stock</b>`,
+      );
+    }
+  }
+  return issues;
+}
+
+
+
 async function readCo(chatId: number): Promise<CoMeta | null> {
   const u = await getUser(chatId);
   const co = (u?.state ?? {}).co;
@@ -5001,6 +5047,16 @@ async function coPayView(chatId: number) {
   const cfg = await binanceConfig();
   const settings = await getSettings();
   const user = await getUser(chatId);
+  // Verify real availability before any payment button is offered.
+  const stockProblems = await checkoutStockIssues(lines);
+  if (stockProblems.length) {
+    return {
+      text:
+        `⚠️ <b>Out of stock</b>\n──────────────\n${stockProblems.join("\n")}\n\n` +
+        `Please remove or reduce these items in your cart and try again. Nothing was charged.`,
+      kb: [[{ text: "🧺 Cart", callback_data: "cart" }], [uiBtn(settings, "com_shop", "shop:0")], [uiBtn(settings, "com_home", "home")]] as Button[][],
+    };
+  }
   const kb: Button[][] = [];
   if (Number(user.balance) >= total && total > 0)
     kb.push([uiBtn(settings, "pay_balance", "copm:balance", `(${money(user.balance)})`)]);
@@ -5122,6 +5178,31 @@ async function fulfillCheckout(
           .contains("meta", { deposit_id: depositId })
       ).data ?? [])
     : [];
+
+  // Final availability check. If anything cannot be delivered we stop before
+  // the debit: for gateway payments the money stays in the wallet (usable for
+  // any other order), so a buyer can never pay for something undeliverable.
+  const blocked = await checkoutStockIssues(lines);
+  if (blocked.length) {
+    if (awaitingRows.length) {
+      for (const row of awaitingRows) {
+        await db.from("orders").update({ status: "cancelled" }).eq("id", row.id);
+      }
+    }
+    try {
+      await notifyAdmins(
+        `⚠️ <b>Checkout blocked — out of stock</b>\nBuyer: <code>${chatId}</code>\n${blocked.join("\n")}`,
+      );
+    } catch {
+      /* admin notice is best effort */
+    }
+    return {
+      text:
+        `⚠️ <b>Out of stock</b>\n──────────────\n${blocked.join("\n")}\n\n` +
+        `Your order was not created and <b>no money was taken</b>. Any amount you paid stays in your wallet balance and can be used for another order.`,
+      kb: [[uiBtn(await getSettings(), "com_wallet", "wallet")], [uiBtn(await getSettings(), "com_shop", "shop:0")]] as Button[][],
+    };
+  }
 
 
   // Charge the order total atomically. The DB refuses the debit when the
