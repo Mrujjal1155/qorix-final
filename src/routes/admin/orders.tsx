@@ -357,6 +357,7 @@ function OrdersPage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold">{pay.label}</span>
                     <Badge variant={pay.paid ? "default" : "secondary"}>{pay.paid ? "paid" : "not paid"}</Badge>
+                    {pay.refunded && <Badge variant="outline">refunded</Badge>}
                   </div>
                   {pay.detail && <div className="mt-1 break-all text-muted-foreground">{pay.detail}</div>}
                 </div>
@@ -436,6 +437,7 @@ function OrdersPage() {
                         <div className="font-medium">{pay.label}</div>
                         <div className={pay.paid ? "text-success" : "text-muted-foreground"}>
                           {pay.paid ? "paid" : "not paid"}
+                          {pay.refunded ? " · refunded" : ""}
                         </div>
                         {pay.detail && <div className="max-w-[12rem] break-all text-muted-foreground">{pay.detail}</div>}
                       </div>
