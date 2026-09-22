@@ -5054,7 +5054,7 @@ async function coPayView(chatId: number) {
       text:
         `⚠️ <b>Out of stock</b>\n──────────────\n${stockProblems.join("\n")}\n\n` +
         `Please remove or reduce these items in your cart and try again. Nothing was charged.`,
-      kb: [[uiBtn(settings, "com_cart", "cart")], [uiBtn(settings, "com_shop", "shop:0")], [uiBtn(settings, "com_home", "home")]] as Button[][],
+      kb: [[{ text: "🧺 Cart", callback_data: "cart" }], [uiBtn(settings, "com_shop", "shop:0")], [uiBtn(settings, "com_home", "home")]] as Button[][],
     };
   }
   const kb: Button[][] = [];
