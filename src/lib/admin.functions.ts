@@ -596,13 +596,18 @@ export const listOrders = createServerFn({ method: "GET" })
     const orders = rows ?? [];
     if (!orders.length) return orders;
 
+    // Attach the Telegram buyer's username/name so admins can contact them.
+    const tgIds = [...new Set(orders.map((o: any) => o.telegram_id).filter((t: any) => Number.isFinite(Number(t))))];
+    const { data: bots } = tgIds.length
+      ? await sb.from("bot_users").select("telegram_id,username,first_name,last_name").in("telegram_id", tgIds)
+      : { data: [] as any[] };
+    const botById = new Map((bots ?? []).map((b: any) => [String(b.telegram_id), b]));
+
     // Attach supplier info so admins can see which API/supplier an order came from.
     const productIds = [...new Set(orders.map((o: any) => o.product_id).filter(Boolean))];
-    if (!productIds.length) return orders;
-    const { data: prods } = await sb
-      .from("products")
-      .select("id,supplier_id,supplier_external_id")
-      .in("id", productIds);
+    const { data: prods } = productIds.length
+      ? await sb.from("products").select("id,supplier_id,supplier_external_id").in("id", productIds)
+      : { data: [] as any[] };
     const supplierIds = [...new Set((prods ?? []).map((p: any) => p.supplier_id).filter(Boolean))];
     const { data: sups } = supplierIds.length
       ? await sb.from("suppliers").select("id,key,name").in("id", supplierIds)
@@ -612,12 +617,15 @@ export const listOrders = createServerFn({ method: "GET" })
     return orders.map((o: any) => {
       const p: any = prodById.get(o.product_id);
       const s: any = p?.supplier_id ? supById.get(p.supplier_id) : null;
+      const b: any = botById.get(String(o.telegram_id));
       return {
         ...o,
         supplier_name: s?.name ?? null,
         supplier_key: s?.key ?? null,
         supplier_external_id: p?.supplier_external_id ?? null,
         fulfilment: s ? "api" : "manual",
+        buyer_username: b?.username ?? null,
+        buyer_name: [b?.first_name, b?.last_name].filter(Boolean).join(" ") || null,
       };
     });
   });
