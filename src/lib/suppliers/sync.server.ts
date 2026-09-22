@@ -131,7 +131,6 @@ const HARD_STALE_MS = 2 * 60 * 60_000;
  * Worst case per run: CARDS_PER_RUN * (1 channel post + DM_PER_RUN DMs).
  */
 const CARDS_PER_RUN = 8;
-const DM_PER_RUN = 40;
 /** Hard cap for one card's channel post + DM batch. */
 const CARD_TIMEOUT_MS = 9_000;
 /** Wall-clock budget for one delivery run (scheduler cuts us off at ~28s). */
@@ -294,6 +293,8 @@ export async function enqueueManualRestock(sb: any, productId: string, qty: numb
       at: Date.now(),
     } as NotifyItem,
   ]);
+  // Instant: send right away, the scheduler is only a fallback for retries.
+  await drainAllNotifications(sb).catch((error) => console.error("Instant restock alert failed:", error));
 }
 
 /** A product becoming customer-visible uses the same durable, deduplicated sender. */
@@ -307,6 +308,7 @@ export async function enqueueNewProduct(sb: any, productId: string, source: stri
       at: Date.now(),
     } as NotifyItem,
   ]);
+  await drainAllNotifications(sb).catch((error) => console.error("Instant new-product alert failed:", error));
 }
 
 
@@ -327,23 +329,27 @@ async function drainNotificationEvents(sb: any, budget: { cards: number; until?:
     const item = (claimed ?? [])[0] as any;
     if (!item) break;
     try {
-      let delivery: { channel?: boolean; dmComplete?: boolean; dmCursor?: number } | undefined;
+      // Two destinations only: the group/channel and one bot chat. Each is
+      // marked the moment Telegram accepts it, so a retry never duplicates a
+      // post and never skips one that failed.
+      const channelSent = Boolean(item.channel_sent);
+      let botSent = Number(item.dm_cursor ?? 0) > 0;
       const progress = {
-        channelSent: Boolean(item.channel_sent),
-        dmAfter: Number(item.dm_cursor ?? 0),
-        dmLimit: DM_PER_RUN,
-        beforeChannelSend: async () => {
+        channelSent,
+        botSent,
+        markChannelSent: async () => {
           await sb.rpc("update_stock_notification_progress", {
             _id: item.id,
             _channel_sent: true,
-            _dm_cursor: Number(item.dm_cursor ?? 0),
+            _dm_cursor: botSent ? 1 : 0,
           });
         },
-        beforeDmSend: async (cursor: number) => {
+        markBotSent: async () => {
+          botSent = true;
           await sb.rpc("update_stock_notification_progress", {
             _id: item.id,
             _channel_sent: true,
-            _dm_cursor: cursor,
+            _dm_cursor: 1,
           });
         },
       };
@@ -358,23 +364,12 @@ async function drainNotificationEvents(sb: any, budget: { cards: number; until?:
         if (item.kind === "price") return await announcePriceChange(prod, item.old_price, item.new_price, progress);
         return await announceNewProduct(prod, progress);
       };
-      delivery = await withTimeout(send(), CARD_TIMEOUT_MS, `${item.kind} card`);
-
-      if (delivery && !delivery.dmComplete) {
-        await sb.rpc("update_stock_notification_progress", {
-          _id: item.id,
-          _channel_sent: true,
-          _dm_cursor: delivery.dmCursor ?? Number(item.dm_cursor ?? 0),
-        });
-        await sb.rpc("release_stock_notification", { _id: item.id });
-        continue;
-      }
+      await withTimeout(send(), CARD_TIMEOUT_MS, `${item.kind} card`);
 
       await sb.rpc("finish_stock_notification", { _id: item.id, _delivered: true, _error: null });
       sent += 1;
       if (prod && (prod as any).is_active !== false) {
         const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
-        const stockNow = Number((prod as any).supplier_stock ?? 0);
         await pushResellerEvent(
           item.kind === "out" ? "out" : (item.kind as any),
           prod,
@@ -392,30 +387,9 @@ async function drainNotificationEvents(sb: any, budget: { cards: number; until?:
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
       console.error("Stock alert failed:", item.event_key, message);
-      // A big DM fan-out can hit the per-card timeout while it is still making
-      // real progress. That is not a failure: keep the saved cursor, hand the
-      // card back to the queue and let the next run continue where it stopped.
-      let progressed = false;
-      if (/timed out/i.test(message)) {
-        const { data: fresh } = await sb
-          .from("stock_notification_events")
-          .select("channel_sent,dm_cursor")
-          .eq("id", item.id)
-          .maybeSingle();
-        progressed =
-          Boolean(fresh) &&
-          (Number((fresh as any).dm_cursor ?? 0) > Number(item.dm_cursor ?? 0) ||
-            (Boolean((fresh as any).channel_sent) && !item.channel_sent));
-      }
+      failed += 1;
       try {
-        if (progressed) await sb.rpc("release_stock_notification", { _id: item.id });
-        else {
-          failed += 1;
-          // NOTE: a Supabase query builder is thenable but has no .catch — calling
-          // .catch() here threw inside the error handler, so the whole run died and
-          // the card stayed stuck in "sending" forever (no attempt, no error saved).
-          await sb.rpc("finish_stock_notification", { _id: item.id, _delivered: false, _error: message });
-        }
+        await sb.rpc("finish_stock_notification", { _id: item.id, _delivered: false, _error: message });
       } catch (finishError) {
         console.error("Could not record stock alert failure:", finishError);
       }
