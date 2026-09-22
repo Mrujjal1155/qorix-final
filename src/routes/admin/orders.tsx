@@ -114,6 +114,7 @@ function OrdersPage() {
   const [deliverFor, setDeliverFor] = useState<string>("");
   const [content, setContent] = useState("");
   const [refundFor, setRefundFor] = useState<string>("");
+  const [cancelFor, setCancelFor] = useState<any>(null);
   const [refundAmount, setRefundAmount] = useState("");
   const [busy, setBusy] = useState("");
   const [search, setSearch] = useState("");
@@ -253,9 +254,10 @@ function OrdersPage() {
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => changeStatus({ data: { id: o.id, status: "cancelled" } }).then(refresh)}
+              disabled={busy === o.id}
+              onClick={() => setCancelFor(o)}
             >
-              Cancel
+              {busy === o.id ? "Cancelling…" : "Cancel"}
             </Button>
           </>
         )}
@@ -603,6 +605,49 @@ function OrdersPage() {
               </Button>
               <Button variant="outline" onClick={() => setRefundFor("")}>
                 Close
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!cancelFor} onOpenChange={(open) => !open && setCancelFor(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cancel this order?</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm">
+              Order <b>#{cancelFor?.order_no}</b> — {cancelFor?.product_name}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              If the buyer already paid, ${Number(cancelFor?.total ?? 0).toFixed(2)} is refunded to their wallet once.
+              Confirm only one time — repeated clicks will not send a second refund.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="destructive"
+                disabled={busy === cancelFor?.id}
+                onClick={async () => {
+                  const id = cancelFor?.id as string;
+                  setBusy(id);
+                  setCancelFor(null);
+                  try {
+                    const r: any = await changeStatus({ data: { id, status: "cancelled" } });
+                    if (r?.skipped) toast.info("This order was already cancelled");
+                    else toast.success("Order cancelled");
+                    refresh();
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : "Cancel failed");
+                  } finally {
+                    setBusy("");
+                  }
+                }}
+              >
+                {busy === cancelFor?.id ? "Cancelling…" : "Yes, cancel & refund"}
+              </Button>
+              <Button variant="outline" onClick={() => setCancelFor(null)}>
+                Keep order
               </Button>
             </div>
           </div>
