@@ -2281,29 +2281,26 @@ async function settlePayment(chatId: number, row: any, amount: number, txid: str
   });
 
   if (Array.isArray(meta.items) && meta.items.length) {
-    await db.from("transactions").insert({
-      telegram_id: chatId,
-      type: "deposit",
-      amount,
-      method: methodKey,
-      reference: txid,
-      note: "Direct checkout payment",
+    // Row-locked, idempotent by txid: one deposit per transaction id.
+    await db.rpc("bot_user_credit", {
+      _telegram_id: chatId,
+      _amount: amount,
+      _type: "deposit",
+      _method: methodKey,
+      _reference: txid,
+      _note: "Direct checkout payment",
     });
-    const fresh = await getUser(chatId);
-    await db.from("bot_users").update({ balance: Number(fresh.balance) + amount }).eq("telegram_id", chatId);
     const res = await fulfillCheckout(chatId, meta, methodKey, txid, row.id);
     return { message: res.text, keyboard: res.kb };
   }
 
-  const user = await getUser(chatId);
-  await db.from("bot_users").update({ balance: Number(user.balance) + amount }).eq("telegram_id", chatId);
-  await db.from("transactions").insert({
-    telegram_id: chatId,
-    type: "deposit",
-    amount,
-    method: methodKey,
-    reference: txid,
-    note,
+  await db.rpc("bot_user_credit", {
+    _telegram_id: chatId,
+    _amount: amount,
+    _type: "deposit",
+    _method: methodKey,
+    _reference: txid,
+    _note: note,
   });
 
   const after = await getUser(chatId);
