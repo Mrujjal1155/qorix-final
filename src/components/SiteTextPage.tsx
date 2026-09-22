@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, type ReactElement } from "react";
 import { StoreShell } from "@/components/StoreShell";
 import { useSiteContent } from "@/lib/use-site-content";
 import { ShieldCheck, FileText, CalendarDays, ListChecks, Mail, MessageCircle } from "lucide-react";
@@ -29,7 +29,7 @@ function parseBody(body: string): Block[] {
 }
 
 function Paragraphs({ lines }: { lines: string[] }) {
-  const out: JSX.Element[] = [];
+  const out: ReactElement[] = [];
   let bullets: string[] = [];
   const flush = (key: string) => {
     if (!bullets.length) return;
