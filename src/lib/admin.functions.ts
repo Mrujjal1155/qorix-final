@@ -746,39 +746,27 @@ export const setOrderStatus = createServerFn({ method: "POST" })
       if (before.status === "pending" && Number(before.total) > 0) {
         const amount = Math.round(Number(before.total) * 100) / 100;
         const reference = `order-${before.order_no}-cancel`;
-        const { data: already } = await sb
-          .from("transactions")
-          .select("id")
-          .eq("reference", reference)
-          .eq("type", "refund")
-          .maybeSingle();
-        if (!already) {
-          const { data: user } = await sb
-            .from("bot_users")
-            .select("balance")
-            .eq("telegram_id", before.telegram_id)
-            .maybeSingle();
-          if (user) {
-            const balance = Math.round((Number(user.balance ?? 0) + amount) * 100) / 100;
-            await sb.from("bot_users").update({ balance }).eq("telegram_id", before.telegram_id);
-            await sb.from("transactions").insert({
-              telegram_id: before.telegram_id,
-              type: "refund",
-              amount,
-              method: "wallet",
-              reference,
-              note: `Auto refund — order #${before.order_no} cancelled`,
-            });
-            // Keep the payment history on the order: it stays "paid", plus refunded.
-            await sb
-              .from("orders")
-              .update({
-                meta: { ...((before.meta as any) ?? {}), paid: true, refunded: true, refund_amount: amount },
-              })
-              .eq("id", data.id);
-            refundNote = `\u{1F4B0} <b>$${amount.toFixed(2)}</b> refunded to your wallet.\nNew balance: <b>$${balance.toFixed(2)}</b>`;
-          }
-        } else {
+        // Atomic + idempotent: the same reference can never be credited twice.
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: credit } = await (supabaseAdmin as any).rpc("bot_user_credit", {
+          _telegram_id: before.telegram_id,
+          _amount: amount,
+          _type: "refund",
+          _method: "wallet",
+          _reference: reference,
+          _note: `Auto refund — order #${before.order_no} cancelled`,
+        });
+        const res = (credit ?? {}) as { ok?: boolean; duplicate?: boolean; balance?: number };
+        if (res.ok) {
+          // Keep the payment history on the order: it stays "paid", plus refunded.
+          await sb
+            .from("orders")
+            .update({
+              meta: { ...((before.meta as any) ?? {}), paid: true, refunded: true, refund_amount: amount },
+            })
+            .eq("id", data.id);
+          refundNote = `\u{1F4B0} <b>$${amount.toFixed(2)}</b> refunded to your wallet.\nNew balance: <b>$${Number(res.balance ?? 0).toFixed(2)}</b>`;
+        } else if (res.duplicate) {
           refundNote = "Your payment was already refunded to your wallet.";
         }
       }
