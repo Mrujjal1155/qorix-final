@@ -2742,58 +2742,69 @@ async function postToChannel(
 
 
 /**
- * Send the same announcement card to every bot user in DM.
- * Channel posts alone don't reach people who never joined the channel, so
- * restock / new-product cards are mirrored into the bot chat as well.
- * Toggle with the `announce_dm` setting (default ON).
+ * Stock cards go to exactly two places: the configured group/channel and one
+ * bot chat (`announce_bot_chat_id`, falling back to the first admin id).
+ * No per-user DM fan-out — that was the source of timeouts and duplicates.
  */
-async function dmAllBotUsers(
-  settings: Record<string, string>,
+export type CardDelivery = {
+  channelSent?: boolean;
+  botSent?: boolean;
+  markChannelSent?: () => Promise<void>;
+  markBotSent?: () => Promise<void>;
+};
+
+function botAlertChat(s: Record<string, string>) {
+  const explicit = (s["announce_bot_chat_id"] ?? "").trim();
+  if (explicit) return explicit;
+  return adminIds(s)[0] ?? "";
+}
+
+/**
+ * Deliver one card. Each destination is marked only AFTER Telegram accepted it,
+ * so a retry never re-posts a place that already got the message and never
+ * skips a place that failed.
+ */
+async function deliverCard(
+  s: Record<string, string>,
   text: string,
-  kb?: Button[][],
-  photo?: string | null,
-  skip: Set<number> = new Set(),
-  page?: { after: number; limit: number; beforeSend?: (cursor: number) => Promise<void> },
+  kb: Button[][] | undefined,
+  banner: string | null,
+  product: any,
+  delivery?: CardDelivery,
 ) {
-  if ((settings["announce_dm"] ?? "on").toLowerCase() === "off") {
-    return { sent: 0, total: 0, complete: true, nextCursor: page?.after ?? 0 };
-  }
-  let query = db
-    .from("bot_users")
-    .select("telegram_id,is_banned")
-    .eq("is_banned", false)
-    .gt("telegram_id", page?.after ?? 0)
-    .order("telegram_id", { ascending: true });
-  if (page) query = query.limit(page.limit + 1);
-  const { data, error } = await query;
-  if (error) {
-    console.error("dmAllBotUsers: could not load users:", error.message);
-    throw new Error(`Could not load bot users: ${error.message}`);
-  }
-  const eligible = (data ?? []).filter(
-    (u: any) => !u.is_banned && Number(u.telegram_id) > 1_000_000 && !skip.has(Number(u.telegram_id)),
-  );
-  const complete = !page || eligible.length <= page.limit;
-  const targets = page ? eligible.slice(0, page.limit) : eligible;
-  let sent = 0;
-  for (const user of targets) {
-    // Telegram has no idempotency key for sendMessage/sendPhoto. Reserve this
-    // recipient before the API call so a worker restart can never DM them twice.
-    if (page?.beforeSend) await page.beforeSend(Number(user.telegram_id));
-    let delivered = false;
-    if (photo) {
-      const photoResult = await sendPhoto(user.telegram_id, photo, text, kb);
-      delivered = photoResult.ok;
+  let channelSent = Boolean(delivery?.channelSent);
+  let botSent = Boolean(delivery?.botSent);
+  const problems: string[] = [];
+
+  if (!channelSent) {
+    try {
+      const res = await postToChannel(s, text, kb, banner, product);
+      if (res.sent) {
+        channelSent = true;
+        if (delivery?.markChannelSent) await delivery.markChannelSent();
+      } else problems.push(res.reason ?? "group post skipped");
+    } catch (error) {
+      problems.push(error instanceof Error ? error.message : String(error));
     }
-    if (!delivered) delivered = (await sendMessage(user.telegram_id, text, kb)).ok;
-    if (delivered) sent += 1;
   }
-  return {
-    sent,
-    total: targets.length,
-    complete,
-    nextCursor: targets.length ? Number(targets[targets.length - 1]?.telegram_id ?? page?.after ?? 0) : (page?.after ?? 0),
-  };
+
+  if (!botSent) {
+    const target = botAlertChat(s);
+    if (!target) {
+      botSent = true;
+    } else {
+      let ok = false;
+      if (banner) ok = (await sendPhoto(target, banner, text, kb)).ok;
+      if (!ok) ok = (await sendMessage(target, text, kb)).ok;
+      if (ok) {
+        botSent = true;
+        if (delivery?.markBotSent) await delivery.markBotSent();
+      } else problems.push("bot chat post failed");
+    }
+  }
+
+  if (!channelSent || !botSent) throw new Error(problems.join(" | ") || "Stock card delivery failed");
+  return { channel: channelSent, bot: botSent, complete: true };
 }
 
 function fillTokens(tpl: string, map: Record<string, string>) {
