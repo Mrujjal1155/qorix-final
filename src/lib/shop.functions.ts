@@ -132,6 +132,35 @@ export const getStoreProduct = createServerFn({ method: "GET" })
     return { ...row, stock: (row as any).supplier_id ? supplierStock : count };
   });
 
+/**
+ * Lightweight product fields for SSR head metadata / structured data.
+ * Intentionally does NOT touch supplier live-stock (kept cheap for crawlers).
+ */
+export const getProductSeo = createServerFn({ method: "GET" })
+  .inputValidator((d: { id: string }) => d)
+  .handler(async ({ data }) => {
+    const sb = await anonSupabase();
+    const { data: row } = await sb
+      .from("products")
+      .select("id,name,description,price,image_url,delivery_type,supplier_id,supplier_stock")
+      .eq("id", data.id)
+      .eq("is_active", true)
+      .is("owner_reseller_id", null)
+      .maybeSingle();
+    if (!row) return null;
+    const anyRow = row as any;
+    return {
+      id: String(anyRow.id),
+      name: String(anyRow.name ?? ""),
+      description: String(anyRow.description ?? ""),
+      price: Number(anyRow.price ?? 0),
+      image_url: (anyRow.image_url ?? null) as string | null,
+      in_stock: anyRow.delivery_type !== "auto" || Number(anyRow.supplier_stock ?? 0) > 0,
+    };
+  });
+
+
+
 export const getStorePayInfo = createServerFn({ method: "GET" }).handler(async () => {
   const map: Record<string, string> = {};
   const raw: Record<string, string> = {};
