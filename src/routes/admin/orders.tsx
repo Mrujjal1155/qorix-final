@@ -369,7 +369,16 @@ function OrdersPage() {
                       <div className="break-all">{o.customer_email}</div>
                     </>
                   ) : (
-                    <div>Telegram: {o.telegram_id}</div>
+                      <div className="break-all">
+                        Telegram: {o.telegram_id}
+                        {o.buyer_username && (
+                          <a className="ml-1 text-primary underline" href={`https://t.me/${o.buyer_username}`} target="_blank" rel="noreferrer">
+                            @{o.buyer_username}
+                          </a>
+                        )}
+                      </div>
+                      {o.buyer_name && <div className="break-all">{o.buyer_name}</div>}
+                    </>
                   )}
                   {o.supplier_name ? (
                     <div className="mt-1">
