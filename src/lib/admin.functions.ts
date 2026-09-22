@@ -975,22 +975,33 @@ export const adjustBalance = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
-    const { data: user } = await sb
-      .from("bot_users")
-      .select("balance")
-      .eq("telegram_id", data.telegram_id)
-      .maybeSingle();
-    if (!user) throw new Error("User not found");
-    await sb
-      .from("bot_users")
-      .update({ balance: Number(user.balance) + Number(data.amount) })
-      .eq("telegram_id", data.telegram_id);
-    await sb.from("transactions").insert({
-      telegram_id: data.telegram_id,
-      type: "admin",
-      amount: data.amount,
-      note: data.note ?? "Dashboard adjustment",
-    });
+    const amount = Number(data.amount);
+    const note = data.note ?? "Dashboard adjustment";
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (amount > 0) {
+      const { data: credit } = await (supabaseAdmin as any).rpc("bot_user_credit", {
+        _telegram_id: data.telegram_id,
+        _amount: amount,
+        _type: "admin",
+        _method: null,
+        _reference: null,
+        _note: note,
+      });
+      const res = (credit ?? {}) as { ok?: boolean; reason?: string };
+      if (!res.ok) throw new Error(res.reason === "no_user" ? "User not found" : "Could not update balance");
+    } else if (amount < 0) {
+      const { data: debit } = await (supabaseAdmin as any).rpc("bot_user_debit", {
+        _telegram_id: data.telegram_id,
+        _amount: Math.abs(amount),
+        _method: null,
+        _reference: null,
+        _note: note,
+      });
+      const res = (debit ?? {}) as { ok?: boolean; reason?: string };
+      if (!res.ok) throw new Error(res.reason === "insufficient" ? "Balance is too low" : "Could not update balance");
+    } else {
+      throw new Error("Amount must not be zero");
+    }
     const { sendMessage } = await import("@/lib/telegram.server");
     await sendMessage(
       data.telegram_id,
