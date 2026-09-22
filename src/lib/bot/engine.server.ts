@@ -2172,7 +2172,8 @@ function binanceView(row: any, settings: Record<string, string> = {}) {
     `${head}\n\n` +
     `${uiTag(settings, "dep_amount")}:\n<code>${Number(row.amount_usdt).toFixed(4)}</code>\n\n` +
     `${uiIconHtml(settings, "dep_warn")} ${escapeHtml(uiText(settings, "dep_warn"))} — it is how we identify your payment.\n` +
-    `${uiIconHtml(settings, "dep_timer")} ${escapeHtml(uiText(settings, "dep_timer"))}. After paying, tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b> — verification is automatic.`;
+    `${uiIconHtml(settings, "dep_timer")} ${escapeHtml(uiText(settings, "dep_timer"))}. After paying, tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b> — verification is automatic.\n` +
+    `⏳ <b>Important:</b> you must tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b> after you pay. If it is not tapped within 30 minutes, the pending order can be cancelled automatically.`;
   const kb: Button[][] = [
     [uiBtn(settings, "dep_verify", `bchk:${row.id}`)],
     [uiUrlBtn(settings, "dep_support", (settings["support_link"] || "").trim() || DEFAULT_SUPPORT_LINK)],
@@ -2411,7 +2412,8 @@ function epsView(row: any, settings: Record<string, string>) {
     `${head}\n\n` +
     `Amount: <b>৳${bdt.toFixed(2)}</b>  (${money(row.amount_usdt)})\n` +
     `Rate: 1 USD = ${Number(meta.rate ?? 0)} BDT\n\n` +
-    `Tap <b>Pay now</b> and finish the payment on the secure EPS page — your ${channel === "card" ? "card" : "wallet"} payment is confirmed automatically when it clears.`;
+    `Tap <b>Pay now</b> and finish the payment on the secure EPS page — your ${channel === "card" ? "card" : "wallet"} payment is confirmed automatically when it clears.\n` +
+    `⏳ <b>Important:</b> after paying, tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b>. If it is not tapped within 30 minutes, the pending order can be cancelled automatically.`;
   const kb: Button[][] = [
     [{ text: `💳 Pay now — ৳${bdt.toFixed(2)}`, url: String(row.address) } as any],
     [uiBtn(settings, "dep_verify", `epschk:${row.id}`)],
@@ -5190,7 +5192,10 @@ async function createAwaitingOrders(chatId: number, meta: CoMeta, depositId: str
 function awaitingOrderNote(rows: any[]) {
   if (!rows.length) return "";
   const ids = rows.map((r) => `#${r.order_no}`).join(", ");
-  return `\n\u{1F9FE} <b>Order ID:</b> <code>${escapeHtml(ids)}</code>\n<i>Keep this id — share it with support if anything goes wrong with the payment.</i>\n`;
+  return (
+    `\n\u{1F9FE} <b>Order ID:</b> <code>${escapeHtml(ids)}</code>\n<i>Keep this id — share it with support if anything goes wrong with the payment.</i>\n` +
+    `\u{23F3} <i>This order stays open for ${AWAITING_PAYMENT_MINUTES} minutes. If the payment is not made and confirmed within that time, it can be cancelled automatically.</i>\n`
+  );
 }
 
 /** Fail every checkout that stayed unpaid for 30 minutes (admin can still revive it). */
