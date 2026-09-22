@@ -4950,6 +4950,52 @@ async function coTotals(meta: CoMeta, chatId?: number) {
   return { lines, subtotal, discount, total, tierPct, tierOff };
 }
 
+/**
+ * Last-second stock guard for checkout.
+ *
+ * A product can be switched on while the supplier has nothing left (or the
+ * in-house serial pool ran dry after the item was added to the cart). Before a
+ * single cent is charged we re-read the real availability — live from the
+ * supplier API for supplier-linked items, from `stock_counts` for in-house auto
+ * items — and report every line that can no longer be delivered.
+ */
+async function checkoutStockIssues(lines: any[]): Promise<string[]> {
+  const issues: string[] = [];
+  const autoIds = lines.filter((l) => !l.product.supplier_id && l.product.delivery_type === "auto").map((l) => l.product.id);
+  const counts: Record<string, number> = {};
+  if (autoIds.length) {
+    const { data: stock } = await db.rpc("stock_counts", { _product_ids: autoIds });
+    for (const s of ((stock ?? []) as any[])) counts[String(s.product_id)] = Number(s.available ?? 0);
+  }
+  for (const l of lines) {
+    const p = l.product;
+    if (p.delivery_type === "manual") continue;
+    let available: number;
+    if (p.supplier_id) {
+      available = Number(p.supplier_stock ?? 0);
+      try {
+        const { refreshLiveStock } = await import("@/lib/suppliers/live-stock.server");
+        const live = await refreshLiveStock(String(p.id), 6000);
+        if (live) available = live.stock;
+      } catch {
+        /* fall back to the stored snapshot */
+      }
+    } else {
+      available = counts[p.id] ?? 0;
+    }
+    if (available < l.qty) {
+      issues.push(
+        available > 0
+          ? `• ${escapeHtml(p.name)} — only <b>${available}</b> left (you asked for ${l.qty})`
+          : `• ${escapeHtml(p.name)} — <b>out of stock</b>`,
+      );
+    }
+  }
+  return issues;
+}
+
+
+
 async function readCo(chatId: number): Promise<CoMeta | null> {
   const u = await getUser(chatId);
   const co = (u?.state ?? {}).co;
