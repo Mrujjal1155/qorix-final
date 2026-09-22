@@ -5192,7 +5192,10 @@ async function createAwaitingOrders(chatId: number, meta: CoMeta, depositId: str
 function awaitingOrderNote(rows: any[]) {
   if (!rows.length) return "";
   const ids = rows.map((r) => `#${r.order_no}`).join(", ");
-  return `\n\u{1F9FE} <b>Order ID:</b> <code>${escapeHtml(ids)}</code>\n<i>Keep this id — share it with support if anything goes wrong with the payment.</i>\n`;
+  return (
+    `\n\u{1F9FE} <b>Order ID:</b> <code>${escapeHtml(ids)}</code>\n<i>Keep this id — share it with support if anything goes wrong with the payment.</i>\n` +
+    `\u{23F3} <i>This order stays open for ${AWAITING_PAYMENT_MINUTES} minutes. If the payment is not made and confirmed within that time, it can be cancelled automatically.</i>\n`
+  );
 }
 
 /** Fail every checkout that stayed unpaid for 30 minutes (admin can still revive it). */
