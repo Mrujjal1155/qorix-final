@@ -727,13 +727,18 @@ export const setOrderStatus = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { data: before } = await sb.from("orders").select("*").eq("id", data.id).maybeSingle();
     if (!before) throw new Error("Order not found");
+    if (before.status === data.status) return { ok: true, skipped: true };
+    // Guard against double clicks: the update only applies while the order is
+    // still in the status we read. A second, racing call matches no row.
     const { data: order, error } = await sb
       .from("orders")
       .update({ status: data.status })
       .eq("id", data.id)
+      .eq("status", before.status)
       .select("*")
       .maybeSingle();
     if (error) throw new Error(error.message);
+    if (!order) return { ok: true, skipped: true };
     // Let the buyer know on Telegram when an admin cancels their order.
     if (order?.telegram_id && data.status === "cancelled") {
       // Paid orders (pending) get an automatic wallet refund on cancel.
