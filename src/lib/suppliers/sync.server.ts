@@ -131,7 +131,6 @@ const HARD_STALE_MS = 2 * 60 * 60_000;
  * Worst case per run: CARDS_PER_RUN * (1 channel post + DM_PER_RUN DMs).
  */
 const CARDS_PER_RUN = 8;
-const DM_PER_RUN = 40;
 /** Hard cap for one card's channel post + DM batch. */
 const CARD_TIMEOUT_MS = 9_000;
 /** Wall-clock budget for one delivery run (scheduler cuts us off at ~28s). */
@@ -294,6 +293,8 @@ export async function enqueueManualRestock(sb: any, productId: string, qty: numb
       at: Date.now(),
     } as NotifyItem,
   ]);
+  // Instant: send right away, the scheduler is only a fallback for retries.
+  await drainAllNotifications(sb).catch((error) => console.error("Instant restock alert failed:", error));
 }
 
 /** A product becoming customer-visible uses the same durable, deduplicated sender. */
@@ -307,6 +308,7 @@ export async function enqueueNewProduct(sb: any, productId: string, source: stri
       at: Date.now(),
     } as NotifyItem,
   ]);
+  await drainAllNotifications(sb).catch((error) => console.error("Instant new-product alert failed:", error));
 }
 
 
