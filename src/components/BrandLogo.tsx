@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
-import bundledLogo from "@/assets/qorix-shop-logo-new.png";
-
-const LOGO_CACHE_KEY = "qorix_brand_logo_url";
+import { getBrandMark, setBrandMark } from "@/lib/brand-mark";
 
 /**
- * Renders the current site logo. The last known logo URL is cached in
- * localStorage, so while fresh content loads we instantly show the real
- * current logo. Before any logo has loaded (or if none is configured) we
- * show the bundled QORIX STORE logo — never a placeholder or blank flash.
+ * Renders the current site logo — always the image uploaded in admin
+ * (Website content → Brand logo). The last known URL is cached in
+ * localStorage so the real logo shows instantly while fresh content loads.
+ * Nothing is bundled in the code, so there is no old logo to fall back to.
  */
 export function BrandLogo({
   src,
@@ -20,42 +18,33 @@ export function BrandLogo({
   className?: string | undefined;
   textClassName?: string | undefined;
 }) {
-  const [cached, setCached] = useState<string | null>(null);
+  const [cached, setCached] = useState<string>("");
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    if (src) {
-      try {
-        localStorage.setItem(LOGO_CACHE_KEY, src);
-      } catch {
-        /* ignore */
-      }
-      setCached(null);
+    const clean = (src || "").trim();
+    if (clean) {
+      setBrandMark(clean);
+      setFailed(false);
+      setCached("");
       return;
     }
-    try {
-      const stored = localStorage.getItem(LOGO_CACHE_KEY);
-      if (stored) setCached(stored);
-    } catch {
-      /* ignore */
-    }
+    setCached(getBrandMark());
   }, [src]);
 
   const label = (name ?? "").trim();
-  // An empty configured value counts as "no logo", never as a blank src.
-  const effective = (src || "").trim() || (cached || "").trim() || bundledLogo;
+  const effective = (src || "").trim() || cached;
+
+  if (!effective || failed) {
+    return <span className={textClassName || "font-semibold"}>{label || "QORIX STORE"}</span>;
+  }
 
   return (
     <img
       src={effective}
       alt={label ? `${label} logo` : "QORIX STORE logo"}
       className={className}
-      // A configured logo URL that fails must never leave a broken image:
-      // fall straight back to the bundled QORIX STORE logo.
-      onError={(event) => {
-        const el = event.currentTarget;
-        if (el.src.endsWith(bundledLogo)) return;
-        el.src = bundledLogo;
-      }}
+      onError={() => setFailed(true)}
     />
   );
 }

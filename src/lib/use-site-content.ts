@@ -25,6 +25,11 @@ export function useSiteContent() {
   }, [qc]);
 
   const v = (key: string) => siteValue(data, key);
+  // Keep the shared brand mark (placeholders + logo fallback) in sync with the
+  // logo uploaded in admin.
+  useEffect(() => {
+    setBrandMark(siteValue(data, "site_brand_logo"));
+  }, [data]);
   const links = (key: string): SiteLink[] => siteLinks(data, key);
   return { site: data, v, links };
 }
