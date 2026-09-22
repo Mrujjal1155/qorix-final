@@ -391,13 +391,31 @@ async function drainNotificationEvents(sb: any, budget: { cards: number; until?:
 
     } catch (e) {
       const message = e instanceof Error ? e.message : String(e);
-      failed += 1;
       console.error("Stock alert failed:", item.event_key, message);
-      // NOTE: a Supabase query builder is thenable but has no .catch — calling
-      // .catch() here threw inside the error handler, so the whole run died and
-      // the card stayed stuck in "sending" forever (no attempt, no error saved).
+      // A big DM fan-out can hit the per-card timeout while it is still making
+      // real progress. That is not a failure: keep the saved cursor, hand the
+      // card back to the queue and let the next run continue where it stopped.
+      let progressed = false;
+      if (/timed out/i.test(message)) {
+        const { data: fresh } = await sb
+          .from("stock_notification_events")
+          .select("channel_sent,dm_cursor")
+          .eq("id", item.id)
+          .maybeSingle();
+        progressed =
+          Boolean(fresh) &&
+          (Number((fresh as any).dm_cursor ?? 0) > Number(item.dm_cursor ?? 0) ||
+            (Boolean((fresh as any).channel_sent) && !item.channel_sent));
+      }
       try {
-        await sb.rpc("finish_stock_notification", { _id: item.id, _delivered: false, _error: message });
+        if (progressed) await sb.rpc("release_stock_notification", { _id: item.id });
+        else {
+          failed += 1;
+          // NOTE: a Supabase query builder is thenable but has no .catch — calling
+          // .catch() here threw inside the error handler, so the whole run died and
+          // the card stayed stuck in "sending" forever (no attempt, no error saved).
+          await sb.rpc("finish_stock_notification", { _id: item.id, _delivered: false, _error: message });
+        }
       } catch (finishError) {
         console.error("Could not record stock alert failure:", finishError);
       }
