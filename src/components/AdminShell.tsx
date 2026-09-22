@@ -41,6 +41,7 @@ const NAV_GROUPS = [
       { to: "/admin/orders", label: "Orders", icon: ReceiptText },
       { to: "/admin/payments", label: "Payments", icon: CreditCard },
       { to: "/admin/suppliers", label: "Supplier APIs", icon: Network },
+      { to: "/admin/alerts", label: "Alert health", icon: BellRing },
     ],
   },
   {
