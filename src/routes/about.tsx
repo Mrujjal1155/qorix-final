@@ -4,7 +4,7 @@ import { StoreShell } from "@/components/StoreShell";
 import { useSiteContent } from "@/lib/use-site-content";
 import { siteCards } from "@/lib/site-content";
 import { productionUrlFor } from "@/lib/site-url";
-import aboutHero from "@/assets/about-digital-products.jpg";
+import aboutHero from "@/assets/about-hero-qorix.jpg";
 import { brandFallbackOnError } from "@/components/SmartImage";
 
 
@@ -45,7 +45,7 @@ function AboutPage() {
 
         <img
           src={aboutHero}
-          alt="Digital subscription products — AI tools, VPN, streaming, cloud, music and design apps"
+          alt="QORIX STORE — AI tools, developer tools, SEO tools and premium subscriptions with instant delivery"
           width={1536}
           height={864}
           loading="lazy"
@@ -83,10 +83,43 @@ function AboutPage() {
           <div>
             <h2 className="text-2xl font-bold tracking-tight">What we sell</h2>
             <p className="mt-3 text-muted-foreground">
-              Our catalogue covers AI assistants and writing tools, VPN and privacy services, streaming and
-              music subscriptions, creative and design suites, cloud storage, productivity apps and verified
-              accounts. Every product page shows the exact plan length, warranty terms and what you receive,
-              so there are no surprises after checkout.
+              Everything a creator, developer or marketer needs — in one place, at fair-trade prices:
+            </p>
+            <ul className="mt-3 list-disc space-y-1.5 pl-5 text-muted-foreground">
+              <li>
+                <strong className="text-foreground">AI tools</strong> — ChatGPT, Claude, Gemini, Midjourney,
+                ElevenLabs, Copilot, Perplexity, Canva AI and every major AI assistant, image, video, voice
+                and coding model.
+              </li>
+              <li>
+                <strong className="text-foreground">Developer tools</strong> — IDE and coding assistants,
+                API credits, hosting and cloud credits, domains, GitHub Copilot, Cursor and dev
+                productivity suites.
+              </li>
+              <li>
+                <strong className="text-foreground">SEO &amp; marketing tools</strong> — Semrush, Ahrefs,
+                keyword research, backlink and rank-tracking tools for agencies and site owners.
+              </li>
+              <li>
+                <strong className="text-foreground">Streaming, VPN, design &amp; productivity</strong> —
+                Netflix, YouTube Premium, Spotify, NordVPN, Office 365, cloud storage, editing apps and
+                verified accounts.
+              </li>
+            </ul>
+            <p className="mt-3 text-muted-foreground">
+              Every product page shows the exact plan length, warranty terms and what you receive, so there
+              are no surprises after checkout.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">Fair pricing &amp; instant delivery</h2>
+            <p className="mt-3 text-muted-foreground">
+              We buy in volume and keep our margin small, so you get genuine premium tools at free-trade
+              prices — often a fraction of the official subscription. Payment is verified automatically and
+              stock is released the moment your payment confirms: credentials, activation links or account
+              details reach your dashboard, email and Telegram chat within seconds, 24/7 — no waiting for
+              manual processing, day or night.
             </p>
           </div>
 
