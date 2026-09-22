@@ -746,39 +746,27 @@ export const setOrderStatus = createServerFn({ method: "POST" })
       if (before.status === "pending" && Number(before.total) > 0) {
         const amount = Math.round(Number(before.total) * 100) / 100;
         const reference = `order-${before.order_no}-cancel`;
-        const { data: already } = await sb
-          .from("transactions")
-          .select("id")
-          .eq("reference", reference)
-          .eq("type", "refund")
-          .maybeSingle();
-        if (!already) {
-          const { data: user } = await sb
-            .from("bot_users")
-            .select("balance")
-            .eq("telegram_id", before.telegram_id)
-            .maybeSingle();
-          if (user) {
-            const balance = Math.round((Number(user.balance ?? 0) + amount) * 100) / 100;
-            await sb.from("bot_users").update({ balance }).eq("telegram_id", before.telegram_id);
-            await sb.from("transactions").insert({
-              telegram_id: before.telegram_id,
-              type: "refund",
-              amount,
-              method: "wallet",
-              reference,
-              note: `Auto refund — order #${before.order_no} cancelled`,
-            });
-            // Keep the payment history on the order: it stays "paid", plus refunded.
-            await sb
-              .from("orders")
-              .update({
-                meta: { ...((before.meta as any) ?? {}), paid: true, refunded: true, refund_amount: amount },
-              })
-              .eq("id", data.id);
-            refundNote = `\u{1F4B0} <b>$${amount.toFixed(2)}</b> refunded to your wallet.\nNew balance: <b>$${balance.toFixed(2)}</b>`;
-          }
-        } else {
+        // Atomic + idempotent: the same reference can never be credited twice.
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { data: credit } = await (supabaseAdmin as any).rpc("bot_user_credit", {
+          _telegram_id: before.telegram_id,
+          _amount: amount,
+          _type: "refund",
+          _method: "wallet",
+          _reference: reference,
+          _note: `Auto refund — order #${before.order_no} cancelled`,
+        });
+        const res = (credit ?? {}) as { ok?: boolean; duplicate?: boolean; balance?: number };
+        if (res.ok) {
+          // Keep the payment history on the order: it stays "paid", plus refunded.
+          await sb
+            .from("orders")
+            .update({
+              meta: { ...((before.meta as any) ?? {}), paid: true, refunded: true, refund_amount: amount },
+            })
+            .eq("id", data.id);
+          refundNote = `\u{1F4B0} <b>$${amount.toFixed(2)}</b> refunded to your wallet.\nNew balance: <b>$${Number(res.balance ?? 0).toFixed(2)}</b>`;
+        } else if (res.duplicate) {
           refundNote = "Your payment was already refunded to your wallet.";
         }
       }
@@ -868,47 +856,35 @@ export const refundOrderToWallet = createServerFn({ method: "POST" })
     const reference = `order-${order.order_no}`;
     const note = data.note || `Refund for order #${order.order_no}`;
 
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     if (order.telegram_id) {
-      const { data: user } = await sb
-        .from("bot_users")
-        .select("balance")
-        .eq("telegram_id", order.telegram_id)
-        .maybeSingle();
-      if (!user) throw new Error("Bot user not found");
-      const balance = Math.round((Number(user.balance ?? 0) + data.amount) * 100) / 100;
-      await sb.from("bot_users").update({ balance }).eq("telegram_id", order.telegram_id);
-      await sb.from("transactions").insert({
-        telegram_id: order.telegram_id,
-        type: "refund",
-        amount: data.amount,
-        method: "wallet",
-        reference,
-        note,
+      const { data: credit } = await (supabaseAdmin as any).rpc("bot_user_credit", {
+        _telegram_id: order.telegram_id,
+        _amount: data.amount,
+        _type: "refund",
+        _method: "wallet",
+        _reference: reference,
+        _note: note,
       });
+      const res = (credit ?? {}) as { ok?: boolean; duplicate?: boolean; balance?: number; reason?: string };
+      if (!res.ok && res.duplicate) throw new Error("This order was already refunded");
+      if (!res.ok) throw new Error(res.reason === "no_user" ? "Bot user not found" : "Refund failed");
       const { sendMessage } = await import("@/lib/telegram.server");
       await sendMessage(
         Number(order.telegram_id),
-        `\u{1F4B0} <b>Refund added to your wallet</b>\nOrder: <b>#${order.order_no}</b>\nAmount: <b>$${data.amount.toFixed(2)}</b>\nNew balance: <b>$${balance.toFixed(2)}</b>`,
+        `\u{1F4B0} <b>Refund added to your wallet</b>\nOrder: <b>#${order.order_no}</b>\nAmount: <b>$${data.amount.toFixed(2)}</b>\nNew balance: <b>$${Number(res.balance ?? 0).toFixed(2)}</b>`,
       ).catch(() => {});
     } else if (order.user_id) {
-      const { data: profile } = await sb
-        .from("profiles")
-        .select("wallet_balance")
-        .eq("id", order.user_id)
-        .maybeSingle();
-      if (!profile) throw new Error("Customer profile not found");
-      const balance = Math.round((Number(profile.wallet_balance ?? 0) + data.amount) * 100) / 100;
-      await sb.from("profiles").update({ wallet_balance: balance }).eq("id", order.user_id);
-      // wallet_transactions is insert-protected by RLS; write it as admin.
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      await (supabaseAdmin as any).from("wallet_transactions").insert({
-        user_id: order.user_id,
-        type: "refund",
-        amount: data.amount,
-        balance_after: balance,
-        reference,
-        note,
+      const { data: credit } = await (supabaseAdmin as any).rpc("profile_wallet_credit", {
+        _user_id: order.user_id,
+        _amount: data.amount,
+        _type: "refund",
+        _reference: reference,
+        _note: note,
       });
+      const res = (credit ?? {}) as { ok?: boolean; duplicate?: boolean; reason?: string };
+      if (!res.ok && res.duplicate) throw new Error("This order was already refunded");
+      if (!res.ok) throw new Error(res.reason === "no_user" ? "Customer profile not found" : "Refund failed");
     } else {
       throw new Error("This order has no wallet to refund into");
     }
@@ -948,26 +924,24 @@ export const decidePayment = createServerFn({ method: "POST" })
 
     const { sendMessage } = await import("@/lib/telegram.server");
     if (data.approve) {
-      const { data: user } = await sb
-        .from("bot_users")
-        .select("balance")
-        .eq("telegram_id", req.telegram_id)
-        .maybeSingle();
-      await sb
-        .from("bot_users")
-        .update({ balance: Number(user?.balance ?? 0) + Number(req.amount) })
-        .eq("telegram_id", req.telegram_id);
-      await sb.from("transactions").insert({
-        telegram_id: req.telegram_id,
-        type: "deposit",
-        amount: req.amount,
-        method: req.method,
-        reference: req.txid,
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: credit } = await (supabaseAdmin as any).rpc("bot_user_credit", {
+        _telegram_id: req.telegram_id,
+        _amount: Number(req.amount),
+        _type: "deposit",
+        _method: req.method,
+        _reference: req.txid || `deposit-${req.id}`,
+        _note: null,
       });
-      await sendMessage(
-        req.telegram_id,
-        `✅ Your deposit of $${Number(req.amount).toFixed(2)} has been approved and added to your balance.`,
-      );
+      const res = (credit ?? {}) as { ok?: boolean; duplicate?: boolean };
+      if (res.ok) {
+        await sendMessage(
+          req.telegram_id,
+          `✅ Your deposit of $${Number(req.amount).toFixed(2)} has been approved and added to your balance.`,
+        );
+      } else if (!res.duplicate) {
+        throw new Error("Could not add the deposit to the user's balance");
+      }
     } else {
       await sendMessage(
         req.telegram_id,
@@ -999,24 +973,25 @@ export const adjustBalance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { telegram_id: number; amount: number; note?: string }) => d)
   .handler(async ({ data, context }) => {
-    const sb = (context as any).supabase;
     await assertAdmin(context);
-    const { data: user } = await sb
-      .from("bot_users")
-      .select("balance")
-      .eq("telegram_id", data.telegram_id)
-      .maybeSingle();
-    if (!user) throw new Error("User not found");
-    await sb
-      .from("bot_users")
-      .update({ balance: Number(user.balance) + Number(data.amount) })
-      .eq("telegram_id", data.telegram_id);
-    await sb.from("transactions").insert({
-      telegram_id: data.telegram_id,
-      type: "admin",
-      amount: data.amount,
-      note: data.note ?? "Dashboard adjustment",
+    const amount = Number(data.amount);
+    const note = data.note ?? "Dashboard adjustment";
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: adj } = await (supabaseAdmin as any).rpc("bot_user_admin_adjust", {
+      _telegram_id: data.telegram_id,
+      _amount: amount,
+      _note: note,
     });
+    const res = (adj ?? {}) as { ok?: boolean; reason?: string };
+    if (!res.ok) {
+      throw new Error(
+        res.reason === "no_user"
+          ? "User not found"
+          : res.reason === "insufficient"
+            ? "Balance is too low"
+            : "Amount must not be zero",
+      );
+    }
     const { sendMessage } = await import("@/lib/telegram.server");
     await sendMessage(
       data.telegram_id,

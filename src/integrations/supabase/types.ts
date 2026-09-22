@@ -1634,6 +1634,21 @@ export type Database = {
         }
         Returns: Json
       }
+      bot_user_admin_adjust: {
+        Args: { _amount: number; _note?: string; _telegram_id: number }
+        Returns: Json
+      }
+      bot_user_credit: {
+        Args: {
+          _amount: number
+          _method?: string
+          _note?: string
+          _reference?: string
+          _telegram_id: number
+          _type?: string
+        }
+        Returns: Json
+      }
       bot_user_debit: {
         Args: {
           _amount: number
@@ -1715,6 +1730,16 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      profile_wallet_credit: {
+        Args: {
+          _amount: number
+          _note?: string
+          _reference?: string
+          _type?: string
+          _user_id: string
+        }
+        Returns: Json
       }
       redeem_code_claim: {
         Args: { _code: string; _telegram_id: number }

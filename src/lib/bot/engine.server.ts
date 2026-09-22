@@ -1479,17 +1479,15 @@ async function redeemRefCredits(user: any) {
     return { text: "Your credit balance just changed — please open the store again.", kb: [[uiBtn(s, "prof_refer_btn", "refstore")]] };
   }
   const amount = credits * rate;
-  await db
-    .from("bot_users")
-    .update({ balance: Number(user.balance ?? 0) + amount })
-    .eq("telegram_id", user.telegram_id);
-  await db
-    .from("transactions")
-    .insert({ telegram_id: user.telegram_id, type: "referral", amount, note: `Redeemed ${credits} referral credits` })
-    .then(
-      () => undefined,
-      () => undefined,
-    );
+  // Atomic credit (row-locked) so two redeems at once cannot lose an amount.
+  await db.rpc("bot_user_credit", {
+    _telegram_id: Number(user.telegram_id),
+    _amount: amount,
+    _type: "referral",
+    _method: "wallet",
+    _reference: null,
+    _note: `Redeemed ${credits} referral credits`,
+  });
   return {
     text: `💱 Redeemed <b>${credits}</b> credits → <b>${money(amount)}</b> added to your wallet.`,
     kb: [[uiBtn(s, "prof_refer_btn", "refstore")], [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")]],
@@ -2283,29 +2281,26 @@ async function settlePayment(chatId: number, row: any, amount: number, txid: str
   });
 
   if (Array.isArray(meta.items) && meta.items.length) {
-    await db.from("transactions").insert({
-      telegram_id: chatId,
-      type: "deposit",
-      amount,
-      method: methodKey,
-      reference: txid,
-      note: "Direct checkout payment",
+    // Row-locked, idempotent by txid: one deposit per transaction id.
+    await db.rpc("bot_user_credit", {
+      _telegram_id: chatId,
+      _amount: amount,
+      _type: "deposit",
+      _method: methodKey,
+      _reference: txid,
+      _note: "Direct checkout payment",
     });
-    const fresh = await getUser(chatId);
-    await db.from("bot_users").update({ balance: Number(fresh.balance) + amount }).eq("telegram_id", chatId);
     const res = await fulfillCheckout(chatId, meta, methodKey, txid, row.id);
     return { message: res.text, keyboard: res.kb };
   }
 
-  const user = await getUser(chatId);
-  await db.from("bot_users").update({ balance: Number(user.balance) + amount }).eq("telegram_id", chatId);
-  await db.from("transactions").insert({
-    telegram_id: chatId,
-    type: "deposit",
-    amount,
-    method: methodKey,
-    reference: txid,
-    note,
+  await db.rpc("bot_user_credit", {
+    _telegram_id: chatId,
+    _amount: amount,
+    _type: "deposit",
+    _method: methodKey,
+    _reference: txid,
+    _note: note,
   });
 
   const after = await getUser(chatId);
@@ -3451,16 +3446,15 @@ async function handleMessage(msg: any) {
         await say(chatId, "❌ User not found.");
         return;
       }
-      await db
-        .from("bot_users")
-        .update({ balance: Number(target.balance) + amount })
-        .eq("telegram_id", targetId);
-      await db.from("transactions").insert({
-        telegram_id: targetId,
-        type: "admin",
-        amount,
-        note: "Admin balance adjustment",
+      const { data: adjRes } = await db.rpc("bot_user_admin_adjust", {
+        _telegram_id: targetId,
+        _amount: amount,
+        _note: "Admin balance adjustment",
       });
+      if (!(adjRes as any)?.ok) {
+        await say(chatId, "❌ Could not update that balance.");
+        return;
+      }
       await say(chatId, `✅ Added ${money(amount)} to ${targetId}.`);
       await sendMessage(targetId, `💰 An admin added ${money(amount)} to your balance.`);
       return;
@@ -3549,13 +3543,15 @@ async function handleMessage(msg: any) {
         await say(chatId, "❌ Invalid amount or user.", ADM_BACK);
         return;
       }
-      await db
-        .from("bot_users")
-        .update({ balance: Number(target.balance) + amount })
-        .eq("telegram_id", targetId);
-      await db
-        .from("transactions")
-        .insert({ telegram_id: targetId, type: "admin", amount, note: "Admin balance adjustment" });
+      const { data: adjUser } = await db.rpc("bot_user_admin_adjust", {
+        _telegram_id: targetId,
+        _amount: amount,
+        _note: "Admin balance adjustment",
+      });
+      if (!(adjUser as any)?.ok) {
+        await say(chatId, "❌ Could not update that balance.", ADM_BACK);
+        return;
+      }
       await sendMessage(targetId, `💰 An admin updated your balance by ${money(amount)}.`);
       const v = await admUserView(targetId);
       await say(chatId, `✅ Done.\n\n${v.text}`, v.kb);
@@ -4310,18 +4306,16 @@ async function admDecidePayment(id: string, approve: boolean) {
     await sendMessage(p.telegram_id, "❌ Your deposit request was rejected. Contact support if this is wrong.");
     return "Rejected.";
   }
-  const u = await getUser(p.telegram_id);
-  await db
-    .from("bot_users")
-    .update({ balance: Number(u?.balance ?? 0) + Number(p.amount) })
-    .eq("telegram_id", p.telegram_id);
-  await db.from("transactions").insert({
-    telegram_id: p.telegram_id,
-    type: "deposit",
-    amount: p.amount,
-    method: p.method,
-    reference: p.txid,
+  const { data: credited } = await db.rpc("bot_user_credit", {
+    _telegram_id: p.telegram_id,
+    _amount: Number(p.amount),
+    _type: "deposit",
+    _method: p.method,
+    _reference: p.txid || `deposit-${p.id}`,
+    _note: null,
   });
+  const cr = (credited ?? {}) as { ok?: boolean; duplicate?: boolean };
+  if (!cr.ok) return cr.duplicate ? "Already credited." : "Could not credit the balance.";
   await sendMessage(p.telegram_id, `✅ Deposit approved! ${money(p.amount)} added to your balance.`);
   return "Approved and balance credited.";
 }
@@ -6400,22 +6394,30 @@ async function handleCallback(cq: any) {
     } else if (action.startsWith("oc:")) {
       const { data: o } = await db.from("orders").select("*").eq("id", arg).maybeSingle();
       if (o && o.status === "pending") {
-        await db.from("orders").update({ status: "cancelled" }).eq("id", arg);
-        const u = await getUser(o.telegram_id);
-        await db
-          .from("bot_users")
-          .update({ balance: Number(u?.balance ?? 0) + Number(o.total) })
-          .eq("telegram_id", o.telegram_id);
-        await db.from("transactions").insert({
-          telegram_id: o.telegram_id,
-          type: "refund",
-          amount: o.total,
-          note: `Order #${o.order_no} cancelled`,
-        });
-        await sendMessage(
-          o.telegram_id,
-          `❌ Order #${o.order_no} was cancelled. ${money(o.total)} refunded to your balance.`,
-        );
+        // Only one of two racing cancels wins the status change.
+        const { data: cancelled } = await db
+          .from("orders")
+          .update({ status: "cancelled" })
+          .eq("id", arg)
+          .eq("status", "pending")
+          .select("id")
+          .maybeSingle();
+        if (cancelled) {
+          const { data: refunded } = await db.rpc("bot_user_credit", {
+            _telegram_id: o.telegram_id,
+            _amount: Number(o.total),
+            _type: "refund",
+            _method: "wallet",
+            _reference: `order-${o.order_no}-cancel`,
+            _note: `Order #${o.order_no} cancelled`,
+          });
+          if ((refunded as any)?.ok) {
+            await sendMessage(
+              o.telegram_id,
+              `❌ Order #${o.order_no} was cancelled. ${money(o.total)} refunded to your balance.`,
+            );
+          }
+        }
       }
       const v = await admOrdersView();
       await edit(v.text, v.kb);
