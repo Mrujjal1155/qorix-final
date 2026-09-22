@@ -667,13 +667,18 @@ async function relinkRotatedIds(
           product_id: String(prod.id),
           snapshot: { previous_external_id: oldId, previous_product: prod.name },
         });
-        idAlerts.push({
-          product_id: String(prod.id),
-          product_name: String(prod.name ?? ""),
-          surface: "supplier_id",
-          detail: `${s.name}: supplier id changed ${oldId} → ${match.external_id}. Waiting in the review queue for your approval.`,
-        });
-        idLines.push(`${prod.name} · ${oldId} → ${match.external_id} (needs approval)`);
+        const rotKey = `${oldId}>${match.external_id}`;
+        if (!seenRotations.has(rotKey)) {
+          seenRotations.add(rotKey);
+          newRotations.push(rotKey);
+          idAlerts.push({
+            product_id: String(prod.id),
+            product_name: String(prod.name ?? ""),
+            surface: "supplier_id",
+            detail: `${s.name}: supplier id changed ${oldId} → ${match.external_id}. Waiting in the review queue for your approval.`,
+          });
+          idLines.push(`${prod.name} · ${oldId} → ${match.external_id} (needs approval)`);
+        }
       }
       if (prod.is_active) {
         // Gone from the supplier catalogue → take it off sale instead of letting
