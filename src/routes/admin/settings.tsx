@@ -741,7 +741,15 @@ function SettingsPage() {
       render: () => <JoinGateCard values={values} setValues={setValues} onSave={onSave} />,
     },
     {
+      id: "stock-alerts",
+      title: "Stock alerts",
+      description: "Low stock threshold, restock alerts and recipients per supplier.",
+      icon: BellRing,
+      render: () => <StockAlertSettingsCard values={values} setValues={setValues} onSave={onSave} />,
+    },
+    {
       id: "announce",
+
 
       title: "Announcements",
       description: "Channel posts for sales, restocks and new products.",
