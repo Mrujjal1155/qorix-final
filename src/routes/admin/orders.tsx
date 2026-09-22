@@ -114,6 +114,7 @@ function OrdersPage() {
   const [deliverFor, setDeliverFor] = useState<string>("");
   const [content, setContent] = useState("");
   const [refundFor, setRefundFor] = useState<string>("");
+  const [cancelFor, setCancelFor] = useState<any>(null);
   const [refundAmount, setRefundAmount] = useState("");
   const [busy, setBusy] = useState("");
   const [search, setSearch] = useState("");
