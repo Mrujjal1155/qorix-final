@@ -5047,6 +5047,16 @@ async function coPayView(chatId: number) {
   const cfg = await binanceConfig();
   const settings = await getSettings();
   const user = await getUser(chatId);
+  // Verify real availability before any payment button is offered.
+  const stockProblems = await checkoutStockIssues(lines);
+  if (stockProblems.length) {
+    return {
+      text:
+        `⚠️ <b>Out of stock</b>\n──────────────\n${stockProblems.join("\n")}\n\n` +
+        `Please remove or reduce these items in your cart and try again. Nothing was charged.`,
+      kb: [[uiBtn(settings, "com_cart", "cart")], [uiBtn(settings, "com_shop", "shop:0")], [uiBtn(settings, "com_home", "home")]] as Button[][],
+    };
+  }
   const kb: Button[][] = [];
   if (Number(user.balance) >= total && total > 0)
     kb.push([uiBtn(settings, "pay_balance", "copm:balance", `(${money(user.balance)})`)]);
