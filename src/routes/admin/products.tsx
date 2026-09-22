@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState, type CSSProperties } from "react";
-import { ArrowLeft, Boxes, Filter, FolderTree, PlusCircle, Search, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Boxes, Filter, FolderTree, PlusCircle, Search, Sparkles } from "lucide-react";
 import {
   applyProductIcon,
   deleteCategory,
