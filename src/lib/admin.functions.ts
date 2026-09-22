@@ -973,34 +973,24 @@ export const adjustBalance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { telegram_id: number; amount: number; note?: string }) => d)
   .handler(async ({ data, context }) => {
-    const sb = (context as any).supabase;
     await assertAdmin(context);
     const amount = Number(data.amount);
     const note = data.note ?? "Dashboard adjustment";
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    if (amount > 0) {
-      const { data: credit } = await (supabaseAdmin as any).rpc("bot_user_credit", {
-        _telegram_id: data.telegram_id,
-        _amount: amount,
-        _type: "admin",
-        _method: null,
-        _reference: null,
-        _note: note,
-      });
-      const res = (credit ?? {}) as { ok?: boolean; reason?: string };
-      if (!res.ok) throw new Error(res.reason === "no_user" ? "User not found" : "Could not update balance");
-    } else if (amount < 0) {
-      const { data: debit } = await (supabaseAdmin as any).rpc("bot_user_debit", {
-        _telegram_id: data.telegram_id,
-        _amount: Math.abs(amount),
-        _method: null,
-        _reference: null,
-        _note: note,
-      });
-      const res = (debit ?? {}) as { ok?: boolean; reason?: string };
-      if (!res.ok) throw new Error(res.reason === "insufficient" ? "Balance is too low" : "Could not update balance");
-    } else {
-      throw new Error("Amount must not be zero");
+    const { data: adj } = await (supabaseAdmin as any).rpc("bot_user_admin_adjust", {
+      _telegram_id: data.telegram_id,
+      _amount: amount,
+      _note: note,
+    });
+    const res = (adj ?? {}) as { ok?: boolean; reason?: string };
+    if (!res.ok) {
+      throw new Error(
+        res.reason === "no_user"
+          ? "User not found"
+          : res.reason === "insufficient"
+            ? "Balance is too low"
+            : "Amount must not be zero",
+      );
     }
     const { sendMessage } = await import("@/lib/telegram.server");
     await sendMessage(
