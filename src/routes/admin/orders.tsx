@@ -473,9 +473,22 @@ function OrdersPage() {
                           <div className="text-muted-foreground">{o.customer_email}</div>
                           {o.txid && <div className="text-muted-foreground">TX: {String(o.txid).slice(0, 18)}…</div>}
                         </div>
-                      ) : (
-                        o.telegram_id
-                      )}
+                       ) : (
+                         <div className="text-xs">
+                           <div>{o.telegram_id}</div>
+                           {o.buyer_username && (
+                             <a
+                               className="text-primary underline"
+                               href={`https://t.me/${o.buyer_username}`}
+                               target="_blank"
+                               rel="noreferrer"
+                             >
+                               @{o.buyer_username}
+                             </a>
+                           )}
+                           {o.buyer_name && <div className="text-muted-foreground">{o.buyer_name}</div>}
+                         </div>
+                       )}
                     </td>
                     <td>
                       {o.product_name}
