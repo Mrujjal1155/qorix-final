@@ -200,8 +200,18 @@ const GROUPS: { title: string; desc: string; icon: LucideIcon; fields: Field[] }
     desc: "Terms, Privacy and Refund policy text.",
     icon: Scale,
     fields: [
+      {
+        key: "site_legal_updated",
+        label: "Last updated date (shown on all legal pages)",
+        hint: 'Example: "September 2026". Leave empty to hide the badge.',
+      },
       { key: "site_page_terms_title", label: "Terms of Service — title" },
-      { key: "site_page_terms_body", label: "Terms of Service — text (blank line = new paragraph)", long: true },
+      {
+        key: "site_page_terms_body",
+        label: "Terms of Service — text",
+        hint: 'Blank line = new block. A block starting with "1. Title" becomes a numbered section. Lines starting with "- " become bullet points.',
+        long: true,
+      },
       { key: "site_page_privacy_title", label: "Privacy Policy — title" },
       { key: "site_page_privacy_body", label: "Privacy Policy — text", long: true },
       { key: "site_page_refund_title", label: "Refund Policy — title" },
