@@ -576,6 +576,12 @@ async function relinkRotatedIds(
   // Supplier-side id rotations, surfaced to the admin dashboard + Telegram.
   const idAlerts: Array<{ product_id: string | null; product_name: string; surface: string; detail: string }> = [];
   const idLines: string[] = [];
+  // One notice per rotation. A rotation that waits in the review queue is seen
+  // again on every 15s sync — without this ledger the admin gets the same card
+  // over and over.
+  const seenKey = `supplier_idchange_seen:${s.id}`;
+  const seenRotations = new Set<string>((await readJsonSetting(sb, seenKey)).map((v: any) => String(v)));
+  const newRotations: string[] = [];
 
   for (const prod of stale) {
     const oldId = String(prod.supplier_external_id);
