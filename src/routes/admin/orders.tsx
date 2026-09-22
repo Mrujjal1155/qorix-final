@@ -71,7 +71,7 @@ const GATEWAY_LABEL: Record<string, string> = {
 };
 
 /** What the buyer used to pay — works for both initiated and completed payments. */
-function paymentInfo(o: any): { label: string; detail: string; paid: boolean } {
+function paymentInfo(o: any): { label: string; detail: string; paid: boolean; refunded: boolean } {
   const meta: any = o?.meta ?? {};
   const gateway = String(meta.gateway ?? "");
   const entity = String(meta.eps_entity ?? "");
@@ -83,21 +83,28 @@ function paymentInfo(o: any): { label: string; detail: string; paid: boolean } {
     (gateway ? gateway.replace(/_/g, " ") : "") ||
     (o.source === "website" ? "Website checkout" : "Wallet balance");
 
+  // Payment is a fact about the money, not about the current order status —
+  // cancelling or refunding an order must never turn "paid" back into "not paid".
   const paid =
+    Boolean(meta.paid) ||
     Boolean(meta.eps_paid) ||
+    Boolean(meta.paid_at) ||
     o.status === "completed" ||
     o.status === "refunded" ||
     (o.status === "pending" && !meta.awaiting_payment);
 
+  const refunded = Boolean(meta.refunded);
+
   const detail = [
     entity ? `paid with ${entity}` : channel ? `channel ${channel}` : "",
     meta.paid_bdt ? `৳${meta.paid_bdt}` : meta.bdt ? `৳${meta.bdt} due` : "",
+    refunded ? `refunded $${Number(meta.refund_amount ?? o.total ?? 0).toFixed(2)} to wallet` : "",
     o.txid ? `TX ${String(o.txid)}` : "",
   ]
     .filter(Boolean)
     .join(" · ");
 
-  return { label, detail, paid };
+  return { label, detail, paid, refunded };
 }
 
 function OrdersPage() {
