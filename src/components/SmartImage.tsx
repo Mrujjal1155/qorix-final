@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import brandMark from "@/assets/qorix-shop-logo-new.png";
+import { getBrandMark } from "@/lib/brand-mark";
 
 type Props = {
   src?: string | null | undefined;
@@ -18,20 +18,23 @@ type Props = {
  * broken-image icon or a generic placeholder can never appear.
  */
 export function BrandImageFallback({ className = "", alt }: { className?: string; alt?: string }) {
+  const mark = getBrandMark();
   return (
     <span
       className={`${className} flex items-center justify-center overflow-hidden bg-gradient-to-br from-primary/15 via-background to-chart-4/15`}
       role="img"
       aria-label={alt || "QORIX STORE"}
     >
-      <img
-        src={brandMark}
-        alt=""
-        aria-hidden="true"
-        loading="lazy"
-        decoding="async"
-        className="h-3/5 w-3/5 max-h-full max-w-full object-contain opacity-80"
-      />
+      {mark ? (
+        <img
+          src={mark}
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          decoding="async"
+          className="h-3/5 w-3/5 max-h-full max-w-full object-contain opacity-80"
+        />
+      ) : null}
     </span>
   );
 }
@@ -45,7 +48,12 @@ export function brandFallbackOnError(event: { currentTarget: HTMLImageElement })
   const el = event.currentTarget;
   if (el.dataset["brandFallback"] === "1") return;
   el.dataset["brandFallback"] = "1";
-  el.src = brandMark;
+  const mark = getBrandMark();
+  if (!mark) {
+    el.style.visibility = "hidden";
+    return;
+  }
+  el.src = mark;
   el.style.objectFit = "contain";
 }
 
