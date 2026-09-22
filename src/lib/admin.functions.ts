@@ -756,6 +756,13 @@ export const setOrderStatus = createServerFn({ method: "POST" })
               reference,
               note: `Auto refund — order #${before.order_no} cancelled`,
             });
+            // Keep the payment history on the order: it stays "paid", plus refunded.
+            await sb
+              .from("orders")
+              .update({
+                meta: { ...((before.meta as any) ?? {}), paid: true, refunded: true, refund_amount: amount },
+              })
+              .eq("id", data.id);
             refundNote = `\u{1F4B0} <b>$${amount.toFixed(2)}</b> refunded to your wallet.\nNew balance: <b>$${balance.toFixed(2)}</b>`;
           }
         } else {
