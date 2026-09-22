@@ -1479,17 +1479,15 @@ async function redeemRefCredits(user: any) {
     return { text: "Your credit balance just changed — please open the store again.", kb: [[uiBtn(s, "prof_refer_btn", "refstore")]] };
   }
   const amount = credits * rate;
-  await db
-    .from("bot_users")
-    .update({ balance: Number(user.balance ?? 0) + amount })
-    .eq("telegram_id", user.telegram_id);
-  await db
-    .from("transactions")
-    .insert({ telegram_id: user.telegram_id, type: "referral", amount, note: `Redeemed ${credits} referral credits` })
-    .then(
-      () => undefined,
-      () => undefined,
-    );
+  // Atomic credit (row-locked) so two redeems at once cannot lose an amount.
+  await db.rpc("bot_user_credit", {
+    _telegram_id: Number(user.telegram_id),
+    _amount: amount,
+    _type: "referral",
+    _method: "wallet",
+    _reference: null,
+    _note: `Redeemed ${credits} referral credits`,
+  });
   return {
     text: `💱 Redeemed <b>${credits}</b> credits → <b>${money(amount)}</b> added to your wallet.`,
     kb: [[uiBtn(s, "prof_refer_btn", "refstore")], [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")]],
