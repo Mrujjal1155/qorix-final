@@ -22,7 +22,7 @@ import {
   Zap,
 } from "lucide-react";
 
-import { getStoreProduct, getStorePayInfo } from "@/lib/shop.functions";
+import { getStoreProduct, getStorePayInfo, getProductSeo } from "@/lib/shop.functions";
 import { SmartImage } from "@/components/SmartImage";
 import { useT } from "@/lib/i18n";
 import { StoreShell } from "@/components/StoreShell";
@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { usePrefs } from "@/lib/prefs";
 import { productionUrlFor } from "@/lib/site-url";
+import { breadcrumbJsonLd, metaText, productImageUrl } from "@/lib/seo";
 
 
 
