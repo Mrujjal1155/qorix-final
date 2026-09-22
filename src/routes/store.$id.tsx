@@ -34,21 +34,79 @@ import { productionUrlFor } from "@/lib/site-url";
 
 
 export const Route = createFileRoute("/store/$id")({
-  head: ({ params }) => ({
-    meta: [
-      { title: "Product — QORIX Store" },
-      {
-        name: "description",
-        content: "Review the product, pay with Binance Pay or USDT and submit your transaction ID to complete the order.",
-      },
-      { property: "og:title", content: "Product — QORIX Store" },
-      { property: "og:description", content: "Secure crypto checkout for premium digital products." },
-      { property: "og:type", content: "product" },
-      { name: "twitter:card", content: "summary" },
-      { property: "og:url", content: productionUrlFor(`/store/${params.id}`) },
-    ],
-    links: [{ rel: "canonical", href: productionUrlFor(`/store/${params.id}`) }],
-  }),
+  loader: async ({ params }) => {
+    try {
+      return { seo: await getProductSeo({ data: { id: params.id } }) };
+    } catch {
+      return { seo: null };
+    }
+  },
+  head: ({ params, loaderData }) => {
+    const seo = loaderData?.seo ?? null;
+    const url = productionUrlFor(`/store/${params.id}`);
+    const name = seo?.name?.trim() || "Product";
+    const title = seo ? `${name} — Buy online at the best price | QORIX Store` : "Product — QORIX Store";
+    const description = seo
+      ? metaText(
+          seo.description ||
+            `Buy ${name} from QORIX Store at the best price. Instant automated delivery, secure crypto checkout and 24/7 Telegram support.`,
+        )
+      : "Review the product, pay with Binance Pay or USDT and submit your transaction ID to complete the order.";
+    const image = seo ? productImageUrl(params.id, seo.image_url) : productionUrlFor("/og-image.png");
+
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:type", content: "product" },
+        { property: "og:url", content: url },
+        { property: "og:image", content: image },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:image", content: image },
+      ],
+      links: [{ rel: "canonical", href: url }],
+      scripts: seo
+        ? [
+            {
+              type: "application/ld+json",
+              children: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "Product",
+                name,
+                description,
+                image: [image],
+                url,
+                sku: seo.id,
+                brand: { "@type": "Brand", name: "QORIX STORE" },
+                offers: {
+                  "@type": "Offer",
+                  url,
+                  price: Number(seo.price ?? 0).toFixed(2),
+                  priceCurrency: "USD",
+                  availability: seo.in_stock
+                    ? "https://schema.org/InStock"
+                    : "https://schema.org/OutOfStock",
+                  itemCondition: "https://schema.org/NewCondition",
+                  seller: { "@type": "Organization", name: "QORIX STORE" },
+                },
+              }),
+            },
+            {
+              type: "application/ld+json",
+              children: JSON.stringify(
+                breadcrumbJsonLd([
+                  ["Home", "/"],
+                  ["Store", "/store"],
+                  [name, `/store/${params.id}`],
+                ]),
+              ),
+            },
+          ]
+        : [],
+    };
+  },
   validateSearch: (search: Record<string, unknown>) => ({
     buy: search["buy"] === true || search["buy"] === "true" || search["buy"] === "1",
   }),
