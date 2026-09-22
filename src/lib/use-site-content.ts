@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSiteContent } from "@/lib/shop.functions";
 import { siteLinks, siteValue, type SiteContent, type SiteLink } from "@/lib/site-content";
 import { subscribeSiteUpdate } from "@/lib/site-refresh";
+import { setBrandMark } from "@/lib/brand-mark";
 
 export function useSiteContent() {
   const qc = useQueryClient();
