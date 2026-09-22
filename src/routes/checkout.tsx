@@ -44,6 +44,8 @@ export const Route = createFileRoute("/checkout")({
       { property: "og:description", content: "Step-by-step secure crypto checkout for premium digital products." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "robots", content: "noindex,follow" },
+      { property: "og:url", content: productionUrlFor("/checkout") },
     ],
     links: [{ rel: "canonical", href: productionUrlFor("/checkout") }],
   }),
