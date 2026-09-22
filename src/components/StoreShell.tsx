@@ -48,6 +48,7 @@ import { useT } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useSiteContent } from "@/lib/use-site-content";
 import { InstallAppButton } from "@/components/InstallAppButton";
+import { InstallPromptPopup } from "@/components/InstallPromptPopup";
 import { siteContacts, type SiteLink } from "@/lib/site-content";
 
 
