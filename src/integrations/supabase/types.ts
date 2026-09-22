@@ -1634,6 +1634,10 @@ export type Database = {
         }
         Returns: Json
       }
+      bot_user_admin_adjust: {
+        Args: { _amount: number; _note?: string; _telegram_id: number }
+        Returns: Json
+      }
       bot_user_credit: {
         Args: {
           _amount: number
