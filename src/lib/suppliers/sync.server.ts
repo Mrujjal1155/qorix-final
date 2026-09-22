@@ -393,7 +393,14 @@ async function drainNotificationEvents(sb: any, budget: { cards: number; until?:
       const message = e instanceof Error ? e.message : String(e);
       failed += 1;
       console.error("Stock alert failed:", item.event_key, message);
-      await sb.rpc("finish_stock_notification", { _id: item.id, _delivered: false, _error: message }).catch(() => {});
+      // NOTE: a Supabase query builder is thenable but has no .catch — calling
+      // .catch() here threw inside the error handler, so the whole run died and
+      // the card stayed stuck in "sending" forever (no attempt, no error saved).
+      try {
+        await sb.rpc("finish_stock_notification", { _id: item.id, _delivered: false, _error: message });
+      } catch (finishError) {
+        console.error("Could not record stock alert failure:", finishError);
+      }
       log.push({ at: new Date().toISOString(), kind: item.kind, product_id: item.product_id, ok: false, error: message });
     }
   }
