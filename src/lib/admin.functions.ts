@@ -924,26 +924,24 @@ export const decidePayment = createServerFn({ method: "POST" })
 
     const { sendMessage } = await import("@/lib/telegram.server");
     if (data.approve) {
-      const { data: user } = await sb
-        .from("bot_users")
-        .select("balance")
-        .eq("telegram_id", req.telegram_id)
-        .maybeSingle();
-      await sb
-        .from("bot_users")
-        .update({ balance: Number(user?.balance ?? 0) + Number(req.amount) })
-        .eq("telegram_id", req.telegram_id);
-      await sb.from("transactions").insert({
-        telegram_id: req.telegram_id,
-        type: "deposit",
-        amount: req.amount,
-        method: req.method,
-        reference: req.txid,
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: credit } = await (supabaseAdmin as any).rpc("bot_user_credit", {
+        _telegram_id: req.telegram_id,
+        _amount: Number(req.amount),
+        _type: "deposit",
+        _method: req.method,
+        _reference: req.txid || `deposit-${req.id}`,
+        _note: null,
       });
-      await sendMessage(
-        req.telegram_id,
-        `✅ Your deposit of $${Number(req.amount).toFixed(2)} has been approved and added to your balance.`,
-      );
+      const res = (credit ?? {}) as { ok?: boolean; duplicate?: boolean };
+      if (res.ok) {
+        await sendMessage(
+          req.telegram_id,
+          `✅ Your deposit of $${Number(req.amount).toFixed(2)} has been approved and added to your balance.`,
+        );
+      } else if (!res.duplicate) {
+        throw new Error("Could not add the deposit to the user's balance");
+      }
     } else {
       await sendMessage(
         req.telegram_id,
