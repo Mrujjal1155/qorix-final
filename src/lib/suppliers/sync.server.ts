@@ -696,6 +696,9 @@ async function relinkRotatedIds(
     console.log(`Supplier ${s.name}: relinked ${relinked} rotated product id(s), retired ${retired}`);
   }
   if (idAlerts.length) {
+    // Remember first: a repeat notice is worse than a missed one here, the
+    // change is also waiting in the dashboard review queue.
+    if (newRotations.length) await writeJsonSetting(sb, seenKey, Array.from(seenRotations).slice(-500));
     await recordSupplierAlerts(sb, idAlerts);
     try {
       const { notifyAdminNotice } = await import("@/lib/bot/engine.server");
