@@ -3446,16 +3446,15 @@ async function handleMessage(msg: any) {
         await say(chatId, "❌ User not found.");
         return;
       }
-      await db
-        .from("bot_users")
-        .update({ balance: Number(target.balance) + amount })
-        .eq("telegram_id", targetId);
-      await db.from("transactions").insert({
-        telegram_id: targetId,
-        type: "admin",
-        amount,
-        note: "Admin balance adjustment",
+      const { data: adjRes } = await db.rpc("bot_user_admin_adjust", {
+        _telegram_id: targetId,
+        _amount: amount,
+        _note: "Admin balance adjustment",
       });
+      if (!(adjRes as any)?.ok) {
+        await say(chatId, "❌ Could not update that balance.");
+        return;
+      }
       await say(chatId, `✅ Added ${money(amount)} to ${targetId}.`);
       await sendMessage(targetId, `💰 An admin added ${money(amount)} to your balance.`);
       return;
