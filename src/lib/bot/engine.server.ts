@@ -5614,7 +5614,7 @@ export async function notifyRestock(
     const broadcast = await announceRestock(p, addedQty, available, skipDm, delivery);
 
     if (delivery) {
-      if (broadcast?.dmComplete && subs?.length) {
+      if (broadcast?.complete && subs?.length) {
         await db
           .from("stock_alerts")
           .update({ notified_at: new Date().toISOString() })
