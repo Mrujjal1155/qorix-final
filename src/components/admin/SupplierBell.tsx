@@ -99,7 +99,7 @@ export function SupplierBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-[min(92vw,22rem)] overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+        <div className="fixed inset-x-3 top-16 z-50 overflow-hidden rounded-2xl border border-border bg-card shadow-xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-[22rem]">
           <div className="flex items-center justify-between gap-2 border-b border-border/70 px-4 py-3">
             <p className="text-sm font-semibold">Supplier updates</p>
             <div className="flex items-center gap-1">
