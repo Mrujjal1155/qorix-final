@@ -4306,18 +4306,16 @@ async function admDecidePayment(id: string, approve: boolean) {
     await sendMessage(p.telegram_id, "❌ Your deposit request was rejected. Contact support if this is wrong.");
     return "Rejected.";
   }
-  const u = await getUser(p.telegram_id);
-  await db
-    .from("bot_users")
-    .update({ balance: Number(u?.balance ?? 0) + Number(p.amount) })
-    .eq("telegram_id", p.telegram_id);
-  await db.from("transactions").insert({
-    telegram_id: p.telegram_id,
-    type: "deposit",
-    amount: p.amount,
-    method: p.method,
-    reference: p.txid,
+  const { data: credited } = await db.rpc("bot_user_credit", {
+    _telegram_id: p.telegram_id,
+    _amount: Number(p.amount),
+    _type: "deposit",
+    _method: p.method,
+    _reference: p.txid || `deposit-${p.id}`,
+    _note: null,
   });
+  const cr = (credited ?? {}) as { ok?: boolean; duplicate?: boolean };
+  if (!cr.ok) return cr.duplicate ? "Already credited." : "Could not credit the balance.";
   await sendMessage(p.telegram_id, `✅ Deposit approved! ${money(p.amount)} added to your balance.`);
   return "Approved and balance credited.";
 }
