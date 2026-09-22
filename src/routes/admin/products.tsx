@@ -10,6 +10,7 @@ import {
   getBotSettings,
   getCatalogue,
   getCategoryProducts,
+  reorderCategories,
   saveCategory,
   saveCategoryProducts,
   saveProduct,
