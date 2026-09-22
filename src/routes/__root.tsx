@@ -17,6 +17,7 @@ import { PrefsProvider } from "@/lib/prefs";
 import { I18nProvider, useT } from "@/lib/i18n";
 import { ReferralCapture } from "@/components/ReferralCapture";
 import { BrandHead } from "@/components/BrandHead";
+import { siteJsonLd } from "@/lib/seo";
 
 /** Storage origin that serves product images — warm the connection early. */
 const IMG_ORIGIN: string =
