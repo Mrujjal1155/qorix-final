@@ -5179,6 +5179,31 @@ async function fulfillCheckout(
       ).data ?? [])
     : [];
 
+  // Final availability check. If anything cannot be delivered we stop before
+  // the debit: for gateway payments the money stays in the wallet (usable for
+  // any other order), so a buyer can never pay for something undeliverable.
+  const blocked = await checkoutStockIssues(lines);
+  if (blocked.length) {
+    if (awaitingRows.length) {
+      for (const row of awaitingRows) {
+        await db.from("orders").update({ status: "cancelled" }).eq("id", row.id);
+      }
+    }
+    try {
+      await notifyAdmins(
+        `⚠️ <b>Checkout blocked — out of stock</b>\nBuyer: <code>${chatId}</code>\n${blocked.join("\n")}`,
+      );
+    } catch {
+      /* admin notice is best effort */
+    }
+    return {
+      text:
+        `⚠️ <b>Out of stock</b>\n──────────────\n${blocked.join("\n")}\n\n` +
+        `Your order was not created and <b>no money was taken</b>. Any amount you paid stays in your wallet balance and can be used for another order.`,
+      kb: [[uiBtn(await getSettings(), "com_wallet", "wallet")], [uiBtn(await getSettings(), "com_shop", "shop:0")]] as Button[][],
+    };
+  }
+
 
   // Charge the order total atomically. The DB refuses the debit when the
   // balance is too low, so double-tapping / racing callbacks can never get
