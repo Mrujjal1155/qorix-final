@@ -565,6 +565,8 @@ export function StoreShell({ children }: { children: ReactNode }) {
         </div>
       </footer>
 
+      <InstallPromptPopup />
+
       {/* mobile bottom tab bar */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/95 backdrop-blur-xl lg:hidden">
         <div className="grid grid-cols-4">
