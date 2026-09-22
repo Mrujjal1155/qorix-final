@@ -112,6 +112,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:image", content: "https://qorixlab.com/og-image.png" },
       { name: "twitter:image", content: "https://qorixlab.com/og-image.png" },
       { name: "twitter:card", content: "summary_large_image" },
+      { name: "theme-color", content: "#050a19" },
+      { name: "application-name", content: "QORIX STORE" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-title", content: "QORIX" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "mobile-web-app-capable", content: "yes" },
     ],
     scripts: [
       { type: "application/ld+json", children: JSON.stringify(siteJsonLd()) },
