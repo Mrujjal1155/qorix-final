@@ -98,6 +98,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "QORIX STORE — premium AI tools, streaming and productivity subscriptions with instant delivery. Order on the website or directly from our Telegram bot.",
       },
       { name: "author", content: "QORIX STORE" },
+      { name: "robots", content: "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" },
       { property: "og:title", content: "QORIX STORE — Premium Digital Products" },
       {
         property: "og:description",
@@ -105,9 +106,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "Premium AI tools, streaming and productivity subscriptions with instant delivery — on the website and our Telegram bot.",
       },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "QORIX STORE" },
+      { property: "og:locale", content: "en_US" },
       { property: "og:image", content: "https://qorixlab.com/og-image.png" },
       { name: "twitter:image", content: "https://qorixlab.com/og-image.png" },
       { name: "twitter:card", content: "summary_large_image" },
+    ],
+    scripts: [
+      { type: "application/ld+json", children: JSON.stringify(siteJsonLd()) },
     ],
     links: [
       {
