@@ -2412,7 +2412,8 @@ function epsView(row: any, settings: Record<string, string>) {
     `${head}\n\n` +
     `Amount: <b>৳${bdt.toFixed(2)}</b>  (${money(row.amount_usdt)})\n` +
     `Rate: 1 USD = ${Number(meta.rate ?? 0)} BDT\n\n` +
-    `Tap <b>Pay now</b> and finish the payment on the secure EPS page — your ${channel === "card" ? "card" : "wallet"} payment is confirmed automatically when it clears.`;
+    `Tap <b>Pay now</b> and finish the payment on the secure EPS page — your ${channel === "card" ? "card" : "wallet"} payment is confirmed automatically when it clears.\n` +
+    `⏳ <b>Important:</b> after paying, tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b>. If it is not tapped within 30 minutes, the pending order can be cancelled automatically.`;
   const kb: Button[][] = [
     [{ text: `💳 Pay now — ৳${bdt.toFixed(2)}`, url: String(row.address) } as any],
     [uiBtn(settings, "dep_verify", `epschk:${row.id}`)],
