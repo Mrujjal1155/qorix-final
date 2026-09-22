@@ -155,7 +155,7 @@ export const getProductSeo = createServerFn({ method: "GET" })
       description: String(anyRow.description ?? ""),
       price: Number(anyRow.price ?? 0),
       image_url: (anyRow.image_url ?? null) as string | null,
-      in_stock: anyRow.delivery_type !== "auto" || Number(anyRow.supplier_stock ?? 0) > 0,
+      in_stock: anyRow.supplier_id ? Number(anyRow.supplier_stock ?? 0) > 0 : true,
     };
   });
 
