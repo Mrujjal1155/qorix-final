@@ -6394,22 +6394,30 @@ async function handleCallback(cq: any) {
     } else if (action.startsWith("oc:")) {
       const { data: o } = await db.from("orders").select("*").eq("id", arg).maybeSingle();
       if (o && o.status === "pending") {
-        await db.from("orders").update({ status: "cancelled" }).eq("id", arg);
-        const u = await getUser(o.telegram_id);
-        await db
-          .from("bot_users")
-          .update({ balance: Number(u?.balance ?? 0) + Number(o.total) })
-          .eq("telegram_id", o.telegram_id);
-        await db.from("transactions").insert({
-          telegram_id: o.telegram_id,
-          type: "refund",
-          amount: o.total,
-          note: `Order #${o.order_no} cancelled`,
-        });
-        await sendMessage(
-          o.telegram_id,
-          `❌ Order #${o.order_no} was cancelled. ${money(o.total)} refunded to your balance.`,
-        );
+        // Only one of two racing cancels wins the status change.
+        const { data: cancelled } = await db
+          .from("orders")
+          .update({ status: "cancelled" })
+          .eq("id", arg)
+          .eq("status", "pending")
+          .select("id")
+          .maybeSingle();
+        if (cancelled) {
+          const { data: refunded } = await db.rpc("bot_user_credit", {
+            _telegram_id: o.telegram_id,
+            _amount: Number(o.total),
+            _type: "refund",
+            _method: "wallet",
+            _reference: `order-${o.order_no}-cancel`,
+            _note: `Order #${o.order_no} cancelled`,
+          });
+          if ((refunded as any)?.ok) {
+            await sendMessage(
+              o.telegram_id,
+              `❌ Order #${o.order_no} was cancelled. ${money(o.total)} refunded to your balance.`,
+            );
+          }
+        }
       }
       const v = await admOrdersView();
       await edit(v.text, v.kb);
