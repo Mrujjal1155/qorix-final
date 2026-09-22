@@ -2172,7 +2172,8 @@ function binanceView(row: any, settings: Record<string, string> = {}) {
     `${head}\n\n` +
     `${uiTag(settings, "dep_amount")}:\n<code>${Number(row.amount_usdt).toFixed(4)}</code>\n\n` +
     `${uiIconHtml(settings, "dep_warn")} ${escapeHtml(uiText(settings, "dep_warn"))} — it is how we identify your payment.\n` +
-    `${uiIconHtml(settings, "dep_timer")} ${escapeHtml(uiText(settings, "dep_timer"))}. After paying, tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b> — verification is automatic.`;
+    `${uiIconHtml(settings, "dep_timer")} ${escapeHtml(uiText(settings, "dep_timer"))}. After paying, tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b> — verification is automatic.\n` +
+    `⏳ <b>Important:</b> you must tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b> after you pay. If it is not tapped within 30 minutes, the pending order can be cancelled automatically.`;
   const kb: Button[][] = [
     [uiBtn(settings, "dep_verify", `bchk:${row.id}`)],
     [uiUrlBtn(settings, "dep_support", (settings["support_link"] || "").trim() || DEFAULT_SUPPORT_LINK)],
