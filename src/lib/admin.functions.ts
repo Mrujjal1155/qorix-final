@@ -230,6 +230,23 @@ export const saveCategory = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+/** Admin drag-free reordering: ids arrive in the exact serial the admin wants. */
+export const reorderCategories = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { ids: string[] }) => ({ ids: (d.ids ?? []).map(String) }))
+  .handler(async ({ data, context }) => {
+    const sb = (context as any).supabase;
+    await assertAdmin(context);
+    for (let i = 0; i < data.ids.length; i++) {
+      const { error } = await sb
+        .from("categories")
+        .update({ sort_order: i + 1 })
+        .eq("id", data.ids[i]);
+      if (error) throw new Error(error.message);
+    }
+    return { ok: true, count: data.ids.length };
+  });
+
 export const deleteCategory = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { id: string }) => d)
