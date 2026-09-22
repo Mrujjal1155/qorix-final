@@ -403,11 +403,36 @@ function ProductsPage() {
             JPG / WEBP also work. Max file size <strong>3MB</strong> (ideal 50–200KB). No logo = default icon.
           </p>
         </div>
+        <p className="text-xs text-muted-foreground">
+          The order below is the exact serial shown in the Telegram bot and on the website. Use the arrows to move a
+          category up or down.
+        </p>
         <ul className="space-y-1 text-sm">
-          {(data?.categories ?? []).map((c: any) => (
+          {(data?.categories ?? []).map((c: any, idx: number) => (
             <li key={c.id} className="rounded-md bg-muted px-3 py-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="flex min-w-0 items-center gap-2">
+                  <span className="flex shrink-0 flex-col">
+                    <button
+                      type="button"
+                      aria-label="Move up"
+                      disabled={idx === 0 || reorderMut.isPending}
+                      onClick={() => moveCategory(idx, -1)}
+                      className="rounded p-0.5 text-muted-foreground hover:bg-background hover:text-foreground disabled:opacity-30"
+                    >
+                      <ArrowUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Move down"
+                      disabled={idx === (data?.categories ?? []).length - 1 || reorderMut.isPending}
+                      onClick={() => moveCategory(idx, 1)}
+                      className="rounded p-0.5 text-muted-foreground hover:bg-background hover:text-foreground disabled:opacity-30"
+                    >
+                      <ArrowDown className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
+                  <span className="w-5 shrink-0 text-xs font-semibold text-muted-foreground">{idx + 1}</span>
                   {c.image_url ? (
                     <img src={c.image_url} alt="" className="h-6 w-6 shrink-0 rounded object-contain" />
                   ) : (
