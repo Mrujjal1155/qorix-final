@@ -48,6 +48,7 @@ import { useT } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useSiteContent } from "@/lib/use-site-content";
 import { InstallAppButton } from "@/components/InstallAppButton";
+import { InstallPromptPopup } from "@/components/InstallPromptPopup";
 import { siteContacts, type SiteLink } from "@/lib/site-content";
 
 
@@ -563,6 +564,8 @@ export function StoreShell({ children }: { children: ReactNode }) {
           </div>
         </div>
       </footer>
+
+      <InstallPromptPopup />
 
       {/* mobile bottom tab bar */}
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/70 bg-background/95 backdrop-blur-xl lg:hidden">
