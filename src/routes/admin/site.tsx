@@ -129,6 +129,11 @@ const GROUPS: { title: string; desc: string; icon: LucideIcon; fields: Field[] }
         hint: "Supported names: facebook, instagram, telegram, twitter, whatsapp",
         long: true,
       },
+      {
+        key: "site_whatsapp_enabled",
+        label: "Show floating WhatsApp button (1 = active, 0 = disabled)",
+        hint: "Set to 0 to completely hide the floating WhatsApp icon from the website without deleting the link.",
+      },
       { key: "site_whatsapp", label: "Floating WhatsApp link (empty = hide)" },
       {
         key: "site_whatsapp_icon",

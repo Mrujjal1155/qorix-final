@@ -217,7 +217,7 @@ export function StoreShell({ children }: { children: ReactNode }) {
   const nav = links("site_nav");
   const socials = links("site_socials");
   const more = links("site_footer_categories_more")[0];
-  const whatsapp = v("site_whatsapp");
+  const whatsapp = v("site_whatsapp_enabled") === "0" ? "" : v("site_whatsapp");
   const brandLogo = v("site_brand_logo");
   const copyright = v("site_copyright").replace("{year}", String(new Date().getFullYear()));
 

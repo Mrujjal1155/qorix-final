@@ -36,6 +36,7 @@ export const SITE_DEFAULTS: Record<string, string> = {
   site_copyright: "© {year} qorixlab.com. All rights reserved. Made with ❤️ in Bangladesh.",
 
   // Floating buttons
+  site_whatsapp_enabled: "1", // 1 = show floating WhatsApp button, 0 = hide
   site_whatsapp: "https://wa.me/8801860036852",
   site_whatsapp_icon: "", // optional image URL for the floating WhatsApp button
   site_brand_logo: "", // optional uploaded logo (empty = bundled QORIX logo)
