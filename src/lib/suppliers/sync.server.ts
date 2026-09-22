@@ -576,6 +576,12 @@ async function relinkRotatedIds(
   // Supplier-side id rotations, surfaced to the admin dashboard + Telegram.
   const idAlerts: Array<{ product_id: string | null; product_name: string; surface: string; detail: string }> = [];
   const idLines: string[] = [];
+  // One notice per rotation. A rotation that waits in the review queue is seen
+  // again on every 15s sync — without this ledger the admin gets the same card
+  // over and over.
+  const seenKey = `supplier_idchange_seen:${s.id}`;
+  const seenRotations = new Set<string>((await readJsonSetting(sb, seenKey)).map((v: any) => String(v)));
+  const newRotations: string[] = [];
 
   for (const prod of stale) {
     const oldId = String(prod.supplier_external_id);
@@ -635,13 +641,18 @@ async function relinkRotatedIds(
         if (ins) byExt.set(newId, ins);
       }
       relinked++;
-      idAlerts.push({
-        product_id: String(prod.id),
-        product_name: String(prod.name ?? ""),
-        surface: "supplier_id",
-        detail: `${s.name}: supplier id changed ${oldId} → ${newId}. The product was re-linked automatically — please verify.`,
-      });
-      idLines.push(`${prod.name} · ${oldId} → ${newId} (re-linked)`);
+      const rotKey = `${oldId}>${newId}`;
+      if (!seenRotations.has(rotKey)) {
+        seenRotations.add(rotKey);
+        newRotations.push(rotKey);
+        idAlerts.push({
+          product_id: String(prod.id),
+          product_name: String(prod.name ?? ""),
+          surface: "supplier_id",
+          detail: `${s.name}: supplier id changed ${oldId} → ${newId}. The product was re-linked automatically — please verify.`,
+        });
+        idLines.push(`${prod.name} · ${oldId} → ${newId} (re-linked)`);
+      }
     } else {
       // A name match exists but the previous supplier row was not an approved
       // listing → quarantine it for admin review instead of guessing.
@@ -656,13 +667,18 @@ async function relinkRotatedIds(
           product_id: String(prod.id),
           snapshot: { previous_external_id: oldId, previous_product: prod.name },
         });
-        idAlerts.push({
-          product_id: String(prod.id),
-          product_name: String(prod.name ?? ""),
-          surface: "supplier_id",
-          detail: `${s.name}: supplier id changed ${oldId} → ${match.external_id}. Waiting in the review queue for your approval.`,
-        });
-        idLines.push(`${prod.name} · ${oldId} → ${match.external_id} (needs approval)`);
+        const rotKey = `${oldId}>${match.external_id}`;
+        if (!seenRotations.has(rotKey)) {
+          seenRotations.add(rotKey);
+          newRotations.push(rotKey);
+          idAlerts.push({
+            product_id: String(prod.id),
+            product_name: String(prod.name ?? ""),
+            surface: "supplier_id",
+            detail: `${s.name}: supplier id changed ${oldId} → ${match.external_id}. Waiting in the review queue for your approval.`,
+          });
+          idLines.push(`${prod.name} · ${oldId} → ${match.external_id} (needs approval)`);
+        }
       }
       if (prod.is_active) {
         // Gone from the supplier catalogue → take it off sale instead of letting
@@ -680,6 +696,9 @@ async function relinkRotatedIds(
     console.log(`Supplier ${s.name}: relinked ${relinked} rotated product id(s), retired ${retired}`);
   }
   if (idAlerts.length) {
+    // Remember first: a repeat notice is worse than a missed one here, the
+    // change is also waiting in the dashboard review queue.
+    if (newRotations.length) await writeJsonSetting(sb, seenKey, Array.from(seenRotations).slice(-500));
     await recordSupplierAlerts(sb, idAlerts);
     try {
       const { notifyAdminNotice } = await import("@/lib/bot/engine.server");
