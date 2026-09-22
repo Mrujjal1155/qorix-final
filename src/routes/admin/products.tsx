@@ -122,6 +122,28 @@ function ProductsPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+  /** Category serial — arrows move a category up/down; bot + website follow this order. */
+  const reorderCats = useServerFn(reorderCategories);
+  const reorderMut = useMutation({
+    mutationFn: (ids: string[]) => reorderCats({ data: { ids } }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["catalogue"] });
+      toast.success("Category order saved");
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  function moveCategory(index: number, dir: -1 | 1) {
+    const list = (data?.categories ?? []) as any[];
+    const target = index + dir;
+    if (target < 0 || target >= list.length) return;
+    const ids = list.map((c) => String(c.id));
+    const moved = ids[index]!;
+    ids[index] = ids[target]!;
+    ids[target] = moved;
+    reorderMut.mutate(ids);
+  }
+
   const [form, setForm] = useState({ ...EMPTY });
   const [stockFor, setStockFor] = useState<string>("");
   const [search, setSearch] = useState("");
