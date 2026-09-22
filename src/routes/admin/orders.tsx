@@ -369,6 +369,7 @@ function OrdersPage() {
                       <div className="break-all">{o.customer_email}</div>
                     </>
                   ) : (
+                    <>
                       <div className="break-all">
                         Telegram: {o.telegram_id}
                         {o.buyer_username && (
