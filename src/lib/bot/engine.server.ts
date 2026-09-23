@@ -3918,8 +3918,32 @@ async function handleMessage(msg: any) {
       await say(chatId, `🎁 New code created:\n\n<code>${code}</code>\nValue: ${money(amount)}`, ADM_BACK);
       return;
     }
-    default:
-      await say(chatId, "Use /start to open the menu.", [[uiBtn(await getSettings(), "com_home", "home")]]);
+    default: {
+      // Free text that no command, button or step claimed → AI product answer.
+      const settings = await getSettings();
+      if ((settings["ai_assistant_enabled"] ?? "1") !== "0" && text.trim()) {
+        try {
+          const recent: string[] = Array.isArray(state.ai_recent) ? state.ai_recent.slice(0, 3) : [];
+          const { aiProductReply } = await import("@/lib/bot/ai-assistant.server");
+          const reply = await aiProductReply(text, recent);
+          if (reply) {
+            if (reply.matched.length) {
+              state.ai_recent = Array.from(new Set([...reply.matched, ...recent])).slice(0, 3);
+              await setState(chatId, state);
+            }
+            await say(chatId, reply.text, [
+              [styled({ text: "🛍 Products", callback_data: "cat:all:0" }, "primary")],
+              [uiBtn(settings, "com_home", "home")],
+            ]);
+            return;
+          }
+        } catch (error) {
+          console.error("AI assistant reply failed:", error);
+        }
+      }
+      await say(chatId, "Use /start to open the menu.", [[uiBtn(settings, "com_home", "home")]]);
+    }
+
   }
 }
 
