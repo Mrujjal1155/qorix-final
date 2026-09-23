@@ -60,6 +60,7 @@ import { Route as ApiPublicSuppliersWebhookRouteImport } from './routes/api/publ
 import { Route as ApiPublicTelegramRegisterRouteImport } from './routes/api/public/telegram/register'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 import { Route as ApiPublicN8nProductsSearchRouteImport } from './routes/api/public/n8n/products/search'
+import { Route as ApiPublicN8nTelegramSendRouteImport } from './routes/api/public/n8n/telegram/send'
 import { Route as ApiPublicOrderFileTokenNameRouteImport } from './routes/api/public/order-file/$token/$name'
 import { Route as ApiPublicResellerV1MeRouteImport } from './routes/api/public/reseller/v1/me'
 import { Route as ApiPublicResellerV1OrdersRouteImport } from './routes/api/public/reseller/v1/orders'
@@ -333,6 +334,12 @@ const ApiPublicN8nProductsSearchRoute =
     path: '/api/public/n8n/products/search',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicN8nTelegramSendRoute =
+  ApiPublicN8nTelegramSendRouteImport.update({
+    id: '/api/public/n8n/telegram/send',
+    path: '/api/public/n8n/telegram/send',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicOrderFileTokenNameRoute =
   ApiPublicOrderFileTokenNameRouteImport.update({
     id: '/api/public/order-file/$token/$name',
@@ -426,6 +433,7 @@ export interface FileRoutesByFullPath {
   '/api/public/telegram/register': typeof ApiPublicTelegramRegisterRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/n8n/products/search': typeof ApiPublicN8nProductsSearchRoute
+  '/api/public/n8n/telegram/send': typeof ApiPublicN8nTelegramSendRoute
   '/api/public/order-file/$token/$name': typeof ApiPublicOrderFileTokenNameRoute
   '/api/public/reseller/v1/me': typeof ApiPublicResellerV1MeRoute
   '/api/public/reseller/v1/orders': typeof ApiPublicResellerV1OrdersRouteWithChildren
@@ -484,6 +492,7 @@ export interface FileRoutesByTo {
   '/api/public/telegram/register': typeof ApiPublicTelegramRegisterRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/n8n/products/search': typeof ApiPublicN8nProductsSearchRoute
+  '/api/public/n8n/telegram/send': typeof ApiPublicN8nTelegramSendRoute
   '/api/public/order-file/$token/$name': typeof ApiPublicOrderFileTokenNameRoute
   '/api/public/reseller/v1/me': typeof ApiPublicResellerV1MeRoute
   '/api/public/reseller/v1/orders': typeof ApiPublicResellerV1OrdersRouteWithChildren
@@ -545,6 +554,7 @@ export interface FileRoutesById {
   '/api/public/telegram/register': typeof ApiPublicTelegramRegisterRoute
   '/api/public/telegram/webhook': typeof ApiPublicTelegramWebhookRoute
   '/api/public/n8n/products/search': typeof ApiPublicN8nProductsSearchRoute
+  '/api/public/n8n/telegram/send': typeof ApiPublicN8nTelegramSendRoute
   '/api/public/order-file/$token/$name': typeof ApiPublicOrderFileTokenNameRoute
   '/api/public/reseller/v1/me': typeof ApiPublicResellerV1MeRoute
   '/api/public/reseller/v1/orders': typeof ApiPublicResellerV1OrdersRouteWithChildren
@@ -606,6 +616,7 @@ export interface FileRouteTypes {
     | '/api/public/telegram/register'
     | '/api/public/telegram/webhook'
     | '/api/public/n8n/products/search'
+    | '/api/public/n8n/telegram/send'
     | '/api/public/order-file/$token/$name'
     | '/api/public/reseller/v1/me'
     | '/api/public/reseller/v1/orders'
@@ -664,6 +675,7 @@ export interface FileRouteTypes {
     | '/api/public/telegram/register'
     | '/api/public/telegram/webhook'
     | '/api/public/n8n/products/search'
+    | '/api/public/n8n/telegram/send'
     | '/api/public/order-file/$token/$name'
     | '/api/public/reseller/v1/me'
     | '/api/public/reseller/v1/orders'
@@ -724,6 +736,7 @@ export interface FileRouteTypes {
     | '/api/public/telegram/register'
     | '/api/public/telegram/webhook'
     | '/api/public/n8n/products/search'
+    | '/api/public/n8n/telegram/send'
     | '/api/public/order-file/$token/$name'
     | '/api/public/reseller/v1/me'
     | '/api/public/reseller/v1/orders'
@@ -766,6 +779,7 @@ export interface RootRouteChildren {
   ApiPublicTelegramRegisterRoute: typeof ApiPublicTelegramRegisterRoute
   ApiPublicTelegramWebhookRoute: typeof ApiPublicTelegramWebhookRoute
   ApiPublicN8nProductsSearchRoute: typeof ApiPublicN8nProductsSearchRoute
+  ApiPublicN8nTelegramSendRoute: typeof ApiPublicN8nTelegramSendRoute
   ApiPublicOrderFileTokenNameRoute: typeof ApiPublicOrderFileTokenNameRoute
   ApiPublicResellerV1MeRoute: typeof ApiPublicResellerV1MeRoute
   ApiPublicResellerV1OrdersRoute: typeof ApiPublicResellerV1OrdersRouteWithChildren
@@ -1132,6 +1146,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicN8nProductsSearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/n8n/telegram/send': {
+      id: '/api/public/n8n/telegram/send'
+      path: '/api/public/n8n/telegram/send'
+      fullPath: '/api/public/n8n/telegram/send'
+      preLoaderRoute: typeof ApiPublicN8nTelegramSendRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/order-file/$token/$name': {
       id: '/api/public/order-file/$token/$name'
       path: '/api/public/order-file/$token/$name'
@@ -1302,6 +1323,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicTelegramRegisterRoute: ApiPublicTelegramRegisterRoute,
   ApiPublicTelegramWebhookRoute: ApiPublicTelegramWebhookRoute,
   ApiPublicN8nProductsSearchRoute: ApiPublicN8nProductsSearchRoute,
+  ApiPublicN8nTelegramSendRoute: ApiPublicN8nTelegramSendRoute,
   ApiPublicOrderFileTokenNameRoute: ApiPublicOrderFileTokenNameRoute,
   ApiPublicResellerV1MeRoute: ApiPublicResellerV1MeRoute,
   ApiPublicResellerV1OrdersRoute: ApiPublicResellerV1OrdersRouteWithChildren,
