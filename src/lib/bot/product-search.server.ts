@@ -96,7 +96,7 @@ export async function searchProducts(query: string, limit = 8): Promise<ProductH
   const { data, error } = await db
     .from("products")
     .select(
-      "id,name,description,price,old_price,delivery_time,delivery_type,badge,important_note,details,supplier_id,supplier_stock,sort_order,categories(name)",
+      "id,name,description,price,old_price,delivery_time,delivery_type,badge,important_note,details,supplier_id,supplier_stock,sort_order,categories!products_category_id_fkey(name)",
     )
     .eq("is_active", true)
     .order("sort_order", { ascending: true })
