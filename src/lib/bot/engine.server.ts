@@ -3921,7 +3921,9 @@ async function handleMessage(msg: any) {
     default: {
       // Free text that no command, button or step claimed → AI product answer.
       const settings = await getSettings();
-      if ((settings["ai_assistant_enabled"] ?? "1") !== "0" && text.trim()) {
+      const aiFlag = (settings["ai_assistant_enabled"] ?? "on").trim().toLowerCase();
+      if (!["off", "0", "false", "no"].includes(aiFlag) && text.trim()) {
+
         try {
           const recent: string[] = Array.isArray(state.ai_recent) ? state.ai_recent.slice(0, 3) : [];
           const { aiProductReply } = await import("@/lib/bot/ai-assistant.server");
