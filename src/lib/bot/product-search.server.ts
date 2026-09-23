@@ -66,7 +66,7 @@ const STOP = new Set([
 ]);
 
 function normalise(q: string): string[] {
-  const lowered = q.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ");
+  const lowered = q.toLowerCase().replace(/[^\p{L}\p{M}\p{N}\s]/gu, " ");
   const out: string[] = [];
   for (const raw of lowered.split(/\s+/)) {
     if (!raw) continue;
