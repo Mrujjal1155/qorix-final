@@ -3918,8 +3918,28 @@ async function handleMessage(msg: any) {
       await say(chatId, `🎁 New code created:\n\n<code>${code}</code>\nValue: ${money(amount)}`, ADM_BACK);
       return;
     }
-    default:
-      await say(chatId, "Use /start to open the menu.", [[uiBtn(await getSettings(), "com_home", "home")]]);
+    default: {
+      // Nothing in the bot matched this message. Hand it to the n8n AI layer
+      // when the admin enabled it; otherwise keep the original reply.
+      const settings = await getSettings();
+      const body = text.trim();
+      if (body) {
+        const { relayToN8n } = await import("@/lib/n8n/relay.server");
+        const relayed = await relayToN8n(settings, {
+          chat_id: chatId,
+          message_id: msg.message_id,
+          text: body,
+          user: {
+            id: Number(msg.from?.id ?? chatId),
+            username: msg.from?.username ?? null,
+            first_name: msg.from?.first_name ?? null,
+            language_code: msg.from?.language_code ?? null,
+          },
+        });
+        if (relayed) return;
+      }
+      await say(chatId, "Use /start to open the menu.", [[uiBtn(settings, "com_home", "home")]]);
+    }
   }
 }
 

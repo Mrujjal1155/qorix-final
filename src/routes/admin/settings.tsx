@@ -73,6 +73,17 @@ const FIELDS: { key: string; label: string; long?: boolean; help?: string }[] = 
   { key: "emails_trials_text", label: "Emails & Trials page", long: true },
   { key: "reseller_api_text", label: "Reseller API page", long: true },
   { key: "supplier_sync_minutes", label: "Supplier auto-sync interval (minutes, default 2)" },
+  {
+    key: "n8n_webhook_url",
+    label: "n8n webhook URL",
+    help: "Paste the Production URL of your n8n Webhook node. Questions the bot menu does not handle are sent there.",
+  },
+  {
+    key: "n8n_api_key",
+    label: "n8n shared key",
+    help: "Any long random string. Use it as the X-N8N-Key header in n8n's HTTP Request nodes calling /api/public/n8n/*.",
+  },
+
 ];
 
 const TOGGLE_FIELDS: { key: string; label: string; description?: string }[] = [
@@ -85,6 +96,13 @@ const TOGGLE_FIELDS: { key: string; label: string; description?: string }[] = [
     label: "Supplier auto-sync",
     description: "Pulls new products/stock from the supplier API every few minutes (default 2 minutes); when a listed product gets stock, a post goes to the group.",
   },
+  {
+    key: "n8n_ai_enabled",
+    label: "n8n AI auto-reply",
+    description:
+      "Questions the bot menu does not understand are forwarded to the n8n webhook, and n8n replies through the bot. Off = the old 'Use /start' reply.",
+  },
+
 ];
 
 
