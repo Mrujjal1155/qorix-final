@@ -96,6 +96,13 @@ const TOGGLE_FIELDS: { key: string; label: string; description?: string }[] = [
     label: "Supplier auto-sync",
     description: "Pulls new products/stock from the supplier API every few minutes (default 2 minutes); when a listed product gets stock, a post goes to the group.",
   },
+  {
+    key: "n8n_ai_enabled",
+    label: "n8n AI auto-reply",
+    description:
+      "Questions the bot menu does not understand are forwarded to the n8n webhook, and n8n replies through the bot. Off = the old 'Use /start' reply.",
+  },
+
 ];
 
 
