@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import { BinanceSetupCard } from "@/components/BinanceSetupCard";
 import { HeroItemsCard } from "@/components/HeroItemsCard";
 import { SettingsHub, type HubSection } from "@/components/SettingsHub";
-import { Bot, Wallet, SlidersHorizontal, Smile, Images, Megaphone, Smartphone, Mail, MailOpen, Gift, Coins, Network, ShieldCheck, BellRing } from "lucide-react";
+import { Bot, Wallet, SlidersHorizontal, Smile, Images, Megaphone, Smartphone, Mail, MailOpen, Gift, Coins, Network, ShieldCheck, BellRing, Workflow } from "lucide-react";
 import { JoinGateCard } from "@/components/JoinGateCard";
 
 import { CurrencyRatesCard } from "@/components/CurrencyRatesCard";
@@ -73,17 +73,6 @@ const FIELDS: { key: string; label: string; long?: boolean; help?: string }[] = 
   { key: "emails_trials_text", label: "Emails & Trials page", long: true },
   { key: "reseller_api_text", label: "Reseller API page", long: true },
   { key: "supplier_sync_minutes", label: "Supplier auto-sync interval (minutes, default 2)" },
-  {
-    key: "n8n_webhook_url",
-    label: "n8n webhook URL",
-    help: "Paste the Production URL of your n8n Webhook node. Questions the bot menu does not handle are sent there.",
-  },
-  {
-    key: "n8n_api_key",
-    label: "n8n shared key",
-    help: "Any long random string. Use it as the X-N8N-Key header in n8n's HTTP Request nodes calling /api/public/n8n/*.",
-  },
-
 ];
 
 const TOGGLE_FIELDS: { key: string; label: string; description?: string }[] = [
@@ -96,13 +85,6 @@ const TOGGLE_FIELDS: { key: string; label: string; description?: string }[] = [
     label: "Supplier auto-sync",
     description: "Pulls new products/stock from the supplier API every few minutes (default 2 minutes); when a listed product gets stock, a post goes to the group.",
   },
-  {
-    key: "n8n_ai_enabled",
-    label: "n8n AI auto-reply",
-    description:
-      "Questions the bot menu does not understand are forwarded to the n8n webhook, and n8n replies through the bot. Off = the old 'Use /start' reply.",
-  },
-
 ];
 
 
@@ -523,6 +505,51 @@ function SettingsPage() {
       </CardContent>
     </Card>
   );
+
+  const n8nCard = (
+    <Card>
+      <CardHeader>
+        <CardTitle>n8n AI auto-reply</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <p className="text-sm text-muted-foreground">
+          Questions the bot menu does not understand are forwarded to your n8n webhook; n8n searches products and replies through the bot. Setup guide: <code>docs/n8n-integration-bn.md</code>. Off = the old "Use /start" reply.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1">
+            <Label>n8n webhook URL</Label>
+            <p className="text-xs text-muted-foreground">Production URL of your n8n Webhook node.</p>
+            <Input
+              value={values["n8n_webhook_url"] ?? ""}
+              onChange={(e) => setValues({ ...values, n8n_webhook_url: e.target.value })}
+              placeholder="https://your-n8n.example.com/webhook/..."
+            />
+          </div>
+          <div className="space-y-1">
+            <Label>n8n shared key</Label>
+            <p className="text-xs text-muted-foreground">Any long random string — use it as the X-N8N-Key header in n8n's HTTP Request nodes calling /api/public/n8n/*.</p>
+            <Input
+              value={values["n8n_api_key"] ?? ""}
+              onChange={(e) => setValues({ ...values, n8n_api_key: e.target.value })}
+              placeholder="e.g. a 32+ character random string"
+            />
+          </div>
+        </div>
+        <div className="flex items-start justify-between gap-4 rounded-xl border border-border/70 bg-card/50 p-4">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-semibold">n8n AI auto-reply</Label>
+            <p className="text-xs text-muted-foreground">Forward unmatched questions to n8n. Off = the bot replies with the old "Use /start" message.</p>
+          </div>
+          <Switch
+            checked={isOn(values["n8n_ai_enabled"])}
+            onCheckedChange={(checked) => setToggle("n8n_ai_enabled", checked)}
+            aria-label="n8n AI auto-reply"
+          />
+        </div>
+        <Button onClick={onSave}>Save n8n settings</Button>
+      </CardContent>
+    </Card>
+  );
   const epsCard = (
     <Card>
       <CardHeader>
@@ -809,6 +836,13 @@ function SettingsPage() {
       description: "Set your own conversion rate for each currency shown on the site.",
       icon: Coins,
       render: () => <CurrencyRatesCard />,
+    },
+    {
+      id: "n8n",
+      title: "n8n AI automation",
+      description: "Webhook URL, shared key and the AI auto-reply switch for customer questions.",
+      icon: Workflow,
+      render: () => n8nCard,
     },
   ];
 
