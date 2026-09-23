@@ -501,7 +501,22 @@ function SettingsPage() {
             />
           </div>
         ))}
+        <div className="flex items-start justify-between gap-4 rounded-xl border border-border/70 bg-card/50 p-4">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-semibold">AI product assistant</Label>
+            <p className="text-xs text-muted-foreground">
+              When a customer writes a free-text question in the bot (e.g. "Gemini Pro কত টাকা?"), the bot answers in
+              Bengali using live product data from this database. Turn it off to keep the old "Use /start" reply.
+            </p>
+          </div>
+          <Switch
+            checked={isOn(values["ai_assistant_enabled"] ?? "on")}
+            onCheckedChange={(checked) => setToggle("ai_assistant_enabled", checked)}
+            aria-label="AI product assistant"
+          />
+        </div>
         <Button onClick={onSave}>Save announcement settings</Button>
+
       </CardContent>
     </Card>
   );
