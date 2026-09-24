@@ -62,6 +62,23 @@ export async function authReseller(
   return { reseller: data as Reseller };
 }
 
+/**
+ * What an API user pays for one item. A custom admin "API user price" is a
+ * fixed price (no reseller discount). During a supplier flash sale the same
+ * supplier discount also comes off the API price, so our profit is unchanged.
+ * Without a custom price the normal discount on the (already sale-adjusted)
+ * retail price applies.
+ */
+export function apiUnitPrice(p: any, reseller: { discount_percent: number | null | undefined }) {
+  const custom = Number(p?.api_price ?? 0);
+  if (custom > 0) {
+    const flashOn = p?.flash_ends_at && Date.parse(String(p.flash_ends_at)) > Date.now();
+    const off = flashOn ? Number(p?.flash_discount ?? 0) : 0;
+    return Math.max(0.01, Math.round((custom - off) * 100) / 100);
+  }
+  return resellerPrice(Number(p?.price ?? 0), Number(reseller.discount_percent ?? 0));
+}
+
 export function resellerPrice(price: number, discountPercent: number) {
   const p = Number(price) * (1 - Number(discountPercent || 0) / 100);
   return Math.max(0, Math.round(p * 100) / 100);
@@ -81,7 +98,7 @@ export async function catalogue(reseller: Reseller, channel: Channel) {
     db
       .from("products")
       .select(
-        "id,name,emoji,description,important_note,quick_guide,price,old_price,delivery_type,category_id,sort_order,image_url,delivery_time,badge,featured_rank,supplier_id,supplier_stock,owner_reseller_id,is_active",
+        "id,name,emoji,description,important_note,quick_guide,price,old_price,delivery_type,category_id,sort_order,image_url,delivery_time,badge,featured_rank,supplier_id,supplier_stock,owner_reseller_id,is_active,api_price,flash_ends_at,flash_discount",
       )
       .eq("is_active", true)
       .or(`owner_reseller_id.is.null,owner_reseller_id.eq.${reseller.id}`)
@@ -132,7 +149,8 @@ export function publicProduct(
     category_id: p.category_id,
     category_name: p.category_id ? (catName[p.category_id] ?? null) : null,
     retail_price: Number(p.price),
-    price: own ? 0 : resellerPrice(Number(p.price), reseller.discount_percent),
+    price: own ? 0 : apiUnitPrice(p, reseller),
+    flash_sale_ends_at: p.flash_ends_at && Date.parse(String(p.flash_ends_at)) > Date.now() ? p.flash_ends_at : null,
     old_price: p.old_price != null ? Number(p.old_price) : null,
     currency: "USD",
     delivery_type: p.delivery_type,
@@ -148,7 +166,7 @@ export async function singleProduct(reseller: Reseller, id: string) {
   const { data: p } = await db
     .from("products")
     .select(
-      "id,name,emoji,description,important_note,quick_guide,price,old_price,delivery_type,category_id,sort_order,image_url,delivery_time,badge,featured_rank,supplier_id,supplier_stock,owner_reseller_id",
+      "id,name,emoji,description,important_note,quick_guide,price,old_price,delivery_type,category_id,sort_order,image_url,delivery_time,badge,featured_rank,supplier_id,supplier_stock,owner_reseller_id,api_price,flash_ends_at,flash_discount",
     )
     .eq("id", id)
     .eq("is_active", true)
@@ -204,7 +222,7 @@ export async function purchase(
 
   const { data: p } = await db
     .from("products")
-    .select("id,name,price,delivery_type,is_active,supplier_id,supplier_external_id,supplier_stock,owner_reseller_id")
+    .select("id,name,price,delivery_type,is_active,supplier_id,supplier_external_id,supplier_stock,owner_reseller_id,api_price,flash_ends_at,flash_discount")
     .eq("id", input.product_id)
     .maybeSingle();
   if (!p || !p.is_active) return { ok: false as const, status: 404, error: "Product not found" };
@@ -212,7 +230,7 @@ export async function purchase(
     return { ok: false as const, status: 404, error: "Product not found" };
 
   const ownProduct = p.owner_reseller_id === reseller.id;
-  const unit = ownProduct ? 0 : resellerPrice(Number(p.price), reseller.discount_percent);
+  const unit = ownProduct ? 0 : apiUnitPrice(p, reseller);
   const total = Math.round(unit * qty * 100) / 100;
   if (Number(reseller.balance) + 1e-9 < total)
     return { ok: false as const, status: 402, error: "Insufficient balance", balance: Number(reseller.balance), required: total };
