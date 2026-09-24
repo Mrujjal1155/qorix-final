@@ -230,7 +230,12 @@ export async function purchase(
     return { ok: false as const, status: 404, error: "Product not found" };
 
   const ownProduct = p.owner_reseller_id === reseller.id;
-  const unit = ownProduct ? 0 : apiUnitPrice(p, reseller);
+  let unit = ownProduct ? 0 : apiUnitPrice(p, reseller);
+  if (!ownProduct) {
+    const { bulkTiersFor, bulkUnit } = await import("@/lib/bulk-discount.server");
+    const bulk = await bulkTiersFor([String(p.id)], "api");
+    unit = bulkUnit(p, unit, qty, bulk[String(p.id)]);
+  }
   const total = Math.round(unit * qty * 100) / 100;
   if (Number(reseller.balance) + 1e-9 < total)
     return { ok: false as const, status: 402, error: "Insufficient balance", balance: Number(reseller.balance), required: total };
