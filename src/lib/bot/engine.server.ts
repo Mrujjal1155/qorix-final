@@ -2717,7 +2717,8 @@ async function postToChannel(
   const chat = (scoped ?? "").trim() || settings["announce_chat_id"];
   if (!chat) return { sent: false, reason: "No announcement channel/group ID configured" };
   if (photo) {
-    const photoResult = await sendPhoto(chat, photo, text, kb);
+    // A slow/broken banner must never block the alert — fall back to text.
+    const photoResult = await sendPhoto(chat, photo, text, kb).catch(() => ({ ok: false }) as any);
     if (photoResult.ok) return { sent: true };
   }
   const messageResult = await sendMessage(chat, text, kb);
@@ -2781,7 +2782,7 @@ async function deliverCard(
       botSent = true;
     } else {
       let ok = false;
-      if (banner) ok = (await sendPhoto(target, banner, text, kb)).ok;
+      if (banner) ok = (await sendPhoto(target, banner, text, kb).catch(() => ({ ok: false }) as any)).ok;
       if (!ok) ok = (await sendMessage(target, text, kb)).ok;
       if (ok) {
         botSent = true;
