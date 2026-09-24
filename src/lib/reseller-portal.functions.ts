@@ -677,21 +677,27 @@ export const addMyStock = createServerFn({ method: "POST" })
       .maybeSingle();
     if (!owned) throw new Error("Product not found");
 
-    const lines = String(data.content ?? "")
+    const lines = [...new Set(String(data.content ?? "")
       .split("\n")
       .map((l) => l.trim())
-      .filter(Boolean)
+      .filter(Boolean))]
       .slice(0, 2000);
     if (!lines.length) throw new Error("Paste at least one stock line");
 
-    const { error } = await db.from("stock_items").insert(lines.map((content) => ({ product_id: data.product_id, content })));
+    const { data: ins, error } = await db
+      .from("stock_items")
+      .insert(lines.map((content) => ({ product_id: data.product_id, content })))
+      .select("id");
     if (error) throw new Error(error.message);
-    const [{ enqueueManualRestock }, { supabaseAdmin }] = await Promise.all([
-      import("@/lib/suppliers/sync.server"),
-      import("@/integrations/supabase/client.server"),
-    ]);
-    await enqueueManualRestock(supabaseAdmin, data.product_id, lines.length);
-    return { ok: true, added: lines.length, products: await loadMyProducts(db, reseller.id) };
+    const added = (ins ?? []).length;
+    if (added > 0) {
+      const [{ enqueueManualRestock }, { supabaseAdmin }] = await Promise.all([
+        import("@/lib/suppliers/sync.server"),
+        import("@/integrations/supabase/client.server"),
+      ]);
+      await enqueueManualRestock(supabaseAdmin, data.product_id, added);
+    }
+    return { ok: true, added, skipped: lines.length - added, products: await loadMyProducts(db, reseller.id) };
   });
 
 /** Remove all unsold stock of one of the reseller's own products. */
