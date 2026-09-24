@@ -1400,8 +1400,7 @@ async function fastPollPushlessSuppliers(db: any) {
   await Promise.allSettled(
     due.map((s) => withTimeout(syncSupplierCore(db, s), SUPPLIER_TIMEOUT_MS, `${s.name} sync`)),
   );
-  // Anything the poll produced should reach Telegram in the same tick.
-  await drainAllNotifications(db).catch(() => ({ sent: 0, failed: 1 }));
+  // Alerts produced here are delivered by the caller right after (capped).
   return { polled: due.length };
 }
 
