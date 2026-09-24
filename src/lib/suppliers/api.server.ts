@@ -1027,6 +1027,33 @@ export async function supplierOrder(
 }
 
 
+/**
+ * Live supplier flash sale read from the catalogue row (Vexoran sends
+ * `flash_sale` / `campaign` / `offer` with `active`, `price`, `ends_at` and the
+ * normal `base_price`). Returns null when no valid, still-running sale exists.
+ */
+export function supplierFlash(raw: any, nowMs: number = Date.now()) {
+  if (!raw || typeof raw !== "object") return null;
+  const f = [raw.flash_sale, raw.campaign, raw.offer].find(
+    (x: any) => x && typeof x === "object" && x.active === true && x.price != null && x.ends_at,
+  );
+  if (!f) return null;
+  const base = Number(raw.base_price);
+  const sale = Number(f.price);
+  const ends = Date.parse(String(f.ends_at));
+  if (!Number.isFinite(base) || !Number.isFinite(sale) || !Number.isFinite(ends)) return null;
+  if (!(base > sale) || sale <= 0 || ends <= nowMs) return null;
+  const discount = Math.round((base - sale) * 100) / 100;
+  if (discount < 0.01) return null;
+  return { base, sale, discount, endsAt: new Date(ends).toISOString() };
+}
+
+/** Supplier cost WITHOUT a running flash sale (the normal price). */
+export function regularSupplierCost(cost: number, raw: any) {
+  const f = supplierFlash(raw);
+  return f ? f.base : Number(cost ?? 0);
+}
+
 /** Final customer price from cost + markup rules. */
 export function sellPrice(
   cost: number,
