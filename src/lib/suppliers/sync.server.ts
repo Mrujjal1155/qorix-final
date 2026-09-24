@@ -9,6 +9,7 @@
 import {
   supplierProducts,
   sellPrice,
+  supplierFlash,
   detailsFromRaw,
   extraDetailsFromRaw,
   supplierDeliveryType,
@@ -107,7 +108,8 @@ type NotifyItem =
   | ({ t: "restock"; qty: number } & NotifyBase)
   | ({ t: "low"; stock: number } & NotifyBase)
   | ({ t: "new" } & NotifyBase)
-  | ({ t: "price"; old_price: number; new_price: number } & NotifyBase);
+  | ({ t: "price"; old_price: number; new_price: number } & NotifyBase)
+  | ({ t: "flash" | "flash_end"; old_price: number; new_price: number } & NotifyBase);
 
 const QUEUE_PREFIX = "supplier_notify_queue:";
 const NOTIFY_LOG_KEY = "supplier_notify_log";
@@ -262,6 +264,7 @@ async function enqueueNotifications(sb: any, supplierId: string, items: NotifyIt
   }
   items = items.filter((it) => active.has(it.product_id));
   for (const item of items) {
+    const hasPrice = item.t === "price" || item.t === "flash" || item.t === "flash_end";
     const { error } = await sb.rpc("enqueue_stock_notification", {
       _event_key: item.event_id,
       _product_id: item.product_id,
@@ -269,8 +272,8 @@ async function enqueueNotifications(sb: any, supplierId: string, items: NotifyIt
       _source: supplierId === MANUAL_QUEUE_ID ? "manual" : `supplier:${supplierId}`,
       _added_qty: item.t === "restock" ? item.qty : 0,
       _stock: item.t === "low" ? item.stock : 0,
-      _old_price: item.t === "price" ? item.old_price : null,
-      _new_price: item.t === "price" ? item.new_price : null,
+      _old_price: hasPrice ? (item as any).old_price : null,
+      _new_price: hasPrice ? (item as any).new_price : null,
     });
     if (error) throw new Error(`Could not enqueue stock notification: ${error.message}`);
   }
@@ -360,17 +363,30 @@ async function drainNotificationEvents(sb: any, budget: { cards: number; until?:
         await sb.rpc("finish_stock_notification", { _id: item.id, _delivered: true, _error: null });
         continue;
       }
+      const isFlashKind = item.kind === "flash" || item.kind === "flash_end";
       const send = async () => {
         if (item.kind === "restock") return await notifyRestock(item.product_id, item.added_qty, progress);
         if (item.kind === "low" || item.kind === "out") return await announceLowStock(prod, item.stock, progress);
         if (item.kind === "price") return await announcePriceChange(prod, item.old_price, item.new_price, progress);
+        if (isFlashKind) {
+          const { announceFlashSale } = await import("@/lib/bot/engine.server");
+          return await announceFlashSale(prod, item.kind === "flash", Number(item.old_price), Number(item.new_price), progress);
+        }
         return await announceNewProduct(prod, progress);
       };
       await withTimeout(send(), CARD_TIMEOUT_MS, `${item.kind} card`);
 
       await sb.rpc("finish_stock_notification", { _id: item.id, _delivered: true, _error: null });
       sent += 1;
-      if (prod && (prod as any).is_active !== false) {
+      if (isFlashKind) {
+        // API users get their own price notice in the bot (never public users).
+        try {
+          const { notifyApiUsersFlash } = await import("@/lib/bot/engine.server");
+          await notifyApiUsersFlash(prod, item.kind === "flash");
+        } catch (e) {
+          console.error("API user flash notice failed:", e);
+        }
+      } else if (prod && (prod as any).is_active !== false) {
         const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
         await pushResellerEvent(
           item.kind === "out" ? "out" : (item.kind as any),
@@ -813,6 +829,8 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   const restockPosts: Array<{ product_id: string; qty: number; stock: number; event_id: string }> = [];
   const lowPosts: Array<{ product_id: string; stock: number; event_id: string }> = [];
   const pricePosts: Array<{ product_id: string; old_price: number; new_price: number; event_id: string }> = [];
+  const flashPosts: Array<{ kind: "flash" | "flash_end"; product_id: string; old_price: number; new_price: number; event_id: string }> = [];
+  const flashUpdates: Array<{ product_id: string; patch: Record<string, unknown> }> = [];
   const productUpdates: Array<{ id: string; patch: Record<string, unknown> }> = [];
 
   // Settings that control supplier alerts. Supplier products are never put on
@@ -905,9 +923,13 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
     // follows the supplier UP by exactly the same amount, so a supplier cost
     // increase can never turn a sale into a loss. `override_cost_base` is the
     // supplier cost recorded when the custom price was set/last bumped.
+    // A running supplier flash sale lowers `cost_price` only temporarily; all
+    // pricing rules work on the normal (non-sale) cost.
+    const flash = supplierFlash(p.raw);
+    const regularCost = flash ? flash.base : Number(p.cost_price ?? 0);
     let overrideNow = prev.price_override;
     if (Number(prev.price_override ?? 0) > 0) {
-      const newCost = Number(p.cost_price ?? 0);
+      const newCost = regularCost;
       const base = prev.override_cost_base == null ? null : Number(prev.override_cost_base);
       if (base == null || !Number.isFinite(base)) {
         // First sync after the column landed — remember today's cost as the base.
@@ -934,13 +956,16 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
     const transitionId = `${s.id}:${p.external_id}:${prev.last_synced_at ?? "initial"}:${Number(prev.stock ?? 0)}:${Number(p.stock ?? 0)}`;
 
     if (prev.is_listed && prev.product_id) {
-      const price = sellPrice(p.cost_price, {
+      const regularPrice = sellPrice(regularCost, {
         price_override: overrideNow,
         markup_percent: prev.markup_percent,
         markup_fixed: prev.markup_fixed,
         supplier_percent: s.markup_percent ?? null,
         supplier_fixed: s.markup_fixed ?? null,
       });
+      // Flash sale: our profit stays the same — the exact supplier discount
+      // comes off our normal selling price, nothing more.
+      const price = flash ? Math.max(0.01, Math.round((regularPrice - flash.discount) * 100) / 100) : regularPrice;
 
       const d = detailsFromRaw(p.raw);
       const productPatch: any = {
@@ -971,11 +996,72 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
 
       productUpdates.push({ id: prev.product_id, patch: productPatch });
 
-      // Real selling-price change on a live product → its own card. Compared
-      // against the stored product price, so repeating the same catalogue
-      // response never re-announces the same price.
-      const livePrice = Number(productsById.get(String(prev.product_id))?.price ?? NaN);
-      if (Number.isFinite(livePrice) && Math.abs(livePrice - Number(price)) >= 0.01) {
+      const liveRow = productsById.get(String(prev.product_id));
+      const livePrice = Number(liveRow?.price ?? NaN);
+      const wasFlash = Boolean(liveRow?.flash_ends_at);
+      const pid = String(prev.product_id);
+
+      if (flash && !wasFlash) {
+        // Sale started → mark it, show the normal price struck through.
+        flashUpdates.push({
+          product_id: pid,
+          patch: {
+            flash_ends_at: flash.endsAt,
+            flash_regular_price: regularPrice,
+            flash_discount: flash.discount,
+            flash_saved_old_price: liveRow?.old_price ?? null,
+            old_price: regularPrice,
+          },
+        });
+        flashPosts.push({
+          kind: "flash",
+          product_id: pid,
+          old_price: regularPrice,
+          new_price: price,
+          event_id: `flash:${pid}:${flash.endsAt}`,
+        });
+      } else if (flash && wasFlash) {
+        // Running sale: keep end time / normal price / discount in step.
+        const changed =
+          String(liveRow?.flash_ends_at ?? "") !== flash.endsAt &&
+            Date.parse(String(liveRow?.flash_ends_at)) !== Date.parse(flash.endsAt)
+            ? true
+            : Math.abs(Number(liveRow?.flash_regular_price ?? 0) - regularPrice) >= 0.01 ||
+              Math.abs(Number(liveRow?.flash_discount ?? 0) - flash.discount) >= 0.01;
+        if (changed) {
+          flashUpdates.push({
+            product_id: pid,
+            patch: {
+              flash_ends_at: flash.endsAt,
+              flash_regular_price: regularPrice,
+              flash_discount: flash.discount,
+              old_price: regularPrice,
+            },
+          });
+        }
+      } else if (!flash && wasFlash) {
+        // Sale over → normal price is back (written above), restore old price.
+        flashUpdates.push({
+          product_id: pid,
+          patch: {
+            flash_ends_at: null,
+            flash_regular_price: null,
+            flash_discount: null,
+            flash_saved_old_price: null,
+            old_price: liveRow?.flash_saved_old_price ?? null,
+          },
+        });
+        flashPosts.push({
+          kind: "flash_end",
+          product_id: pid,
+          old_price: Number.isFinite(livePrice) ? livePrice : price,
+          new_price: price,
+          event_id: `flash_end:${pid}:${liveRow?.flash_ends_at}`,
+        });
+      } else if (Number.isFinite(livePrice) && Math.abs(livePrice - Number(price)) >= 0.01) {
+        // Real selling-price change on a live product → its own card. Compared
+        // against the stored product price, so repeating the same catalogue
+        // response never re-announces the same price.
         pricePosts.push({
           product_id: prev.product_id,
           old_price: livePrice,
@@ -1093,6 +1179,12 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
   }
   // Only committed, non-stale snapshots may create alerts. The unique event
   // key makes webhook/poll overlap harmless even when both observed the change.
+  // Flash-sale state lives on the product row (price already written above).
+  // Written only on start / change / end, so a steady sale costs no writes.
+  for (const f of flashUpdates) {
+    const { error: flashErr } = await sb.from("products").update(f.patch).eq("id", f.product_id);
+    if (flashErr) console.error("Flash sale state write failed:", f.product_id, flashErr.message);
+  }
   await enqueueNotifications(sb, s.id, [
     ...restockPosts.map((r) => ({ t: "restock" as const, product_id: r.product_id, qty: r.qty, event_id: r.event_id })),
     ...lowPosts.map((l) => ({ t: "low" as const, product_id: l.product_id, stock: l.stock, event_id: l.event_id })),
@@ -1102,6 +1194,13 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
       old_price: pp.old_price,
       new_price: pp.new_price,
       event_id: pp.event_id,
+    })),
+    ...flashPosts.map((fp) => ({
+      t: fp.kind,
+      product_id: fp.product_id,
+      old_price: fp.old_price,
+      new_price: fp.new_price,
+      event_id: fp.event_id,
     })),
   ]);
   // Keep the in-memory copies in step with what the database now holds.
