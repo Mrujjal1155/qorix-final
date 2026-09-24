@@ -7125,14 +7125,15 @@ async function apiPricesView(user: any) {
   if (!r) return { text: "No API account yet.", kb: [[apiBtn(s, "panel", "Reseller API", "api")]] as Button[][] };
   const { data: prods } = await db
     .from("products")
-    .select("id,name,price,supplier_stock,supplier_id,delivery_type")
+    .select("id,name,price,supplier_stock,supplier_id,delivery_type,api_price,flash_ends_at,flash_discount")
     .eq("is_active", true)
     .is("owner_reseller_id", null)
     .order("sort_order")
     .limit(20);
   const discount = Number(r.discount_percent ?? 0);
+  const { apiUnitPrice } = await import("@/lib/reseller/core.server");
   const lines = (prods ?? []).map((p: any) => {
-    const yours = Math.max(0, Math.round(Number(p.price) * (1 - discount / 100) * 100) / 100);
+    const yours = apiUnitPrice(p, r);
     return `• <b>${escapeHtml(p.name)}</b>\n   retail ${money(p.price)} → <b>you pay ${money(yours)}</b>`;
   });
   return {
