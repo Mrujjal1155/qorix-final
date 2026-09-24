@@ -2782,7 +2782,7 @@ async function deliverCard(
       botSent = true;
     } else {
       let ok = false;
-      if (banner) ok = (await sendPhoto(target, banner, text, kb)).ok;
+      if (banner) ok = (await sendPhoto(target, banner, text, kb).catch(() => ({ ok: false }) as any)).ok;
       if (!ok) ok = (await sendMessage(target, text, kb)).ok;
       if (ok) {
         botSent = true;
