@@ -255,6 +255,30 @@ export async function purchase(
     return { ok: false as const, status: 500, error: "Order could not be recorded" };
   }
 
+  // 1b) Same reseller + customer + product + qty inside 60s = a double submit
+  //     from the reseller's site (different external_ref). Keep the earliest
+  //     order only; this one is dropped before any money or stock moves.
+  if (input.customer_email) {
+    const since = new Date(Date.now() - 60_000).toISOString();
+    const { data: twins } = await db
+      .from("orders")
+      .select("*")
+      .eq("reseller_id", reseller.id)
+      .eq("product_id", p.id)
+      .eq("quantity", qty)
+      .ilike("customer_email", input.customer_email)
+      .neq("status", "cancelled")
+      .neq("id", reserved.id)
+      .gte("created_at", since)
+      .order("created_at", { ascending: true })
+      .limit(1);
+    const first = (twins ?? [])[0];
+    if (first && (first.created_at < reserved.created_at || (first.created_at === reserved.created_at && first.id < reserved.id))) {
+      await db.from("orders").delete().eq("id", reserved.id);
+      return { ok: true as const, duplicate: true, order: orderPayload(first) };
+    }
+  }
+
   // 2) Debit the wallet atomically (the DB rejects a negative balance).
   const { data: balanceAfter, error: debitError } = await db.rpc("reseller_adjust_balance", {
     _reseller_id: reseller.id,
