@@ -93,7 +93,7 @@ export function ImageUploadField({ value, onChange, placeholder = "Image URL", c
       if (!response.ok) throw new Error(result?.error || "Upload failed");
       if (!result?.url) throw new Error("Upload completed but no image URL was returned");
       onChange(result.url);
-      toast.success("Image uploaded");
+      toast.success(compressed ? "Image compressed to ~300KB and uploaded" : "Image uploaded");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -128,8 +128,8 @@ export function ImageUploadField({ value, onChange, placeholder = "Image URL", c
       {!compact && (
         <p className="text-xs text-muted-foreground">
           Best size: for hero/icon cards <strong>512×512 px (1:1)</strong>, for product banners{" "}
-          <strong>1200×900 px (4:3)</strong>. Formats PNG / JPG / WEBP, max file size <strong>3MB</strong> (ideal
-          200–500KB)।
+          <strong>1200×900 px (4:3)</strong>. Formats PNG / JPG / WEBP, max file size <strong>3MB</strong> —
+          anything over <strong>300KB</strong> is compressed automatically on upload।
         </p>
       )}
     </div>
