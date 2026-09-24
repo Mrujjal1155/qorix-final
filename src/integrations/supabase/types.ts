@@ -167,6 +167,39 @@ export type Database = {
         }
         Relationships: []
       }
+      bulk_discounts: {
+        Row: {
+          channel: string
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          product_ids: string[]
+          tiers: Json
+          updated_at: string
+        }
+        Insert: {
+          channel?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          product_ids?: string[]
+          tiers?: Json
+          updated_at?: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          product_ids?: string[]
+          tiers?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           channel: string
