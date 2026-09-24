@@ -1956,15 +1956,19 @@ async function cartDetails(user: any) {
   const counts: Record<string, number> = {};
   for (const s of ((stock ?? []) as any[])) counts[String(s.product_id)] = Number(s.available ?? 0);
 
+  const { bulkTiersFor, bulkUnit } = await import("@/lib/bulk-discount.server");
+  const bulk = await bulkTiersFor(cart.map((l) => l.product_id), "bot");
   const lines = cart
     .map((l) => {
       const p = (products ?? []).find((x: any) => x.id === l.product_id);
       if (!p) return null;
+      const unit = bulkUnit(p, Number(p.price), l.qty, bulk[p.id]);
       return {
         product: p,
         qty: l.qty,
+        unit,
         stock: p.supplier_id ? Number(p.supplier_stock ?? 0) : (counts[p.id] ?? 0),
-        subtotal: Number(p.price) * l.qty,
+        subtotal: Math.round(unit * l.qty * 100) / 100,
       };
     })
     .filter(Boolean) as any[];
@@ -1994,7 +1998,7 @@ async function cartView(user: any) {
     if (short) issues++;
     text +=
       `${productIconHtml(l.product)} <b>${l.product.name}</b>\n` +
-      `   ${l.qty} × ${money(l.product.price)} = <b>${money(l.subtotal)}</b>` +
+      `   ${l.qty} × ${money(l.unit ?? l.product.price)} = <b>${money(l.subtotal)}</b>` +
       (short ? `  ⚠️ only ${l.stock} in stock` : "") +
       `\n`;
     kb.push([
@@ -3002,6 +3006,33 @@ export async function announceFlashSale(
   }
   const banner = bannerFor(product, s);
   return await deliverCard(s, text, await channelProductButton(s, product), banner, product, delivery);
+}
+
+/** BULK DISCOUNT card — group/channel once + admin bot once. */
+export async function announceBulkDiscount(product: any, channel: string, tiers: { min_qty: number; type: string; value: number }[]) {
+  const s = await getSettings();
+  if (!product || product.is_active === false || !tiers.length) return;
+  const { applyTier } = await import("@/lib/bulk-discount");
+  const base = Number(product.price);
+  const line = "━━━━━━━━━━━━━━━━";
+  const where = channel === "bot" ? "Telegram bot" : channel === "api" ? "API users" : "Telegram bot & API users";
+  const first = tiers[0].min_qty;
+  let rows = first > 1 ? `• 1–${first - 1} pcs → ${money(base)} each\n` : "";
+  tiers.forEach((t, i) => {
+    const next = tiers[i + 1];
+    const range = next ? `${t.min_qty}–${next.min_qty - 1}` : `${t.min_qty}+`;
+    const unit = applyTier(base, t as any);
+    const off = base > 0 ? Math.round(((base - unit) / base) * 100) : 0;
+    rows += `• <b>${range} pcs</b> → <b>${money(unit)}</b> each (-${off}%)\n`;
+  });
+  const text =
+    `${alertIcon(s, "price_down")} <b>BULK DISCOUNT</b>\n${line}\n\n` +
+    `${productIconHtml(product)} <b>${escapeHtml(String(product.name ?? ""))}</b>\n\n` +
+    rows +
+    `\n<i>Buy more, pay less — valid on ${where}. Not combined with flash sales.</i>`;
+  await deliverCard(s, text, await channelProductButton(s, product), bannerFor(product, s), product).catch((e) =>
+    console.error("Bulk discount card failed:", e),
+  );
 }
 
 async function activeApiUsers() {
@@ -5040,10 +5071,14 @@ type CoMeta = { items: CartLine[]; coupon?: Coupon | null; summary?: string; tot
 async function coTotals(meta: CoMeta, chatId?: number) {
   const ids = meta.items.map((i) => i.product_id);
   const { data: products } = await db.from("products").select("*").eq("is_active", true).in("id", ids);
+  const { bulkTiersFor, bulkUnit } = await import("@/lib/bulk-discount.server");
+  const bulk = await bulkTiersFor(ids, "bot");
   const lines = meta.items
     .map((i) => {
       const p = (products ?? []).find((x: any) => x.id === i.product_id);
-      return p ? { product: p, qty: i.qty, subtotal: Number(p.price) * i.qty } : null;
+      if (!p) return null;
+      const unit = bulkUnit(p, Number(p.price), i.qty, bulk[p.id]);
+      return { product: p, qty: i.qty, unit, subtotal: Math.round(unit * i.qty * 100) / 100 };
     })
     .filter(Boolean) as any[];
   const subtotal = Math.round(lines.reduce((s, l) => s + l.subtotal, 0) * 100) / 100;
@@ -5132,7 +5167,7 @@ async function coView(chatId: number) {
   const settings = await getSettings();
   let text = `${sectionHead(settings, "checkout", `${pageIconHtml(settings, "checkout")} <b>C H E C K O U T</b>`)}\n──────────────\n`;
   for (const l of lines) {
-    text += `${productIconHtml(l.product)} <b>${l.product.name}</b>\n   ${l.qty} × ${money(l.product.price)} = <b>${money(l.subtotal)}</b>\n`;
+    text += `${productIconHtml(l.product)} <b>${l.product.name}</b>\n   ${l.qty} × ${money(l.unit ?? l.product.price)} = <b>${money(l.subtotal)}</b>\n`;
   }
   text += `──────────────\n${uiTag(settings, "co_subtotal")}: ${money(subtotal)}\n`;
   if (tierPct > 0) text += `${uiTag(settings, "co_tier_line")} (${tierPct}%): −${money(tierOff)}\n`;
@@ -5219,7 +5254,7 @@ async function createAwaitingOrders(chatId: number, meta: CoMeta, depositId: str
     product_id: l.product.id,
     product_name: l.product.name,
     quantity: l.qty,
-    unit_price: l.product.price,
+    unit_price: l.unit ?? l.product.price,
     total: Math.max(0, Math.round((l.subtotal - share) * 100) / 100),
     status: "awaiting_payment",
     delivery_type: l.product.delivery_type,
@@ -5455,7 +5490,7 @@ async function fulfillCheckout(
       product_id: p.id,
       product_name: p.name,
       quantity: l.qty,
-      unit_price: p.price,
+      unit_price: l.unit ?? p.price,
       total: Math.max(0, Math.round((l.subtotal - share) * 100) / 100),
       status,
       delivery_type: p.delivery_type,
