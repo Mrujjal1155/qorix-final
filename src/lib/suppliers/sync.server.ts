@@ -136,7 +136,7 @@ const CARDS_PER_RUN = 8;
  * text-only well before this anyway. */
 const CARD_TIMEOUT_MS = 25_000;
 /** Wall-clock budget for one delivery run (scheduler cuts us off at ~28s). */
-const DRAIN_BUDGET_MS = 28_000;
+const DRAIN_BUDGET_MS = 26_000;
 
 /** Give up (and log) after this many failed attempts for one event. */
 const MAX_TRIES = 8;
