@@ -2960,6 +2960,105 @@ export async function announcePriceChange(
   return await deliverCard(s, text, await channelProductButton(s, product), banner, product, delivery);
 }
 
+function flashLeft(endsAt: string | null | undefined) {
+  const ms = Date.parse(String(endsAt ?? "")) - Date.now();
+  if (!Number.isFinite(ms) || ms <= 0) return null;
+  const h = Math.floor(ms / 3_600_000);
+  const m = Math.floor((ms % 3_600_000) / 60_000);
+  return h > 0 ? `${h}h ${m}m` : `${Math.max(1, m)}m`;
+}
+
+/**
+ * FLASH SALE card (start) / "flash sale ended" card — group/channel once and
+ * admin bot once, through the same durable delivery as the other cards.
+ */
+export async function announceFlashSale(
+  product: any,
+  started: boolean,
+  oldPrice: number,
+  newPrice: number,
+  delivery?: CardDelivery,
+) {
+  const s = await getSettings();
+  if (!product || product.is_active === false) return { channel: true, bot: true, complete: true };
+  const line = "━━━━━━━━━━━━━━━━";
+  let text: string;
+  if (started) {
+    const off = oldPrice > 0 ? Math.round(((oldPrice - newPrice) / oldPrice) * 100) : 0;
+    const left = flashLeft(product.flash_ends_at);
+    text =
+      `${alertIcon(s, "price_down")} <b>FLASH SALE — LIMITED TIME!</b>\n${line}\n\n` +
+      `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
+      `${alertIcon(s, "price")} <b>Was</b>  <s>${money(oldPrice)}</s>\n` +
+      `${alertIcon(s, "spark")} <b>Now</b>  ${money(newPrice)}${off > 0 ? ` (-${off}%)` : ""}\n` +
+      (left ? `\n⏳ <b>Hurry — ends in ${left}</b>\n` : "\n") +
+      `<i>Grab it before the timer runs out.</i>`;
+  } else {
+    text =
+      `${alertIcon(s, "price")} <b>FLASH SALE ENDED</b>\n${line}\n\n` +
+      `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
+      `${alertIcon(s, "price")} <b>Price</b>  ${money(newPrice)}\n\n` +
+      `<i>The limited-time price has ended. Regular pricing is back.</i>`;
+  }
+  const banner = bannerFor(product, s);
+  return await deliverCard(s, text, await channelProductButton(s, product), banner, product, delivery);
+}
+
+async function activeApiUsers() {
+  const { data } = await db
+    .from("resellers")
+    .select("id,name,balance,discount_percent,is_active,allow_website,allow_bot,telegram_id")
+    .eq("is_active", true)
+    .not("telegram_id", "is", null);
+  return (data ?? []) as any[];
+}
+
+/** Flash sale start/end notice for API users only (their own API price). */
+export async function notifyApiUsersFlash(product: any, started: boolean) {
+  if (!product || product.owner_reseller_id) return;
+  const { apiUnitPrice } = await import("@/lib/reseller/core.server");
+  const name = escapeHtml(String(product.name ?? ""));
+  const left = flashLeft(product.flash_ends_at);
+  for (const r of await activeApiUsers()) {
+    const now = apiUnitPrice(product, r);
+    const text = started
+      ? `🔔 Dear API user, <b>${name}</b> is on a flash sale — price is <b>down</b> to <b>${money(now)}</b>` +
+        `${left ? ` for the next <b>${left}</b>` : ""}. This is a temporary sale price; you'll get another message when it ends.`
+      : `🔔 Dear API user, the flash sale on <b>${name}</b> has ended. Your API price is back to <b>${money(now)}</b> per item.`;
+    try {
+      await sendMessage(Number(r.telegram_id), text);
+    } catch (e) {
+      console.error("API flash notice failed:", r.id, e);
+    }
+  }
+}
+
+/** API price changed by the admin → notice to API users only. */
+export async function notifyApiUsersPriceChange(before: any, after: any) {
+  if (!after || after.is_active === false || after.owner_reseller_id) return;
+  const { apiUnitPrice } = await import("@/lib/reseller/core.server");
+  const name = escapeHtml(String(after.name ?? ""));
+  for (const r of await activeApiUsers()) {
+    const prev = apiUnitPrice(before, r);
+    const next = apiUnitPrice(after, r);
+    if (Math.abs(prev - next) < 0.01) continue;
+    const down = next < prev;
+    const text =
+      `<b>QORIX API price ${down ? "decreased" : "increased"}</b>\n` +
+      `<b>Product:</b> ${name}\n` +
+      `<b>Previous:</b> ${money(prev)} per item\n` +
+      `<b>Updated:</b> ${money(next)} per item\n\n` +
+      (down
+        ? "This lower cost is a positive sales opportunity for new API sales. Existing orders are unchanged."
+        : "Please adjust your prices for new API sales. Existing orders are unchanged.");
+    try {
+      await sendMessage(Number(r.telegram_id), text);
+    } catch (e) {
+      console.error("API price notice failed:", r.id, e);
+    }
+  }
+}
+
 /**
  * "REMOVED" card — posted when an admin deletes a product that was live.
  * Uses the same channel + bot DM fan-out as the other stock cards.
