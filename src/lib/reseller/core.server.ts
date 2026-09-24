@@ -258,20 +258,26 @@ export async function purchase(
   // 1b) Same reseller + customer + product + qty inside 60s = a double submit
   //     from the reseller's site (different external_ref). Keep the earliest
   //     order only; this one is dropped before any money or stock moves.
-  if (input.customer_email) {
-    const since = new Date(Date.now() - 60_000).toISOString();
-    const { data: twins } = await db
+  //     Without an email we can only match on product + qty (+ name when sent),
+  //     so the window is kept short (5s) to avoid blocking real repeat buys.
+  {
+    const hasEmail = !!input.customer_email;
+    const since = new Date(Date.now() - (hasEmail ? 60_000 : 5_000)).toISOString();
+    let q = db
       .from("orders")
       .select("*")
       .eq("reseller_id", reseller.id)
       .eq("product_id", p.id)
       .eq("quantity", qty)
-      .ilike("customer_email", input.customer_email)
       .neq("status", "cancelled")
       .neq("id", reserved.id)
-      .gte("created_at", since)
-      .order("created_at", { ascending: true })
-      .limit(1);
+      .gte("created_at", since);
+    if (hasEmail) q = q.ilike("customer_email", input.customer_email!);
+    else {
+      q = q.is("customer_email", null);
+      q = input.customer_name ? q.eq("customer_name", input.customer_name) : q.eq("customer_name", reseller.name);
+    }
+    const { data: twins } = await q.order("created_at", { ascending: true }).limit(1);
     const first = (twins ?? [])[0];
     if (first && (first.created_at < reserved.created_at || (first.created_at === reserved.created_at && first.id < reserved.id))) {
       await db.from("orders").delete().eq("id", reserved.id);
