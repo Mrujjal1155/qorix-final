@@ -131,10 +131,12 @@ const HARD_STALE_MS = 2 * 60 * 60_000;
  * Worst case per run: CARDS_PER_RUN * (1 channel post + DM_PER_RUN DMs).
  */
 const CARDS_PER_RUN = 8;
-/** Hard cap for one card's channel post + DM batch. */
-const CARD_TIMEOUT_MS = 9_000;
+/** Hard cap for one card's channel post + bot chat post. 25s because large
+ * product banners need longer than 9s to upload; the photo path falls back to
+ * text-only well before this anyway. */
+const CARD_TIMEOUT_MS = 25_000;
 /** Wall-clock budget for one delivery run (scheduler cuts us off at ~28s). */
-const DRAIN_BUDGET_MS = 14_000;
+const DRAIN_BUDGET_MS = 28_000;
 
 /** Give up (and log) after this many failed attempts for one event. */
 const MAX_TRIES = 8;
