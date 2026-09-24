@@ -41,13 +41,24 @@ export async function tg(method: string, body: Record<string, unknown> = {}): Pr
   }
 
   const post = async (payload: Record<string, unknown>) => {
-    const res = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload),
-    });
-    const json = (await res.json().catch(() => ({ ok: false }))) as TgResult;
-    return { res, json };
+    try {
+      // 20s ceiling: a slow photo upload must fail soft so the caller can fall
+      // back to a text-only card instead of hanging the whole delivery.
+      const res = await fetch(url, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(20_000),
+      });
+      const json = (await res.json().catch(() => ({ ok: false }))) as TgResult;
+      return { res, json };
+    } catch (error) {
+      console.error(`Telegram ${method} network error:`, error instanceof Error ? error.message : error);
+      return {
+        res: { ok: false, status: 0 } as unknown as Response,
+        json: { ok: false, description: error instanceof Error ? error.message : "network error" } as TgResult,
+      };
+    }
   };
 
   let { res, json } = await post(body);
