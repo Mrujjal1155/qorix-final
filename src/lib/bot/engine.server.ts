@@ -3016,7 +3016,7 @@ export async function announceBulkDiscount(product: any, channel: string, tiers:
   const base = Number(product.price);
   const line = "━━━━━━━━━━━━━━━━";
   const where = channel === "bot" ? "Telegram bot" : channel === "api" ? "API users" : "Telegram bot & API users";
-  const first = tiers[0].min_qty;
+  const first = tiers[0]!.min_qty;
   let rows = first > 1 ? `• 1–${first - 1} pcs → ${money(base)} each\n` : "";
   tiers.forEach((t, i) => {
     const next = tiers[i + 1];

@@ -63,14 +63,14 @@ function BulkPage() {
   const products = data?.products ?? [];
   const byId = useMemo(() => Object.fromEntries(products.map((p: any) => [p.id, p])), [products]);
   const shown = products.filter((p: any) => p.name.toLowerCase().includes(search.toLowerCase()));
-  const sample = byId[f.product_ids[0]];
+  const sample = f.product_ids[0] ? byId[f.product_ids[0]] : undefined;
 
   function setTier(i: number, patch: Partial<BulkTier>) {
     setF({ ...f, tiers: f.tiers.map((t, j) => (j === i ? { ...t, ...patch } : t)) });
   }
 
   async function submit() {
-    if (!f.product_ids.length) return toast.error("Select at least one product");
+    if (!f.product_ids.length) { toast.error("Select at least one product"); return; }
     setBusy(true);
     try {
       const r = await save({
