@@ -24,21 +24,28 @@ export async function applySupplierProductUpdate(sb: any, data: SupplierListingI
   }
   // Base cost for the custom price: later supplier increases are added on top.
   if (data.price_override !== undefined) {
+    const { regularSupplierCost } = await import("@/lib/suppliers/api.server");
     patch.override_cost_base =
-      data.price_override != null && Number(data.price_override) > 0 ? Number(row.cost_price ?? 0) : null;
+      data.price_override != null && Number(data.price_override) > 0
+        ? regularSupplierCost(Number(row.cost_price ?? 0), row.raw)
+        : null;
   }
   const merged = { ...row, ...patch };
 
   const { sellPrice, detailsFromRaw, extraDetailsFromRaw, supplierDeliveryType } = await import(
     "@/lib/suppliers/api.server"
   );
-  const price = sellPrice(Number(merged.cost_price), {
+  const { supplierFlash } = await import("@/lib/suppliers/api.server");
+  const flashNow = supplierFlash(merged.raw);
+  const regular = sellPrice(flashNow ? flashNow.base : Number(merged.cost_price), {
     price_override: merged.price_override,
     markup_percent: merged.markup_percent,
     markup_fixed: merged.markup_fixed,
     supplier_percent: sup?.markup_percent,
     supplier_fixed: sup?.markup_fixed,
   });
+  // Flash sale: same profit — only the supplier's discount comes off.
+  const price = flashNow ? Math.max(0.01, Math.round((regular - flashNow.discount) * 100) / 100) : regular;
 
   if (merged.is_listed) {
     const d = detailsFromRaw(merged.raw);

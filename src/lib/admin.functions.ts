@@ -316,6 +316,8 @@ export const saveProduct = createServerFn({ method: "POST" })
       sort_order?: number;
       /** Custom selling price for a supplier product. null clears it. */
       price_override?: number | null;
+      /** Fixed price for API users (no reseller discount). null = default. */
+      api_price?: number | null;
     }) => d,
   )
   .handler(async ({ data, context }) => {
@@ -333,13 +335,12 @@ export const saveProduct = createServerFn({ method: "POST" })
       quick_guide: rest.quick_guide || null,
       details: (rest.details ?? []).filter((d) => d && (d.label?.trim() || d.value?.trim())),
       telegram_custom_emoji_id: rest.telegram_custom_emoji_id || null,
+      ...(rest.api_price !== undefined
+        ? { api_price: rest.api_price != null && Number(rest.api_price) > 0 ? Math.round(Number(rest.api_price) * 100) / 100 : null }
+        : {}),
     };
     if (id) {
-      const { data: before } = await sb
-        .from("products")
-        .select("is_active,price,supplier_id,supplier_external_id")
-        .eq("id", id)
-        .maybeSingle();
+      const { data: before } = await sb.from("products").select("*").eq("id", id).maybeSingle();
       const { data: updated, error } = await sb.from("products").update(row).eq("id", id).select("*").maybeSingle();
       if (error) throw new Error(error.message);
       if ((before as any)?.supplier_id && rest.is_active !== undefined) {
@@ -364,7 +365,7 @@ export const saveProduct = createServerFn({ method: "POST" })
         let link: any = null;
         const byProduct = await sb
           .from("supplier_products")
-          .select("id,cost_price,markup_percent,markup_fixed,supplier_id")
+          .select("id,cost_price,markup_percent,markup_fixed,supplier_id,raw")
           .eq("product_id", id)
           .limit(1);
         link = (byProduct.data ?? [])[0] ?? null;
@@ -373,7 +374,7 @@ export const saveProduct = createServerFn({ method: "POST" })
           // row by supplier + external id and re-attach it to this product.
           const byExternal = await sb
             .from("supplier_products")
-            .select("id,cost_price,markup_percent,markup_fixed,supplier_id")
+            .select("id,cost_price,markup_percent,markup_fixed,supplier_id,raw")
             .eq("supplier_id", (updated as any).supplier_id)
             .eq("external_id", (updated as any).supplier_external_id)
             .limit(1);
@@ -388,7 +389,10 @@ export const saveProduct = createServerFn({ method: "POST" })
             // amount (a supplier price drop never lowers it).
             .update({
               price_override: value,
-              override_cost_base: value == null ? null : Number(link.cost_price ?? 0),
+              override_cost_base:
+                value == null
+                  ? null
+                  : (await import("@/lib/suppliers/api.server")).regularSupplierCost(Number(link.cost_price ?? 0), link.raw),
             })
             .eq("id", link.id);
 
@@ -411,6 +415,20 @@ export const saveProduct = createServerFn({ method: "POST" })
           } else {
             await sb.from("products").update({ price: value }).eq("id", id);
           }
+        }
+      }
+
+      // API user price changed → tell API users in the bot (never public users).
+      if (
+        rest.api_price !== undefined &&
+        Number((before as any)?.api_price ?? 0) !== Number((row as any).api_price ?? 0)
+      ) {
+        try {
+          const { data: fresh } = await sb.from("products").select("*").eq("id", id).maybeSingle();
+          const { notifyApiUsersPriceChange } = await import("@/lib/bot/engine.server");
+          await notifyApiUsersPriceChange(before, fresh ?? updated);
+        } catch (e) {
+          console.error("API price notice failed:", e);
         }
       }
 

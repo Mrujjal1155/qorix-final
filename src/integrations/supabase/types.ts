@@ -475,6 +475,7 @@ export type Database = {
       }
       products: {
         Row: {
+          api_price: number | null
           badge: string | null
           category_id: string | null
           created_at: string
@@ -484,6 +485,10 @@ export type Database = {
           details: Json
           emoji: string | null
           featured_rank: number
+          flash_discount: number | null
+          flash_ends_at: string | null
+          flash_regular_price: number | null
+          flash_saved_old_price: number | null
           id: string
           image_url: string | null
           important_note: string | null
@@ -502,6 +507,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          api_price?: number | null
           badge?: string | null
           category_id?: string | null
           created_at?: string
@@ -511,6 +517,10 @@ export type Database = {
           details?: Json
           emoji?: string | null
           featured_rank?: number
+          flash_discount?: number | null
+          flash_ends_at?: string | null
+          flash_regular_price?: number | null
+          flash_saved_old_price?: number | null
           id?: string
           image_url?: string | null
           important_note?: string | null
@@ -529,6 +539,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          api_price?: number | null
           badge?: string | null
           category_id?: string | null
           created_at?: string
@@ -538,6 +549,10 @@ export type Database = {
           details?: Json
           emoji?: string | null
           featured_rank?: number
+          flash_discount?: number | null
+          flash_ends_at?: string | null
+          flash_regular_price?: number | null
+          flash_saved_old_price?: number | null
           id?: string
           image_url?: string | null
           important_note?: string | null

@@ -56,6 +56,7 @@ const EMPTY = {
   price: 0,
   old_price: "" as string | number,
   price_override: "" as string | number,
+  api_price: "" as string | number,
   supplier_id: "" as string,
   image_url: "",
   delivery_time: "",
@@ -265,6 +266,7 @@ function ProductsPage() {
           details: form.details,
           price: Number(form.price),
           old_price: form.old_price === "" ? null : Number(form.old_price),
+          api_price: form.api_price === "" || Number(form.api_price) <= 0 ? null : Number(form.api_price),
           delivery_type: form.delivery_type,
           image_url: form.image_url,
           delivery_time: form.delivery_time,
@@ -301,6 +303,7 @@ function ProductsPage() {
       price: Number(p.price),
       old_price: p.old_price ?? "",
       price_override: (p as any).price_override ?? "",
+      api_price: (p as any).api_price ?? "",
       supplier_id: p.supplier_id ?? "",
       delivery_type: p.delivery_type,
       image_url: p.image_url ?? "",
@@ -565,6 +568,19 @@ function ProductsPage() {
             onChange={(e) => setForm({ ...form, old_price: e.target.value })}
           />
         </div>
+        <div className="space-y-1">
+          <Label>API user price (optional)</Label>
+          <Input
+            type="number"
+            step="0.01"
+            placeholder="default (reseller discount)"
+            value={form.api_price}
+            onChange={(e) => setForm({ ...form, api_price: e.target.value })}
+          />
+          <p className="text-xs text-muted-foreground">
+            Empty = default. A fixed price for all API users; they get a Telegram notice when it changes.
+          </p>
+        </div>
         {form.id && form.supplier_id ? (
           <div className="space-y-1">
             <Label>Custom price (supplier override)</Label>
@@ -828,6 +844,10 @@ function ProductsPage() {
                   <td>
                     {money(p.price)}
                     {p.old_price ? <span className="ml-1 line-through text-muted-foreground">{money(p.old_price)}</span> : null}
+                    {(p as any).flash_ends_at ? <Badge className="ml-1" variant="destructive">Flash</Badge> : null}
+                    {Number((p as any).api_price ?? 0) > 0 ? (
+                      <div className="text-xs text-muted-foreground">API {money((p as any).api_price)}</div>
+                    ) : null}
                   </td>
                   <td>
                     <Badge variant="secondary">{p.delivery_type}</Badge>

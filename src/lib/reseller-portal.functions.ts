@@ -488,7 +488,7 @@ export const getResellerCatalogue = createServerFn({ method: "GET" })
       db.from("categories").select("id,name,emoji").eq("is_active", true).order("sort_order"),
       db
         .from("products")
-        .select("id,name,category_id,price,delivery_type,is_active,supplier_stock,supplier_id")
+        .select("id,name,category_id,price,delivery_type,is_active,supplier_stock,supplier_id,api_price,flash_ends_at,flash_discount")
         .eq("is_active", true)
         .order("sort_order"),
     ]);
@@ -499,7 +499,7 @@ export const getResellerCatalogue = createServerFn({ method: "GET" })
       name: p.name,
       category: catName.get(p.category_id) ?? "Uncategorised",
       retail: Number(p.price ?? 0),
-      your_price: Math.max(0, Math.round(Number(p.price ?? 0) * (1 - discount / 100) * 100) / 100),
+      your_price: apiUnitPriceLocal(p, discount),
       delivery_type: p.delivery_type,
       stock: p.supplier_id ? Number(p.supplier_stock ?? 0) : null,
     }));
@@ -717,3 +717,13 @@ export const clearMyStock = createServerFn({ method: "POST" })
     await db.from("stock_items").delete().eq("product_id", data.product_id).eq("is_sold", false);
     return { ok: true, products: await loadMyProducts(db, reseller.id) };
   });
+
+function apiUnitPriceLocal(p: any, discount: number) {
+  const custom = Number(p?.api_price ?? 0);
+  if (custom > 0) {
+    const flashOn = p?.flash_ends_at && Date.parse(String(p.flash_ends_at)) > Date.now();
+    const off = flashOn ? Number(p?.flash_discount ?? 0) : 0;
+    return Math.max(0.01, Math.round((custom - off) * 100) / 100);
+  }
+  return Math.max(0, Math.round(Number(p?.price ?? 0) * (1 - discount / 100) * 100) / 100);
+}
