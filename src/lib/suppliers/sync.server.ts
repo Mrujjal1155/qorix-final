@@ -139,6 +139,8 @@ const CARDS_PER_RUN = 8;
 const CARD_TIMEOUT_MS = 25_000;
 /** Wall-clock budget for one delivery run (scheduler cuts us off at ~28s). */
 const DRAIN_BUDGET_MS = 26_000;
+/** Hard cap for one tick's Telegram drain so stock polling always gets its turn. */
+const DRAIN_CAP_MS = 10_000;
 
 /** Give up (and log) after this many failed attempts for one event. */
 const MAX_TRIES = 8;
@@ -1274,7 +1276,9 @@ export async function syncAllSuppliers() {
   // Delivery FIRST. Catalogue polling is the heavy part of a run; when it used
   // to go first, a slow supplier API could eat the whole invocation and the
   // queued Telegram cards were never sent (queues sat full for hours).
-  const delivery = await drainAllNotifications(db).catch((error) => {
+  // Capped: a hanging Telegram send must never starve the stock sync below
+  // (that is how catalogue stock froze for hours on 24 Sep).
+  const delivery = await withTimeout(drainAllNotifications(db), DRAIN_CAP_MS, "notification drain").catch((error) => {
     console.error("Notification drain failed:", error);
     return { sent: 0, failed: 1 };
   });
@@ -1418,20 +1422,17 @@ export async function maybeAutoSyncSuppliers(minutes = 2) {
 
   const last = Date.parse(map["supplier_last_autosync"] || "");
   if (Number.isFinite(last) && Date.now() - last < every * 60_000) {
-    // Throttled for catalogue polling, but pending Telegram cards must never
-    // wait for the next window — deliver them on every tick.
-    const startedAt = Date.now();
-    const delivery = await drainAllNotifications(db).catch(() => ({ sent: 0, failed: 1 }));
-    // Suppliers that push changes to us (Vexoran-style webhooks) are already
-    // realtime. The rest have no push API at all, so they only look realtime
-    // if we keep polling them on every tick instead of once per window.
-    // Alerts come first: if delivery already used the request budget, polling
-    // waits for the next tick instead of getting this request killed.
-    if (Date.now() - startedAt > DRAIN_BUDGET_MS - 2_000) return { skipped: true, ...delivery, polled: 0 };
+    // Stock correctness FIRST: poll push-less suppliers, then deliver alerts
+    // with a capped budget. When Telegram hung, delivery used to eat the whole
+    // request and the stock poll was killed mid-way, freezing stock for hours.
     const fast = await fastPollPushlessSuppliers(db).catch((error) => {
       console.error("Fast poll failed:", error);
       return { polled: 0 };
     });
+    const delivery = await withTimeout(drainAllNotifications(db), DRAIN_CAP_MS, "notification drain").catch(() => ({
+      sent: 0,
+      failed: 1,
+    }));
     return { skipped: true, ...delivery, ...fast };
   }
 
