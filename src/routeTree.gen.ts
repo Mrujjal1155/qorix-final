@@ -26,6 +26,7 @@ import { Route as TrackRouteImport } from './routes/track'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAlertsRouteImport } from './routes/admin/alerts'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
+import { Route as AdminBulkRouteImport } from './routes/admin/bulk'
 import { Route as AdminCodesRouteImport } from './routes/admin/codes'
 import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 import { Route as AdminPaymentsRouteImport } from './routes/admin/payments'
@@ -149,6 +150,11 @@ const AdminAlertsRoute = AdminAlertsRouteImport.update({
 const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminBulkRoute = AdminBulkRouteImport.update({
+  id: '/bulk',
+  path: '/bulk',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminCodesRoute = AdminCodesRouteImport.update({
@@ -384,6 +390,7 @@ export interface FileRoutesByFullPath {
   '/track': typeof TrackRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/bulk': typeof AdminBulkRoute
   '/admin/codes': typeof AdminCodesRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payments': typeof AdminPaymentsRoute
@@ -441,6 +448,7 @@ export interface FileRoutesByTo {
   '/track': typeof TrackRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/bulk': typeof AdminBulkRoute
   '/admin/codes': typeof AdminCodesRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payments': typeof AdminPaymentsRoute
@@ -501,6 +509,7 @@ export interface FileRoutesById {
   '/track': typeof TrackRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/bulk': typeof AdminBulkRoute
   '/admin/codes': typeof AdminCodesRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payments': typeof AdminPaymentsRoute
@@ -561,6 +570,7 @@ export interface FileRouteTypes {
     | '/track'
     | '/admin/alerts'
     | '/admin/analytics'
+    | '/admin/bulk'
     | '/admin/codes'
     | '/admin/orders'
     | '/admin/payments'
@@ -618,6 +628,7 @@ export interface FileRouteTypes {
     | '/track'
     | '/admin/alerts'
     | '/admin/analytics'
+    | '/admin/bulk'
     | '/admin/codes'
     | '/admin/orders'
     | '/admin/payments'
@@ -677,6 +688,7 @@ export interface FileRouteTypes {
     | '/track'
     | '/admin/alerts'
     | '/admin/analytics'
+    | '/admin/bulk'
     | '/admin/codes'
     | '/admin/orders'
     | '/admin/payments'
@@ -878,6 +890,13 @@ declare module '@tanstack/react-router' {
       path: '/analytics'
       fullPath: '/admin/analytics'
       preLoaderRoute: typeof AdminAnalyticsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/bulk': {
+      id: '/admin/bulk'
+      path: '/bulk'
+      fullPath: '/admin/bulk'
+      preLoaderRoute: typeof AdminBulkRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/codes': {
@@ -1185,6 +1204,7 @@ const AuthenticatedRouteRouteWithChildren =
 interface AdminRouteRouteChildren {
   AdminAlertsRoute: typeof AdminAlertsRoute
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
+  AdminBulkRoute: typeof AdminBulkRoute
   AdminCodesRoute: typeof AdminCodesRoute
   AdminOrdersRoute: typeof AdminOrdersRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
@@ -1202,6 +1222,7 @@ interface AdminRouteRouteChildren {
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminAlertsRoute: AdminAlertsRoute,
   AdminAnalyticsRoute: AdminAnalyticsRoute,
+  AdminBulkRoute: AdminBulkRoute,
   AdminCodesRoute: AdminCodesRoute,
   AdminOrdersRoute: AdminOrdersRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,
