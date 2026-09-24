@@ -3540,16 +3540,26 @@ async function handleMessage(msg: any) {
         await say(chatId, "❌ No stock lines received.", ADM_BACK);
         return;
       }
-      await db.from("stock_items").insert(lines.map((content) => ({ product_id: productId, content })));
-      const { enqueueManualRestock } = await import("@/lib/suppliers/sync.server");
-      await enqueueManualRestock(db, productId, lines.length, `bot:${chatId}:${msg?.message_id ?? Date.now()}`);
-      defer(async () => {
-        const { drainAllNotifications } = await import("@/lib/suppliers/sync.server");
-        await drainAllNotifications(db);
-      });
+      lines = [...new Set(lines.map((l) => l.trim()).filter(Boolean))];
+      const { data: ins } = await db
+        .from("stock_items")
+        .insert(lines.map((content) => ({ product_id: productId, content })))
+        .select("id");
+      const added = (ins ?? []).length;
+      const skipped = lines.length - added;
+      if (added > 0) {
+        const { enqueueManualRestock } = await import("@/lib/suppliers/sync.server");
+        await enqueueManualRestock(db, productId, added, `bot:${chatId}:${msg?.message_id ?? Date.now()}`);
+        defer(async () => {
+          const { drainAllNotifications } = await import("@/lib/suppliers/sync.server");
+          await drainAllNotifications(db);
+        });
+      }
       await say(
         chatId,
-        `✅ Added <b>${lines.length}</b> stock item(s).\n\n<b>Preview 1 of ${lines.length}</b>\n<pre>${escapeHtml(lines[0]!)}</pre>`,
+        `✅ Added <b>${added}</b> stock item(s).` +
+          (skipped > 0 ? `\n⚠️ Skipped <b>${skipped}</b> duplicate(s) — already in stock or sold before.` : "") +
+          `\n\n<b>Preview 1 of ${lines.length}</b>\n<pre>${escapeHtml(lines[0]!)}</pre>`,
         ADM_BACK,
       );
       return;

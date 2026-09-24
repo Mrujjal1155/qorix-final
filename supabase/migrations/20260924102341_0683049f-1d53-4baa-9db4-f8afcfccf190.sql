@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.stock_items_skip_duplicate() FROM PUBLIC, anon, authenticated;

@@ -505,21 +505,23 @@ export const addStock = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
-    const items = parseStock(data.lines, data.format ?? "auto");
+    const items = [...new Set(parseStock(data.lines, data.format ?? "auto").map((s) => s.trim()).filter(Boolean))];
     const rows = items.map((content) => ({ product_id: data.product_id, content }));
-    if (!rows.length) return { added: 0 };
+    if (!rows.length) return { added: 0, skipped: 0 };
     // Insert in chunks: one huge insert can exceed the request budget and
-    // silently drop part of a big upload.
+    // silently drop part of a big upload. The DB skips accounts already stocked.
+    let added = 0;
     for (let i = 0; i < rows.length; i += 500) {
-      const { error } = await sb.from("stock_items").insert(rows.slice(i, i + 500));
+      const { data: ins, error } = await sb.from("stock_items").insert(rows.slice(i, i + 500)).select("id");
       if (error) throw new Error(error.message);
+      added += (ins ?? []).length;
     }
-    // Queue the "back in stock" card durably (added qty + new total) so it is
-    // retried until Telegram accepts it, instead of dying with this request.
-    const { enqueueManualRestock } = await import("@/lib/suppliers/sync.server");
-    await enqueueManualRestock(sb, data.product_id, rows.length);
+    if (added > 0) {
+      const { enqueueManualRestock } = await import("@/lib/suppliers/sync.server");
+      await enqueueManualRestock(sb, data.product_id, added);
+    }
     const { data: totals } = await sb.rpc("stock_counts", { _product_ids: [data.product_id] });
-    return { added: rows.length, available: Number((totals ?? [])[0]?.available ?? 0) };
+    return { added, skipped: rows.length - added, available: Number((totals ?? [])[0]?.available ?? 0) };
   });
 
 export const listStock = createServerFn({ method: "GET" })

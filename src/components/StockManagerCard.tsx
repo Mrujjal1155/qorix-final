@@ -59,6 +59,7 @@ export function StockManagerCard({ productId, productName, onClose }: Props) {
       qc.invalidateQueries({ queryKey: ["stock", productId] });
       qc.invalidateQueries({ queryKey: ["catalogue"] });
       toast.success(`${r.added} stock item(s) added`);
+      if ((r as any).skipped > 0) toast.warning(`${(r as any).skipped} duplicate(s) skipped — already in stock or sold before`);
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
   });
