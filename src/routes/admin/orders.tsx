@@ -71,6 +71,19 @@ const GATEWAY_LABEL: Record<string, string> = {
 };
 
 /** What the buyer used to pay — works for both initiated and completed payments. */
+function fmtOrderTime(v: string | null | undefined) {
+  if (!v) return "";
+  return new Date(v).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+}
+
 function paymentInfo(o: any): { label: string; detail: string; paid: boolean; refunded: boolean } {
   const meta: any = o?.meta ?? {};
   const gateway = String(meta.gateway ?? "");
@@ -215,8 +228,9 @@ function OrdersPage() {
           </>
         )}
 
-        {(o.status === "awaiting_payment" || o.status === "failed") && (
+        {(o.status === "awaiting_payment" || o.status === "failed" || o.status === "cancelled") && (
           <>
+            {!paymentInfo(o).paid && (
             <Button
               size="sm"
               variant="ghost"
@@ -236,16 +250,19 @@ function OrdersPage() {
             >
               Mark paid
             </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                setRefundFor(o.id);
-                setRefundAmount(String(Number(o.total ?? 0).toFixed(2)));
-              }}
-            >
-              Refund
-            </Button>
+            )}
+            {o.status !== "awaiting_payment" && paymentInfo(o).paid && !paymentInfo(o).refunded && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setRefundFor(o.id);
+                  setRefundAmount(String(Number(o.total ?? 0).toFixed(2)));
+                }}
+              >
+                Refund
+              </Button>
+            )}
           </>
         )}
         {o.status === "pending" && (
@@ -336,6 +353,7 @@ function OrdersPage() {
                     >
                       {orderCode(o.id)}
                     </button>
+                    <div className="mt-1 text-xs text-muted-foreground">{fmtOrderTime(o.created_at)}</div>
                   </div>
                   <Badge
                     className="shrink-0"
@@ -440,6 +458,9 @@ function OrdersPage() {
                       >
                         {orderCode(o.id)}
                       </button>
+                      <div className="mt-1 whitespace-nowrap text-[11px] text-muted-foreground" title={new Date(o.created_at).toString()}>
+                        {fmtOrderTime(o.created_at)}
+                      </div>
                     </td>
                     <td>
                       <Badge variant={o.source === "website" ? "default" : "secondary"}>{o.source ?? "telegram"}</Badge>
