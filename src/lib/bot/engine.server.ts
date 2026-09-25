@@ -5290,7 +5290,7 @@ export async function expireAwaitingOrders() {
   if (!data?.length) return 0;
   await db
     .from("orders")
-    .update({ status: "failed" })
+    .update({ status: "cancelled" })
     .in("id", data.map((o: any) => o.id));
   const deposits = [...new Set(data.map((o: any) => (o.meta ?? {}).deposit_id).filter(Boolean))];
   if (deposits.length) {
