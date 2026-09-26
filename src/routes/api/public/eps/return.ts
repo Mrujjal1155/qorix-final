@@ -50,7 +50,7 @@ async function run(request: Request) {
   const result = await settleEpsPayment(mtid, etid || null);
 
   if (result.ok && result.orderNo) {
-    return redirect(`/order/confirmation?order=${result.orderNo}&email=${encodeURIComponent(result.email ?? "")}`);
+    return redirect(`/track?order=${result.orderNo}`);
   }
 
   if (state === "fail") {
@@ -65,7 +65,7 @@ async function run(request: Request) {
   return page(
     "Confirming your payment",
     `We are still confirming this payment with EPS${result.reason ? ` — ${escapeText(result.reason)}` : ""}. Your order page updates automatically once it clears.`,
-    result.orderNo ? `/track?order=${result.orderNo}&email=${encodeURIComponent(result.email ?? "")}` : "/track",
+    result.orderNo ? `/track?order=${result.orderNo}` : "/track",
     "Track my order",
   );
 }
