@@ -963,6 +963,19 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
         overrideBumps.push({ id: prev.id, price_override: overrideNow, override_cost_base: newCost });
         prev.price_override = overrideNow;
         prev.override_cost_base = newCost;
+      } else if (base - newCost >= 0.01 && newCost > 0) {
+        // Supplier dropped the price: lower the custom price by the same
+        // amount, but never below the minimum profit (20% over supplier cost).
+        const current = Number(prev.price_override);
+        const floor = Math.ceil(newCost * 1.2 * 100) / 100;
+        const target = Math.round((current - (base - newCost)) * 100) / 100;
+        const next = Math.max(target, floor);
+        if (next < current - 0.005) {
+          overrideNow = next;
+          prev.price_override = next;
+        }
+        overrideBumps.push({ id: prev.id, price_override: Number(prev.price_override), override_cost_base: newCost });
+        prev.override_cost_base = newCost;
       }
     }
 
