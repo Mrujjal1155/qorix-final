@@ -12,7 +12,7 @@ const MUTED = "#6b7280";
 const BORDER = "#e5e7eb";
 
 function esc(t: unknown): string {
-  return String(t ?? "").replace(/&/g, "&").replace(/</g, "<").replace(/>/g, ">");
+  return String(t ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
 function money(n: number): string {

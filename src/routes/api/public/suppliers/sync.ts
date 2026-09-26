@@ -4,7 +4,9 @@ import { createFileRoute } from "@tanstack/react-router";
  * Throttled supplier catalogue sync for external schedulers (cron, uptime ping).
  * Safe to call as often as you like — it only really runs every 10 minutes.
  */
-async function run() {
+async function run({ request }: { request: Request }) {
+  const { isCronAuthorized } = await import("@/lib/cron-auth.server");
+  if (!(await isCronAuthorized(request))) return new Response("Unauthorized", { status: 401 });
   const { maybeAutoSyncSuppliers } = await import("@/lib/suppliers/sync.server");
   try {
     const res = await maybeAutoSyncSuppliers();

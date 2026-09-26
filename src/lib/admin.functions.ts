@@ -1104,7 +1104,7 @@ export const generateCodes = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const count = Math.min(Math.max(1, Math.floor(data.count)), 200);
     const rows = Array.from({ length: count }, () => ({
-      code: "GIFT" + Math.random().toString(36).slice(2, 10).toUpperCase(),
+      code: "GIFT" + (() => { const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; const b = crypto.getRandomValues(new Uint8Array(16)); return Array.from(b, (x) => A[x % 32]).join(""); })(),
       amount: data.amount,
     }));
     const { error } = await sb.from("redeem_codes").insert(rows);

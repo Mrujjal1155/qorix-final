@@ -6,7 +6,9 @@ import { createFileRoute } from "@tanstack/react-router";
  * starve the alert queue. Safe to call as often as the scheduler likes: work
  * per run is bounded and every card is claimed before it is sent.
  */
-async function run() {
+async function run({ request }: { request: Request }) {
+  const { isCronAuthorized } = await import("@/lib/cron-auth.server");
+  if (!(await isCronAuthorized(request))) return new Response("Unauthorized", { status: 401 });
   const { drainAllNotifications } = await import("@/lib/suppliers/sync.server");
   try {
     const res = await drainAllNotifications();

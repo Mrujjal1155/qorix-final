@@ -4054,7 +4054,7 @@ async function handleMessage(msg: any) {
         await say(chatId, "❌ Send a valid amount, e.g. <code>10</code>", ADM_BACK);
         return;
       }
-      const code = "GC" + Math.random().toString(36).slice(2, 10).toUpperCase();
+      const code = "GC" + (() => { const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; const b = crypto.getRandomValues(new Uint8Array(16)); return Array.from(b, (x) => A[x % 32]).join(""); })();
       await db.from("redeem_codes").insert({ code, amount });
       await say(chatId, `🎁 New code created:\n\n<code>${code}</code>\nValue: ${money(amount)}`, ADM_BACK);
       return;
