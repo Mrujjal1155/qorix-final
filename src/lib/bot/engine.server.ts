@@ -1718,7 +1718,7 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
     kb.push([
       catId === "all"
         ? styled(uiBtn(settings, "shop_categories", "shop:0"), navStyle)
-        : uiBtn(settings, "shop_back_cat", "shop:0"),
+         : styled(uiBtn(settings, "shop_back_cat", "shop:0"), "default"),
     ]);
   kb.push([
     styled(iconButton(settings, "cart", "cart"), navStyle),
