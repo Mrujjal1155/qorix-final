@@ -5156,6 +5156,9 @@ async function writeCo(chatId: number, meta: CoMeta | null) {
   const state = (data?.state ?? {}) as any;
   if (meta) state.co = meta;
   else delete state.co;
+  // Keep the in-memory copy in sync, otherwise a deferred background write
+  // (message tracking) can restore the previous checkout (e.g. 10 instead of 20).
+  stateCache.set(chatId, state);
   await db.from("bot_users").update({ state }).eq("telegram_id", chatId);
 }
 
@@ -5185,6 +5188,10 @@ async function coView(chatId: number) {
       : uiBtn(settings, "co_coupon", "cocpn"),
   ]);
   kb.push([uiBtn(settings, "co_pay", "copay", `· ${money(total)}`)]);
+  // Single-product checkout: let the buyer go back and pick another quantity.
+  if (meta.items.length === 1) {
+    kb.push([{ text: "✏️ Change quantity", callback_data: `qty:${meta.items[0]!.product_id}` }]);
+  }
   kb.push([iconButton(settings, "shop", "shop:0"), iconButton(settings, "back", "home")]);
   return { text, kb };
 }
