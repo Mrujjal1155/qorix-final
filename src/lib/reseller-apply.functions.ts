@@ -1,3 +1,4 @@
+import { likeExact } from "@/lib/ilike-escape";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 
@@ -161,7 +162,7 @@ export const setApplicationStatus = createServerFn({ method: "POST" })
         const { data: existingRows } = await db
           .from("resellers")
           .select("id")
-          .ilike("email", app.email)
+          .ilike("email", likeExact(app.email))
           .order("created_at", { ascending: true })
           .limit(1);
         const existing = existingRows?.[0];
