@@ -1715,7 +1715,11 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
   if (nav.length) kb.push(nav);
   kb.push([styled(iconButton(settings, "refresh", `${back}:${page}`), navStyle)]);
   if (hasCategories)
-    kb.push([styled(uiBtn(settings, catId === "all" ? "shop_categories" : "shop_back_cat", "shop:0"), navStyle)]);
+    kb.push([
+      catId === "all"
+        ? styled(uiBtn(settings, "shop_categories", "shop:0"), navStyle)
+        : uiBtn(settings, "shop_back_cat", "shop:0"),
+    ]);
   kb.push([
     styled(iconButton(settings, "cart", "cart"), navStyle),
     styled(iconButton(settings, "back", "home"), "danger"),
