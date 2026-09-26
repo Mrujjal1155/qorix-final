@@ -36,6 +36,7 @@ function TrackPage() {
   const [orderNo, setOrderNo] = useState("");
   const [email, setEmail] = useState("");
   const [order, setOrder] = useState<any>(null);
+  const [token, setToken] = useState("");
 
   // Pre-fill from email link (?order=...&email=...).
   useEffect(() => {
@@ -44,10 +45,12 @@ function TrackPage() {
     const e = p.get("email");
     if (o) setOrderNo(o);
     if (e) setEmail(decodeURIComponent(e));
+    const tk = p.get("t");
+    if (tk) setToken(tk);
   }, []);
 
   const mut = useMutation({
-    mutationFn: () => track({ data: { order_no: orderNo, email } }),
+    mutationFn: () => track({ data: { order_no: orderNo, email, token } }),
     onSuccess: (r) => setOrder(r),
     onError: (e: Error) => {
       setOrder(null);
@@ -89,6 +92,8 @@ function TrackPage() {
               </p>
               {order.delivered_content ? (
                 <pre className="overflow-x-auto whitespace-pre-wrap rounded bg-muted p-3 text-xs">{order.delivered_content}</pre>
+              ) : order.locked ? (
+                <p className="text-muted-foreground">{t("Delivered. Open the link from your order email, or sign in with this email, to view the delivery.")}</p>
               ) : (
                 <p className="text-muted-foreground">{t("Payment is being verified. Your delivery will appear here.")}</p>
               )}

@@ -317,7 +317,8 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
       const { orderReceiptEmail, adminNewOrderEmail } = await import("@/lib/email/templates");
 
       const total = unit * data.quantity;
-      const trackUrl = `${origin}/track?order=${orderNo}&email=${encodeURIComponent(data.customer_email)}`;
+      const { orderAccessToken } = await import("@/lib/order-access.server");
+      const trackUrl = `${origin}/track?order=${orderNo}&email=${encodeURIComponent(data.customer_email)}&t=${orderAccessToken(orderNo, data.customer_email)}`;
       const adminUrl = `${origin}/admin/orders`;
 
       await Promise.allSettled([
@@ -361,13 +362,18 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
       console.error("[email] website order email side-effect failed:", e);
     }
 
-    return { order_no: order?.order_no as number };
+    const { orderAccessToken } = await import("@/lib/order-access.server");
+    return {
+      order_no: order?.order_no as number,
+      token: orderAccessToken(order?.order_no as number, data.customer_email),
+    };
   });
 
 export const trackWebsiteOrder = createServerFn({ method: "POST" })
-  .inputValidator((d: { order_no: number | string; email: string }) => ({
+  .inputValidator((d: { order_no: number | string; email: string; token?: string }) => ({
     order_no: Number(d.order_no),
-    email: String(d.email ?? "").trim().toLowerCase(),
+    email: String(d.email ?? "").trim().toLowerCase().slice(0, 160),
+    token: String(d.token ?? "").slice(0, 64),
   }))
   .handler(async ({ data }) => {
     if (!data.order_no || !data.email) throw new Error("Order number and email are required");
@@ -379,8 +385,10 @@ export const trackWebsiteOrder = createServerFn({ method: "POST" })
       .eq("source", "website")
       .maybeSingle();
     if (!row || String(row.customer_email ?? "").toLowerCase() !== data.email) throw new Error("Order not found");
-    const { customer_email, ...safe } = row as any;
-    return safe;
+    const { verifyOrderAccessToken, callerEmail } = await import("@/lib/order-access.server");
+    const owner = verifyOrderAccessToken(data.order_no, data.email, data.token) || (await callerEmail()) === data.email;
+    const { customer_email, delivered_content, ...safe } = row as any;
+    return { ...safe, delivered_content: owner ? delivered_content : null, locked: !owner && Boolean(delivered_content) };
   });
 
 /* ------------------------------------------------- editable site content */
@@ -414,9 +422,10 @@ export const getSiteContent = createServerFn({ method: "GET" }).handler(async ()
 /* ------------------------------------------------- order confirmation page */
 
 export const getOrderConfirmation = createServerFn({ method: "POST" })
-  .inputValidator((d: { order_no: number | string; email: string }) => ({
+  .inputValidator((d: { order_no: number | string; email: string; token?: string }) => ({
     order_no: Number(d.order_no),
-    email: String(d.email ?? "").trim().toLowerCase(),
+    email: String(d.email ?? "").trim().toLowerCase().slice(0, 160),
+    token: String(d.token ?? "").slice(0, 64),
   }))
   .handler(async ({ data }) => {
     if (!data.order_no || !data.email) throw new Error("Order number and email are required");
@@ -430,6 +439,10 @@ export const getOrderConfirmation = createServerFn({ method: "POST" })
       .eq("source", "website")
       .maybeSingle();
     if (!row || String((row as any).customer_email ?? "").toLowerCase() !== data.email) throw new Error("Order not found");
+    const { verifyOrderAccessToken, callerEmail } = await import("@/lib/order-access.server");
+    const signedInAs = await callerEmail();
+    const owner = verifyOrderAccessToken(data.order_no, data.email, data.token) || signedInAs === data.email;
+    if (!owner) throw new Error("Order not found");
 
     // Wallet snapshot for the buyer account (if one exists for this email).
     let wallet: { balance: number; earnings: number; recent: any[] } | null = null;
@@ -438,7 +451,7 @@ export const getOrderConfirmation = createServerFn({ method: "POST" })
       .select("id,wallet_balance,referral_earnings")
       .ilike("email", likeExact(data.email))
       .maybeSingle();
-    if (profile) {
+    if (profile && signedInAs === data.email) {
       const { data: txs } = await supabaseAdmin
         .from("wallet_transactions")
         .select("id,type,amount,balance_after,note,created_at")

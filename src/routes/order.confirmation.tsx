@@ -11,7 +11,8 @@ import { usePrefs } from "@/lib/prefs";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/order/confirmation")({
-  validateSearch: (search: Record<string, unknown>): { order: string; email: string } => ({
+  validateSearch: (search: Record<string, unknown>): { order: string; email: string; t?: string } => ({
+    ...(search["t"] ? { t: String(search["t"]) } : {}),
     order: search["order"] ? String(search["order"]) : "",
     email: search["email"] ? String(search["email"]) : "",
   }),
@@ -39,13 +40,13 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 function ConfirmationPage() {
-  const { order: orderNo, email } = Route.useSearch();
+  const { order: orderNo, email, t } = Route.useSearch();
   const fetchOrder = useServerFn(getOrderConfirmation);
   const { money, usd, currency, rate } = usePrefs();
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["order-confirmation", orderNo, email],
-    queryFn: () => fetchOrder({ data: { order_no: orderNo, email } }),
+    queryKey: ["order-confirmation", orderNo, email, t],
+    queryFn: () => fetchOrder({ data: { order_no: orderNo, email, token: t ?? "" } }),
     enabled: Boolean(orderNo && email),
     retry: false,
   });
