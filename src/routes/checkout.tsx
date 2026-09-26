@@ -113,7 +113,7 @@ function CheckoutPage() {
       }),
     onSuccess: (r) => {
       toast.success(`Order #${r.order_no} placed`);
-      void navigate({ to: "/order/confirmation", search: { order: String(r.order_no), email } });
+      void navigate({ to: "/order/confirmation", search: { order: String(r.order_no), email, t: r.token } });
     },
     onError: (e: Error) => toast.error(e.message),
   });

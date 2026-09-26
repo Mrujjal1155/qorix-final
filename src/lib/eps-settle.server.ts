@@ -150,7 +150,8 @@ async function sendPaidEmails(order: any, settings: Record<string, string>, enti
     const { logoUrl } = await getEmailBrand();
     const { orderReceiptEmail, adminNewOrderEmail } = await import("@/lib/email/templates");
     const method = `EPS${entity ? ` · ${entity}` : ""}`;
-    const trackUrl = `${origin}/track?order=${order.order_no}&email=${encodeURIComponent(order.customer_email ?? "")}`;
+    const { orderAccessToken } = await import("@/lib/order-access.server");
+    const trackUrl = `${origin}/track?order=${order.order_no}&email=${encodeURIComponent(order.customer_email ?? "")}&t=${orderAccessToken(order.order_no, order.customer_email ?? "")}`;
 
     await Promise.allSettled([
       order.customer_email
