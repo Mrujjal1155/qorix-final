@@ -248,16 +248,18 @@ const ALERT_ICONS = {
   flash_end: ["🏁", "Flash sale ended badge"],
   timer: ["⏳", "Flash sale timer line"],
   bulk: ["🎁", "Bulk discount badge"],
-  bulk_base: ["•", "Bulk: normal price row"],
-  bulk_row: ["•", "Bulk: discount tier row"],
+  bulk_end: ["🔥", "Bulk: title end icon"],
+  bulk_base: ["💰", "Bulk: base price row"],
+  bulk_row: ["🆙", "Bulk: discount tier row"],
   bulk_arrow: ["→", "Bulk: price arrow"],
-  bulk_note: ["💡", "Bulk: footer note"],
+  bulk_off: ["✨", "Bulk: discount % icon"],
+  bulk_note: ["💥", "Bulk: footer (Buy more, save more)"],
   removed: ["🗑", "Product removed badge"],
   api_notice: ["🔔", "API user notice (DM)"],
 } as const;
 
 type AlertIconKey = keyof typeof ALERT_ICONS;
-const BULK_ICON_KEYS: AlertIconKey[] = ["bulk", "bulk_base", "bulk_row", "bulk_arrow", "bulk_note"];
+const BULK_ICON_KEYS: AlertIconKey[] = ["bulk", "bulk_end", "bulk_base", "bulk_row", "bulk_arrow", "bulk_off", "bulk_note"];
 
 /** HTML for an alert icon (Premium custom emoji when configured). */
 function alertIcon(settings: Record<string, string>, key: AlertIconKey) {
@@ -3036,19 +3038,24 @@ export async function announceBulkDiscount(product: any, channel: string, tiers:
   const where = channel === "bot" ? "Telegram bot" : channel === "api" ? "API users" : "Telegram bot & API users";
   const first = tiers[0]!.min_qty;
   const arrow = alertIcon(s, "bulk_arrow");
-  let rows = first > 1 ? `${alertIcon(s, "bulk_base")} 1–${first - 1} pcs ${arrow} ${money(base)} each\n` : "";
+  const off = alertIcon(s, "bulk_off");
+  const rowIcon = alertIcon(s, "bulk_row");
+  const pad = (v: string, n: number) => escapeHtml(v.padEnd(n, " "));
+  let rows = `${alertIcon(s, "bulk_base")} <code>${pad("Base price", 12)}${money(base)}</code>\n`;
+  if (first > 1) rows += `${rowIcon} <code>${pad(`1–${first - 1} pcs`, 12)}</code>${arrow} <code>${money(base)}/each</code>\n`;
   tiers.forEach((t, i) => {
     const next = tiers[i + 1];
     const range = next ? `${t.min_qty}–${next.min_qty - 1}` : `${t.min_qty}+`;
     const unit = applyTier(base, t as any);
-    const off = base > 0 ? Math.round(((base - unit) / base) * 100) : 0;
-    rows += `${alertIcon(s, "bulk_row")} <b>${range} pcs</b> ${arrow} <b>${money(unit)}</b> each (-${off}%)\n`;
+    const pct = base > 0 ? Math.round(((base - unit) / base) * 100) : 0;
+    rows += `${rowIcon} <code>${pad(`${range} pcs`, 12)}</code>${arrow} <code>${money(unit)}/each</code> ${off} <b>-${pct}%</b>\n`;
   });
   const text =
-    `${alertIcon(s, "bulk")} <b>BULK DISCOUNT</b>\n${line}\n\n` +
+    `${alertIcon(s, "bulk")} <b>BULK DISCOUNT</b> ${alertIcon(s, "bulk_end")}\n${line}\n\n` +
     `${productIconHtml(product)} <b>${escapeHtml(String(product.name ?? ""))}</b>\n\n` +
     rows +
-    `\n${alertIcon(s, "bulk_note")} <i>Buy more, pay less — valid on ${where}. Not combined with flash sales.</i>`;
+    `\n${alertIcon(s, "bulk_note")} <b>Buy more, save more!</b>\n` +
+    `<i>Valid on ${where}. Not combined with flash sales.</i>`;
   await deliverCard(s, text, await channelProductButton(s, product), bannerFor(product, s), product).catch((e) =>
     console.error("Bulk discount card failed:", e),
   );
