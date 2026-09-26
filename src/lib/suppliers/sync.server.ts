@@ -967,7 +967,14 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
         // Supplier dropped the price: lower the custom price by the same
         // amount, but never below the minimum profit (20% over supplier cost).
         const current = Number(prev.price_override);
-        const floor = Math.ceil(newCost * 1.2 * 100) / 100;
+        // Minimum profit = the admin's markup for this item (product-level %
+        // if set, otherwise the supplier's %), same rule as normal pricing.
+        const floor = sellPrice(newCost, {
+          markup_percent: prev.markup_percent,
+          markup_fixed: prev.markup_fixed,
+          supplier_percent: s.markup_percent ?? null,
+          supplier_fixed: s.markup_fixed ?? null,
+        });
         const target = Math.round((current - (base - newCost)) * 100) / 100;
         const next = Math.max(target, floor);
         if (next < current - 0.005) {
