@@ -244,6 +244,12 @@ const ALERT_ICONS = {
   delivery: ["⏱", "Delivery line"],
   bell: ["🔔", "Notify line"],
   save: ["💰", "You save line"],
+  flash: ["⚡", "Flash sale badge"],
+  flash_end: ["🏁", "Flash sale ended badge"],
+  timer: ["⏳", "Flash sale timer line"],
+  bulk: ["🎁", "Bulk discount badge"],
+  removed: ["🗑", "Product removed badge"],
+  api_notice: ["🔔", "API user notice (DM)"],
 } as const;
 
 type AlertIconKey = keyof typeof ALERT_ICONS;
@@ -2998,15 +3004,15 @@ export async function announceFlashSale(
     const off = oldPrice > 0 ? Math.round(((oldPrice - newPrice) / oldPrice) * 100) : 0;
     const left = flashLeft(product.flash_ends_at);
     text =
-      `${alertIcon(s, "price_down")} <b>FLASH SALE — LIMITED TIME!</b>\n${line}\n\n` +
+      `${alertIcon(s, "flash")} <b>FLASH SALE — LIMITED TIME!</b>\n${line}\n\n` +
       `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
       `${alertIcon(s, "price")} <b>Was</b>  <s>${money(oldPrice)}</s>\n` +
       `${alertIcon(s, "spark")} <b>Now</b>  ${money(newPrice)}${off > 0 ? ` (-${off}%)` : ""}\n` +
-      (left ? `\n⏳ <b>Hurry — ends in ${left}</b>\n` : "\n") +
+      (left ? `\n${alertIcon(s, "timer")} <b>Hurry — ends in ${left}</b>\n` : "\n") +
       `<i>Grab it before the timer runs out.</i>`;
   } else {
     text =
-      `${alertIcon(s, "price")} <b>FLASH SALE ENDED</b>\n${line}\n\n` +
+      `${alertIcon(s, "flash_end")} <b>FLASH SALE ENDED</b>\n${line}\n\n` +
       `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
       `${alertIcon(s, "price")} <b>Price</b>  ${money(newPrice)}\n\n` +
       `<i>The limited-time price has ended. Regular pricing is back.</i>`;
@@ -3033,7 +3039,7 @@ export async function announceBulkDiscount(product: any, channel: string, tiers:
     rows += `• <b>${range} pcs</b> → <b>${money(unit)}</b> each (-${off}%)\n`;
   });
   const text =
-    `${alertIcon(s, "price_down")} <b>BULK DISCOUNT</b>\n${line}\n\n` +
+    `${alertIcon(s, "bulk")} <b>BULK DISCOUNT</b>\n${line}\n\n` +
     `${productIconHtml(product)} <b>${escapeHtml(String(product.name ?? ""))}</b>\n\n` +
     rows +
     `\n<i>Buy more, pay less — valid on ${where}. Not combined with flash sales.</i>`;
@@ -3057,12 +3063,13 @@ export async function notifyApiUsersFlash(product: any, started: boolean) {
   const { apiUnitPrice } = await import("@/lib/reseller/core.server");
   const name = escapeHtml(String(product.name ?? ""));
   const left = flashLeft(product.flash_ends_at);
+  const bell = alertIcon(await getSettings(), "api_notice");
   for (const r of await activeApiUsers()) {
     const now = apiUnitPrice(product, r);
     const text = started
-      ? `🔔 Dear API user, <b>${name}</b> is on a flash sale — price is <b>down</b> to <b>${money(now)}</b>` +
+      ? `${bell} Dear API user, <b>${name}</b> is on a flash sale — price is <b>down</b> to <b>${money(now)}</b>` +
         `${left ? ` for the next <b>${left}</b>` : ""}. This is a temporary sale price; you'll get another message when it ends.`
-      : `🔔 Dear API user, the flash sale on <b>${name}</b> has ended. Your API price is back to <b>${money(now)}</b> per item.`;
+      : `${bell} Dear API user, the flash sale on <b>${name}</b> has ended. Your API price is back to <b>${money(now)}</b> per item.`;
     try {
       await sendMessage(Number(r.telegram_id), text);
     } catch (e) {
@@ -3076,13 +3083,14 @@ export async function notifyApiUsersPriceChange(before: any, after: any) {
   if (!after || after.is_active === false || after.owner_reseller_id) return;
   const { apiUnitPrice } = await import("@/lib/reseller/core.server");
   const name = escapeHtml(String(after.name ?? ""));
+  const bell = alertIcon(await getSettings(), "api_notice");
   for (const r of await activeApiUsers()) {
     const prev = apiUnitPrice(before, r);
     const next = apiUnitPrice(after, r);
     if (Math.abs(prev - next) < 0.01) continue;
     const down = next < prev;
     const text =
-      `<b>QORIX API price ${down ? "decreased" : "increased"}</b>\n` +
+      `${bell} <b>QORIX API price ${down ? "decreased" : "increased"}</b>\n` +
       `<b>Product:</b> ${name}\n` +
       `<b>Previous:</b> ${money(prev)} per item\n` +
       `<b>Updated:</b> ${money(next)} per item\n\n` +
@@ -3104,11 +3112,11 @@ export async function notifyApiUsersPriceChange(before: any, after: any) {
 export async function announceProductRemoved(product: any) {
   const s = await getSettings();
   if ((s["announce_removed"] ?? "on").toLowerCase() === "off") return;
-  const title = s["announce_removed_title"] || "🗑️ REMOVED";
+  const title = s["announce_removed_title"] || "REMOVED";
   const footer = s["announce_removed_footer"] || "This product is no longer available in the store.";
   const line = "──────────────────────";
   const text =
-    `<b>${escapeHtml(title)}</b>\n${line}\n\n` +
+    `${alertIcon(s, "removed")} <b>${escapeHtml(title)}</b>\n${line}\n\n` +
     `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
     `<i>${escapeHtml(footer)}</i>`;
   await deliverCard(s, text, undefined, null, product).catch((error) => {
@@ -4112,7 +4120,7 @@ export function adminKeyboard(): Button[][] {
       { text: "🗂 Inactive product icons", callback_data: "adm:iconsoff" },
     ],
     [
-      { text: "🚨 Alert icons", callback_data: "adm:alerticons" },
+      { text: "🚨 Alert emoji", callback_data: "adm:alerticons" },
       { text: "🧩 Menu icons", callback_data: "adm:menuicons" },
 
     ],
@@ -4875,7 +4883,7 @@ async function admAlertIconView() {
   );
   return {
     text:
-      "🚨 <b>Alert icons</b>\n\nThese icons are used in the stock, restock, sold-out and price alert cards " +
+      "🚨 <b>Alert emoji</b>\n\nThese icons are used in every alert: stock, restock, sold-out, price, flash sale, bulk discount, removed and API-user notices " +
       "sent to the channel and to bot users.\n" +
       "Pick one, then send a normal emoji or a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.\n\n" +
       `<b>Current icons</b>\n${list}`,
