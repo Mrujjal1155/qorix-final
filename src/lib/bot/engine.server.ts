@@ -248,11 +248,16 @@ const ALERT_ICONS = {
   flash_end: ["🏁", "Flash sale ended badge"],
   timer: ["⏳", "Flash sale timer line"],
   bulk: ["🎁", "Bulk discount badge"],
+  bulk_base: ["•", "Bulk: normal price row"],
+  bulk_row: ["•", "Bulk: discount tier row"],
+  bulk_arrow: ["→", "Bulk: price arrow"],
+  bulk_note: ["💡", "Bulk: footer note"],
   removed: ["🗑", "Product removed badge"],
   api_notice: ["🔔", "API user notice (DM)"],
 } as const;
 
 type AlertIconKey = keyof typeof ALERT_ICONS;
+const BULK_ICON_KEYS: AlertIconKey[] = ["bulk", "bulk_base", "bulk_row", "bulk_arrow", "bulk_note", "product" as never].filter((k) => k in ALERT_ICONS) as AlertIconKey[];
 
 /** HTML for an alert icon (Premium custom emoji when configured). */
 function alertIcon(settings: Record<string, string>, key: AlertIconKey) {
@@ -3030,19 +3035,20 @@ export async function announceBulkDiscount(product: any, channel: string, tiers:
   const line = "━━━━━━━━━━━━━━━━";
   const where = channel === "bot" ? "Telegram bot" : channel === "api" ? "API users" : "Telegram bot & API users";
   const first = tiers[0]!.min_qty;
-  let rows = first > 1 ? `• 1–${first - 1} pcs → ${money(base)} each\n` : "";
+  const arrow = alertIcon(s, "bulk_arrow");
+  let rows = first > 1 ? `${alertIcon(s, "bulk_base")} 1–${first - 1} pcs ${arrow} ${money(base)} each\n` : "";
   tiers.forEach((t, i) => {
     const next = tiers[i + 1];
     const range = next ? `${t.min_qty}–${next.min_qty - 1}` : `${t.min_qty}+`;
     const unit = applyTier(base, t as any);
     const off = base > 0 ? Math.round(((base - unit) / base) * 100) : 0;
-    rows += `• <b>${range} pcs</b> → <b>${money(unit)}</b> each (-${off}%)\n`;
+    rows += `${alertIcon(s, "bulk_row")} <b>${range} pcs</b> ${arrow} <b>${money(unit)}</b> each (-${off}%)\n`;
   });
   const text =
     `${alertIcon(s, "bulk")} <b>BULK DISCOUNT</b>\n${line}\n\n` +
     `${productIconHtml(product)} <b>${escapeHtml(String(product.name ?? ""))}</b>\n\n` +
     rows +
-    `\n<i>Buy more, pay less — valid on ${where}. Not combined with flash sales.</i>`;
+    `\n${alertIcon(s, "bulk_note")} <i>Buy more, pay less — valid on ${where}. Not combined with flash sales.</i>`;
   await deliverCard(s, text, await channelProductButton(s, product), bannerFor(product, s), product).catch((e) =>
     console.error("Bulk discount card failed:", e),
   );
@@ -3934,7 +3940,7 @@ async function handleMessage(msg: any) {
         await say(chatId, saveFailText(e), ADM_BACK);
         return;
       }
-      const av = await admAlertIconView();
+      const av = await admAlertIconView(Boolean(state.adm_alert_bulk) && BULK_ICON_KEYS.includes(alertKey));
       await say(
         chatId,
         `✅ ${ALERT_ICONS[alertKey][1]} updated → ${iconPreviewHtml(value, ALERT_ICONS[alertKey][0])}\n\n${av.text}`,
@@ -4121,6 +4127,7 @@ export function adminKeyboard(): Button[][] {
     ],
     [
       { text: "🚨 Alert emoji", callback_data: "adm:alerticons" },
+      { text: "🎁 Bulk discount emoji", callback_data: "adm:bulkicons" },
       { text: "🧩 Menu icons", callback_data: "adm:menuicons" },
 
     ],
@@ -4863,9 +4870,10 @@ async function admCategoryIconView() {
 
 /** Icons used inside stock / price alert cards — Premium emoji supported. */
 
-async function admAlertIconView() {
+async function admAlertIconView(bulkOnly = false) {
   const settings = await getSettings();
-  const kb: Button[][] = (Object.keys(ALERT_ICONS) as AlertIconKey[]).map((key) => {
+  const keys = bulkOnly ? BULK_ICON_KEYS : (Object.keys(ALERT_ICONS) as AlertIconKey[]);
+  const kb: Button[][] = keys.map((key) => {
     const parsed = parseIconValue(settings[`alert_icon_${key}`] ?? "", ALERT_ICONS[key][0]);
     return [
       {
@@ -4879,8 +4887,17 @@ async function admAlertIconView() {
   const list = iconPreviewLines(
     settings,
     "alert_icon_",
-    (Object.keys(ALERT_ICONS) as AlertIconKey[]).map((k) => [k, ALERT_ICONS[k][1], ALERT_ICONS[k][0]]),
+    keys.map((k) => [k, ALERT_ICONS[k][1], ALERT_ICONS[k][0]]),
   );
+  if (bulkOnly) {
+    return {
+      text:
+        "🎁 <b>Bulk discount emoji</b>\n\nThese icons are used in the BULK DISCOUNT card (badge, price rows, arrow and footer note).\n" +
+        "Pick one, then send a normal emoji or a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.\n\n" +
+        `<b>Current icons</b>\n${list}`,
+      kb,
+    };
+  }
   return {
     text:
       "🚨 <b>Alert emoji</b>\n\nThese icons are used in every alert: stock, restock, sold-out, price, flash sale, bulk discount, removed and API-user notices " +
@@ -6698,7 +6715,12 @@ async function handleCallback(cq: any) {
       const v = await admPickView("iconoff", 0, pickQuery(st, "iconoff"));
       await edit(v.text, v.kb);
     } else if (action === "alerticons") {
+      await setState(chatId, { ...st, adm_alert_bulk: false });
       const v = await admAlertIconView();
+      await edit(v.text, v.kb);
+    } else if (action === "bulkicons") {
+      await setState(chatId, { ...st, adm_alert_bulk: true });
+      const v = await admAlertIconView(true);
       await edit(v.text, v.kb);
     } else if (action.startsWith("ai:")) {
       const alertKey = arg as AlertIconKey;
