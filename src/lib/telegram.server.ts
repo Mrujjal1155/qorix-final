@@ -414,16 +414,16 @@ export function getMe() {
 }
 
 export const COMMAND_LIST = [
-  { command: "start", description: "Start and open the menu" },
-  { command: "menu", description: "Open the main menu" },
-  { command: "products", description: "Show products" },
-  { command: "wallet", description: "Open wallet" },
-  { command: "api", description: "Open API access" },
-  { command: "support", description: "Open support" },
+  { command: "start", description: "🏠 Main menu" },
+  { command: "menu", description: "📋 Open menu" },
+  { command: "products", description: "🛍️ Open shop" },
+  { command: "wallet", description: "💰 Wallet & deposit" },
+  { command: "api", description: "🔑 Developer API" },
+  { command: "support", description: "🆘 Get help" },
 ] as const;
 
 export const ADMIN_COMMAND_LIST = [
-  { command: "admin", description: "Admin control panel" },
+  { command: "admin", description: "🛠️ Admin control panel" },
 ] as const;
 
 export async function setMyCommands(adminChatIds: (string | number)[] = []) {
