@@ -67,7 +67,14 @@ export default {
       }
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const out = await normalizeCatastrophicSsrResponse(response);
+      try {
+        out.headers.set("X-Frame-Options", "SAMEORIGIN");
+        out.headers.set("Content-Security-Policy", "frame-ancestors 'self' https://*.lovable.app https://*.lovable.dev https://lovable.dev");
+        out.headers.set("X-Content-Type-Options", "nosniff");
+        out.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+      } catch { /* immutable headers */ }
+      return out;
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {

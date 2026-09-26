@@ -126,7 +126,8 @@ async function autoDeliver(order: any) {
         await db
           .from("orders")
           .update({ status: "completed", delivered_content: claimed.map((i) => String(i.content)).join("\n---\n") })
-          .eq("id", order.id);
+          .eq("id", order.id)
+          .neq("status", "completed");
       } else if (claimed.length) {
         await db
           .from("stock_items")

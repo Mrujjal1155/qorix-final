@@ -1,3 +1,4 @@
+import { likeExact } from "@/lib/ilike-escape";
 // Server-only core for the public Reseller API (website + bot channels).
 // Handles API-key auth, catalogue projection, balance debit and auto delivery.
 
@@ -295,7 +296,7 @@ export async function purchase(
       .neq("status", "cancelled")
       .neq("id", reserved.id)
       .gte("created_at", since);
-    if (hasEmail) q = q.ilike("customer_email", input.customer_email!);
+    if (hasEmail) q = q.ilike("customer_email", likeExact(input.customer_email!));
     else {
       q = q.is("customer_email", null);
       q = input.customer_name ? q.eq("customer_name", input.customer_name) : q.eq("customer_name", reseller.name);

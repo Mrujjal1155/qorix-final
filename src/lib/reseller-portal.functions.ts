@@ -1,3 +1,4 @@
+import { likeExact } from "@/lib/ilike-escape";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
@@ -39,7 +40,7 @@ async function resolveReseller(context: any) {
   const { data: emailRows } = await db
     .from("resellers")
     .select("*")
-    .ilike("email", email)
+    .ilike("email", likeExact(email))
     .order("created_at", { ascending: true });
   const rows: any[] = emailRows ?? [];
   const byEmail = rows.find((r) => !r.user_id);

@@ -1,3 +1,4 @@
+import { likeExact } from "@/lib/ilike-escape";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
@@ -57,7 +58,7 @@ export const linkMyOrders = createServerFn({ method: "POST" })
       .update({ user_id: context.userId })
       .is("user_id", null)
       .eq("source", "website")
-      .ilike("customer_email", email)
+      .ilike("customer_email", likeExact(email))
       .select("id");
     return { linked: (data ?? []).length };
   });

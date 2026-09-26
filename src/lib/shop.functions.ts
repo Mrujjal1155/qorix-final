@@ -1,3 +1,4 @@
+import { likeExact } from "@/lib/ilike-escape";
 import { createServerFn } from "@tanstack/react-start";
 import { resolveSiteOrigin } from "@/lib/site-url";
 
@@ -268,7 +269,7 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
       .select("id", { count: "exact", head: true })
       .eq("source", "website")
       .eq("status", "pending")
-      .ilike("customer_email", data.customer_email);
+      .ilike("customer_email", likeExact(data.customer_email));
     if ((openCount ?? 0) >= 5)
       throw new Error("You already have several orders awaiting payment confirmation. Please wait until they are reviewed.");
 
@@ -435,7 +436,7 @@ export const getOrderConfirmation = createServerFn({ method: "POST" })
     const { data: profile } = await supabaseAdmin
       .from("profiles")
       .select("id,wallet_balance,referral_earnings")
-      .ilike("email", data.email)
+      .ilike("email", likeExact(data.email))
       .maybeSingle();
     if (profile) {
       const { data: txs } = await supabaseAdmin
