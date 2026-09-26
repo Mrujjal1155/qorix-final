@@ -14,6 +14,8 @@ export const UI_ELEMENTS = {
   shop_flash: { icon: "🎁", label: "Flash Deals", group: "shop" },
   shop_prev: { icon: "⬅️", label: "Prev", group: "shop" },
   shop_next: { icon: "➡️", label: "Next", group: "shop" },
+  shop_categories: { icon: "🗂", label: "Categories", group: "shop" },
+  shop_back_cat: { icon: "🗂", label: "Back to Categories", group: "shop" },
   shop_instock: { icon: "🟢", label: "in stock", group: "shop" },
   flash_tag: { icon: "🏷", label: "SALE", group: "shop" },
   flash_timer: { icon: "⏳", label: "limited offer", group: "shop" },

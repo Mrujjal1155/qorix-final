@@ -1714,7 +1714,8 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
     nav.push(styled(uiBtn(settings, "shop_next", `${back}:${page + 1}`), pageStyle));
   if (nav.length) kb.push(nav);
   kb.push([styled(iconButton(settings, "refresh", `${back}:${page}`), navStyle)]);
-  if (hasCategories) kb.push([styled({ text: "🗂 Categories", callback_data: "shop:0" }, navStyle)]);
+  if (hasCategories)
+    kb.push([styled(uiBtn(settings, catId === "all" ? "shop_categories" : "shop_back_cat", "shop:0"), navStyle)]);
   kb.push([
     styled(iconButton(settings, "cart", "cart"), navStyle),
     styled(iconButton(settings, "back", "home"), "danger"),
