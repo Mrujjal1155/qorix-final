@@ -2696,7 +2696,7 @@ async function channelProductButton(
   return [
     [
       {
-        text: `🛒 Buy ${label}`,
+        text: `Buy ${label}`,
         url,
         ...(customId ? { icon_custom_emoji_id: customId } : {}),
       },
