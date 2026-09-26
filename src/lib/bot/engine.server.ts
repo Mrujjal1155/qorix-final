@@ -257,7 +257,7 @@ const ALERT_ICONS = {
 } as const;
 
 type AlertIconKey = keyof typeof ALERT_ICONS;
-const BULK_ICON_KEYS: AlertIconKey[] = ["bulk", "bulk_base", "bulk_row", "bulk_arrow", "bulk_note", "product" as never].filter((k) => k in ALERT_ICONS) as AlertIconKey[];
+const BULK_ICON_KEYS: AlertIconKey[] = ["bulk", "bulk_base", "bulk_row", "bulk_arrow", "bulk_note"];
 
 /** HTML for an alert icon (Premium custom emoji when configured). */
 function alertIcon(settings: Record<string, string>, key: AlertIconKey) {
