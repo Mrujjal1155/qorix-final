@@ -1667,6 +1667,7 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
   let title = "P R O D U C T S";
   let products = all;
   let hasCategories = false;
+  let subtitle = "";
   if (catId !== "all") {
     const { categories, byCat } = await categoryLinks();
     const cat = categories.find((c: any) => c.id === catId);
@@ -1677,6 +1678,7 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
         ? `<tg-emoji emoji-id="${ic.customId}">${escapeHtml(ic.glyph)}</tg-emoji>`
         : escapeHtml(ic.glyph);
       title = `${iconHtml} ${String(cat.name).toUpperCase()}`;
+      subtitle = `<blockquote><b>${escapeHtml(String(cat.name))}</b>'s all products ${iconHtml}</blockquote>\n`;
     }
 
     hasCategories = true;
@@ -1720,7 +1722,8 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
 
 
   const text =
-    `${sectionHead(settings, "products", `${pageIconHtml(settings, "shop")} <b>${title}</b>`)}\n\n` +
+    `${sectionHead(settings, "products", `${pageIconHtml(settings, "shop")} <b>${title}</b>`)}\n` +
+    (subtitle ? subtitle : "\n") +
     `${uiIconHtml(settings, "shop_instock")} <b>${inStock} of ${products.length}</b> ${uiText(settings, "shop_instock")}\n` +
     (flash.length
       ? `${uiTag(settings, "shop_flash")} — <b>${flash.length}</b> discounted item(s) live now\n`
