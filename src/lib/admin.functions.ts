@@ -418,6 +418,21 @@ export const saveProduct = createServerFn({ method: "POST" })
         }
       }
 
+      // Customer price changed by the admin → price up/down card (group and/or bot).
+      if (rest.price !== undefined) {
+        try {
+          const { data: cur } = await sb.from("products").select("price,updated_at").eq("id", id).maybeSingle();
+          const oldP = Number((before as any)?.price ?? 0);
+          const newP = Number((cur as any)?.price ?? 0);
+          if (Math.abs(oldP - newP) >= 0.005) {
+            const { enqueuePriceChange } = await import("@/lib/suppliers/sync.server");
+            await enqueuePriceChange(sb, id, oldP, newP, `${oldP}->${newP}:${String((cur as any)?.updated_at ?? Date.now())}`);
+          }
+        } catch (e) {
+          console.error("Price change notice failed:", e);
+        }
+      }
+
       // API user price changed → tell API users in the bot (never public users).
       if (
         rest.api_price !== undefined &&

@@ -318,6 +318,23 @@ export async function enqueueNewProduct(sb: any, productId: string, source: stri
   await drainAllNotifications(sb).catch((error) => console.error("Instant new-product alert failed:", error));
 }
 
+/** Admin changed a product's customer price → one durable price card (up or down). */
+export async function enqueuePriceChange(sb: any, productId: string, oldPrice: number, newPrice: number, actionId: string = crypto.randomUUID()) {
+  if (!productId || !Number.isFinite(oldPrice) || !Number.isFinite(newPrice)) return;
+  if (Math.abs(oldPrice - newPrice) < 0.005 || oldPrice <= 0) return;
+  await enqueueNotifications(sb, MANUAL_QUEUE_ID, [
+    {
+      t: "price",
+      old_price: oldPrice,
+      new_price: newPrice,
+      product_id: productId,
+      event_id: `price:admin:${productId}:${actionId}`,
+      at: Date.now(),
+    } as NotifyItem,
+  ]);
+  await drainAllNotifications(sb).catch((error) => console.error("Instant price alert failed:", error));
+}
+
 
 
 async function drainNotificationEvents(sb: any, budget: { cards: number; until?: number }) {

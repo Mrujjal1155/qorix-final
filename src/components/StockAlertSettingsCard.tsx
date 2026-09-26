@@ -12,7 +12,7 @@ const TOGGLES: { key: string; label: string; description: string; defaultOn?: bo
   { key: "announce_low", label: "Low / out of stock alerts", description: "Post when stock drops to the threshold and when it hits zero.", defaultOn: true },
   { key: "announce_new", label: "New product alerts", description: "Post when a new product is turned ON.", defaultOn: true },
   { key: "announce_price", label: "Price change alerts", description: "Post when a product price changes.", defaultOn: true },
-  { key: "announce_price_up", label: "Include price increases", description: "Off means only price drops are announced.", defaultOn: false },
+  { key: "announce_price_up", label: "Include price increases", description: "Off means only price drops are announced.", defaultOn: true },
   { key: "announce_dm", label: "Bot DM copies", description: "Send the same card to every bot user, not just the group.", defaultOn: true },
 ];
 
@@ -75,6 +75,27 @@ export function StockAlertSettingsCard({
               />
             </div>
           ))}
+        </div>
+
+        <div className="space-y-2 rounded-xl border border-border/70 p-3">
+          <p className="text-sm font-semibold">Price alert destination</p>
+          <p className="text-xs text-muted-foreground">Where price up / down cards are sent.</p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { v: "both", l: "Group + bot" },
+              { v: "bot", l: "Bot only" },
+            ].map((o) => (
+              <Button
+                key={o.v}
+                type="button"
+                size="sm"
+                variant={(values["announce_price_target"] ?? "both") === o.v ? "default" : "outline"}
+                onClick={() => setValues({ ...values, announce_price_target: o.v })}
+              >
+                {o.l}
+              </Button>
+            ))}
+          </div>
         </div>
 
         <div className="space-y-3">

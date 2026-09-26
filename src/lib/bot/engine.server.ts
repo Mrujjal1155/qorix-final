@@ -2939,8 +2939,12 @@ export async function announcePriceChange(
   if (!product || product.is_active === false) return { channel: true, bot: true, complete: true };
   if ((s["announce_price"] ?? "on").toLowerCase() === "off") return { channel: true, bot: true, complete: true };
   const down = Number(newPrice) < Number(oldPrice);
-  if (!down && (s["announce_price_up"] ?? "off").toLowerCase() !== "on") {
+  if (!down && (s["announce_price_up"] ?? "on").toLowerCase() !== "on") {
     return { channel: true, bot: true, complete: true };
+  }
+  // Admin choice: "both" (group + bot) or "bot" (bot only, no group post).
+  if ((s["announce_price_target"] ?? "both").toLowerCase() === "bot") {
+    delivery = { ...(delivery ?? {}), channelSent: true } as CardDelivery;
   }
   const title = down
     ? s["announce_price_down_title"] || "PRICE DROP"
