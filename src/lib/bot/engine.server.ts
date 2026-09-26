@@ -2764,6 +2764,9 @@ async function deliverCard(
   product: any,
   delivery?: CardDelivery,
 ) {
+  // Alerts are text-only: sending banners made every card wait on Telegram
+  // fetching the image, which blocked the queue. Images stay on product view.
+  banner = null;
   let channelSent = Boolean(delivery?.channelSent);
   let botSent = Boolean(delivery?.botSent);
   const problems: string[] = [];
