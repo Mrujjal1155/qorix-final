@@ -1755,6 +1755,7 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      cleanup_old_logs: { Args: never; Returns: Json }
       enqueue_stock_notification: {
         Args: {
           _added_qty?: number

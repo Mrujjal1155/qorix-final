@@ -1503,17 +1503,30 @@ async function redeemRefCredits(user: any) {
 
 
 
-async function productsWithStock() {
-  const { data: products } = await db
-    .from("products")
-    .select("*")
-    .eq("is_active", true)
-    .is("owner_reseller_id", null)
-    .order("sort_order", { ascending: true });
-  // Exact counts from the database (row reads were capped at 1000).
-  const { data: stock } = await db.rpc("stock_counts");
+// Menu-only stock cache: product lists reuse counts for a few seconds so every
+// click doesn't recount. Checkout/cart always re-read exact stock.
+const MENU_STOCK_TTL_MS = 5_000;
+let menuStockCache: { at: number; counts: Record<string, number> } | null = null;
+
+async function menuStockCounts(): Promise<Record<string, number>> {
+  if (menuStockCache && Date.now() - menuStockCache.at < MENU_STOCK_TTL_MS) return menuStockCache.counts;
+  const { data: stock, error } = await db.rpc("stock_counts");
   const counts: Record<string, number> = {};
   for (const s of ((stock ?? []) as any[])) counts[String(s.product_id)] = Number(s.available ?? 0);
+  if (!error) menuStockCache = { at: Date.now(), counts };
+  return counts;
+}
+
+async function productsWithStock() {
+  const [{ data: products }, counts] = await Promise.all([
+    db
+      .from("products")
+      .select("*")
+      .eq("is_active", true)
+      .is("owner_reseller_id", null)
+      .order("sort_order", { ascending: true }),
+    menuStockCounts(),
+  ]);
   // Safety net: a switched-off product must never reach the bot menu.
   const { guardVisibleProducts } = await import("@/lib/suppliers/visibility-guard.server");
   const rows = guardVisibleProducts(products ?? [], "bot").map((p: any) => ({
