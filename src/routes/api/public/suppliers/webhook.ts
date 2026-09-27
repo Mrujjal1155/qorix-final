@@ -67,14 +67,14 @@ export const Route = createFileRoute("/api/public/suppliers/webhook")({
         // Re-read this one supplier's catalogue: it applies exactly the same
         // stock/price diffing, product updates and Telegram alerts as the
         // scheduled sync, so a pushed event and a polled change behave alike.
-        const { syncSupplierCore, drainAllNotifications } = await import("@/lib/suppliers/sync.server");
+        const { syncSupplierCore } = await import("@/lib/suppliers/sync.server");
         const result = await syncSupplierCore(supabaseAdmin, supplier).catch((e: unknown) => ({
           ok: false,
           message: e instanceof Error ? e.message : String(e),
         }));
-        const delivery = await drainAllNotifications(supabaseAdmin).catch(() => ({ sent: 0, failed: 0 }));
-
-        return Response.json({ ok: true, sync: result, ...delivery });
+        // The independently scheduled sender picks up the durable queue on
+        // the next tick without delaying webhook acknowledgement.
+        return Response.json({ ok: true, sync: result });
       },
     },
   },

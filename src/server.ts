@@ -87,12 +87,11 @@ export default {
     ctx.waitUntil(
       import("./lib/suppliers/sync.server")
         .then(async ({ drainAllNotifications, maybeAutoSyncSuppliers }) => {
-          // Pending Telegram cards go out first: they must never be delayed by
-          // a slow supplier catalogue call in the same invocation.
-          await drainAllNotifications().catch((error) =>
-            console.error("Scheduled alert delivery failed:", error),
-          );
-          await maybeAutoSyncSuppliers();
+          // Independent work: slow supplier catalogues cannot delay alerts.
+          await Promise.allSettled([
+            drainAllNotifications(),
+            maybeAutoSyncSuppliers(),
+          ]);
         })
         .catch((error) => console.error("Scheduled supplier sync failed:", error)),
     );

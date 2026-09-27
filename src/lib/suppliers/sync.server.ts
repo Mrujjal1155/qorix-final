@@ -140,7 +140,6 @@ const CARD_TIMEOUT_MS = 18_000;
 /** Wall-clock budget for one delivery run (scheduler cuts us off at ~28s). */
 const DRAIN_BUDGET_MS = 22_000;
 /** Hard cap for one tick's Telegram drain so stock polling always gets its turn. */
-const DRAIN_CAP_MS = 10_000;
 
 /** Give up (and log) after this many failed attempts for one event. */
 const MAX_TRIES = 8;
