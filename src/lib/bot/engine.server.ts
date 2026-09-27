@@ -256,6 +256,12 @@ const ALERT_ICONS = {
   bulk_note: ["💥", "Bulk: footer (Buy more, save more)"],
   removed: ["🗑", "Product removed badge"],
   api_notice: ["🔔", "API user notice (DM)"],
+  sale_bot: ["🤖", "Sale: bot order tag"],
+  sale_web: ["🌐", "Sale: website order tag"],
+  sale_api: ["🤝", "Sale: reseller order tag"],
+  sale_user: ["👤", "Sale: buyer line"],
+  sale_qty: ["📦", "Sale: quantity line"],
+  sale_done: ["⚡", "Sale: delivered line"],
 } as const;
 
 type AlertIconKey = keyof typeof ALERT_ICONS;
@@ -2827,17 +2833,46 @@ function fillTokens(tpl: string, map: Record<string, string>) {
   return tpl.replace(/\{(\w+)\}/g, (m, k) => map[k] ?? m);
 }
 
-export async function announcePurchase(user: any, product: any, qty: number) {
+export type SaleSource = "bot" | "website" | "api_website" | "api_bot";
+
+const SALE_TAGS: Record<SaleSource, [AlertIconKey, string]> = {
+  bot: ["sale_bot", "BOT ORDER"],
+  website: ["sale_web", "WEBSITE ORDER"],
+  api_website: ["sale_api", "RESELLER · WEBSITE"],
+  api_bot: ["sale_api", "RESELLER · BOT"],
+};
+
+/** Group "new sale" post — one design for every sales channel. */
+export async function announcePurchase(user: any, product: any, qty: number, source: SaleSource = "bot") {
   const s = await getSettings();
   if (!s["announce_chat_id"] || (s["announce_sales"] ?? "on").toLowerCase() === "off") return;
-  const tpl = s["announce_sale_text"] || "User {user} just bought {qty}× {product}!";
-  const text = fillTokens(escapeHtml(tpl), {
-    user: escapeHtml(maskUsername(user?.username, user?.first_name)),
-    qty: String(qty),
-    price: money(product?.price),
-    product: `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>`,
-  });
+  const [tagIcon, tagLabel] = SALE_TAGS[source] ?? SALE_TAGS.bot;
+  const who = escapeHtml(maskUsername(user?.username, user?.first_name));
+  const text =
+    `${alertIcon(s, tagIcon)} <b>${tagLabel}</b>\n` +
+    `<blockquote>${alertIcon(s, "sale_user")} <b>${who}</b> just bought\n` +
+    `${alertIcon(s, "sale_qty")} <b>${qty}×</b> ${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b></blockquote>\n` +
+    `${alertIcon(s, "sale_done")} <i>Delivered instantly</i>`;
   await postToChannel(s, text, await channelProductButton(s, product));
+}
+
+/** Announce a completed non-bot order (website / reseller API) by id. Never throws. */
+export async function announceOrderSale(orderId: string) {
+  try {
+    const { data: o } = await (supabaseAdmin as any)
+      .from("orders")
+      .select("id,product_id,quantity,source,customer_name,reseller_id,status")
+      .eq("id", orderId)
+      .maybeSingle();
+    if (!o || o.status !== "completed") return;
+    const src: SaleSource =
+      o.source === "api_bot" ? "api_bot" : o.source === "api_website" ? "api_website" : "website";
+    const { data: p } = await (supabaseAdmin as any).from("products").select("*").eq("id", o.product_id).maybeSingle();
+    if (!p) return;
+    await announcePurchase({ first_name: o.customer_name || "Customer" }, p, Number(o.quantity ?? 1), src);
+  } catch (e) {
+    console.error("[sale-announce]", e);
+  }
 }
 
 /** "User X just claimed free …" post for freebies / gift drops. */
