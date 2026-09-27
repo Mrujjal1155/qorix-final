@@ -402,10 +402,14 @@ export async function purchase(
     .maybeSingle();
 
   if (status === "completed") {
-    void (async () => {
+    // Must be awaited (or handed to waitUntil): the worker kills unawaited
+    // work as soon as the API response is sent, so the group post was lost.
+    const post = (async () => {
       const { announceOrderSale } = await import("@/lib/bot/engine.server");
       await announceOrderSale(String(reserved.id));
-    })();
+    })().catch(() => {});
+    const { backgroundWaitUntil } = await import("@/lib/bg.server");
+    if (!backgroundWaitUntil(post)) await post;
   }
 
 
