@@ -123,11 +123,16 @@ async function autoDeliver(order: any) {
       });
       const claimed = (items ?? []) as any[];
       if (claimed.length >= Number(order.quantity ?? 1)) {
-        await db
+        const { data: done } = await db
           .from("orders")
           .update({ status: "completed", delivered_content: claimed.map((i) => String(i.content)).join("\n---\n") })
           .eq("id", order.id)
-          .neq("status", "completed");
+          .neq("status", "completed")
+          .select("id");
+        if (done?.length) {
+          const { announceOrderSale } = await import("@/lib/bot/engine.server");
+          await announceOrderSale(order.id);
+        }
       } else if (claimed.length) {
         await db
           .from("stock_items")

@@ -401,6 +401,14 @@ export async function purchase(
     .select("*")
     .maybeSingle();
 
+  if (status === "completed") {
+    void (async () => {
+      const { announceOrderSale } = await import("@/lib/bot/engine.server");
+      await announceOrderSale(String(reserved.id));
+    })();
+  }
+
+
   return {
     ok: true as const,
     order: orderPayload(order ?? { ...reserved, status, delivered_content: delivered }),

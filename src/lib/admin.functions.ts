@@ -696,6 +696,10 @@ export const deliverOrder = createServerFn({ method: "POST" })
       .select("*")
       .maybeSingle();
     if (error) throw new Error(error.message);
+    if (order?.source === "website") {
+      const { announceOrderSale } = await import("@/lib/bot/engine.server");
+      await announceOrderSale(String(order.id));
+    }
     if (order?.source === "website" || !order?.telegram_id) return { ok: true };
     const { sendMessage } = await import("@/lib/telegram.server");
     const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
