@@ -18,6 +18,7 @@ import { I18nProvider, useT } from "@/lib/i18n";
 import { ReferralCapture } from "@/components/ReferralCapture";
 import { BrandHead } from "@/components/BrandHead";
 import { siteJsonLd } from "@/lib/seo";
+import { MaintenanceGate } from "@/components/MaintenanceGate";
 
 /** Storage origin that serves product images — warm the connection early. */
 const IMG_ORIGIN: string =
@@ -168,7 +169,9 @@ function RootComponent() {
       <I18nProvider>
         <PrefsProvider>
         {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
+        <MaintenanceGate>
+          <Outlet />
+        </MaintenanceGate>
         <ReferralCapture />
         <BrandHead />
         <Toaster />
