@@ -16,7 +16,7 @@ export function isCustomEmojiBlocked() {
 }
 
 
-export async function tg(method: string, body: Record<string, unknown> = {}): Promise<TgResult> {
+export async function tg(method: string, body: Record<string, unknown> = {}, options: { alert?: boolean } = {}): Promise<TgResult> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const connKey = process.env["TELEGRAM_API_KEY"];
   const lovableKey = process.env["LOVABLE_API_KEY"];
@@ -48,7 +48,7 @@ export async function tg(method: string, body: Record<string, unknown> = {}): Pr
         method: "POST",
         headers,
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(20_000),
+        signal: AbortSignal.timeout(options.alert ? 4_000 : 20_000),
       });
       const json = (await res.json().catch(() => ({ ok: false }))) as TgResult;
       return { res, json };
@@ -66,6 +66,9 @@ export async function tg(method: string, body: Record<string, unknown> = {}): Pr
   // Telegram returns retry_after on flood control. Honour it once so a burst
   // of stock cards is not falsely marked failed and retried as a duplicate.
   if (res.status === 429 || (json as any)?.error_code === 429) {
+    // Durable alert cards retry on the next tick. Sleeping here holds the
+    // whole sender hostage and can outlive its database lease.
+    if (options.alert) return { ...json, ok: false, description: `Telegram rate limit; retry after ${Math.max(1, Number((json as any)?.parameters?.retry_after ?? 1))}s` };
     const retryAfter = Math.max(1, Math.min(30, Number((json as any)?.parameters?.retry_after ?? 1)));
     await new Promise((resolve) => setTimeout(resolve, retryAfter * 1_000));
     const retry = await post(body);
@@ -282,6 +285,14 @@ export function sendMessage(
     ...(keyboard ? { reply_markup: { inline_keyboard: withDefaultStyle(keyboard) } } : {}),
     ...extra,
   });
+}
+
+/** Bounded, text-only sender for durable alerts; other bot messages keep their usual timeout. */
+export function sendAlertMessage(chat_id: number | string, text: string, keyboard?: Button[][]) {
+  return tg("sendMessage", {
+    chat_id, text, parse_mode: "HTML", disable_web_page_preview: true,
+    ...(keyboard ? { reply_markup: { inline_keyboard: withDefaultStyle(keyboard) } } : {}),
+  }, { alert: true });
 }
 
 export function sendPhoto(

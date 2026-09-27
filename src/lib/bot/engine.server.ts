@@ -11,6 +11,7 @@ import {
   sendDocument,
   sendDocumentUpload,
   sendMessage,
+  sendAlertMessage,
   sendPhoto,
   COMMAND_LIST,
   styleRows,
@@ -2752,7 +2753,7 @@ async function postToChannel(
     const photoResult = await sendPhoto(chat, photo, text, kb).catch(() => ({ ok: false }) as any);
     if (photoResult.ok) return { sent: true };
   }
-  const messageResult = await sendMessage(chat, text, kb);
+  const messageResult = await sendAlertMessage(chat, text, kb);
   if (!messageResult.ok) {
     throw new Error(`Telegram channel post failed: ${messageResult.description ?? "Unknown Telegram error"}`);
   }
@@ -2817,7 +2818,7 @@ async function deliverCard(
     } else {
       let ok = false;
       if (banner) ok = (await sendPhoto(target, banner, text, kb).catch(() => ({ ok: false }) as any)).ok;
-      if (!ok) ok = (await sendMessage(target, text, kb)).ok;
+      if (!ok) ok = (await sendAlertMessage(target, text, kb)).ok;
       if (ok) {
         botSent = true;
         if (delivery?.markBotSent) await delivery.markBotSent();
