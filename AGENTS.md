@@ -11,3 +11,4 @@
 
 - Deliver stock, supplier, price, and new-product alerts through `stock_notification_events` with per-destination checkpoints and a separate authenticated notify request in the existing 15-second schedule; this prevents supplier polling and slow Telegram replies from blocking each other.
 - Keep Telegram alert attempts short and retry interrupted events without a permanent attempt limit; a temporary outage must not silently discard an alert.
+- After website-admin stock uploads, attempt an immediate service-role queue drain without bypassing the durable event; scheduled delivery remains the retry fallback when it fails.

@@ -10,6 +10,8 @@
 - [x] Keep failed Telegram alerts queued and deliver channel/bot independently
 - [x] Verify live supplier sync state, queue/log, TypeScript check, and build
 - [ ] Verify the corrected Telegram delivery after the next Cloudflare deployment
+- [x] Attempt website-admin stock alert delivery immediately after queuing, using the service-role sender while preserving scheduled retries.
+- [ ] Verify a new website-admin stock upload reaches Telegram after deployment (requires a real upload and deployment; do not create test inventory).
 - [x] Load all paginated Bot Admin settings so EPS does not fall back to legacy Pay Kori after 1,000 rows
 - [x] Fix immediate Premium Emoji refresh and add separate MFS/Card icon slots for EPS payment rows
 - [x] Prevent duplicate stock alerts across overlapping sync requests
