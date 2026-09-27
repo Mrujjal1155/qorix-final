@@ -21,6 +21,8 @@ import { CurrencyRatesCard } from "@/components/CurrencyRatesCard";
 import { SupplierKeysCard } from "@/components/SupplierKeysCard";
 import { EmailTemplatesCard } from "@/components/EmailTemplatesCard";
 import { StockAlertSettingsCard } from "@/components/StockAlertSettingsCard";
+import { MaintenanceCard } from "@/components/MaintenanceCard";
+import { Wrench } from "lucide-react";
 import { PRODUCTION_SITE_URL } from "@/lib/site-url";
 
 
@@ -740,6 +742,13 @@ function SettingsPage() {
       description: "Channels every bot user must join before the menu opens.",
       icon: ShieldCheck,
       render: () => <JoinGateCard values={values} setValues={setValues} onSave={onSave} />,
+    },
+    {
+      id: "maintenance",
+      title: "Maintenance mode",
+      description: "Separate on/off switches for the website and the Telegram bot.",
+      icon: Wrench,
+      render: () => <MaintenanceCard values={values} setValues={setValues} onSave={onSave} />,
     },
     {
       id: "stock-alerts",
