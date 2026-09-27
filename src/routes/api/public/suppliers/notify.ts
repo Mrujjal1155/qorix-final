@@ -10,9 +10,13 @@ async function run({ request }: { request: Request }) {
   const { isCronAuthorized } = await import("@/lib/cron-auth.server");
   if (!(await isCronAuthorized(request))) return new Response("Unauthorized", { status: 401 });
   const { drainAllNotifications } = await import("@/lib/suppliers/sync.server");
+  const { recoverPaidOrders } = await import("@/lib/bot/recover-paid.server");
   try {
-    const res = await drainAllNotifications();
-    return Response.json({ ok: true, ...res });
+    const [res, recovered] = await Promise.all([
+      drainAllNotifications(),
+      recoverPaidOrders().catch((e) => ({ error: String(e) })),
+    ]);
+    return Response.json({ ok: true, ...res, recovered });
   } catch (e) {
     return Response.json({ ok: false, error: e instanceof Error ? e.message : "failed" }, { status: 500 });
   }
