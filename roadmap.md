@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Separate scheduled Telegram delivery from supplier polling in the existing 15-second tick, with bounded text-only sends and unlimited durable retries.
+- [ ] Verify the bounded alert sender against the published Telegram bot after deployment (requires deployment).
+
 - [x] Verify 15-second supplier sync reaches qorixlab.com successfully
 - [x] Ensure only already-ON products send restock and low-stock alerts to group and bot
 - [x] Normalize Vexoran, Canboso, and MailReader stock identifiers/counts

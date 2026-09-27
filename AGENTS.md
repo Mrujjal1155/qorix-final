@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Deliver stock, supplier, price, and new-product alerts through `stock_notification_events` with per-destination checkpoints and a separate authenticated notify request in the existing 15-second schedule; this prevents supplier polling and slow Telegram replies from blocking each other.
+- Keep Telegram alert attempts short and retry interrupted events without a permanent attempt limit; a temporary outage must not silently discard an alert.
