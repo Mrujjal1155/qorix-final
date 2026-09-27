@@ -550,8 +550,17 @@ export const addStock = createServerFn({ method: "POST" })
       added += (ins ?? []).length;
     }
     if (added > 0) {
-      const { enqueueManualRestock } = await import("@/lib/suppliers/sync.server");
+      const { enqueueManualRestock, drainAllNotifications } = await import("@/lib/suppliers/sync.server");
       await enqueueManualRestock(sb, data.product_id, added);
+      // The scheduled notify request may be delayed or unavailable. Try the
+      // durable queue immediately with the service client; the admin session
+      // cannot claim service-role-only events. A failed send stays queued.
+      try {
+        const delivery = await drainAllNotifications();
+        if (delivery.failed > 0) console.error("Admin stock alert delivery failed; queued for retry", delivery);
+      } catch (error) {
+        console.error("Admin stock alert delivery deferred to scheduled retry:", error);
+      }
     }
     const { data: totals } = await sb.rpc("stock_counts", { _product_ids: [data.product_id] });
     return { added, skipped: rows.length - added, available: Number((totals ?? [])[0]?.available ?? 0) };
