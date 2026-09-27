@@ -300,8 +300,8 @@ export async function enqueueManualRestock(sb: any, productId: string, qty: numb
       at: Date.now(),
     } as NotifyItem,
   ]);
-  // Instant: send right away, the scheduler is only a fallback for retries.
-  await withTimeout(drainAllNotifications(sb), DRAIN_CAP_MS, "instant restock drain").catch((error) => console.error("Instant restock alert failed:", error));
+  // Queue is durable. Dedicated scheduled delivery runs every 15 seconds;
+  // never hold the stock upload request hostage to a slow Telegram response.
 }
 
 /** A product becoming customer-visible uses the same durable, deduplicated sender. */
@@ -315,7 +315,6 @@ export async function enqueueNewProduct(sb: any, productId: string, source: stri
       at: Date.now(),
     } as NotifyItem,
   ]);
-  await withTimeout(drainAllNotifications(sb), DRAIN_CAP_MS, "instant new-product drain").catch((error) => console.error("Instant new-product alert failed:", error));
 }
 
 /** Admin changed a product's customer price → one durable price card (up or down). */
@@ -332,7 +331,6 @@ export async function enqueuePriceChange(sb: any, productId: string, oldPrice: n
       at: Date.now(),
     } as NotifyItem,
   ]);
-  await withTimeout(drainAllNotifications(sb), DRAIN_CAP_MS, "instant price drain").catch((error) => console.error("Instant price alert failed:", error));
 }
 
 
@@ -1317,15 +1315,9 @@ export async function syncAllSuppliers() {
     // single invocation only has room for a couple of them.
     .order("last_synced_at", { ascending: true, nullsFirst: true });
 
-  // Delivery FIRST. Catalogue polling is the heavy part of a run; when it used
-  // to go first, a slow supplier API could eat the whole invocation and the
-  // queued Telegram cards were never sent (queues sat full for hours).
-  // Capped: a hanging Telegram send must never starve the stock sync below
-  // (that is how catalogue stock froze for hours on 24 Sep).
-  const delivery = await withTimeout(drainAllNotifications(db), DRAIN_CAP_MS, "notification drain").catch((error) => {
-    console.error("Notification drain failed:", error);
-    return { sent: 0, failed: 1 };
-  });
+  // The independent notify request drains alerts; supplier polling never
+  // waits for Telegram, even if the group is temporarily unreachable.
+  const delivery = { sent: 0, failed: 0 };
 
   // Keep push webhooks registered on their own — no admin button needed, but
   // only every few minutes: re-checking on every 15s tick used to spend the
@@ -1472,11 +1464,7 @@ export async function maybeAutoSyncSuppliers(minutes = 2) {
       console.error("Fast poll failed:", error);
       return { polled: 0 };
     });
-    const delivery = await withTimeout(drainAllNotifications(db), DRAIN_CAP_MS, "notification drain").catch(() => ({
-      sent: 0,
-      failed: 1,
-    }));
-    return { skipped: true, ...delivery, ...fast };
+    return { skipped: true, ...fast };
   }
 
 
