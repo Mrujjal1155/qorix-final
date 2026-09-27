@@ -3161,6 +3161,26 @@ export async function handleUpdate(update: any) {
   // Payment sweep + all bookkeeping run after the user already got a reply.
   defer(() => sweepBinanceDeposits().catch(() => {}));
   try {
+    // Bot maintenance (separate from website maintenance): admins pass, everyone else gets a notice.
+    {
+      const ms = await getSettings();
+      if ((ms["bot_maintenance"] ?? "").toLowerCase() === "on") {
+        const cq = update.callback_query;
+        const m = update.message ?? update.edited_message;
+        const fromId = Number(cq?.from?.id ?? m?.from?.id ?? 0);
+        if (fromId && !(await isAdmin(fromId, ms))) {
+          const note =
+            (ms["bot_maintenance_message"] ?? "").trim() ||
+            "🛠 The bot is under maintenance right now. Please try again a little later.";
+          if (cq) {
+            await answerCallback(cq.id, note.slice(0, 190), true).catch(() => {});
+          } else if (m && m.chat?.type === "private") {
+            await sendMessage(m.chat.id, escapeHtml(note)).catch(() => {});
+          }
+          return;
+        }
+      }
+    }
     if (update.callback_query) return await handleCallback(update.callback_query);
     const msg = update.message ?? update.edited_message;
     if (msg) return await handleMessage(msg);
