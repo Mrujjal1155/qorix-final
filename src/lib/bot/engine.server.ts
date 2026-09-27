@@ -2202,6 +2202,26 @@ function binanceView(row: any, settings: Record<string, string> = {}) {
   return { text, kb };
 }
 
+/** Friendly reply when a paid deposit is checked again: order payments show the order, not "wallet". */
+async function alreadyPaidMessage(chatId: number, depositId: string, fallback: string): Promise<string> {
+  try {
+    const { data: rows } = await db
+      .from("orders")
+      .select("order_no,status")
+      .eq("telegram_id", chatId)
+      .eq("meta->>deposit_id", depositId)
+      .order("order_no", { ascending: true });
+    if (rows?.length) {
+      const nos = rows.map((r: any) => `#${r.order_no}`).join(", ");
+      const allDone = rows.every((r: any) => r.status === "completed");
+      return allDone
+        ? `✅ Payment received — order ${nos} is already delivered. Check My Orders to view it again.`
+        : `✅ Payment received for order ${nos}. Your item(s) will be delivered automatically within a few minutes — no need to pay again.`;
+    }
+  } catch { /* fall back to the plain wallet text */ }
+  return fallback;
+}
+
 async function verifyBinanceDeposit(chatId: number, id: string) {
   const { data: row } = await db
     .from("binance_deposits")
@@ -2211,7 +2231,7 @@ async function verifyBinanceDeposit(chatId: number, id: string) {
     .maybeSingle();
   const vs = await getSettings();
   if (!row) return { message: "❌ Deposit not found." };
-  if (row.status === "credited") return { message: "✅ This deposit was already credited." };
+  if (row.status === "credited") return { message: await alreadyPaidMessage(chatId, id, "✅ This deposit was already added to your wallet.") };
   if (new Date(row.expires_at).getTime() < Date.now()) {
     await db.from("binance_deposits").update({ status: "expired" }).eq("id", id);
     return { message: "⌛ This deposit request expired. Please start a new one." };
@@ -2498,7 +2518,7 @@ async function verifyEpsDeposit(chatId: number, id: string) {
     .eq("kind", "eps")
     .maybeSingle();
   if (!row) return { message: "❌ Payment not found.", keyboard: back };
-  if (row.status === "credited") return { message: "✅ This payment was already credited.", keyboard: back };
+  if (row.status === "credited") return { message: await alreadyPaidMessage(chatId, id, "✅ This payment was already added to your wallet."), keyboard: back };
   const r = await creditEpsRow(row);
   return { message: r.message, keyboard: r.credited ? (r as any).keyboard : back };
 }
@@ -2549,7 +2569,7 @@ async function submitBinanceTxid(chatId: number, depId: string, txid: string, us
     .eq("telegram_id", chatId)
     .maybeSingle();
   if (!row) return { message: "❌ Deposit request not found. Please start again.", keyboard: back };
-  if (row.status === "credited") return { message: "✅ This deposit was already credited.", keyboard: back };
+  if (row.status === "credited") return { message: await alreadyPaidMessage(chatId, depId, "✅ This deposit was already added to your wallet."), keyboard: back };
   if (await txUsed(txid)) return { message: "❌ This transaction ID was already used.", keyboard: back };
 
   const expected = Number(row.amount_usdt);
