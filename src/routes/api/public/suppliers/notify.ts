@@ -17,7 +17,6 @@ async function run({ request }: { request: Request }) {
       recoverPaidOrders().catch((e) => ({ error: String(e) })),
     ]);
     return Response.json({ ok: true, ...res, recovered });
-    return Response.json({ ok: true, ...res });
   } catch (e) {
     return Response.json({ ok: false, error: e instanceof Error ? e.message : "failed" }, { status: 500 });
   }
