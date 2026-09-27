@@ -125,6 +125,11 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
 
     const content = res.items.join("\n---\n");
     await db.from("orders").update({ status: "completed", delivered_content: content }).eq("id", order.id);
+    // Bot orders are announced by the bot flow; website orders are announced here.
+    if ((order as any).source === "website") {
+      const { announceOrderSale } = await import("@/lib/bot/engine.server");
+      await announceOrderSale(String(order.id));
+    }
 
     // The purchase is already paid for and stored — a Telegram hiccup must not
     // report the delivery as failed.
