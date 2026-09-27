@@ -136,9 +136,9 @@ const CARDS_PER_RUN = 8;
 /** Hard cap for one card's channel post + bot chat post. 25s because large
  * product banners need longer than 9s to upload; the photo path falls back to
  * text-only well before this anyway. */
-const CARD_TIMEOUT_MS = 12_000;
+const CARD_TIMEOUT_MS = 18_000;
 /** Wall-clock budget for one delivery run (scheduler cuts us off at ~28s). */
-const DRAIN_BUDGET_MS = 26_000;
+const DRAIN_BUDGET_MS = 22_000;
 /** Hard cap for one tick's Telegram drain so stock polling always gets its turn. */
 const DRAIN_CAP_MS = 10_000;
 
@@ -301,7 +301,7 @@ export async function enqueueManualRestock(sb: any, productId: string, qty: numb
     } as NotifyItem,
   ]);
   // Instant: send right away, the scheduler is only a fallback for retries.
-  await drainAllNotifications(sb).catch((error) => console.error("Instant restock alert failed:", error));
+  await withTimeout(drainAllNotifications(sb), DRAIN_CAP_MS, "instant restock drain").catch((error) => console.error("Instant restock alert failed:", error));
 }
 
 /** A product becoming customer-visible uses the same durable, deduplicated sender. */
@@ -315,7 +315,7 @@ export async function enqueueNewProduct(sb: any, productId: string, source: stri
       at: Date.now(),
     } as NotifyItem,
   ]);
-  await drainAllNotifications(sb).catch((error) => console.error("Instant new-product alert failed:", error));
+  await withTimeout(drainAllNotifications(sb), DRAIN_CAP_MS, "instant new-product drain").catch((error) => console.error("Instant new-product alert failed:", error));
 }
 
 /** Admin changed a product's customer price → one durable price card (up or down). */
@@ -332,7 +332,7 @@ export async function enqueuePriceChange(sb: any, productId: string, oldPrice: n
       at: Date.now(),
     } as NotifyItem,
   ]);
-  await drainAllNotifications(sb).catch((error) => console.error("Instant price alert failed:", error));
+  await withTimeout(drainAllNotifications(sb), DRAIN_CAP_MS, "instant price drain").catch((error) => console.error("Instant price alert failed:", error));
 }
 
 
@@ -358,23 +358,27 @@ async function drainNotificationEvents(sb: any, budget: { cards: number; until?:
       // post and never skips one that failed.
       const channelSent = Boolean(item.channel_sent);
       let botSent = Number(item.dm_cursor ?? 0) > 0;
+      let channelDone = channelSent;
       const progress = {
         channelSent,
         botSent,
         markChannelSent: async () => {
-          await sb.rpc("update_stock_notification_progress", {
+          channelDone = true;
+          const { error } = await sb.rpc("update_stock_notification_progress", {
             _id: item.id,
             _channel_sent: true,
             _dm_cursor: botSent ? 1 : 0,
           });
+          if (error) throw new Error(`Could not record group delivery: ${error.message}`);
         },
         markBotSent: async () => {
           botSent = true;
-          await sb.rpc("update_stock_notification_progress", {
+          const { error } = await sb.rpc("update_stock_notification_progress", {
             _id: item.id,
-            _channel_sent: true,
+            _channel_sent: channelDone,
             _dm_cursor: 1,
           });
+          if (error) throw new Error(`Could not record bot delivery: ${error.message}`);
         },
       };
       const { data: prod } = await sb.from("products").select("*").eq("id", item.product_id).maybeSingle();
@@ -393,9 +397,12 @@ async function drainNotificationEvents(sb: any, budget: { cards: number; until?:
         }
         return await announceNewProduct(prod, progress);
       };
+      // A previous run may have been interrupted after marking one destination.
+      // Never resend that destination; mark complete only after both are done.
       await withTimeout(send(), CARD_TIMEOUT_MS, `${item.kind} card`);
 
-      await sb.rpc("finish_stock_notification", { _id: item.id, _delivered: true, _error: null });
+      const { error: finishError } = await sb.rpc("finish_stock_notification", { _id: item.id, _delivered: true, _error: null });
+      if (finishError) throw new Error(`Could not finish stock alert: ${finishError.message}`);
       sent += 1;
       if (isFlashKind) {
         // API users get their own price notice in the bot (never public users).
