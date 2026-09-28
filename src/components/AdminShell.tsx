@@ -40,6 +40,7 @@ const NAV_GROUPS = [
       { to: "/admin", label: "Dashboard", icon: LayoutDashboard },
       { to: "/admin/analytics", label: "Analytics", icon: BarChart3 },
       { to: "/admin/products", label: "Products", icon: Boxes },
+      { to: "/admin/user-prices", label: "User Prices", icon: Tag },
       { to: "/admin/orders", label: "Orders", icon: ReceiptText },
       { to: "/admin/payments", label: "Payments", icon: CreditCard },
       { to: "/admin/suppliers", label: "Supplier APIs", icon: Network },
