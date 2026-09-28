@@ -53,4 +53,3 @@
 - [x] Use supplier cost—not customer selling price—for supplier-wallet checks on every fulfilment path
 - [x] Add a persistent blue Telegram bottom menu for Products, Deposit, and My Orders with configurable Premium Emoji icons
 
-- [ ] Reseller API: manual product-এর জন্য customer info (`fields`) নেওয়া — bot/admin অংশ শেষ, API অংশ বাকি
