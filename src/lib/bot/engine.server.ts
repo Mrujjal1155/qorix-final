@@ -6215,6 +6215,15 @@ async function handleCallback(cq: any) {
         if (cart[idx]!.qty < 1) cart.splice(idx, 1);
       }
     } else {
+      // Products that need buyer details (email etc.) must go through Buy, not the cart.
+      const cartMi = await manualInputFor(productId!);
+      if (cartMi.kind !== "none") {
+        await edit(
+          "ℹ️ This product needs your details (for example an email) before payment, so it can't be added to the cart. Please open the product and tap <b>Buy</b>.",
+          [[{ text: "⬅️ Back", callback_data: `p:${productId}` }]],
+        );
+        return;
+      }
       const add = op === "cadd" ? Math.max(1, Number(n) || 1) : 1;
       if (idx >= 0) cart[idx]!.qty = Math.min(999, cart[idx]!.qty + add);
       else cart.push({ product_id: productId!, qty: add });
