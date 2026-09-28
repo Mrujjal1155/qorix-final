@@ -68,8 +68,8 @@ function UserPricesPage() {
     if (!product || !user) return;
     const pr = Number(price);
     const mq = Math.floor(Number(minQty));
-    if (!(pr >= 0) || price === "") return toast.error("Enter a valid price");
-    if (!(mq >= 1)) return toast.error("Minimum quantity must be at least 1");
+    if (!(pr >= 0) || price === "") { toast.error("Enter a valid price"); return; }
+    if (!(mq >= 1)) { toast.error("Minimum quantity must be at least 1"); return; }
     setBusy(true);
     try {
       await save({ data: { telegram_id: Number(user.telegram_id), product_id: product.id, price: pr, min_qty: mq } });
