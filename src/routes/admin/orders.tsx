@@ -5,6 +5,7 @@ import { useMemo, useState, type CSSProperties } from "react";
 import {
   checkSupplierBalances,
   deliverOrder,
+  completeManualOrder,
   listOrders,
   markOrderPaid,
   refundOrderToWallet,
@@ -134,6 +135,8 @@ function OrdersPage() {
 
   const fetchOrders = useServerFn(listOrders);
   const deliver = useServerFn(deliverOrder);
+  const completeManual = useServerFn(completeManualOrder);
+  const [manualOnly, setManualOnly] = useState(false);
   const changeStatus = useServerFn(setOrderStatus);
   const retryAuto = useServerFn(retryAutoDelivery);
   const fetchBalances = useServerFn(checkSupplierBalances);
@@ -175,8 +178,11 @@ function OrdersPage() {
   const supplierStyle = (name: string) => supplierBadgeStyle(supplierColorIndexes.get(name) ?? 0);
   const rows = useMemo(() => {
     const q = normalizeOrderQuery(search);
-    if (!q) return (data ?? []) as any[];
-    return ((data ?? []) as any[]).filter((o: any) => {
+    const base = ((data ?? []) as any[]).filter(
+      (o: any) => !manualOnly || (o.delivery_type === "manual" && (o.status === "pending" || o.status === "processing")),
+    );
+    if (!q) return base;
+    return base.filter((o: any) => {
       const code = orderCode(o.id);
       return (
         code.includes(q) ||
@@ -186,13 +192,16 @@ function OrdersPage() {
         String(o.txid ?? "").toUpperCase().includes(q)
       );
     });
-  }, [data, search]);
+  }, [data, search, manualOnly]);
   const refresh = () => qc.invalidateQueries({ queryKey: ["orders"] });
   const active = (data ?? []).find((o: any) => o.id === deliverFor) as any;
 
 
   const deliverMut = useMutation({
-    mutationFn: () => deliver({ data: { id: deliverFor, content } }),
+    mutationFn: () =>
+      active?.delivery_type === "manual"
+        ? completeManual({ data: { id: deliverFor, note: content } })
+        : deliver({ data: { id: deliverFor, content } }),
     onSuccess: () => {
       setDeliverFor("");
       setContent("");
@@ -298,6 +307,9 @@ function OrdersPage() {
             {f}
           </Button>
         ))}
+        <Button size="sm" variant={manualOnly ? "default" : "outline"} onClick={() => setManualOnly(!manualOnly)}>
+          Manual pending
+        </Button>
       </div>
 
       {!!balances?.length && (
@@ -364,7 +376,7 @@ function OrdersPage() {
                 </div>
 
                 <div className="min-w-0 break-words">
-                  {o.quantity}× {o.product_name}
+                  {o.quantity}× {o.product_name} {o.delivery_type === "manual" && <Badge variant="destructive" className="ml-1 align-middle text-[10px]">MANUAL</Badge>}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
@@ -514,7 +526,10 @@ function OrdersPage() {
                        )}
                     </td>
                     <td>
-                      {o.product_name}
+                      {o.product_name} {o.delivery_type === "manual" && <Badge variant="destructive" className="ml-1 align-middle text-[10px]">MANUAL</Badge>}
+                      {Array.isArray(o.meta?.manual_input) && o.meta.manual_input.length > 0 && (
+                        <pre className="mt-1 max-w-xs overflow-x-auto rounded border border-border bg-background p-2 text-xs">{o.meta.manual_input.join("\n")}</pre>
+                      )}
                       {o.delivered_content && (
                         <pre className="mt-1 max-w-xs overflow-x-auto rounded bg-muted p-2 text-xs">
                           {o.delivered_content}
@@ -563,10 +578,35 @@ function OrdersPage() {
                    <b style={active.supplier_name ? { color: supplierStyle(active.supplier_name).color } : undefined}>{active.supplier_name ? `API · ${active.supplier_name}` : "Own stock (manual)"}</b>
                   {active.supplier_external_id ? ` · product ID ${active.supplier_external_id}` : ""}
                 </div>
+                {Array.isArray(active.meta?.manual_input) && active.meta.manual_input.length > 0 && (
+                  <div className="mt-2">
+                    <div className="flex items-center justify-between">
+                      <b>Customer info</b>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          navigator.clipboard.writeText(active.meta.manual_input.join("\n"));
+                          toast.success("Copied");
+                        }}
+                      >
+                        Copy
+                      </Button>
+                    </div>
+                    <pre className="overflow-x-auto rounded bg-background p-2">{active.meta.manual_input.join("\n")}</pre>
+                  </div>
+                )}
+                {active.delivery_type === "manual" ? (
+                  <div className="mt-1 text-muted-foreground">
+                    Write a completion note (e.g. "Completed inviting user@gmail.com"). The buyer gets this note in Telegram
+                    and the order is marked completed.
+                  </div>
+                ) : (
                 <div className="mt-1 text-muted-foreground">
                   Paste {active.quantity} item(s) — one per line, or blocks separated by ---. Each item is sent
                   privately to this buyer only, then the order is marked completed.
                 </div>
+                )}
               </div>
             )}
             <Textarea
@@ -577,7 +617,7 @@ function OrdersPage() {
             />
             <div className="flex gap-2">
               <Button onClick={() => deliverMut.mutate()} disabled={!content.trim() || deliverMut.isPending}>
-                {deliverMut.isPending ? "Sending…" : "Send to user & complete"}
+                {deliverMut.isPending ? "Sending…" : active?.delivery_type === "manual" ? "Complete order" : "Send to user & complete"}
               </Button>
               <Button variant="outline" onClick={() => setDeliverFor("")}>
                 Close

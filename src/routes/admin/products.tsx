@@ -3,6 +3,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState, type CSSProperties } from "react";
+import { EMPTY_MANUAL_INPUT, type ManualInputConfig } from "@/lib/manual-input";
 import { ArrowDown, ArrowLeft, ArrowUp, Boxes, Filter, FolderTree, PlusCircle, Search, Sparkles } from "lucide-react";
 import {
   applyProductIcon,
@@ -11,6 +12,8 @@ import {
   getBotSettings,
   getCatalogue,
   getCategoryProducts,
+  getManualInput,
+  saveManualInput,
   reorderCategories,
   saveCategory,
   saveCategoryProducts,
@@ -147,6 +150,9 @@ function ProductsPage() {
   }
 
   const [form, setForm] = useState({ ...EMPTY });
+  const [mi, setMi] = useState<ManualInputConfig>({ ...EMPTY_MANUAL_INPUT });
+  const loadMi = useServerFn(getManualInput);
+  const saveMi = useServerFn(saveManualInput);
   const [stockFor, setStockFor] = useState<string>("");
   const [search, setSearch] = useState("");
   const [supplierFilter, setSupplierFilter] = useState("all");
@@ -254,8 +260,8 @@ function ProductsPage() {
   });
 
   const prodMut = useMutation({
-    mutationFn: () =>
-      saveProd({
+    mutationFn: async () => {
+      const res: any = await saveProd({
         data: {
           ...(form.id ? { id: form.id } : {}),
           name: form.name,
@@ -280,10 +286,14 @@ function ProductsPage() {
             ? { price_override: form.price_override === "" ? null : Number(form.price_override) }
             : {}),
         },
-      }),
+      });
+      const pid = form.id || res?.id;
+      if (pid && form.delivery_type === "manual") await saveMi({ data: { product_id: pid, config: mi } });
+      return res;
+    },
     onSuccess: () => {
       const wasEdit = Boolean(form.id);
-      setForm({ ...EMPTY });
+      { setForm({ ...EMPTY }); setMi({ ...EMPTY_MANUAL_INPUT }); }
       refresh();
       toast.success("Product saved");
       setView(wasEdit ? "products" : "hub");
@@ -316,6 +326,8 @@ function ProductsPage() {
       sort_order: p.sort_order,
     });
     setStockFor("");
+    setMi({ ...EMPTY_MANUAL_INPUT });
+    loadMi({ data: { product_id: p.id } }).then((c) => setMi(c)).catch(() => {});
     setView("form");
   }
 
@@ -624,6 +636,47 @@ function ProductsPage() {
             <option value="manual">Manual (admin delivers)</option>
           </select>
         </div>
+        {form.delivery_type === "manual" && (
+          <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3 sm:col-span-2">
+            <div className="text-sm font-semibold">Manual order — info to collect from the customer</div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label>What to ask</Label>
+                <select
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                  value={mi.kind}
+                  onChange={(e) => setMi({ ...mi, kind: e.target.value as ManualInputConfig["kind"] })}
+                >
+                  <option value="none">Nothing (just pay)</option>
+                  <option value="email">Email address(es)</option>
+                  <option value="text">Any text (username, link, ID…)</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <Label>Estimated delivery time (shown after payment)</Label>
+                <Input value={mi.eta} maxLength={100} onChange={(e) => setMi({ ...mi, eta: e.target.value })} placeholder="1–12 hours" />
+              </div>
+            </div>
+            {mi.kind !== "none" && (
+              <>
+                <div className="space-y-1">
+                  <Label>Message shown to the customer (format / example)</Label>
+                  <Textarea
+                    rows={5}
+                    maxLength={1500}
+                    value={mi.prompt}
+                    onChange={(e) => setMi({ ...mi, prompt: e.target.value })}
+                    placeholder={"📧 Please enter email(s) to receive slot (one email per line).\n\nExample:\nuser1@gmail.com\nuser2@gmail.com"}
+                  />
+                </div>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={mi.qty_per_line} onChange={(e) => setMi({ ...mi, qty_per_line: e.target.checked })} />
+                  One line = one item (quantity is counted from the lines the customer sends)
+                </label>
+              </>
+            )}
+          </div>
+        )}
         <div className="space-y-1 sm:col-span-2">
           <Label>Website image — upload or URL (Telegram keeps using the emoji)</Label>
           <ImageUploadField
@@ -717,7 +770,7 @@ function ProductsPage() {
             <Button
               variant="outline"
               onClick={() => {
-                setForm({ ...EMPTY });
+                { setForm({ ...EMPTY }); setMi({ ...EMPTY_MANUAL_INPUT }); }
                 setView("products");
               }}
             >
@@ -923,7 +976,7 @@ function ProductsPage() {
                 type="button"
                 variant="ghost"
                 onClick={() => {
-                  if (c.id === "form") setForm({ ...EMPTY });
+                  if (c.id === "form") { setForm({ ...EMPTY }); setMi({ ...EMPTY_MANUAL_INPUT }); }
                   setView(c.id);
                 }}
                 className="group h-auto w-full items-start justify-start gap-3 whitespace-normal rounded-2xl border border-border/70 bg-card p-4 text-left transition hover:border-primary/50 hover:bg-card hover:shadow-lg"
@@ -962,7 +1015,7 @@ function ProductsPage() {
                 size="sm"
                 className="ml-auto"
                 onClick={() => {
-                  setForm({ ...EMPTY });
+                  { setForm({ ...EMPTY }); setMi({ ...EMPTY_MANUAL_INPUT }); }
                   setView("form");
                 }}
               >

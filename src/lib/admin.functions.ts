@@ -474,7 +474,7 @@ export const saveProduct = createServerFn({ method: "POST" })
       const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
       await pushResellerEvent((created as any).is_active === false ? "removed" : "new", created);
     }
-    return { ok: true };
+    return { ok: true, id: (created as any)?.id as string | undefined };
   });
 
 /** Quick on/off switch for a product (in-house or supplier) from the catalogue list. */
@@ -651,6 +651,80 @@ export const saveManualNote = createServerFn({ method: "POST" })
       .from("bot_settings")
       .upsert({ key: `${MANUAL_NOTE_PREFIX}${data.product_id}`, value: data.note }, { onConflict: "key" });
     if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/* per-product "ask the customer" config for manual delivery */
+
+export const getManualInput = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { product_id: string }) => ({ product_id: String(d.product_id) }))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { parseManualInput, MANUAL_INPUT_PREFIX } = await import("@/lib/manual-input");
+    const { data: row } = await (context as any).supabase
+      .from("bot_settings")
+      .select("value")
+      .eq("key", `${MANUAL_INPUT_PREFIX}${data.product_id}`)
+      .maybeSingle();
+    return parseManualInput(row?.value as string);
+  });
+
+export const saveManualInput = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { product_id: string; config: any }) => ({ product_id: String(d.product_id), config: d.config }))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { parseManualInput, MANUAL_INPUT_PREFIX } = await import("@/lib/manual-input");
+    const cfg = parseManualInput(JSON.stringify(data.config ?? {}));
+    const { error } = await (context as any).supabase
+      .from("bot_settings")
+      .upsert({ key: `${MANUAL_INPUT_PREFIX}${data.product_id}`, value: JSON.stringify(cfg) }, { onConflict: "key" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Finish a manual order with an admin note; the buyer gets the note in Telegram. */
+export const completeManualOrder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; note: string }) => ({
+    id: String(d.id),
+    note: String(d.note ?? "").trim().slice(0, 3000),
+  }))
+  .handler(async ({ data, context }) => {
+    const sb = (context as any).supabase;
+    await assertAdmin(context);
+    if (!data.note) throw new Error("Write a short completion note first.");
+    const { data: cur } = await sb.from("orders").select("meta").eq("id", data.id).maybeSingle();
+    const { data: order, error } = await sb
+      .from("orders")
+      .update({
+        status: "completed",
+        delivered_content: data.note,
+        meta: { ...((cur?.meta as any) ?? {}), manual_note: data.note, manual_completed_at: new Date().toISOString() },
+      })
+      .eq("id", data.id)
+      .in("status", ["pending", "processing"])
+      .select("*")
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!order) throw new Error("This order is no longer pending (already completed or cancelled).");
+    try {
+      const { announceOrderSale } = await import("@/lib/bot/engine.server");
+      await announceOrderSale(String(order.id));
+    } catch (e) {
+      console.error("sale announce failed", e);
+    }
+    if (order.source === "website" || !order.telegram_id) return { ok: true };
+    const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const { sendMessage } = await import("@/lib/telegram.server");
+    const res: any = await sendMessage(
+      order.telegram_id,
+      `✅ <b>Order #${order.order_no} completed</b>\n${order.quantity}× ${esc(order.product_name)}\n\n${esc(data.note)}`,
+    ).catch((e: any) => ({ ok: false, description: e?.message }));
+    if (!res?.ok) {
+      throw new Error(`Order completed, but Telegram did not accept the message: ${res?.description ?? "unknown error"}`);
+    }
     return { ok: true };
   });
 
