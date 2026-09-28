@@ -46,6 +46,7 @@ import {
   signOrderToken,
 } from "@/lib/order-file.server";
 import { parseStock } from "@/lib/stock-format";
+import { MANUAL_INPUT_PREFIX, parseManualInput, validateManualReply, type ManualInputConfig } from "@/lib/manual-input";
 import { SITE_ORIGIN } from "@/lib/site-url";
 import { backgroundWaitUntil } from "@/lib/bg.server";
 
@@ -497,6 +498,23 @@ async function manualNoteFor(productId: string): Promise<string> {
   const s = await getSettings();
   const note = (s[`manual_note_${productId}`] ?? "").trim();
   return note ? `\n📝 <b>Delivery note</b>\n<pre>${escapeHtml(note)}</pre>\n\n` : "\n";
+}
+
+/** "Ask the customer" config for a manual product (kind "none" = ask nothing). */
+async function manualInputFor(productId: string): Promise<ManualInputConfig> {
+  const s = await getSettings();
+  return parseManualInput(s[`${MANUAL_INPUT_PREFIX}${productId}`]);
+}
+
+async function askManualInput(chatId: number, state: any, productId: string, qty: number | null) {
+  const cfg = await manualInputFor(productId);
+  await setState(chatId, { ...(state ?? {}), awaiting: "manual_input", product_id: productId, mi_qty: qty });
+  const fallback =
+    cfg.kind === "email"
+      ? "📧 Please enter the email(s) for this order (one email per line).\n\nExample:\nuser1@gmail.com\nuser2@gmail.com"
+      : "✏️ Please send the information needed for this order.";
+  const qtyHint = cfg.qty_per_line ? "\n💡 Quantity will be auto-calculated from the number of lines you send." : "";
+  await say(chatId, escapeHtml(cfg.prompt.trim() || fallback) + qtyHint, [[{ text: "⬅️ Cancel", callback_data: `p:${productId}` }]]);
 }
 
 /** Settings write that also busts the in-memory cache. Throws on failure. */
@@ -3496,6 +3514,22 @@ async function handleMessage(msg: any) {
       ]);
       return;
     }
+    case "manual_input": {
+      const cfg = await manualInputFor(String(state.product_id));
+      const res = validateManualReply(cfg, text);
+      if ("error" in res) {
+        await say(chatId, `❌ ${escapeHtml(res.error)}`, [[{ text: "⬅️ Cancel", callback_data: `p:${state.product_id}` }]]);
+        return;
+      }
+      const qty = cfg.qty_per_line ? res.lines.length : Math.max(1, Number(state.mi_qty) || 1);
+      const pid = String(state.product_id);
+      state.awaiting = null;
+      delete state.mi_qty;
+      await setState(chatId, state);
+      const view = await startCheckout(chatId, [{ product_id: pid, qty }], { [pid]: res.lines });
+      if (view) await say(chatId, view.text, view.kb);
+      return;
+    }
     case "custom_qty": {
       const qty = parseInt(text.replace(/\D/g, ""), 10);
       state.awaiting = null;
@@ -3503,6 +3537,14 @@ async function handleMessage(msg: any) {
       if (!qty || qty < 1) {
         await say(chatId, "❌ Invalid quantity.");
         return;
+      }
+      const ccfg = await manualInputFor(String(state.product_id));
+      if (ccfg.kind !== "none") {
+        const { data: mp } = await db.from("products").select("delivery_type").eq("id", state.product_id).maybeSingle();
+        if (mp?.delivery_type === "manual") {
+          await askManualInput(chatId, state, String(state.product_id), qty);
+          return;
+        }
       }
       const view = await startCheckout(chatId, [{ product_id: state.product_id, qty }]);
       if (view) await say(chatId, view.text, view.kb);
@@ -5202,7 +5244,7 @@ async function admCreateProduct(chatId: number, d: ProdDraft) {
 /* --------------------------------------------- direct checkout (pay per order) */
 
 type Coupon = { code: string; percent: number; amount_off: number };
-type CoMeta = { items: CartLine[]; coupon?: Coupon | null; summary?: string; total?: number };
+type CoMeta = { items: CartLine[]; coupon?: Coupon | null; summary?: string; total?: number; inputs?: Record<string, string[]> };
 
 async function coTotals(meta: CoMeta, chatId?: number) {
   const ids = meta.items.map((i) => i.product_id);
@@ -5460,7 +5502,7 @@ async function fulfillCheckout(
     ? ((
         await db
           .from("orders")
-          .select("id,product_id,quantity")
+          .select("id,product_id,quantity,meta")
           .eq("telegram_id", chatId)
           .eq("status", "awaiting_payment")
           .contains("meta", { deposit_id: depositId })
@@ -5538,6 +5580,7 @@ async function fulfillCheckout(
   let text = `<b>O R D E R   C O N F I R M E D</b>\n──────────────\n💳 Paid: <b>${money(total)}</b>\n`;
   const serialQueue: { name: string; orderNo?: number; items: string[] }[] = [];
   let pending = 0;
+  let etaText = "";
 
   for (const l of lines) {
     const p = l.product;
@@ -5545,7 +5588,9 @@ async function fulfillCheckout(
     let deliveredItems: string[] = [];
     let status = "pending";
     let autoFailReason = "";
-    if (p.supplier_id && p.supplier_external_id) {
+    const miLines = meta.inputs?.[p.id] ?? null;
+    const miCfg = p.delivery_type === "manual" ? await manualInputFor(p.id) : null;
+    if (p.delivery_type !== "manual" && p.supplier_id && p.supplier_external_id) {
       try {
         const { supplierOrder } = await import("@/lib/suppliers/api.server");
         const { supplierPreflight, supplierUnitCost } = await import("@/lib/suppliers/fulfil.server");
@@ -5640,6 +5685,9 @@ async function fulfillCheckout(
       delivered_content: delivered,
       coupon_code: meta.coupon?.code ?? null,
       discount: Math.round(share * 100) / 100,
+      ...(miLines?.length || p.delivery_type === "manual"
+        ? { meta: { ...((claimRow?.meta as any) ?? {}), manual: true, ...(miLines?.length ? { manual_input: miLines } : {}) } }
+        : {}),
     };
     const { data: order } = claimRow
       ? await db.from("orders").update(payload).eq("id", claimRow.id).select("*").maybeSingle()
@@ -5652,12 +5700,14 @@ async function fulfillCheckout(
     }
     if (status !== "completed") {
       pending++;
+      if (miCfg?.eta) etaText = miCfg.eta;
       await notifyAdmins(
         `🕐 <b>Manual delivery needed — order #${order?.order_no}</b>\n` +
           `User: <code>${chatId}</code>${user?.username ? ` (@${user.username})` : ""}\n` +
           `${l.qty}× ${p.name}\nPaid: <b>${money(l.subtotal)}</b> via ${methodKey}\n` +
           `Ref: <code>${escapeHtml(reference)}</code>\n` +
           (autoFailReason ? `⚠️ Auto (API) delivery failed: <code>${escapeHtml(autoFailReason)}</code>\n` : "") +
+          (miLines?.length ? `\n📋 <b>Customer info</b>\n<pre>${escapeHtml(miLines.join("\n"))}</pre>\n` : "") +
           `\n` +
           (await manualNoteFor(p.id)) +
 
@@ -5706,7 +5756,9 @@ async function fulfillCheckout(
   if (pending)
     text +=
       `\n⏳ <b>${pending} item(s) need manual delivery.</b>\n` +
-      `Our admin has been notified and will deliver here shortly. Please wait — you can check progress with /orders.\n`;
+      `🛠 Admin is processing it manually. You will be notified here when it is done.\n` +
+      (etaText ? `⏱ Estimated time: <b>${escapeHtml(etaText)}</b>\n` : "") +
+      `You can check progress with /orders.\n`;
 
   const settingsK = await getSettings();
   const kb: Button[][] = [
@@ -5717,9 +5769,9 @@ async function fulfillCheckout(
 }
 
 /** Start a checkout for a single product or the whole cart. */
-async function startCheckout(chatId: number, items: CartLine[]) {
+async function startCheckout(chatId: number, items: CartLine[], inputs?: Record<string, string[]>) {
   if (!items.length) return null;
-  const meta: CoMeta = { items, coupon: null };
+  const meta: CoMeta = { items, coupon: null, ...(inputs ? { inputs } : {}) };
   const { lines, total } = await coTotals(meta, chatId);
   if (!lines.length) return null;
   meta.summary = lines.map((l) => `${l.qty}x ${l.product.name}`).join(", ");
@@ -6113,6 +6165,14 @@ async function handleCallback(cq: any) {
 
   if (data.startsWith("qty:")) {
     const productId = data.split(":")[1]!;
+    const miCfg = await manualInputFor(productId);
+    if (miCfg.kind !== "none" && miCfg.qty_per_line) {
+      const { data: mp } = await db.from("products").select("delivery_type").eq("id", productId).maybeSingle();
+      if (mp?.delivery_type === "manual") {
+        await askManualInput(chatId, user.state, productId, null);
+        return;
+      }
+    }
     const qs = await getSettings();
     const kb: Button[][] = [
       [1, 2, 3].map((n) => ({ text: `${n}×`, callback_data: `buy:${productId}:${n}` })),
@@ -6311,7 +6371,16 @@ async function handleCallback(cq: any) {
 
   if (data.startsWith("buy:")) {
     const [, productId, n] = data.split(":");
-    const view = await startCheckout(chatId, [{ product_id: productId!, qty: Math.max(1, Number(n) || 1) }]);
+    const bq = Math.max(1, Number(n) || 1);
+    const bCfg = await manualInputFor(productId!);
+    if (bCfg.kind !== "none") {
+      const { data: mp } = await db.from("products").select("delivery_type").eq("id", productId!).maybeSingle();
+      if (mp?.delivery_type === "manual") {
+        await askManualInput(chatId, user.state, productId!, bq);
+        return;
+      }
+    }
+    const view = await startCheckout(chatId, [{ product_id: productId!, qty: bq }]);
     if (view) await edit(view.text, view.kb);
     return;
   }
