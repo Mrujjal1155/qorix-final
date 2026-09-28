@@ -156,10 +156,12 @@ function ProductsPage() {
   const [stockFor, setStockFor] = useState<string>("");
   const [search, setSearch] = useState("");
   const [supplierFilter, setSupplierFilter] = useState("all");
+  const [deliveryFilter, setDeliveryFilter] = useState("all");
 
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
     return (data?.products ?? []).filter((p: any) => {
+      if (deliveryFilter !== "all" && p.delivery_type !== deliveryFilter) return false;
       if (supplierFilter === "inhouse" && p.supplier_id) return false;
       if (supplierFilter !== "all" && supplierFilter !== "inhouse" && p.supplier_id !== supplierFilter) return false;
       if (!q) return true;
@@ -169,7 +171,7 @@ function ProductsPage() {
         String(p.badge ?? "").toLowerCase().includes(q)
       );
     });
-  }, [data?.products, search, supplierFilter]);
+  }, [data?.products, search, supplierFilter, deliveryFilter]);
 
   const manageList = useMemo(() => {
     const q = manageSearch.trim().toLowerCase();
@@ -856,6 +858,19 @@ function ProductsPage() {
                 {(data?.suppliers ?? []).map((s: any) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
+              </select>
+            </div>
+            <div className="relative sm:w-48">
+              <Filter className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <select
+                aria-label="Delivery type"
+                className="h-9 w-full rounded-md border border-input bg-background pl-9 pr-3 text-sm"
+                value={deliveryFilter}
+                onChange={(e) => setDeliveryFilter(e.target.value)}
+              >
+                <option value="all">All delivery</option>
+                <option value="auto">Auto</option>
+                <option value="manual">Manual</option>
               </select>
             </div>
           </div>
