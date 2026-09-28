@@ -1575,6 +1575,44 @@ export type Database = {
         }
         Relationships: []
       }
+      user_product_prices: {
+        Row: {
+          created_at: string
+          id: string
+          min_qty: number
+          price: number
+          product_id: string
+          telegram_id: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          min_qty?: number
+          price: number
+          product_id: string
+          telegram_id: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          min_qty?: number
+          price?: number
+          product_id?: string
+          telegram_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_product_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
