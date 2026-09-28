@@ -474,7 +474,7 @@ export const saveProduct = createServerFn({ method: "POST" })
       const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
       await pushResellerEvent((created as any).is_active === false ? "removed" : "new", created);
     }
-    return { ok: true };
+    return { ok: true, id: (created as any)?.id as string | undefined };
   });
 
 /** Quick on/off switch for a product (in-house or supplier) from the catalogue list. */
