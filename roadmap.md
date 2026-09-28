@@ -52,3 +52,5 @@
 - [x] Create an order ID at gateway checkout, auto-fail unpaid orders after 30 minutes, and let admin mark paid or refund the paid amount to the wallet
 - [x] Use supplier cost—not customer selling price—for supplier-wallet checks on every fulfilment path
 - [x] Add a persistent blue Telegram bottom menu for Products, Deposit, and My Orders with configurable Premium Emoji icons
+
+- [ ] Reseller API: manual product-এর জন্য customer info (`fields`) নেওয়া — bot/admin অংশ শেষ, API অংশ বাকি
