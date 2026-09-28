@@ -2827,6 +2827,10 @@ export type CardDelivery = {
   botSent?: boolean;
   markChannelSent?: () => Promise<void>;
   markBotSent?: () => Promise<void>;
+  /** Recorded BEFORE the bot send so an interrupted worker never resends it. */
+  markBotAttempt?: () => Promise<void>;
+  /** Telegram definitely refused → clear the attempt so the next tick retries. */
+  markBotFailed?: () => Promise<void>;
 };
 
 function botAlertChat(s: Record<string, string>) {
@@ -2872,13 +2876,17 @@ async function deliverCard(
     if (!target) {
       botSent = true;
     } else {
+      if (delivery?.markBotAttempt) await delivery.markBotAttempt();
       let ok = false;
       if (banner) ok = (await sendPhoto(target, banner, text, kb).catch(() => ({ ok: false }) as any)).ok;
       if (!ok) ok = (await sendAlertMessage(target, text, kb)).ok;
       if (ok) {
         botSent = true;
         if (delivery?.markBotSent) await delivery.markBotSent();
-      } else problems.push("bot chat post failed");
+      } else {
+        if (delivery?.markBotFailed) await delivery.markBotFailed().catch(() => {});
+        problems.push("bot chat post failed");
+      }
     }
   }
 

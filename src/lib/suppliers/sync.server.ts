@@ -377,6 +377,24 @@ async function drainNotificationEvents(sb: any, budget: { cards: number; until?:
           });
           if (error) throw new Error(`Could not record bot delivery: ${error.message}`);
         },
+        // dm_cursor 2 = "send in progress". If the worker is cut off after
+        // Telegram accepted the message, the retry sees >0 and skips the bot
+        // chat instead of posting the same card again.
+        markBotAttempt: async () => {
+          const { error } = await sb.rpc("update_stock_notification_progress", {
+            _id: item.id,
+            _channel_sent: channelDone,
+            _dm_cursor: 2,
+          });
+          if (error) throw new Error(`Could not record bot attempt: ${error.message}`);
+        },
+        markBotFailed: async () => {
+          await sb.rpc("update_stock_notification_progress", {
+            _id: item.id,
+            _channel_sent: channelDone,
+            _dm_cursor: 0,
+          });
+        },
       };
       const { data: prod } = await sb.from("products").select("*").eq("id", item.product_id).maybeSingle();
       if (!prod || (prod as any).is_active === false) {
