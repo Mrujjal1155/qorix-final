@@ -68,7 +68,7 @@ const EMPTY = {
   sort_order: 0,
 };
 
-type View = "hub" | "categories" | "products" | "form" | "pricing";
+type View = "hub" | "categories" | "products" | "form" | "pricing" | "stock";
 
 function supplierChipStyle(key: string): CSSProperties {
   let h = 0;
@@ -354,8 +354,9 @@ function ProductsPage() {
       variant="outline"
       size="sm"
       onClick={() => {
+        const back = view === "stock" ? "products" : "hub";
         setStockFor("");
-        setView("hub");
+        setView(back);
       }}
     >
       <ArrowLeft className="mr-1 h-4 w-4" /> Back
@@ -870,13 +871,19 @@ function ProductsPage() {
                     <Button size="sm" variant="ghost" onClick={() => editProduct(p)}>
                       Edit
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => setStockFor(p.id)}>
+                    <Button size="sm" variant="ghost" onClick={() => {
+                        setStockFor(p.id);
+                        setView("stock");
+                      }}>
                       Stock
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => delProd({ data: { id: p.id } }).then(refresh)}
+                      onClick={() => {
+                        if (!window.confirm(`Are you sure you want to delete "${p.name}"? This cannot be undone.`)) return;
+                        delProd({ data: { id: p.id } }).then(refresh);
+                      }}
                     >
                       Delete
                     </Button>
@@ -888,13 +895,6 @@ function ProductsPage() {
         </CardContent>
       </Card>
 
-      {stockFor && (
-        <StockManagerCard
-          productId={stockFor}
-          productName={(data?.products ?? []).find((p: any) => p.id === stockFor)?.name ?? "Product"}
-          onClose={() => setStockFor("")}
-        />
-      )}
     </>
   );
 
@@ -938,6 +938,8 @@ function ProductsPage() {
                   ? "Products"
                   : view === "pricing"
                     ? "Pricing / Stock settings"
+                    : view === "stock"
+                      ? `Stock — ${(data?.products ?? []).find((p: any) => p.id === stockFor)?.name ?? "Product"}`
                     : form.id
                       ? "Edit product"
                       : "Add product"}
@@ -960,6 +962,16 @@ function ProductsPage() {
           {view === "products" && catalogueSection}
           {view === "form" && formSection}
           {view === "pricing" && pricingSection}
+          {view === "stock" && stockFor && (
+            <StockManagerCard
+              productId={stockFor}
+              productName={(data?.products ?? []).find((p: any) => p.id === stockFor)?.name ?? "Product"}
+              onClose={() => {
+                setStockFor("");
+                setView("products");
+              }}
+            />
+          )}
         </div>
       )}
     </AdminShell>
