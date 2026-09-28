@@ -5246,27 +5246,48 @@ async function admCreateProduct(chatId: number, d: ProdDraft) {
 type Coupon = { code: string; percent: number; amount_off: number };
 type CoMeta = { items: CartLine[]; coupon?: Coupon | null; summary?: string; total?: number; inputs?: Record<string, string[]> };
 
+/** Admin-set custom unit prices for one bot user: product_id -> { price, min_qty }. Never throws. */
+async function userPricesFor(chatId: number | undefined, ids: string[]) {
+  const out: Record<string, { price: number; min_qty: number }> = {};
+  if (!chatId || !ids.length) return out;
+  try {
+    const { data } = await db
+      .from("user_product_prices")
+      .select("product_id,price,min_qty")
+      .eq("telegram_id", chatId)
+      .in("product_id", ids);
+    for (const r of (data ?? []) as any[]) out[String(r.product_id)] = { price: Number(r.price), min_qty: Number(r.min_qty) || 1 };
+  } catch (e) {
+    console.error("user price lookup failed", e);
+  }
+  return out;
+}
+
 async function coTotals(meta: CoMeta, chatId?: number) {
   const ids = meta.items.map((i) => i.product_id);
   const { data: products } = await db.from("products").select("*").eq("is_active", true).in("id", ids);
   const { bulkTiersFor, bulkUnit } = await import("@/lib/bulk-discount.server");
-  const bulk = await bulkTiersFor(ids, "bot");
+  const [bulk, custom] = await Promise.all([bulkTiersFor(ids, "bot"), userPricesFor(chatId, ids)]);
   const lines = meta.items
     .map((i) => {
       const p = (products ?? []).find((x: any) => x.id === i.product_id);
       if (!p) return null;
-      const unit = bulkUnit(p, Number(p.price), i.qty, bulk[p.id]);
-      return { product: p, qty: i.qty, unit, subtotal: Math.round(unit * i.qty * 100) / 100 };
+      // Custom price replaces bulk/membership discounts once the minimum quantity is met.
+      const cp = custom[p.id];
+      const isCustom = Boolean(cp && i.qty >= cp.min_qty);
+      const unit = isCustom ? cp!.price : bulkUnit(p, Number(p.price), i.qty, bulk[p.id]);
+      return { product: p, qty: i.qty, unit, custom: isCustom, subtotal: Math.round(unit * i.qty * 100) / 100 };
     })
     .filter(Boolean) as any[];
   const subtotal = Math.round(lines.reduce((s, l) => s + l.subtotal, 0) * 100) / 100;
+  const tierBase = Math.round(lines.filter((l) => !l.custom).reduce((s, l) => s + l.subtotal, 0) * 100) / 100;
   const c = meta.coupon;
   let tierPct = 0;
   if (chatId) {
     const u = await getUser(chatId);
     tierPct = tierInfo(u?.total_spent ?? 0).current.discount;
   }
-  const tierOff = Math.round(((subtotal * tierPct) / 100) * 100) / 100;
+  const tierOff = Math.round(((tierBase * tierPct) / 100) * 100) / 100;
   let discount = c ? (subtotal * Number(c.percent || 0)) / 100 + Number(c.amount_off || 0) : 0;
   discount = Math.max(0, Math.min(subtotal, Math.round((discount + tierOff) * 100) / 100));
   const total = Math.round((subtotal - discount) * 100) / 100;

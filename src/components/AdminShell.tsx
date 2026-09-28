@@ -9,6 +9,7 @@ import { ThemeToggle } from "@/components/theme";
 import { SupplierBell } from "@/components/admin/SupplierBell";
 import {
   Boxes,
+  Tag,
   CreditCard,
   LayoutDashboard,
   LogOut,

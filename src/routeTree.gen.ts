@@ -36,6 +36,7 @@ import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminSiteRouteImport } from './routes/admin/site'
 import { Route as AdminSuppliersRouteImport } from './routes/admin/suppliers'
 import { Route as AdminSupportRouteImport } from './routes/admin/support'
+import { Route as AdminUserPricesRouteImport } from './routes/admin/user-prices'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminWebhookRouteImport } from './routes/admin/webhook'
 import { Route as OrderConfirmationRouteImport } from './routes/order.confirmation'
@@ -200,6 +201,11 @@ const AdminSuppliersRoute = AdminSuppliersRouteImport.update({
 const AdminSupportRoute = AdminSupportRouteImport.update({
   id: '/support',
   path: '/support',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminUserPricesRoute = AdminUserPricesRouteImport.update({
+  id: '/user-prices',
+  path: '/user-prices',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
@@ -400,6 +406,7 @@ export interface FileRoutesByFullPath {
   '/admin/site': typeof AdminSiteRoute
   '/admin/suppliers': typeof AdminSuppliersRoute
   '/admin/support': typeof AdminSupportRoute
+  '/admin/user-prices': typeof AdminUserPricesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/webhook': typeof AdminWebhookRoute
   '/order/confirmation': typeof OrderConfirmationRoute
@@ -458,6 +465,7 @@ export interface FileRoutesByTo {
   '/admin/site': typeof AdminSiteRoute
   '/admin/suppliers': typeof AdminSuppliersRoute
   '/admin/support': typeof AdminSupportRoute
+  '/admin/user-prices': typeof AdminUserPricesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/webhook': typeof AdminWebhookRoute
   '/order/confirmation': typeof OrderConfirmationRoute
@@ -519,6 +527,7 @@ export interface FileRoutesById {
   '/admin/site': typeof AdminSiteRoute
   '/admin/suppliers': typeof AdminSuppliersRoute
   '/admin/support': typeof AdminSupportRoute
+  '/admin/user-prices': typeof AdminUserPricesRoute
   '/admin/users': typeof AdminUsersRoute
   '/admin/webhook': typeof AdminWebhookRoute
   '/order/confirmation': typeof OrderConfirmationRoute
@@ -580,6 +589,7 @@ export interface FileRouteTypes {
     | '/admin/site'
     | '/admin/suppliers'
     | '/admin/support'
+    | '/admin/user-prices'
     | '/admin/users'
     | '/admin/webhook'
     | '/order/confirmation'
@@ -638,6 +648,7 @@ export interface FileRouteTypes {
     | '/admin/site'
     | '/admin/suppliers'
     | '/admin/support'
+    | '/admin/user-prices'
     | '/admin/users'
     | '/admin/webhook'
     | '/order/confirmation'
@@ -698,6 +709,7 @@ export interface FileRouteTypes {
     | '/admin/site'
     | '/admin/suppliers'
     | '/admin/support'
+    | '/admin/user-prices'
     | '/admin/users'
     | '/admin/webhook'
     | '/order/confirmation'
@@ -962,6 +974,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSupportRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/user-prices': {
+      id: '/admin/user-prices'
+      path: '/user-prices'
+      fullPath: '/admin/user-prices'
+      preLoaderRoute: typeof AdminUserPricesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/users': {
       id: '/admin/users'
       path: '/users'
@@ -1214,6 +1233,7 @@ interface AdminRouteRouteChildren {
   AdminSiteRoute: typeof AdminSiteRoute
   AdminSuppliersRoute: typeof AdminSuppliersRoute
   AdminSupportRoute: typeof AdminSupportRoute
+  AdminUserPricesRoute: typeof AdminUserPricesRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminWebhookRoute: typeof AdminWebhookRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -1232,6 +1252,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminSiteRoute: AdminSiteRoute,
   AdminSuppliersRoute: AdminSuppliersRoute,
   AdminSupportRoute: AdminSupportRoute,
+  AdminUserPricesRoute: AdminUserPricesRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminWebhookRoute: AdminWebhookRoute,
   AdminIndexRoute: AdminIndexRoute,
