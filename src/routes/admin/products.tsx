@@ -293,7 +293,7 @@ function ProductsPage() {
     },
     onSuccess: () => {
       const wasEdit = Boolean(form.id);
-      setForm({ ...EMPTY });
+      { setForm({ ...EMPTY }); setMi({ ...EMPTY_MANUAL_INPUT }); }
       refresh();
       toast.success("Product saved");
       setView(wasEdit ? "products" : "hub");
@@ -770,7 +770,7 @@ function ProductsPage() {
             <Button
               variant="outline"
               onClick={() => {
-                setForm({ ...EMPTY });
+                { setForm({ ...EMPTY }); setMi({ ...EMPTY_MANUAL_INPUT }); }
                 setView("products");
               }}
             >
@@ -976,7 +976,7 @@ function ProductsPage() {
                 type="button"
                 variant="ghost"
                 onClick={() => {
-                  if (c.id === "form") setForm({ ...EMPTY });
+                  if (c.id === "form") { setForm({ ...EMPTY }); setMi({ ...EMPTY_MANUAL_INPUT }); }
                   setView(c.id);
                 }}
                 className="group h-auto w-full items-start justify-start gap-3 whitespace-normal rounded-2xl border border-border/70 bg-card p-4 text-left transition hover:border-primary/50 hover:bg-card hover:shadow-lg"
@@ -1015,7 +1015,7 @@ function ProductsPage() {
                 size="sm"
                 className="ml-auto"
                 onClick={() => {
-                  setForm({ ...EMPTY });
+                  { setForm({ ...EMPTY }); setMi({ ...EMPTY_MANUAL_INPUT }); }
                   setView("form");
                 }}
               >
