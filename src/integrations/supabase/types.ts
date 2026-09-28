@@ -1114,6 +1114,32 @@ export type Database = {
           },
         ]
       }
+      stock_counters: {
+        Row: {
+          available: number
+          product_id: string
+          updated_at: string
+        }
+        Insert: {
+          available?: number
+          product_id: string
+          updated_at?: string
+        }
+        Update: {
+          available?: number
+          product_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_counters_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: true
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_items: {
         Row: {
           content: string
@@ -1869,6 +1895,10 @@ export type Database = {
       retry_latest_stock_notification: {
         Args: { _product_id: string }
         Returns: boolean
+      }
+      stock_counter_bump: {
+        Args: { _d: number; _pid: string }
+        Returns: undefined
       }
       stock_counts: {
         Args: { _product_ids?: string[] }
