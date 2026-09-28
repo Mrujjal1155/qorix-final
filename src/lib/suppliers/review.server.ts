@@ -100,6 +100,42 @@ export async function approveReviewItems(sb: any, ids: string[], categoryId?: st
   return { approved, failed };
 }
 
+/** Off: keep the item in the catalogue but switched off; clears the alert. */
+export async function turnOffReviewItems(sb: any, ids: string[]) {
+  const { data: rows } = await sb.from("supplier_review_queue").select("*").in("id", ids);
+  const { applySupplierProductUpdate } = await import("@/lib/suppliers/listing.server");
+  for (const row of rows ?? []) {
+    const { data: sp } = await sb
+      .from("supplier_products")
+      .select("id")
+      .eq("supplier_id", row.supplier_id)
+      .eq("external_id", row.external_id)
+      .maybeSingle();
+    if (sp?.id) {
+      try {
+        await applySupplierProductUpdate(sb, { id: sp.id, is_listed: false });
+      } catch (e: any) {
+        console.error("[review-queue] turn off failed:", e?.message ?? e);
+      }
+    } else if (row.product_id) {
+      await sb.from("products").update({ is_active: false }).eq("id", row.product_id);
+    }
+  }
+  await markReviewSeen(sb, ids);
+  return { turnedOff: (rows ?? []).length };
+}
+
+/** Seen: remove from the alert list without changing the On/Off switch. */
+export async function markReviewSeen(sb: any, ids: string[]) {
+  const { error } = await sb
+    .from("supplier_review_queue")
+    .update({ status: "approved", decided_at: new Date().toISOString() })
+    .in("id", ids)
+    .eq("status", "pending");
+  if (error) throw new Error(error.message);
+  return { seen: ids.length };
+}
+
 /** Reject: keep the item hidden forever and stop future syncs re-queuing it. */
 export async function rejectReviewItems(sb: any, ids: string[]) {
   const { data: rows } = await sb.from("supplier_review_queue").select("*").in("id", ids);
