@@ -27,6 +27,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/suppliers")({
@@ -161,7 +163,7 @@ function SuppliersPage() {
               view === key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
             }`}
           >
-            {key === "suppliers" ? "Supplier catalogue" : key === "review" ? "Review queue" : "My bot · all products"}
+            {key === "suppliers" ? "Supplier catalogue" : key === "review" ? "New products" : "My bot · all products"}
             {key === "review" && (pendingReview?.count ?? 0) > 0 ? (
               <span className="ml-2 rounded-full bg-destructive px-1.5 py-0.5 text-[11px] font-semibold text-destructive-foreground">
                 {pendingReview?.count}
@@ -762,34 +764,32 @@ function SyncHealthCard() {
 }
 
 /**
- * Quarantine list: supplier items that appeared on their own (brand new, or the
- * supplier rotated an id). Nothing here is visible in the bot, website or
- * reseller API until an admin approves it.
+ * New supplier items (alert list). Items arrive Off. The admin views each one
+ * and flips the same On/Off switch used in Products and the Supplier catalogue.
  */
 function ReviewQueuePanel() {
   const qc = useQueryClient();
   const fetchQueue = useServerFn(listReviewQueue);
   const decide = useServerFn(decideReviewItems);
-  const fetchCatalogue = useServerFn(getCatalogue);
   const [picked, setPicked] = useState<string[]>([]);
-  const [categoryId, setCategoryId] = useState("");
   const [busy, setBusy] = useState(false);
+  const [viewing, setViewing] = useState<any | null>(null);
 
   const { data: items } = useQuery({ queryKey: ["review-queue"], queryFn: () => fetchQueue({ data: {} }) });
-  const { data: catalogue } = useQuery({ queryKey: ["catalogue"], queryFn: () => fetchCatalogue() });
   const rows: any[] = (items as any[]) ?? [];
   const allPicked = rows.length > 0 && picked.length === rows.length;
 
-  const run = async (action: "approve" | "reject", ids: string[]) => {
+  const run = async (action: "on" | "off" | "seen", ids: string[]) => {
     if (!ids.length) return;
     setBusy(true);
     try {
-      const res: any = await decide({
-        data: { ids, action, ...(action === "approve" && categoryId ? { category_id: categoryId } : {}) },
-      });
-      toast.success(action === "approve" ? `${res.approved} product approved` : `${res.rejected} product rejected`);
-      if (res.failed?.length) toast.error(`${res.failed.length} item could not be approved`);
+      const res: any = await decide({ data: { ids, action } });
+      if (action === "on") toast.success(`${res.approved} product turned on`);
+      else if (action === "off") toast.success(`${res.turnedOff} product kept off`);
+      else toast.success(`${res.seen} marked as seen`);
+      if (res.failed?.length) toast.error(`${res.failed.length} item could not be turned on`);
       setPicked([]);
+      setViewing(null);
       qc.invalidateQueries({ queryKey: ["review-queue"] });
       qc.invalidateQueries({ queryKey: ["review-queue-count"] });
       qc.invalidateQueries({ queryKey: ["supplier-products"] });
@@ -804,12 +804,13 @@ function ReviewQueuePanel() {
     <Card>
       <CardHeader>
         <CardTitle className="text-base">
-          Waiting for approval {rows.length ? <Badge variant="secondary">{rows.length}</Badge> : null}
+          New supplier products {rows.length ? <Badge variant="secondary">{rows.length}</Badge> : null}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <p className="mb-3 text-sm text-muted-foreground">
-          New supplier items land here first. They stay hidden from the bot, website and API until you approve them.
+          New supplier items arrive here switched Off. View an item, then turn it On to show it in the bot, website
+          and API. This switch is the same one used in Products and the Supplier catalogue.
         </p>
 
         <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -821,40 +822,20 @@ function ReviewQueuePanel() {
             />
             Select all
           </label>
-          <select
-            className="h-9 rounded-md border border-border bg-background px-2 text-sm"
-            value={categoryId}
-            onChange={(e) => setCategoryId(e.target.value)}
-          >
-            <option value="">Keep current category</option>
-            {(catalogue?.categories ?? []).map((c: any) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <Button size="sm" disabled={busy || !picked.length} onClick={() => run("approve", picked)}>
-            Approve selected
+          <Button size="sm" disabled={busy || !picked.length} onClick={() => run("on", picked)}>
+            Turn on selected
           </Button>
-          <Button
-            size="sm"
-            variant="destructive"
-            disabled={busy || !picked.length}
-            onClick={() => run("reject", picked)}
-          >
-            Reject selected
+          <Button size="sm" variant="outline" disabled={busy || !picked.length} onClick={() => run("seen", picked)}>
+            Mark selected as seen
           </Button>
         </div>
 
         {!rows.length ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">Nothing is waiting for approval.</p>
+          <p className="py-6 text-center text-sm text-muted-foreground">No new supplier products.</p>
         ) : (
           <div className="space-y-2">
             {rows.map((r) => (
-              <div
-                key={r.id}
-                className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-3 text-sm"
-              >
+              <div key={r.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-border p-3 text-sm">
                 <input
                   type="checkbox"
                   checked={picked.includes(r.id)}
@@ -865,28 +846,77 @@ function ReviewQueuePanel() {
                 <div className="min-w-[220px] flex-1">
                   <div className="font-medium">{r.name || r.external_id}</div>
                   <div className="text-xs text-muted-foreground">
-                    {r.supplier_name} · {r.external_id} · {new Date(r.created_at).toLocaleString()}
+                    {r.supplier_name} · {new Date(r.created_at).toLocaleString()}
                   </div>
                 </div>
-                <Badge variant={r.reason === "rotated" ? "destructive" : "secondary"}>
-                  {r.reason === "rotated" ? "ID changed" : "New item"}
-                </Badge>
                 <div className="text-xs text-muted-foreground">
                   cost {money(Number(r.cost_price ?? 0))} · sell {money(Number(r.price ?? 0))} · stock {r.stock ?? 0}
                 </div>
-                <div className="ml-auto flex gap-2">
-                  <Button size="sm" disabled={busy} onClick={() => run("approve", [r.id])}>
-                    Approve
+                <div className="ml-auto flex items-center gap-3">
+                  <Button size="sm" variant="outline" onClick={() => setViewing(r)}>
+                    View
                   </Button>
-                  <Button size="sm" variant="outline" disabled={busy} onClick={() => run("reject", [r.id])}>
-                    Reject
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={Boolean(r.is_listed)}
+                      disabled={busy || !r.available}
+                      onCheckedChange={(v) => run(v ? "on" : "off", [r.id])}
+                      aria-label="On / Off"
+                    />
+                    <span className="w-7 text-xs text-muted-foreground">{r.is_listed ? "On" : "Off"}</span>
+                  </div>
                 </div>
               </div>
             ))}
           </div>
         )}
       </CardContent>
+
+      <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{viewing?.name || viewing?.external_id}</DialogTitle>
+          </DialogHeader>
+          {viewing && (
+            <div className="space-y-3 text-sm">
+              {viewing.image_url ? (
+                <img
+                  src={viewing.image_url}
+                  alt={viewing.name ?? "Product"}
+                  className="max-h-48 w-full rounded-md object-contain"
+                />
+              ) : null}
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>Supplier: <span className="font-medium">{viewing.supplier_name}</span></div>
+                <div>Stock: <span className="font-medium">{viewing.stock ?? 0}</span></div>
+                <div>Cost: <span className="font-medium">{money(Number(viewing.cost_price ?? 0))}</span></div>
+                <div>Sell price: <span className="font-medium">{money(Number(viewing.price ?? 0))}</span></div>
+                {viewing.delivery_time ? (
+                  <div className="col-span-2">Delivery: <span className="font-medium">{viewing.delivery_time}</span></div>
+                ) : null}
+              </div>
+              {viewing.description ? (
+                <div className="max-h-56 overflow-y-auto whitespace-pre-wrap rounded-md border border-border p-2 text-xs text-muted-foreground">
+                  {viewing.description}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No description from the supplier.</p>
+              )}
+              {!viewing.available ? (
+                <p className="text-xs text-destructive">The supplier no longer lists this item, so it cannot be turned on.</p>
+              ) : null}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" disabled={busy} onClick={() => run("seen", [viewing.id])}>
+                  Keep off
+                </Button>
+                <Button disabled={busy || !viewing.available} onClick={() => run("on", [viewing.id])}>
+                  Turn on
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

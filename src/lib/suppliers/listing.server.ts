@@ -124,6 +124,16 @@ export async function applySupplierProductUpdate(sb: any, data: SupplierListingI
   const { error: upErr } = await sb.from("supplier_products").update(patch).eq("id", data.id);
   if (upErr) throw new Error(upErr.message);
 
+  // An explicit On/Off decision clears the item from the new-item alert list.
+  if (data.is_listed !== undefined) {
+    await sb
+      .from("supplier_review_queue")
+      .update({ status: "approved", decided_at: new Date().toISOString() })
+      .eq("supplier_id", row.supplier_id)
+      .eq("external_id", row.external_id)
+      .eq("status", "pending");
+  }
+
   // Listing switched OFF -> ON: the admin decided to sell it, so the channel
   // gets a NEW PRODUCT card right away. Products left OFF stay silent and are
   // only visible through the admin bell feed.

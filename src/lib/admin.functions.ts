@@ -492,10 +492,25 @@ export const setProductActive = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if ((updated as any)?.supplier_id) {
+      // One switch everywhere: Products On/Off == Supplier catalogue Listed.
       await sb
         .from("supplier_products")
         .update({ is_listed: data.is_active })
         .eq("product_id", data.id);
+      if ((updated as any)?.supplier_external_id) {
+        await sb
+          .from("supplier_products")
+          .update({ is_listed: data.is_active, product_id: data.id })
+          .eq("supplier_id", (updated as any).supplier_id)
+          .eq("external_id", (updated as any).supplier_external_id);
+      }
+      // A switch decision also clears the item from the new-item alert list.
+      await sb
+        .from("supplier_review_queue")
+        .update({ status: "approved", decided_at: new Date().toISOString() })
+        .eq("supplier_id", (updated as any).supplier_id)
+        .eq("external_id", String((updated as any).supplier_external_id ?? ""))
+        .eq("status", "pending");
     }
     if (updated) {
       const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
@@ -1880,25 +1895,75 @@ export const listReviewQueue = createServerFn({ method: "GET" })
     }
     const { data: sups } = await sb.from("suppliers").select("id,name");
     const names = new Map<string, string>((sups ?? []).map((s: any) => [s.id, s.name]));
-    return (rows ?? []).map((r: any) => ({ ...r, supplier_name: names.get(r.supplier_id) ?? "—" }));
+    // Attach the live supplier item so the admin can view it and see its On/Off state.
+    const extIds = Array.from(new Set((rows ?? []).map((r: any) => String(r.external_id))));
+    const spMap = new Map<string, any>();
+    for (let i = 0; i < extIds.length; i += 200) {
+      const { data: sp } = await sb
+        .from("supplier_products")
+        .select("supplier_id,external_id,is_listed,description,raw,cost_price,stock")
+        .in("external_id", extIds.slice(i, i + 200));
+      for (const s of sp ?? []) spMap.set(`${s.supplier_id}:${s.external_id}`, s);
+    }
+    const { detailsFromRaw } = await import("@/lib/suppliers/api.server");
+    return (rows ?? []).map((r: any) => {
+      const sp = spMap.get(`${r.supplier_id}:${r.external_id}`);
+      let d: any = {};
+      try {
+        d = sp ? detailsFromRaw(sp.raw) : {};
+      } catch {
+        d = {};
+      }
+      return {
+        ...r,
+        snapshot: undefined,
+        supplier_name: names.get(r.supplier_id) ?? "—",
+        is_listed: Boolean(sp?.is_listed),
+        available: Boolean(sp),
+        description: d.description ?? sp?.description ?? null,
+        image_url: d.image_url ?? null,
+        delivery_time: d.delivery_time ?? null,
+        stock: sp ? Number(sp.stock ?? 0) : r.stock,
+      };
+    });
   });
 
-/** Approve or reject one or many queued items in a single action. */
+/**
+ * New-item alerts: turn items on / off (same switch as Products + Supplier
+ * catalogue) or just mark them as seen. Legacy approve/reject still accepted.
+ */
 export const decideReviewItems = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { ids: string[]; action: "approve" | "reject"; category_id?: string | null }) => d)
+  .inputValidator(
+    (d: {
+      ids: string[];
+      action: "on" | "off" | "seen" | "approve" | "reject";
+      category_id?: string | null;
+    }) => d,
+  )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const sb = (context as any).supabase;
     const ids = (data.ids ?? []).filter(Boolean);
-    if (!ids.length) return { ok: true, approved: 0, rejected: 0, failed: [] as string[] };
-    const { approveReviewItems, rejectReviewItems } = await import("@/lib/suppliers/review.server");
-    if (data.action === "approve") {
+    const empty = { ok: true, approved: 0, rejected: 0, turnedOff: 0, seen: 0, failed: [] as string[] };
+    if (!ids.length) return empty;
+    const { approveReviewItems, rejectReviewItems, turnOffReviewItems, markReviewSeen } = await import(
+      "@/lib/suppliers/review.server"
+    );
+    if (data.action === "on" || data.action === "approve") {
       const res = await approveReviewItems(sb, ids, data.category_id);
-      return { ok: true, approved: res.approved, rejected: 0, failed: res.failed };
+      return { ...empty, approved: res.approved, failed: res.failed };
+    }
+    if (data.action === "off") {
+      const res = await turnOffReviewItems(sb, ids);
+      return { ...empty, turnedOff: res.turnedOff };
+    }
+    if (data.action === "seen") {
+      const res = await markReviewSeen(sb, ids);
+      return { ...empty, seen: res.seen };
     }
     const res = await rejectReviewItems(sb, ids);
-    return { ok: true, approved: 0, rejected: res.rejected, failed: [] as string[] };
+    return { ...empty, rejected: res.rejected };
   });
 
 /** Pending review count for the admin badge. */
