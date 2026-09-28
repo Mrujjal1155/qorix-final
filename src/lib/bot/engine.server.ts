@@ -2016,12 +2016,17 @@ async function cartDetails(user: any) {
   for (const s of ((stock ?? []) as any[])) counts[String(s.product_id)] = Number(s.available ?? 0);
 
   const { bulkTiersFor, bulkUnit } = await import("@/lib/bulk-discount.server");
-  const bulk = await bulkTiersFor(cart.map((l) => l.product_id), "bot");
+  const cartIds = cart.map((l) => l.product_id);
+  const [bulk, custom] = await Promise.all([
+    bulkTiersFor(cartIds, "bot"),
+    userPricesFor(Number(user?.telegram_id) || undefined, cartIds),
+  ]);
   const lines = cart
     .map((l) => {
       const p = (products ?? []).find((x: any) => x.id === l.product_id);
       if (!p) return null;
-      const unit = bulkUnit(p, Number(p.price), l.qty, bulk[p.id]);
+      const cp = custom[p.id];
+      const unit = cp && l.qty >= cp.min_qty ? cp.price : bulkUnit(p, Number(p.price), l.qty, bulk[p.id]);
       return {
         product: p,
         qty: l.qty,
