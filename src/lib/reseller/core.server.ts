@@ -59,7 +59,8 @@ export async function authReseller(
   if (channel === "website" && !data.allow_website) return { error: fail("Website API access is disabled for this account", 403) };
   if (channel === "bot" && !data.allow_bot) return { error: fail("Bot API access is disabled for this account", 403) };
 
-  void db.from("resellers").update({ last_used_at: new Date().toISOString() }).eq("id", data.id);
+  // Supabase queries are lazy — without .then() this update never ran.
+  void db.from("resellers").update({ last_used_at: new Date().toISOString() }).eq("id", data.id).then(() => {}, () => {});
   return { reseller: data as Reseller };
 }
 
@@ -109,9 +110,11 @@ export async function catalogue(reseller: Reseller, channel: Channel) {
   const categories = (cats ?? []).filter(channelFilter(channel));
   const allowed = new Set(categories.map((c: any) => c.id));
 
-  const { data: stock } = await db.from("stock_items").select("product_id").eq("is_sold", false);
+  // Exact counts from stock_counters (a raw stock_items read is capped at 1000 rows).
+  const { data: stock, error: stockErr } = await db.rpc("stock_counts");
+  if (stockErr) throw new Error(`Stock lookup failed: ${stockErr.message}`);
   const counts: Record<string, number> = {};
-  for (const s of stock ?? []) counts[s.product_id as string] = (counts[s.product_id as string] ?? 0) + 1;
+  for (const s of (stock ?? []) as any[]) counts[String(s.product_id)] = Number(s.available ?? 0);
 
   const catName: Record<string, string> = {};
   for (const c of categories) catName[c.id] = c.name;
