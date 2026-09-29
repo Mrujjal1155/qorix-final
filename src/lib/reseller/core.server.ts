@@ -111,7 +111,12 @@ export async function catalogue(reseller: Reseller, channel: Channel) {
   const allowed = new Set(categories.map((c: any) => c.id));
 
   // Exact counts from stock_counters (a raw stock_items read is capped at 1000 rows).
-  const { data: stock, error: stockErr } = await db.rpc("stock_counts");
+  // Only count stock for the active in-house products we are about to return —
+  // keeps the lookup small and cheap even with thousands of stock items.
+  const stockIds = (prods ?? []).filter((p: any) => !p.supplier_id).map((p: any) => p.id);
+  const { data: stock, error: stockErr } = stockIds.length
+    ? await db.rpc("stock_counts", { _product_ids: stockIds })
+    : { data: [] as any[], error: null as any };
   if (stockErr) throw new Error(`Stock lookup failed: ${stockErr.message}`);
   const counts: Record<string, number> = {};
   for (const s of (stock ?? []) as any[]) counts[String(s.product_id)] = Number(s.available ?? 0);
