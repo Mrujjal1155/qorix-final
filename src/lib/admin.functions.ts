@@ -356,8 +356,14 @@ export const saveProduct = createServerFn({ method: "POST" })
       // custom price too — otherwise the next sync would overwrite it.
       const priceEdited =
         rest.price !== undefined && Number(rest.price) !== Number((before as any)?.price ?? NaN);
-      const effectiveOverride =
-        price_override !== undefined ? price_override : priceEdited ? Number(rest.price) : undefined;
+      // An empty "Custom price" box must not wipe a Price the admin just typed:
+      // an explicit custom price wins, otherwise an edited Price becomes the override.
+      const hasExplicitOverride = price_override != null && Number(price_override) > 0;
+      const effectiveOverride = hasExplicitOverride
+        ? price_override
+        : priceEdited
+          ? Number(rest.price)
+          : price_override;
 
       if (effectiveOverride !== undefined && (updated as any)?.supplier_id) {
         const value =
