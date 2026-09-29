@@ -1422,7 +1422,7 @@ export async function syncAllSuppliers() {
  * timestamp before syncing so parallel callers never double-run.
  */
 /** Minimum gap between two fast polls of the same push-less supplier. */
-const FAST_POLL_MS = 60_000; // 1 minute: 4x less supplier work, alerts/payments still run every 15s
+const FAST_POLL_MS = 15_000;
 
 /**
  * MailReader and the FatBunny/Canboso buyer API expose no webhook endpoint
