@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Search } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { AdminShell, AdminPanel, money } from "@/components/AdminShell";
@@ -58,6 +59,13 @@ function ResellersPage() {
   const [discount, setDiscount] = useState("0");
   const [openId, setOpenId] = useState<string | null>(null);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
+  const [search, setSearch] = useState("");
+
+  const filtered = (resellers ?? []).filter((r: any) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return [r.email, r.name].some((f: any) => String(f ?? "").toLowerCase().includes(q));
+  });
 
   async function run(fn: () => Promise<unknown>, msg: string) {
     try {
@@ -104,7 +112,16 @@ function ResellersPage() {
           </AdminPanel>
 
           <div className="space-y-4">
-            {(resellers ?? []).map((r: any) => (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search reseller by email or name…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="max-w-md pl-9"
+              />
+            </div>
+            {filtered.map((r: any) => (
               <AdminPanel key={r.id}>
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="min-w-0">
@@ -236,7 +253,11 @@ function ResellersPage() {
                 )}
               </AdminPanel>
             ))}
-            {!resellers?.length && <p className="text-sm text-muted-foreground">No resellers yet.</p>}
+            {!filtered.length && (
+              <p className="text-sm text-muted-foreground">
+                {search.trim() ? "No reseller matches that search." : "No resellers yet."}
+              </p>
+            )}
           </div>
         </TabsContent>
 
