@@ -252,7 +252,11 @@ function ResellersPage() {
                 )}
               </AdminPanel>
             ))}
-            {!resellers?.length && <p className="text-sm text-muted-foreground">No resellers yet.</p>}
+            {!filtered.length && (
+              <p className="text-sm text-muted-foreground">
+                {search.trim() ? "No reseller matches that search." : "No resellers yet."}
+              </p>
+            )}
           </div>
         </TabsContent>
 
