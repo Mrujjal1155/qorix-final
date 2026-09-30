@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Search } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { AdminShell, AdminPanel, money } from "@/components/AdminShell";
