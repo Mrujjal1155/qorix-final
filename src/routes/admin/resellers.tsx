@@ -58,6 +58,13 @@ function ResellersPage() {
   const [discount, setDiscount] = useState("0");
   const [openId, setOpenId] = useState<string | null>(null);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
+  const [search, setSearch] = useState("");
+
+  const filtered = (resellers ?? []).filter((r: any) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return [r.email, r.name].some((f: any) => String(f ?? "").toLowerCase().includes(q));
+  });
 
   async function run(fn: () => Promise<unknown>, msg: string) {
     try {
