@@ -96,6 +96,7 @@ function ProductsPage() {
 
   const [view, setView] = useState<View>("hub");
   const [cat, setCat] = useState({ name: "", emoji: "📁", channel: "both", image_url: "" });
+  const [catSearch, setCatSearch] = useState("");
   const [logoFor, setLogoFor] = useState<string>("");
   const [logoUrl, setLogoUrl] = useState<string>("");
   const [manageCat, setManageCat] = useState<string>("");
@@ -378,6 +379,7 @@ function ProductsPage() {
     </Button>
   );
 
+  const allCats = (data?.categories ?? []) as any[];
   const categoriesSection = (
     <Card>
       <CardHeader>
@@ -426,8 +428,22 @@ function ProductsPage() {
           The order below is the exact serial shown in the Telegram bot and on the website. Use the arrows to move a
           category up or down.
         </p>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Search category by name…"
+            value={catSearch}
+            onChange={(e) => setCatSearch(e.target.value)}
+          />
+        </div>
         <ul className="space-y-1 text-sm">
-          {(data?.categories ?? []).map((c: any, idx: number) => (
+          {allCats
+            .map((c: any, idx: number) => ({ c, idx }))
+            .filter(({ c }) =>
+              catSearch.trim() ? String(c.name ?? "").toLowerCase().includes(catSearch.trim().toLowerCase()) : true,
+            )
+            .map(({ c, idx }) => (
             <li key={c.id} className="rounded-md bg-muted px-3 py-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="flex min-w-0 items-center gap-2">
@@ -538,6 +554,12 @@ function ProductsPage() {
               )}
             </li>
           ))}
+          {catSearch.trim() &&
+            !allCats.some((c: any) =>
+              String(c.name ?? "").toLowerCase().includes(catSearch.trim().toLowerCase()),
+            ) && (
+              <p className="px-3 py-2 text-xs text-muted-foreground">No category matches that search.</p>
+            )}
         </ul>
       </CardContent>
     </Card>
