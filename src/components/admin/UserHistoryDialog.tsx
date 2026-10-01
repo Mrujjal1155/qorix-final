@@ -25,6 +25,17 @@ function fmt(at: string) {
   return new Date(at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
 }
 
+function statusBadgeClass(status?: string | null) {
+  const s = (status || "").toLowerCase();
+  if (["completed", "credited", "approved", "delivered", "active", "paid"].includes(s))
+    return "bg-success/15 text-success border border-success/30";
+  if (["failed", "rejected", "cancelled", "canceled", "error", "out_of_stock"].includes(s))
+    return "bg-destructive/15 text-destructive border border-destructive/30";
+  if (["expired", "pending", "waiting", "processing", "retrying", "unverified"].includes(s))
+    return "bg-warning/15 text-warning border border-warning/30";
+  return "";
+}
+
 export function UserHistoryDialog({ user, onClose }: { user: Target | null; onClose: () => void }) {
   const fetchHistory = useServerFn(getBotUserHistory);
   const [filter, setFilter] = useState<Filter>("all");
