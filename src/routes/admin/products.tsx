@@ -379,6 +379,7 @@ function ProductsPage() {
     </Button>
   );
 
+  const allCats = (data?.categories ?? []) as any[];
   const categoriesSection = (
     <Card>
       <CardHeader>
