@@ -712,3 +712,21 @@ function OrdersPage() {
     </AdminShell>
   );
 }
+
+function DeliveryToggle({ content, narrow }: { content: string; narrow?: boolean }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`mt-1 ${narrow ? "max-w-xs" : ""}`}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="inline-flex items-center gap-1.5 rounded-md border border-border bg-secondary/40 px-2.5 py-1 text-xs font-medium text-primary transition-colors hover:bg-secondary"
+      >
+        {open ? "Hide delivery details" : "Delivery details"}
+      </button>
+      {open && (
+        <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-2 text-xs">{content}</pre>
+      )}
+    </div>
+  );
+}
