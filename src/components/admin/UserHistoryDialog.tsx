@@ -155,7 +155,7 @@ export function UserHistoryDialog({ user, onClose }: { user: Target | null; onCl
                   <p className={`text-sm font-semibold ${r.amount >= 0 ? "text-success" : ""}`}>
                     {r.amount >= 0 ? "+" : "−"}{money(Math.abs(r.amount))}
                   </p>
-                  {r.status && <Badge variant="secondary" className="mt-1 text-[10px]">{r.status}</Badge>}
+                  {r.status && <Badge variant="secondary" className={`mt-1 text-[10px] ${statusBadgeClass(r.status)}`}>{r.status}</Badge>}
                 </div>
               </div>
             );
