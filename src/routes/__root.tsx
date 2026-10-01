@@ -88,6 +88,9 @@ function ErrorComponentFallback({ error, reset }: { error: Error; reset: () => v
   );
 }
 
+/** Router expects a lazy-style error component — wrap the fallback once. */
+const ErrorLazyComponent = lazy(async () => ({ default: ErrorComponentFallback }));
+
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
     meta: [
@@ -145,9 +148,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorLazyComponent,
 });
-
-/** Router expects a lazy-style error component — wrap the fallback once. */
-const ErrorLazyComponent = lazy(async () => ({ default: ErrorComponentFallback }));
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
