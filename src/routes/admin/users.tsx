@@ -29,8 +29,10 @@ import {
   ShieldOff,
   Users,
   Wallet,
+  History,
 } from "lucide-react";
 import { toast } from "sonner";
+import { UserHistoryDialog } from "@/components/admin/UserHistoryDialog";
 
 export const Route = createFileRoute("/admin/users")({
   head: () => ({
@@ -104,6 +106,7 @@ function UsersPage() {
 
   const [banUser, setBanUser] = useState<{ user: BotUser; next: boolean } | null>(null);
   const [banBusy, setBanBusy] = useState(false);
+  const [histUser, setHistUser] = useState<TargetUser | null>(null);
 
   function openBalance(u: BotUser) {
     setBalanceUser(toTarget(u));
@@ -306,7 +309,10 @@ function UsersPage() {
                   </p>
                 </div>
               </div>
-              <div className="mt-3 grid grid-cols-3 gap-2">
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <Button size="sm" onClick={() => setHistUser(toTarget(u))}>
+                  <History className="mr-1.5 size-3.5" /> Manage
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => openBalance(u)}>
                   <Wallet className="mr-1.5 size-3.5" /> Balance
                 </Button>
@@ -369,7 +375,10 @@ function UsersPage() {
                       {u.is_banned ? "banned" : "active"}
                     </Badge>
                   </td>
-                  <td className="space-x-1 text-right">
+                  <td className="space-x-1 whitespace-nowrap text-right">
+                    <Button size="sm" variant="secondary" onClick={() => setHistUser(toTarget(u))}>
+                      <History className="mr-1.5 size-3.5" /> Manage
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => openBalance(u)}>
                       <Wallet className="mr-1.5 size-3.5" /> Balance
                     </Button>
@@ -404,6 +413,8 @@ function UsersPage() {
           {isLoading && <p className="py-6 text-center text-sm text-muted-foreground">Loading users…</p>}
         </CardContent>
       </Card>
+
+      <UserHistoryDialog user={histUser} onClose={() => setHistUser(null)} />
 
       {/* Balance dialog */}
       <Dialog open={!!balanceUser} onOpenChange={(o) => !o && setBalanceUser(null)}>
