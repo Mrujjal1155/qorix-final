@@ -423,9 +423,7 @@ function OrdersPage() {
                   )}
                 </div>
 
-                {o.delivered_content && (
-                  <pre className="overflow-x-auto rounded bg-muted p-2 text-xs">{o.delivered_content}</pre>
-                )}
+                {o.delivered_content && <DeliveryToggle content={o.delivered_content} />}
 
                 <div className="flex flex-wrap gap-2">{rowActions(o)}</div>
               </CardContent>
@@ -530,11 +528,7 @@ function OrdersPage() {
                       {Array.isArray(o.meta?.manual_input) && o.meta.manual_input.length > 0 && (
                         <pre className="mt-1 max-w-xs overflow-x-auto rounded border border-border bg-background p-2 text-xs">{o.meta.manual_input.join("\n")}</pre>
                       )}
-                      {o.delivered_content && (
-                        <pre className="mt-1 max-w-xs overflow-x-auto rounded bg-muted p-2 text-xs">
-                          {o.delivered_content}
-                        </pre>
-                      )}
+                      {o.delivered_content && <DeliveryToggle content={o.delivered_content} narrow />}
                     </td>
                     <td>{o.quantity}</td>
                     <td>{money(o.total)}</td>
