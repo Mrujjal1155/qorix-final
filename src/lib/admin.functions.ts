@@ -1129,6 +1129,33 @@ export const listBotUsers = createServerFn({ method: "GET" })
     return rows ?? [];
   });
 
+export const getBotUserHistory = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { telegram_id: number }) => ({ telegram_id: Number(d.telegram_id) }))
+  .handler(async ({ data, context }) => {
+    const sb = (context as any).supabase;
+    await assertAdmin(context);
+    const tid = data.telegram_id;
+    const [tx, orders, pays, dep] = await Promise.all([
+      sb.from("transactions").select("id,type,amount,method,status,reference,note,created_at")
+        .eq("telegram_id", tid).order("created_at", { ascending: false }).limit(1000),
+      sb.from("orders").select("id,order_no,product_name,quantity,unit_price,total,status,delivery_type,payment_method,source,created_at")
+        .eq("telegram_id", tid).order("created_at", { ascending: false }).limit(1000),
+      sb.from("payment_requests").select("id,method,amount,txid,status,admin_note,created_at")
+        .eq("telegram_id", tid).order("created_at", { ascending: false }).limit(500),
+      sb.from("binance_deposits").select("id,kind,network,amount_usdt,status,tx_id,created_at")
+        .eq("telegram_id", tid).order("created_at", { ascending: false }).limit(500),
+    ]);
+    for (const r of [tx, orders, pays, dep]) if (r.error) throw new Error(r.error.message);
+    return {
+      transactions: tx.data ?? [],
+      orders: orders.data ?? [],
+      payments: pays.data ?? [],
+      deposits: dep.data ?? [],
+    };
+  });
+
+
 export const adjustBalance = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { telegram_id: number; amount: number; note?: string }) => d)
