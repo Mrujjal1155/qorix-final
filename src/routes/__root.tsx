@@ -143,8 +143,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
-  errorComponent: ErrorComponent,
+  errorComponent: ErrorLazyComponent,
 });
+
+/** Router expects a lazy-style error component — wrap the fallback once. */
+const ErrorLazyComponent = lazy(async () => ({ default: ErrorComponentFallback }));
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
