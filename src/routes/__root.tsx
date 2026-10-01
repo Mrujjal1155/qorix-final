@@ -6,6 +6,7 @@ import {
   useRouter,
   HeadContent,
   Scripts,
+  type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { lazy, useEffect, type ReactNode } from "react";
 
@@ -50,7 +51,7 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponentFallback({ error, reset }: { error: Error; reset: () => void }) {
+function ErrorComponentFallback({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
