@@ -554,6 +554,12 @@ function ProductsPage() {
               )}
             </li>
           ))}
+          {catSearch.trim() &&
+            !allCats.some((c: any) =>
+              String(c.name ?? "").toLowerCase().includes(catSearch.trim().toLowerCase()),
+            ) && (
+              <p className="px-3 py-2 text-xs text-muted-foreground">No category matches that search.</p>
+            )}
         </ul>
       </CardContent>
     </Card>
