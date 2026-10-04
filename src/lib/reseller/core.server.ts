@@ -249,15 +249,20 @@ export async function singleProduct(reseller: Reseller, id: string) {
     .or(`owner_reseller_id.is.null,owner_reseller_id.eq.${reseller.id}`)
     .maybeSingle();
   if (!p) return null;
-  const { count } = await db
-    .from("stock_items")
-    .select("id", { count: "exact", head: true })
-    .eq("product_id", id)
-    .eq("is_sold", false);
-  const cat = p.category_id
-    ? (await db.from("categories").select("name").eq("id", p.category_id).maybeSingle()).data
-    : null;
-  return publicProduct(p, reseller, { [id]: count ?? 0 }, cat ? { [p.category_id]: cat.name } : {});
+  // Stock from the exact stock_counters table (no stock_items scan); supplier
+  // products use supplier_stock, so no count is needed for them. Category in parallel.
+  const [stockRes, catRes] = await Promise.all([
+    p.supplier_id
+      ? Promise.resolve({ data: [] as any[], error: null as any })
+      : db.rpc("stock_counts", { _product_ids: [id] }),
+    p.category_id
+      ? db.from("categories").select("name").eq("id", p.category_id).maybeSingle()
+      : Promise.resolve({ data: null as any }),
+  ]);
+  if (stockRes.error) throw new Error(`Stock lookup failed: ${stockRes.error.message}`);
+  const count = Number(((stockRes.data ?? []) as any[])[0]?.available ?? 0);
+  const cat = catRes.data;
+  return publicProduct(p, reseller, { [id]: count }, cat ? { [p.category_id]: cat.name } : {});
 }
 
 export function orderPayload(o: any) {
