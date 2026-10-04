@@ -1,4 +1,5 @@
 import { likeExact } from "@/lib/ilike-escape";
+import { TtlCache, sha256Hex, AUTH_TTL_MS, PRODUCT_TTL_MS, LAST_USED_MIN_GAP_MS } from "./read-cache.server";
 // Server-only core for the public Reseller API (website + bot channels).
 // Handles API-key auth, catalogue projection, balance debit and auto delivery.
 
@@ -45,23 +46,89 @@ export function readApiKey(request: Request): string {
   return bearer || (request.headers.get("x-api-key") ?? "").trim();
 }
 
-/** Resolve the API key to an active reseller, or return a Response to send back. */
+// Read-only caches (product GET only). Bounded so memory cannot grow unchecked.
+const authCache = new TtlCache<Reseller>(AUTH_TTL_MS, 500);
+const productCache = new TtlCache<ReturnType<typeof publicProduct> | null>(PRODUCT_TTL_MS, 2000);
+const lastUsedMark = new TtlCache<true>(LAST_USED_MIN_GAP_MS, 500);
+
+/**
+ * Stamp last_used_at at most once per reseller per ~60s. The in-memory marker
+ * skips the request inside one isolate; the conditional filter makes writes
+ * from other isolates inside the same window no-ops.
+ */
+function touchLastUsed(id: string) {
+  if (lastUsedMark.get(id)) return;
+  lastUsedMark.set(id, true);
+  const now = Date.now();
+  const cutoff = new Date(now - LAST_USED_MIN_GAP_MS).toISOString();
+  void db
+    .from("resellers")
+    .update({ last_used_at: new Date(now).toISOString() })
+    .eq("id", id)
+    .or(`last_used_at.is.null,last_used_at.lt.${cutoff}`)
+    .then(() => {}, () => {});
+}
+
+function checkReseller(data: any, channel: Channel): Response | null {
+  if (!data.is_active) return fail("This reseller account is disabled", 403);
+  if (channel === "website" && !data.allow_website) return fail("Website API access is disabled for this account", 403);
+  if (channel === "bot" && !data.allow_bot) return fail("Bot API access is disabled for this account", 403);
+  return null;
+}
+
+/**
+ * Resolve the API key to an active reseller, or return a Response to send back.
+ * `cached: true` is only for read-only product lookups — order, balance and
+ * transaction endpoints always do a live lookup (they rely on live balance).
+ */
 export async function authReseller(
   request: Request,
   channel: Channel = "all",
+  opts: { cached?: boolean } = {},
 ): Promise<{ reseller: Reseller } | { error: Response }> {
   const key = readApiKey(request);
   if (!key) return { error: fail("Missing API key. Send `Authorization: Bearer <key>`.", 401) };
 
+  const keyHash = opts.cached ? await sha256Hex(key) : "";
+  if (opts.cached) {
+    const hit = authCache.get(keyHash);
+    if (hit) {
+      const denied = checkReseller(hit, channel);
+      if (denied) return { error: denied };
+      touchLastUsed(hit.id);
+      return { reseller: hit };
+    }
+  }
+
   const { data } = await db.from("resellers").select("*").eq("api_key", key).maybeSingle();
   if (!data) return { error: fail("Invalid API key", 401) };
-  if (!data.is_active) return { error: fail("This reseller account is disabled", 403) };
-  if (channel === "website" && !data.allow_website) return { error: fail("Website API access is disabled for this account", 403) };
-  if (channel === "bot" && !data.allow_bot) return { error: fail("Bot API access is disabled for this account", 403) };
+  const denied = checkReseller(data, channel);
+  if (denied) return { error: denied };
 
-  // Supabase queries are lazy — without .then() this update never ran.
-  void db.from("resellers").update({ last_used_at: new Date().toISOString() }).eq("id", data.id).then(() => {}, () => {});
+  if (opts.cached) {
+    // Only the fields needed for authorization + pricing — never the key/secrets.
+    authCache.set(keyHash, {
+      id: data.id,
+      name: data.name,
+      balance: Number(data.balance ?? 0),
+      discount_percent: Number(data.discount_percent ?? 0),
+      is_active: Boolean(data.is_active),
+      allow_website: Boolean(data.allow_website),
+      allow_bot: Boolean(data.allow_bot),
+    });
+  }
+  touchLastUsed(data.id);
   return { reseller: data as Reseller };
+}
+
+/** singleProduct with a 10s per-(reseller, product) cache. Not-found is not cached. */
+export async function singleProductCached(reseller: Reseller, id: string) {
+  const k = `${reseller.id}:${reseller.discount_percent}:${id}`;
+  const hit = productCache.get(k);
+  if (hit) return hit;
+  const fresh = await singleProduct(reseller, id);
+  if (fresh) productCache.set(k, fresh);
+  return fresh;
 }
 
 /**
