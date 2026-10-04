@@ -104,6 +104,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "QORIX STORE — premium AI tools, streaming and productivity subscriptions with instant delivery. Order on the website or directly from our Telegram bot.",
       },
       { name: "author", content: "QORIX STORE" },
+      {
+        name: "google-site-verification",
+        content: "td9rwzvZamxD80v2cpF6xP2J2mIYhe8FNryiNbHQgmI",
+      },
       { name: "robots", content: "index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1" },
       { property: "og:title", content: "QORIX STORE — Premium Digital Products" },
       {
