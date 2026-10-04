@@ -68,7 +68,7 @@ export const Route = createFileRoute("/api/public/suppliers/webhook")({
         // stock/price diffing, product updates and Telegram alerts as the
         // scheduled sync, so a pushed event and a polled change behave alike.
         const { syncSupplierCore } = await import("@/lib/suppliers/sync.server");
-        const result = await syncSupplierCore(supabaseAdmin, supplier).catch((e: unknown) => ({
+        const result = await syncSupplierCore(supabaseAdmin, supplier, { force: true }).catch((e: unknown) => ({
           ok: false,
           message: e instanceof Error ? e.message : String(e),
         }));
