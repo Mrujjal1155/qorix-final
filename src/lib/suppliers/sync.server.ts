@@ -550,10 +550,36 @@ async function withTimeout<T>(work: Promise<T>, ms: number, label: string): Prom
   }
 }
 
+/** Force a full run at least this often even if the supplier reply is identical. */
+const FULL_SYNC_MAX_AGE_MS = 2 * 60_000;
+
+async function fingerprintRemote(remote: unknown[]): Promise<string> {
+  const bytes = new TextEncoder().encode(JSON.stringify(remote));
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+async function readFingerprint(sb: any, supplierId: string): Promise<{ h: string; at: number } | null> {
+  const { data } = await sb.from("bot_settings").select("value").eq("key", `supplier_fp:${supplierId}`).maybeSingle();
+  try {
+    const v = JSON.parse((data as any)?.value || "null");
+    return v && typeof v.h === "string" && Number.isFinite(v.at) ? v : null;
+  } catch {
+    return null;
+  }
+}
+
+async function writeFingerprint(sb: any, supplierId: string, h: string) {
+  const { error } = await sb
+    .from("bot_settings")
+    .upsert({ key: `supplier_fp:${supplierId}`, value: JSON.stringify({ h, at: Date.now() }) }, { onConflict: "key" });
+  if (error) console.warn("[supplier-sync] fingerprint write failed:", error.message);
+}
+
 export async function syncSupplierCore(
   sb: any,
   s: SupplierRow & Record<string, any>,
-  opts: { wait?: boolean } = {},
+  opts: { wait?: boolean; force?: boolean } = {},
 ) {
   let claimed = await claimSupplierSync(sb, String(s.id));
   // The admin "Sync catalogue" button used to give up instantly whenever the
@@ -573,7 +599,8 @@ export async function syncSupplierCore(
   }
   if (!claimed) return { ok: true, message: "Sync already running", added: 0, restocked: 0, checked: 0, priceChanges: 0, lowOrOut: 0 };
   try {
-    return await syncSupplierCoreUnlocked(sb, s);
+    // Manual admin runs and webhook-triggered runs always do the full pipeline.
+    return await syncSupplierCoreUnlocked(sb, s, Boolean(opts.force || opts.wait));
   } finally {
     await releaseSupplierSync(sb, String(s.id));
   }
@@ -841,7 +868,7 @@ async function retireMissingSupplierItems(
 }
 
 
-async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string, any>) {
+async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string, any>, force = false) {
   const startedAtMs = Date.now();
   // Stamped BEFORE the API call: the database refuses to apply a response that
   // was read earlier than the snapshot it already holds, so a slow/late reply
@@ -855,6 +882,26 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
     await sb.from("suppliers").update({ last_status: message }).eq("id", s.id);
     await recordSyncRun(sb, s.id, startedAtMs, false, 0, 0, message);
     return { ok: false, message, added: 0, restocked: 0 };
+  }
+
+  // Unchanged-response shortcut. Identical supplier reply + a recent full run
+  // → skip parsing/matching/RPC. Any doubt (hash error, forced run, old full
+  // run) falls through to the normal pipeline.
+  let fingerprint: string | null = null;
+  try {
+    fingerprint = await fingerprintRemote(remote);
+    if (!force && fingerprint) {
+      const prev = await readFingerprint(sb, s.id);
+      if (prev && prev.h === fingerprint && Date.now() - prev.at < FULL_SYNC_MAX_AGE_MS) {
+        await sb.from("suppliers").update({ last_synced_at: fetchedAt }).eq("id", s.id);
+        await recordSyncRun(sb, s.id, startedAtMs, true, remote.length, 0, null, "auto-unchanged");
+        console.log(`[supplier-sync] ${s.name}: response unchanged, heavy processing skipped`);
+        return { ok: true, message: "Unchanged", added: 0, restocked: 0, checked: remote.length, priceChanges: 0, lowOrOut: 0 };
+      }
+    }
+  } catch (e) {
+    console.warn(`[supplier-sync] ${s.name}: fingerprint fallback to full sync`, e);
+    fingerprint = null;
   }
 
   // Supabase returns at most 1,000 rows per request. Read every page so a large
@@ -1304,10 +1351,13 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
     await enqueueReview(reviewRows, sb);
   }
 
-
+  // Every step committed: remember this response so identical replies can be
+  // skipped. Never written on fetch/apply failure or stale discard.
+  if (fingerprint) await writeFingerprint(sb, s.id, fingerprint);
 
   const added = alerts.filter((a) => a.kind === "new").length;
   const restocked = restockPosts.length;
+
 
 
   return {
@@ -1437,16 +1487,29 @@ async function fastPollPushlessSuppliers(db: any) {
     .eq("is_enabled", true)
     .order("last_synced_at", { ascending: true, nullsFirst: true });
   const api = await import("./api.server");
+  const pushless = (sups ?? []).filter((s: any) => !api.supplierSupportsWebhooks(s)); // push covers the rest
+  if (!pushless.length) return { polled: 0 };
+  // One read for every supplier's last-poll stamp (was one read per supplier).
+  const keyOf = (s: any) => `supplier_fastpoll_at:${String(s.id)}`;
+  const { data: stampRows } = await db
+    .from("bot_settings")
+    .select("key,value")
+    .in("key", pushless.map(keyOf));
+  const stamps = new Map<string, string>((stampRows ?? []).map((r: any) => [r.key, String(r.value ?? "")]));
+  const nowMs = Date.now();
   const due: any[] = [];
-  for (const s of sups ?? []) {
-    if (api.supplierSupportsWebhooks(s)) continue; // push already covers these
+  for (const s of pushless) {
     if (due.length >= SUPPLIERS_PER_RUN) break; // keep each invocation small
-    const key = `supplier_fastpoll_at:${String(s.id)}`;
-    const { data: row } = await db.from("bot_settings").select("value").eq("key", key).maybeSingle();
-    const at = Date.parse(String((row as any)?.value ?? ""));
-    if (Number.isFinite(at) && Date.now() - at < FAST_POLL_MS) continue;
-    await db.from("bot_settings").upsert({ key, value: new Date().toISOString() }, { onConflict: "key" });
+    const at = Date.parse(stamps.get(keyOf(s)) ?? "");
+    if (Number.isFinite(at) && nowMs - at < FAST_POLL_MS) continue;
     due.push(s);
+  }
+  if (due.length) {
+    // One write for all claimed stamps (was one write per supplier).
+    const stampAt = new Date().toISOString();
+    await db
+      .from("bot_settings")
+      .upsert(due.map((s) => ({ key: keyOf(s), value: stampAt })), { onConflict: "key" });
   }
   if (!due.length) return { polled: 0 };
 
