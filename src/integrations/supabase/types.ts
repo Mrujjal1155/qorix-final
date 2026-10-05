@@ -511,6 +511,7 @@ export type Database = {
           api_price: number | null
           badge: string | null
           category_id: string | null
+          cost_price: number | null
           created_at: string
           delivery_time: string | null
           delivery_type: string
@@ -543,6 +544,7 @@ export type Database = {
           api_price?: number | null
           badge?: string | null
           category_id?: string | null
+          cost_price?: number | null
           created_at?: string
           delivery_time?: string | null
           delivery_type?: string
@@ -575,6 +577,7 @@ export type Database = {
           api_price?: number | null
           badge?: string | null
           category_id?: string | null
+          cost_price?: number | null
           created_at?: string
           delivery_time?: string | null
           delivery_type?: string

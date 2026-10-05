@@ -61,6 +61,7 @@ const EMPTY = {
   old_price: "" as string | number,
   price_override: "" as string | number,
   api_price: "" as string | number,
+  cost_price: "" as string | number,
   supplier_id: "" as string,
   image_url: "",
   delivery_time: "",
@@ -276,6 +277,7 @@ function ProductsPage() {
           details: form.details,
           price: Number(form.price),
           old_price: form.old_price === "" ? null : Number(form.old_price),
+          ...(form.supplier_id ? {} : { cost_price: form.cost_price === "" ? null : Number(form.cost_price) }),
           api_price: form.api_price === "" || Number(form.api_price) <= 0 ? null : Number(form.api_price),
           delivery_type: form.delivery_type,
           image_url: form.image_url,
@@ -318,6 +320,7 @@ function ProductsPage() {
       old_price: p.old_price ?? "",
       price_override: (p as any).price_override ?? "",
       api_price: (p as any).api_price ?? "",
+      cost_price: (p as any).cost_price ?? "",
       supplier_id: p.supplier_id ?? "",
       delivery_type: p.delivery_type,
       image_url: p.image_url ?? "",
@@ -619,6 +622,22 @@ function ProductsPage() {
             Empty = default. A fixed price for all API users; they get a Telegram notice when it changes.
           </p>
         </div>
+        {!form.supplier_id ? (
+          <div className="space-y-1">
+            <Label>Our cost per unit (USD)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="e.g. 1.20"
+              value={form.cost_price}
+              onChange={(e) => setForm({ ...form, cost_price: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Only for profit reports. Empty = full price counted as profit.
+            </p>
+          </div>
+        ) : null}
         {form.id && form.supplier_id ? (
           <div className="space-y-1">
             <Label>Custom price (supplier override)</Label>
