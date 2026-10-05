@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.set_manual_stock(uuid, integer) FROM authenticated;
