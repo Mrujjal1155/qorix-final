@@ -5624,6 +5624,10 @@ async function fulfillCheckout(
     let autoFailReason = "";
     const miLines = meta.inputs?.[p.id] ?? null;
     const miCfg = p.delivery_type === "manual" ? await manualInputFor(p.id) : null;
+    if (p.delivery_type === "manual" && p.manual_stock_limited) {
+      const { data: took } = await db.rpc("take_manual_stock", { _pid: p.id, _qty: l.qty });
+      if (took === false) console.error(`[manual-stock] oversold ${p.name} x${l.qty} — admin must handle`);
+    }
     if (p.delivery_type !== "manual" && p.supplier_id && p.supplier_external_id) {
       try {
         const { supplierOrder } = await import("@/lib/suppliers/api.server");

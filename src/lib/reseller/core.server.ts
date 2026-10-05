@@ -232,7 +232,7 @@ export function publicProduct(
     delivery_type: p.delivery_type,
     instant: p.delivery_type === "auto" || Boolean(p.supplier_id),
     stock,
-    in_stock: stock > 0 || p.delivery_type !== "auto",
+    in_stock: stock > 0 || (p.delivery_type !== "auto" && !p.manual_stock_limited),
     featured_rank: Number(p.featured_rank ?? 0),
     sort_order: Number(p.sort_order ?? 0),
   };
