@@ -2154,3 +2154,22 @@ export const dismissVisibilityAlerts = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
+
+/** Manual product stock: qty=null => unlimited, number => exact count that each order reduces. */
+export const setManualStock = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { product_id: string; qty: number | null }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const limited = data.qty != null && Number.isFinite(Number(data.qty));
+    const { error } = await db.from("products").update({ manual_stock_limited: limited }).eq("id", data.product_id);
+    if (error) throw new Error(error.message);
+    if (limited) {
+      const { error: e2 } = await db.rpc("set_manual_stock", { _pid: data.product_id, _qty: Math.max(0, Math.floor(Number(data.qty))) });
+      if (e2) throw new Error(e2.message);
+    }
+    return { ok: true };
+  });

@@ -115,6 +115,11 @@ async function autoDeliver(order: any) {
       return;
     }
 
+    if (product.delivery_type === "manual") {
+      await db.rpc("take_manual_stock", { _pid: product.id, _qty: Number(order.quantity ?? 1) });
+      return;
+    }
+
     if (product.delivery_type === "auto") {
       const { data: items } = await db.rpc("claim_stock_items", {
         _product_id: product.id,

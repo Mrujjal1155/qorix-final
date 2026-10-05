@@ -101,7 +101,7 @@ export const getStoreProduct = createServerFn({ method: "GET" })
     const { data: row } = await sb
       .from("products")
       .select(
-        "id,name,emoji,description,important_note,quick_guide,details,price,old_price,delivery_type,category_id,image_url,delivery_time,badge,supplier_id,supplier_stock",
+        "id,name,emoji,description,important_note,quick_guide,details,price,old_price,delivery_type,category_id,image_url,delivery_time,badge,supplier_id,supplier_stock,manual_stock_limited",
       )
       .eq("id", data.id)
       .eq("is_active", true)
@@ -111,12 +111,17 @@ export const getStoreProduct = createServerFn({ method: "GET" })
     let count = 0;
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      if ((row as any).manual_stock_limited) {
+        const { data: c } = await (supabaseAdmin as any).rpc("stock_counts", { _product_ids: [data.id] });
+        count = Number((c ?? [])[0]?.available ?? 0);
+      } else {
       const res = await supabaseAdmin
         .from("stock_items")
         .select("id", { count: "exact", head: true })
         .eq("product_id", data.id)
         .eq("is_sold", false);
       count = res.count ?? 0;
+      }
     } catch (e) {
       console.error("[storefront] product stock unavailable:", e);
     }

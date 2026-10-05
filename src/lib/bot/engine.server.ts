@@ -362,7 +362,7 @@ function productIconButton(product: any, text: string, callback_data: string): B
 
 /** A product with zero stock (auto delivery) renders as a red row until restocked. */
 function isOutOfStock(p: any): boolean {
-  return p.delivery_type !== "manual" && Number(p.stock ?? 0) <= 0;
+  return !(p.delivery_type === "manual" && !p.manual_stock_limited) && Number(p.stock ?? 0) <= 0;
 }
 
 function prodRowStyle(p: any, base: ButtonStyle): ButtonStyle {
@@ -1564,7 +1564,7 @@ async function productsWithStock() {
 const PAGE = 30;
 
 function isFlash(p: any) {
-  return Number(p.old_price ?? 0) > Number(p.price) && (p.delivery_type === "manual" || (p.stock ?? 0) > 0);
+  return Number(p.old_price ?? 0) > Number(p.price) && ((p.delivery_type === "manual" && !p.manual_stock_limited) || (p.stock ?? 0) > 0);
 }
 
 /** Category → product links (a product can sit in several categories). */
@@ -1639,7 +1639,7 @@ function categoryButton(settings: Record<string, string>, cat: any, text: string
 async function shopView(page: number) {
   const settings = await getSettings();
   const products = await productsWithStock();
-  const inStock = products.filter((p: any) => p.delivery_type === "manual" || p.stock > 0).length;
+  const inStock = products.filter((p: any) => (p.delivery_type === "manual" && !p.manual_stock_limited) || p.stock > 0).length;
   const flash = products.filter(isFlash);
   const { categories, byCat } = await categoryLinks();
   const withProducts = categories
@@ -1725,7 +1725,7 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
     hasCategories = categories.some((c: any) => productsOfCategory(all, c.id, byCat).length > 0);
   }
   const back = catId === "all" ? "cat:all" : `cat:${catId}`;
-  const inStock = products.filter((p: any) => p.delivery_type === "manual" || p.stock > 0).length;
+  const inStock = products.filter((p: any) => (p.delivery_type === "manual" && !p.manual_stock_limited) || p.stock > 0).length;
   const flash = products.filter(isFlash);
   const slice = products.slice(page * PAGE, page * PAGE + PAGE);
   const kb: Button[][] = [];
@@ -1739,7 +1739,7 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
       styled(
         productIconButton(
           p,
-          `${p.name} | ${money(p.price)} | ${p.delivery_type === "manual" ? "manual" : `📦 ${p.stock}`}`,
+          `${p.name} | ${money(p.price)} | ${(p.delivery_type === "manual" && !p.manual_stock_limited) ? "manual" : `📦 ${p.stock}`}`,
           `p:${p.id}`,
         ),
         prodRowStyle(p, prodStyle),
@@ -1780,7 +1780,7 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
 async function freebiesView() {
   const settings = await getSettings();
   const products = (await productsWithStock()).filter(
-    (p: any) => Number(p.price) <= 0 && (p.delivery_type === "manual" || p.stock > 0),
+    (p: any) => Number(p.price) <= 0 && ((p.delivery_type === "manual" && !p.manual_stock_limited) || p.stock > 0),
   );
   const head = `${uiIconHtml(settings, "free_title")} <b>${escapeHtml(uiText(settings, "free_title"))}</b>\n─────────────\n`;
   const freeTag = `${uiText(settings, "free_tag")}`;
@@ -1953,10 +1953,10 @@ async function productView(productId: string) {
 
   text +=
     p.delivery_type === "manual"
-      ? `<i>${uiTag(settings, "prod_manual_note")}</i>`
+      ? (p.manual_stock_limited ? `${uiTag(settings, "prod_stock")}: <b>${stock} available</b>\n` : "") + `<i>${uiTag(settings, "prod_manual_note")}</i>`
       : `${uiTag(settings, "prod_stock")}: <b>${stock} available</b>\n<i>${uiTag(settings, "prod_auto_note")}</i>`;
 
-  const available = p.delivery_type === "manual" || stock > 0;
+  const available = (p.delivery_type === "manual" && !p.manual_stock_limited) || stock > 0;
   const kb: Button[][] = [];
   if (available)
     kb.push([
@@ -2058,7 +2058,7 @@ async function cartView(user: any) {
   const kb: Button[][] = [];
   let issues = 0;
   for (const l of lines) {
-    const short = l.product.delivery_type === "auto" && l.stock < l.qty;
+    const short = (l.product.delivery_type === "auto" || Boolean(l.product.manual_stock_limited)) && l.stock < l.qty;
     if (short) issues++;
     text +=
       `${productIconHtml(l.product)} <b>${l.product.name}</b>\n` +
@@ -5624,6 +5624,10 @@ async function fulfillCheckout(
     let autoFailReason = "";
     const miLines = meta.inputs?.[p.id] ?? null;
     const miCfg = p.delivery_type === "manual" ? await manualInputFor(p.id) : null;
+    if (p.delivery_type === "manual" && p.manual_stock_limited) {
+      const { data: took } = await db.rpc("take_manual_stock", { _pid: p.id, _qty: l.qty });
+      if (took === false) console.error(`[manual-stock] oversold ${p.name} x${l.qty} — admin must handle`);
+    }
     if (p.delivery_type !== "manual" && p.supplier_id && p.supplier_external_id) {
       try {
         const { supplierOrder } = await import("@/lib/suppliers/api.server");

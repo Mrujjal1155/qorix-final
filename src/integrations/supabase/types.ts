@@ -528,6 +528,7 @@ export type Database = {
           important_note: string | null
           is_active: boolean
           manual_note: string | null
+          manual_stock_limited: boolean
           name: string
           old_price: number | null
           owner_reseller_id: string | null
@@ -561,6 +562,7 @@ export type Database = {
           important_note?: string | null
           is_active?: boolean
           manual_note?: string | null
+          manual_stock_limited?: boolean
           name: string
           old_price?: number | null
           owner_reseller_id?: string | null
@@ -594,6 +596,7 @@ export type Database = {
           important_note?: string | null
           is_active?: boolean
           manual_note?: string | null
+          manual_stock_limited?: boolean
           name?: string
           old_price?: number | null
           owner_reseller_id?: string | null
@@ -1899,6 +1902,10 @@ export type Database = {
         Args: { _product_id: string }
         Returns: boolean
       }
+      set_manual_stock: {
+        Args: { _pid: string; _qty: number }
+        Returns: undefined
+      }
       stock_counter_bump: {
         Args: { _d: number; _pid: string }
         Returns: undefined
@@ -1909,6 +1916,10 @@ export type Database = {
           available: number
           product_id: string
         }[]
+      }
+      take_manual_stock: {
+        Args: { _pid: string; _qty: number }
+        Returns: boolean
       }
       update_stock_notification_progress: {
         Args: { _channel_sent?: boolean; _dm_cursor?: number; _id: string }

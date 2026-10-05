@@ -140,7 +140,7 @@ function ProductPage() {
   const oldPrice = Number(product?.old_price ?? 0);
   const off = oldPrice > Number(product?.price ?? 0) ? Math.round(((oldPrice - Number(product?.price)) / oldPrice) * 100) : 0;
   const sold = Number((product as any)?.sold ?? 0);
-  const inStock = auto ? stock > 0 : true;
+  const inStock = auto || (product as any)?.manual_stock_limited ? stock > 0 : true;
   const claimed = stock + sold > 0 ? Math.round((sold / (stock + sold)) * 100) : 0;
   const botUser = pay?.["bot_username"] ?? "";
   const supportContact = (pay?.["support_contact"] ?? "").replace(/^@/, "");
