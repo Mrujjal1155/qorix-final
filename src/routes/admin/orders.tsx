@@ -382,6 +382,11 @@ function OrdersPage() {
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <Badge variant={o.source === "website" ? "default" : "secondary"}>{o.source ?? "telegram"}</Badge>
                   <span>{money(o.total)}</span>
+                  {o.status === "completed" && (
+                    <span className={Number(o.profit ?? 0) >= 0 ? "font-semibold text-success" : "font-semibold text-destructive"}>
+                      profit {money(o.profit ?? 0)}
+                    </span>
+                  )}
                   <span>{o.delivery_type}</span>
                 </div>
 
