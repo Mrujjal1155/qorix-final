@@ -802,6 +802,7 @@ export const listOrders = createServerFn({ method: "GET" })
         supplier_name: s?.name ?? null,
         supplier_key: s?.key ?? null,
         supplier_external_id: p?.supplier_external_id ?? null,
+        profit: Math.round((Number(o.total ?? 0) - cost) * 100) / 100,
         fulfilment: s ? "api" : "manual",
         buyer_username: b?.username ?? null,
         buyer_name: [b?.first_name, b?.last_name].filter(Boolean).join(" ") || null,

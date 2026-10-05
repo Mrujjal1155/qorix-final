@@ -123,6 +123,21 @@ function OverviewPage() {
         ))}
       </div>
 
+      <div className="mt-4 grid gap-4 grid-cols-2">
+        {profitCards.map((s) => (
+          <div key={s.label} className="admin-panel rounded-2xl border border-success/30 bg-success/5 p-4 lg:p-5">
+            <div className="flex items-start justify-between gap-2">
+              <p className="min-w-0 truncate text-sm text-muted-foreground">{s.label}</p>
+              <s.icon className="size-4 shrink-0 text-success" />
+            </div>
+            <p className="mt-3 text-2xl font-extrabold tracking-tight tabular-nums text-success lg:text-3xl">
+              {isLoading ? "…" : s.value}
+            </p>
+            <p className="mt-1 truncate text-xs text-muted-foreground">{s.note}</p>
+          </div>
+        ))}
+      </div>
+
       <div className="mt-4 grid gap-4 grid-cols-2 xl:grid-cols-4">
         {productCards.map((s) => (
           <div key={s.label} className="admin-panel rounded-2xl p-4 lg:p-5">

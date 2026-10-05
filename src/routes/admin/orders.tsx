@@ -533,6 +533,15 @@ function OrdersPage() {
                     </td>
                     <td>{o.quantity}</td>
                     <td>{money(o.total)}</td>
+                    <td>
+                      {o.status === "completed" ? (
+                        <span className={Number(o.profit ?? 0) >= 0 ? "font-semibold text-success" : "font-semibold text-destructive"}>
+                          {money(o.profit ?? 0)}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
                     <td>{o.delivery_type}</td>
                     <td>
                       <Badge
