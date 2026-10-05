@@ -48,7 +48,7 @@ export const startEpsCheckout = createServerFn({ method: "POST" })
 
     const { data: product } = await supabaseAdmin
       .from("products")
-      .select("id,name,price,delivery_type,is_active,supplier_id,supplier_external_id,supplier_stock")
+      .select("id,name,price,delivery_type,is_active,supplier_id,supplier_external_id,supplier_stock,manual_stock_limited")
       .eq("id", data.product_id)
       .maybeSingle();
     if (!product || !product.is_active) throw new Error("Product is not available");
@@ -75,6 +75,12 @@ export const startEpsCheckout = createServerFn({ method: "POST" })
       await supabaseAdmin.from("products").update({ supplier_stock: liveStock }).eq("id", product.id);
       if (liveStock < data.quantity)
         throw new Error(liveStock > 0 ? `Only ${liveStock} item(s) are available` : "Product is out of stock");
+    }
+
+    if (product.delivery_type === "manual" && (product as any).manual_stock_limited) {
+      const { data: c } = await (supabaseAdmin as any).rpc("stock_counts", { _product_ids: [product.id] });
+      const left = Number((c ?? [])[0]?.available ?? 0);
+      if (left < data.quantity) throw new Error(left > 0 ? `Only ${left} item(s) are available` : "Product is out of stock");
     }
 
     const unit = Number(product.price);

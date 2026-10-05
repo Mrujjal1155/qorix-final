@@ -303,7 +303,7 @@ export async function purchase(
 
   const { data: p } = await db
     .from("products")
-    .select("id,name,price,delivery_type,is_active,supplier_id,supplier_external_id,supplier_stock,owner_reseller_id,api_price,flash_ends_at,flash_discount")
+    .select("id,name,price,delivery_type,is_active,supplier_id,supplier_external_id,supplier_stock,owner_reseller_id,api_price,flash_ends_at,flash_discount,manual_stock_limited")
     .eq("id", input.product_id)
     .maybeSingle();
   if (!p || !p.is_active) return { ok: false as const, status: 404, error: "Product not found" };
@@ -318,6 +318,10 @@ export async function purchase(
     unit = bulkUnit(p, unit, qty, bulk[String(p.id)]);
   }
   const total = Math.round(unit * qty * 100) / 100;
+  if (p.delivery_type === "manual" && p.manual_stock_limited) {
+    const { data: took } = await db.rpc("take_manual_stock", { _pid: p.id, _qty: qty });
+    if (took === false) return { ok: false as const, status: 409, error: "Out of stock" };
+  }
   if (Number(reseller.balance) + 1e-9 < total)
     return { ok: false as const, status: 402, error: "Insufficient balance", balance: Number(reseller.balance), required: total };
 
