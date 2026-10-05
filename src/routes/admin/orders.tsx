@@ -448,6 +448,7 @@ function OrdersPage() {
                 <th>Product</th>
                 <th>Qty</th>
                 <th>Total</th>
+                <th>Profit</th>
                 <th>Type</th>
                 <th>Status</th>
                 <th></th>

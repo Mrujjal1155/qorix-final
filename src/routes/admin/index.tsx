@@ -58,6 +58,11 @@ function OverviewPage() {
     { label: "Pending payments", value: data?.pendingPayments ?? 0, icon: TrendingUp, delta: "-4%", up: false },
   ];
 
+  const profitCards = [
+    { label: "Total profit", value: money(data?.profit), note: "Completed orders − supplier cost", icon: DollarSign },
+    { label: "Profit today", value: money(data?.todayProfit), note: "Since midnight", icon: TrendingUp },
+  ];
+
   const highlights = [
     { value: `${data?.ordersToday ?? 0} new orders`, note: "Awaiting processing", icon: ShoppingBag, tone: "success" },
     { value: `${data?.pendingPayments ?? 0} payments`, note: "On hold", icon: TrendingUp, tone: "brand" },

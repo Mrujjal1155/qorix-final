@@ -28,16 +28,31 @@ export const getOverview = createServerFn({ method: "GET" })
     const since = new Date();
     since.setHours(0, 0, 0, 0);
 
-    const [users, pendingPayments, ordersToday, completed, recent, prods] = await Promise.all([
+    const [users, pendingPayments, ordersToday, completed, recent, prods, supRows] = await Promise.all([
       sb.from("bot_users").select("telegram_id", { count: "exact", head: true }),
       sb.from("payment_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
       sb.from("orders").select("id", { count: "exact", head: true }).gte("created_at", since.toISOString()),
-      sb.from("orders").select("total").eq("status", "completed"),
+      sb.from("orders").select("total,quantity,product_id,created_at").eq("status", "completed"),
       sb.from("orders").select("*").order("created_at", { ascending: false }).limit(10),
       sb.from("products").select("id,supplier_id,is_active"),
+      sb.from("supplier_products").select("product_id,cost_price"),
     ]);
 
-    const revenue = (completed.data ?? []).reduce((a: number, r: any) => a + Number(r.total), 0);
+    // Profit = order total − supplier cost (today's supplier price; in-house = full total).
+    const costMap: Record<string, number> = {};
+    for (const s of (supRows.data ?? []) as any[]) {
+      if (s.product_id) costMap[s.product_id] = Number(s.cost_price ?? 0);
+    }
+    const doneOrders = (completed.data ?? []) as any[];
+    const revenue = doneOrders.reduce((a: number, r: any) => a + Number(r.total), 0);
+    let profit = 0;
+    let todayProfit = 0;
+    const todayStart = since.getTime();
+    for (const o of doneOrders) {
+      const p = Number(o.total ?? 0) - (o.product_id ? (costMap[o.product_id] ?? 0) : 0) * Number(o.quantity ?? 1);
+      profit += p;
+      if (Date.parse(String(o.created_at)) >= todayStart) todayProfit += p;
+    }
     const products = (prods.data ?? []) as any[];
     const inHouse = products.filter((p) => !p.supplier_id);
     const supplierProducts = products.filter((p) => p.supplier_id);
@@ -46,6 +61,8 @@ export const getOverview = createServerFn({ method: "GET" })
       pendingPayments: pendingPayments.count ?? 0,
       ordersToday: ordersToday.count ?? 0,
       revenue,
+      profit,
+      todayProfit,
       recentOrders: recent.data ?? [],
       productStats: {
         total: products.length,
@@ -768,12 +785,18 @@ export const listOrders = createServerFn({ method: "GET" })
     const { data: sups } = supplierIds.length
       ? await sb.from("suppliers").select("id,key,name").in("id", supplierIds)
       : { data: [] as any[] };
+    // Supplier cost per product so each order can show its profit.
+    const { data: supProds } = productIds.length
+      ? await sb.from("supplier_products").select("product_id,cost_price").in("product_id", productIds)
+      : { data: [] as any[] };
+    const costByProduct = new Map((supProds ?? []).map((r: any) => [r.product_id, Number(r.cost_price ?? 0)]));
     const supById = new Map((sups ?? []).map((s: any) => [s.id, s]));
     const prodById = new Map((prods ?? []).map((p: any) => [p.id, p]));
     return orders.map((o: any) => {
       const p: any = prodById.get(o.product_id);
       const s: any = p?.supplier_id ? supById.get(p.supplier_id) : null;
       const b: any = botById.get(String(o.telegram_id));
+      const cost = (o.product_id ? (costByProduct.get(o.product_id) ?? 0) : 0) * Number(o.quantity ?? 1);
       return {
         ...o,
         supplier_name: s?.name ?? null,
