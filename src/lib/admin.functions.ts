@@ -789,7 +789,9 @@ export const listOrders = createServerFn({ method: "GET" })
     const { data: supProds } = productIds.length
       ? await sb.from("supplier_products").select("product_id,cost_price").in("product_id", productIds)
       : { data: [] as any[] };
-    const costByProduct = new Map((supProds ?? []).map((r: any) => [r.product_id, Number(r.cost_price ?? 0)]));
+    const costByProduct = new Map<string, number>(
+      ((supProds ?? []) as any[]).map((r: any) => [String(r.product_id), Number(r.cost_price ?? 0)]),
+    );
     const supById = new Map((sups ?? []).map((s: any) => [s.id, s]));
     const prodById = new Map((prods ?? []).map((p: any) => [p.id, p]));
     return orders.map((o: any) => {
