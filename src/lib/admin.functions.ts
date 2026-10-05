@@ -34,7 +34,7 @@ export const getOverview = createServerFn({ method: "GET" })
       sb.from("orders").select("id", { count: "exact", head: true }).gte("created_at", since.toISOString()),
       sb.from("orders").select("total,quantity,product_id,created_at").eq("status", "completed"),
       sb.from("orders").select("*").order("created_at", { ascending: false }).limit(10),
-      sb.from("products").select("id,supplier_id,is_active"),
+      sb.from("products").select("id,supplier_id,is_active,cost_price"),
       sb.from("supplier_products").select("product_id,cost_price"),
     ]);
 
@@ -42,6 +42,9 @@ export const getOverview = createServerFn({ method: "GET" })
     const costMap: Record<string, number> = {};
     for (const s of (supRows.data ?? []) as any[]) {
       if (s.product_id) costMap[s.product_id] = Number(s.cost_price ?? 0);
+    }
+    for (const p of (prods.data ?? []) as any[]) {
+      if (!p.supplier_id && p.cost_price != null) costMap[p.id] = Number(p.cost_price);
     }
     const doneOrders = (completed.data ?? []) as any[];
     const revenue = doneOrders.reduce((a: number, r: any) => a + Number(r.total), 0);
@@ -92,19 +95,21 @@ export const getAnalytics = createServerFn({ method: "POST" })
     start.setHours(0, 0, 0, 0);
     start.setDate(start.getDate() - (days - 1));
 
-    const [ordersRes, supRes] = await Promise.all([
+    const [ordersRes, supRes, inRes] = await Promise.all([
       sb
         .from("orders")
         .select("id,created_at,status,total,quantity,product_id,product_name,source")
         .gte("created_at", start.toISOString())
         .order("created_at", { ascending: true }),
       sb.from("supplier_products").select("product_id,cost_price"),
+      sb.from("products").select("id,cost_price").is("supplier_id", null).not("cost_price", "is", null),
     ]);
 
     const costMap: Record<string, number> = {};
     for (const s of (supRes.data ?? []) as any[]) {
       if (s.product_id) costMap[s.product_id] = Number(s.cost_price ?? 0);
     }
+    for (const p of (inRes.data ?? []) as any[]) costMap[p.id] = Number(p.cost_price ?? 0);
 
     const orders = (ordersRes.data ?? []) as any[];
     const buckets: Record<string, { date: string; orders: number; revenue: number; profit: number; units: number }> = {};
@@ -335,6 +340,8 @@ export const saveProduct = createServerFn({ method: "POST" })
       price_override?: number | null;
       /** Fixed price for API users (no reseller discount). null = default. */
       api_price?: number | null;
+      /** Admin-entered unit cost for in-house products (profit calc). */
+      cost_price?: number | null;
     }) => d,
   )
   .handler(async ({ data, context }) => {
@@ -352,6 +359,9 @@ export const saveProduct = createServerFn({ method: "POST" })
       quick_guide: rest.quick_guide || null,
       details: (rest.details ?? []).filter((d) => d && (d.label?.trim() || d.value?.trim())),
       telegram_custom_emoji_id: rest.telegram_custom_emoji_id || null,
+      ...(rest.cost_price !== undefined
+        ? { cost_price: rest.cost_price != null && Number(rest.cost_price) >= 0 ? Math.round(Number(rest.cost_price) * 10000) / 10000 : null }
+        : {}),
       ...(rest.api_price !== undefined
         ? { api_price: rest.api_price != null && Number(rest.api_price) > 0 ? Math.round(Number(rest.api_price) * 100) / 100 : null }
         : {}),
@@ -779,7 +789,7 @@ export const listOrders = createServerFn({ method: "GET" })
     // Attach supplier info so admins can see which API/supplier an order came from.
     const productIds = [...new Set(orders.map((o: any) => o.product_id).filter(Boolean))];
     const { data: prods } = productIds.length
-      ? await sb.from("products").select("id,supplier_id,supplier_external_id").in("id", productIds)
+      ? await sb.from("products").select("id,supplier_id,supplier_external_id,cost_price").in("id", productIds)
       : { data: [] as any[] };
     const supplierIds = [...new Set((prods ?? []).map((p: any) => p.supplier_id).filter(Boolean))];
     const { data: sups } = supplierIds.length
@@ -792,6 +802,10 @@ export const listOrders = createServerFn({ method: "GET" })
     const costByProduct = new Map<string, number>(
       ((supProds ?? []) as any[]).map((r: any) => [String(r.product_id), Number(r.cost_price ?? 0)]),
     );
+    // In-house products: admin-entered cost.
+    for (const p of (prods ?? []) as any[]) {
+      if (!p.supplier_id && p.cost_price != null) costByProduct.set(String(p.id), Number(p.cost_price));
+    }
     const supById = new Map((sups ?? []).map((s: any) => [s.id, s]));
     const prodById = new Map((prods ?? []).map((p: any) => [p.id, p]));
     return orders.map((o: any) => {
