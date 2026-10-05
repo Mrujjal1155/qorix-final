@@ -382,6 +382,11 @@ function OrdersPage() {
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <Badge variant={o.source === "website" ? "default" : "secondary"}>{o.source ?? "telegram"}</Badge>
                   <span>{money(o.total)}</span>
+                  {o.status === "completed" && (
+                    <span className={Number(o.profit ?? 0) >= 0 ? "font-semibold text-success" : "font-semibold text-destructive"}>
+                      profit {money(o.profit ?? 0)}
+                    </span>
+                  )}
                   <span>{o.delivery_type}</span>
                 </div>
 
@@ -448,6 +453,7 @@ function OrdersPage() {
                 <th>Product</th>
                 <th>Qty</th>
                 <th>Total</th>
+                <th>Profit</th>
                 <th>Type</th>
                 <th>Status</th>
                 <th></th>
@@ -532,6 +538,15 @@ function OrdersPage() {
                     </td>
                     <td>{o.quantity}</td>
                     <td>{money(o.total)}</td>
+                    <td>
+                      {o.status === "completed" ? (
+                        <span className={Number(o.profit ?? 0) >= 0 ? "font-semibold text-success" : "font-semibold text-destructive"}>
+                          {money(o.profit ?? 0)}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">—</span>
+                      )}
+                    </td>
                     <td>{o.delivery_type}</td>
                     <td>
                       <Badge

@@ -58,6 +58,11 @@ function OverviewPage() {
     { label: "Pending payments", value: data?.pendingPayments ?? 0, icon: TrendingUp, delta: "-4%", up: false },
   ];
 
+  const profitCards = [
+    { label: "Total profit", value: money(data?.profit), note: "Completed orders − supplier cost", icon: DollarSign },
+    { label: "Profit today", value: money(data?.todayProfit), note: "Since midnight", icon: TrendingUp },
+  ];
+
   const highlights = [
     { value: `${data?.ordersToday ?? 0} new orders`, note: "Awaiting processing", icon: ShoppingBag, tone: "success" },
     { value: `${data?.pendingPayments ?? 0} payments`, note: "On hold", icon: TrendingUp, tone: "brand" },
@@ -114,6 +119,21 @@ function OverviewPage() {
                 {s.delta}
               </span>
             </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 grid gap-4 grid-cols-2">
+        {profitCards.map((s) => (
+          <div key={s.label} className="admin-panel rounded-2xl border border-success/30 bg-success/5 p-4 lg:p-5">
+            <div className="flex items-start justify-between gap-2">
+              <p className="min-w-0 truncate text-sm text-muted-foreground">{s.label}</p>
+              <s.icon className="size-4 shrink-0 text-success" />
+            </div>
+            <p className="mt-3 text-2xl font-extrabold tracking-tight tabular-nums text-success lg:text-3xl">
+              {isLoading ? "…" : s.value}
+            </p>
+            <p className="mt-1 truncate text-xs text-muted-foreground">{s.note}</p>
           </div>
         ))}
       </div>
