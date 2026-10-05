@@ -16,3 +16,4 @@
 - In-house stock counts come from `stock_counters`, kept exact by a trigger on `stock_items` (+1 add / -1 sold or deleted); `stock_counts()` reads it so bot clicks never scan thousands of items.
 - Scheduled supplier sync skips parsing/matching/snapshot RPC when the supplier reply's SHA-256 fingerprint matches the last fully applied one, but forces a full run every 2 minutes and on manual/webhook runs; this cuts CPU without letting DB-side changes stay stale.
 - Reseller single-product GET uses bounded per-isolate caches (auth 30s keyed by API-key hash, product 10s keyed by reseller id + discount + product id) and throttled last_used_at writes; order/balance/transaction endpoints always authenticate live so purchases stay real-time.
+- Manual in-house products with `manual_stock_limited` keep their admin-set count in `stock_counters` and `take_manual_stock()` reduces it per paid order; unlimited stays the default so older manual products keep working.
