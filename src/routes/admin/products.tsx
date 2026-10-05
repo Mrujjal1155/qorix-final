@@ -62,6 +62,7 @@ const EMPTY = {
   price_override: "" as string | number,
   api_price: "" as string | number,
   cost_price: "" as string | number,
+  manual_stock: "" as string | number,
   supplier_id: "" as string,
   image_url: "",
   delivery_time: "",
@@ -294,6 +295,13 @@ function ProductsPage() {
       });
       const pid = form.id || res?.id;
       if (pid && form.delivery_type === "manual") await saveMi({ data: { product_id: pid, config: mi } });
+      if (pid && !form.supplier_id)
+        await saveManualStock({
+          data: {
+            product_id: pid,
+            qty: form.delivery_type === "manual" && String(form.manual_stock).trim() !== "" ? Number(form.manual_stock) : null,
+          },
+        });
       return res;
     },
     onSuccess: () => {
@@ -321,6 +329,7 @@ function ProductsPage() {
       price_override: (p as any).price_override ?? "",
       api_price: (p as any).api_price ?? "",
       cost_price: (p as any).cost_price ?? "",
+      manual_stock: p.delivery_type === "manual" && (p as any).manual_stock_limited ? Number((p as any).stock ?? 0) : "",
       supplier_id: p.supplier_id ?? "",
       delivery_type: p.delivery_type,
       image_url: p.image_url ?? "",
@@ -679,6 +688,20 @@ function ProductsPage() {
             <option value="manual">Manual (admin delivers)</option>
           </select>
         </div>
+        {form.delivery_type === "manual" && !form.supplier_id && (
+          <div className="space-y-1">
+            <Label>Stock quantity (manual)</Label>
+            <Input
+              type="number"
+              min={0}
+              step={1}
+              placeholder="Empty = unlimited"
+              value={form.manual_stock}
+              onChange={(e) => setForm({ ...form, manual_stock: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">Shown to buyers everywhere. Each paid order reduces it; at 0 the product is out of stock.</p>
+          </div>
+        )}
         {form.delivery_type === "manual" && (
           <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3 sm:col-span-2">
             <div className="text-sm font-semibold">Manual order — info to collect from the customer</div>
@@ -963,7 +986,7 @@ function ProductsPage() {
                   <td>
                     <Badge variant="secondary">{p.delivery_type}</Badge>
                   </td>
-                  <td>{p.delivery_type === "manual" ? "—" : p.stock}</td>
+                  <td>{p.delivery_type === "manual" && !(p as any).manual_stock_limited ? "∞" : p.stock}</td>
                   <td>
                     <span className="flex items-center gap-2">
                       <Switch
