@@ -19,6 +19,7 @@ import {
   saveCategoryProducts,
   saveProduct,
   setProductActive,
+  setManualStock,
 } from "@/lib/admin.functions";
 
 import { AdminShell, money } from "@/components/AdminShell";
@@ -156,6 +157,7 @@ function ProductsPage() {
   const [mi, setMi] = useState<ManualInputConfig>({ ...EMPTY_MANUAL_INPUT });
   const loadMi = useServerFn(getManualInput);
   const saveMi = useServerFn(saveManualInput);
+  const saveManualStock = useServerFn(setManualStock);
   const [stockFor, setStockFor] = useState<string>("");
   const [search, setSearch] = useState("");
   const [supplierFilter, setSupplierFilter] = useState("all");
