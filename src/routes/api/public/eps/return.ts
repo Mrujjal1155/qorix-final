@@ -36,7 +36,7 @@ async function run(request: Request) {
 
   const state = q("state");
   const mtid = q("mtid", "merchantTransactionId", "MerchantTransactionId", "merchantTransactonId");
-  const etid = q("EPSTransactionId", "epsTransactionId", "EpsTransactionId", "TransactionId");
+  const etid = q("EPSTransactionId", "epsTransactionId", "EpsTransactionId", "TransactionId", "transaction_id", "transactionId", "trx_id");
 
   if (state === "cancel") {
     return page("Payment cancelled", "No money was taken. You can start the checkout again any time.", "/store", "Back to the store");
