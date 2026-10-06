@@ -25,6 +25,9 @@ export type EpsConfig = {
   storeId: string;
   /** BDT per 1 USD (shared with the other BDT gateway). */
   rate: number;
+  /** Which BDT gateway is active: EPS or PayKori (only one at a time). */
+  provider: "eps" | "paykori";
+  paykoriKey: string;
 };
 
 /** Payment options the EPS hosted page offers — shown on our checkout page. */
@@ -39,7 +42,13 @@ export function epsConfig(settings: Record<string, string>): EpsConfig {
   const storeId = g("eps_store_id", "EPS_STORE_ID");
   const base = (settings["eps_base"] || process.env["EPS_BASE"] || DEFAULT_BASE).trim().replace(/\/+$/, "");
   const rate = Number(settings["bdt_rate"] || 129) || 129;
+  const paykoriKey = (settings["paykori_api_key"] || process.env["PAYKORI_API_KEY"] || "").trim();
+  if (settings["paykori_enabled"] === "1" && paykoriKey) {
+    return { enabled: true, base, userName, password, hashKey, merchantId, storeId, rate, provider: "paykori", paykoriKey };
+  }
   return {
+    provider: "eps",
+    paykoriKey,
     enabled:
       settings["eps_enabled"] !== "0" && !!userName && !!password && !!hashKey && !!merchantId && !!storeId,
     base,
@@ -228,6 +237,17 @@ export type EpsInitInput = {
 
 /** API 02 — create the hosted payment and get the redirect URL. */
 export async function initializePayment(cfg: EpsConfig, input: EpsInitInput) {
+  if (cfg.provider === "paykori") {
+    const { paykoriCreate } = await import("@/lib/paykori.server");
+    return paykoriCreate(cfg.paykoriKey, {
+      amountBdt: input.amountBdt,
+      successUrl: input.successUrl,
+      cancelUrl: input.cancelUrl,
+      email: input.customerEmail,
+      phone: input.customerPhone,
+      orderId: input.merchantTransactionId,
+    });
+  }
   const auth = await getToken(cfg);
   if (!auth.ok) return { ok: false as const, error: auth.error };
 
@@ -293,6 +313,10 @@ export async function verifyTransaction(
   const mtid = (ids.merchantTransactionId ?? "").trim();
   const etid = (ids.epsTransactionId ?? "").trim();
   if (!mtid && !etid) return { ok: false as const, error: "Missing transaction id." };
+  if (cfg.provider === "paykori") {
+    const { paykoriVerify } = await import("@/lib/paykori.server");
+    return paykoriVerify(cfg.paykoriKey, etid, mtid);
+  }
 
   const auth = await getToken(cfg);
   if (!auth.ok) return { ok: false as const, error: auth.error };

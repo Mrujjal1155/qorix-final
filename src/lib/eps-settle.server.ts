@@ -22,6 +22,8 @@ export async function epsSettings(): Promise<Record<string, string>> {
       "eps_hash_key",
       "eps_merchant_id",
       "eps_store_id",
+      "paykori_enabled",
+      "paykori_api_key",
       "bdt_rate",
       "notify_email",
       "bot_name",
@@ -76,6 +78,11 @@ export async function settleEpsPayment(
   // Replay protection — one merchant transaction id can only settle once.
   const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: `eps:${mtid}` });
   if (usedErr) return { ok: true, orderNo: order.order_no, email: order.customer_email };
+  // One gateway transaction can pay for one order only.
+  if (info.epsTransactionId) {
+    const { error: txErr } = await db.from("binance_used_txs").insert({ tx_id: `eps-tx:${info.epsTransactionId}` });
+    if (txErr) return { ok: false, orderNo: order.order_no, email: order.customer_email, reason: "This payment was already used for another order." };
+  }
 
   await db
     .from("orders")

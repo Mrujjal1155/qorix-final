@@ -2560,7 +2560,7 @@ async function verifyEpsDeposit(chatId: number, id: string) {
 }
 
 /** Entry point for the EPS redirect back into the bot flow. */
-export async function settleEpsBotPayment(depId: string | null, mtid?: string | null) {
+export async function settleEpsBotPayment(depId: string | null, mtid?: string | null, gatewayTid?: string | null) {
   let row: any = null;
   if (depId) {
     const { data } = await db.from("binance_deposits").select("*").eq("id", depId).eq("kind", "eps").maybeSingle();
@@ -2577,6 +2577,10 @@ export async function settleEpsBotPayment(depId: string | null, mtid?: string | 
   }
   if (!row) return { ok: false as const, reason: "payment not found" };
   if (row.status === "credited") return { ok: true as const, already: true };
+  if (gatewayTid && !(row.meta as any)?.eps_tid) {
+    row.meta = { ...((row.meta as any) ?? {}), eps_tid: gatewayTid };
+    await db.from("binance_deposits").update({ meta: row.meta }).eq("id", row.id);
+  }
   const r = await creditEpsRow(row);
   if (r.credited) {
     if (Number(row.telegram_id) > 0) await sendMessage(Number(row.telegram_id), r.message, (r as any).keyboard);

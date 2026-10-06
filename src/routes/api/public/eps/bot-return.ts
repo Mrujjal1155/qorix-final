@@ -28,6 +28,12 @@ async function run(request: Request) {
     url.searchParams.get("merchantTransactonId") ??
     ""
   ).trim();
+  const tid = (
+    url.searchParams.get("transaction_id") ??
+    url.searchParams.get("transactionId") ??
+    url.searchParams.get("trx_id") ??
+    ""
+  ).trim();
   const state = (url.searchParams.get("state") ?? "").trim();
 
   const { getSettings } = await import("@/lib/bot/engine.server");
@@ -39,7 +45,7 @@ async function run(request: Request) {
 
   if (dep || mtid) {
     const { settleEpsBotPayment } = await import("@/lib/bot/engine.server");
-    const r = await settleEpsBotPayment(dep, mtid || null);
+    const r = await settleEpsBotPayment(dep, mtid || null, tid || null);
     if (r.ok)
       return page("Payment received", "Your payment is confirmed. Open the bot to continue.", botLink);
   }
