@@ -43,14 +43,14 @@ export function epsConfig(settings: Record<string, string>): EpsConfig {
   const base = (settings["eps_base"] || process.env["EPS_BASE"] || DEFAULT_BASE).trim().replace(/\/+$/, "");
   const rate = Number(settings["bdt_rate"] || 129) || 129;
   const paykoriKey = (settings["paykori_api_key"] || process.env["PAYKORI_API_KEY"] || "").trim();
-  if (settings["paykori_enabled"] === "1" && paykoriKey) {
+  if (["1", "on", "true", "yes"].includes((settings["paykori_enabled"] || "").toLowerCase()) && paykoriKey) {
     return { enabled: true, base, userName, password, hashKey, merchantId, storeId, rate, provider: "paykori", paykoriKey };
   }
   return {
     provider: "eps",
     paykoriKey,
     enabled:
-      settings["eps_enabled"] !== "0" && !!userName && !!password && !!hashKey && !!merchantId && !!storeId,
+      !["0", "off", "false", "no"].includes((settings["eps_enabled"] || "").toLowerCase()) && !!userName && !!password && !!hashKey && !!merchantId && !!storeId,
     base,
     userName,
     password,

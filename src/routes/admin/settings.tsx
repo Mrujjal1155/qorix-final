@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
-import { checkBinanceStatus, checkBotToken, getBotSettings, registerWebhook, saveBinanceKeys, saveBotSettings, sendTestEmail, getEmailStatus } from "@/lib/admin.functions";
+import { checkBinanceStatus, checkBotToken, getBotSettings, registerWebhook, saveBinanceKeys, saveBotSettings, sendTestEmail, getEmailStatus, testPaykori } from "@/lib/admin.functions";
 import { AdminShell } from "@/components/AdminShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -118,6 +118,29 @@ function SettingsPage() {
   const saveKeys = useServerFn(saveBinanceKeys);
   const sendTest = useServerFn(sendTestEmail);
   const fetchEmailStatus = useServerFn(getEmailStatus);
+  const runPaykoriTest = useServerFn(testPaykori);
+  const [paykoriStatus, setPaykoriStatus] = useState<{ ok: boolean; message: string } | null>(null);
+  const [paykoriBusy, setPaykoriBusy] = useState(false);
+
+  /** Save PayKori settings, then immediately test the connection. */
+  async function onSavePaykori() {
+    setPaykoriBusy(true);
+    setPaykoriStatus(null);
+    try {
+      await save({ data: { values } });
+      await refetchSettings();
+      const r = await runPaykoriTest({ data: { apiKey: values["paykori_api_key"] ?? "" } });
+      setPaykoriStatus(r);
+      if (r.ok) toast.success("Saved · PayKori connection OK");
+      else toast.error(r.message);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed";
+      setPaykoriStatus({ ok: false, message });
+      toast.error(message);
+    } finally {
+      setPaykoriBusy(false);
+    }
+  }
   const [savingKeys, setSavingKeys] = useState(false);
   const [testTo, setTestTo] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
@@ -531,7 +554,9 @@ function SettingsPage() {
           </div>
           <Switch
             checked={isOn(values["eps_enabled"])}
-            onCheckedChange={(c) => setToggle("eps_enabled", c)}
+            onCheckedChange={(c) =>
+              setValues((prev) => ({ ...prev, eps_enabled: c ? "on" : "off", ...(c ? { paykori_enabled: "off" } : {}) }))
+            }
             aria-label="EPS enabled"
           />
         </div>
@@ -612,6 +637,57 @@ function SettingsPage() {
         </div>
 
         <Button onClick={onSave}>Save EPS settings</Button>
+      </CardContent>
+    </Card>
+  );
+
+  const paykoriCard = (
+    <Card>
+      <CardHeader>
+        <CardTitle>PayKori (bKash / Nagad) — alternative to EPS</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <p className="text-sm text-muted-foreground">
+          Only one gateway runs at a time: turning PayKori on turns EPS off, and the bot and website show it in the same
+          place as EPS. The API key stays on the server. Every payment is re-verified with PayKori before an order is
+          marked paid. Uses the same USD → BDT rate as EPS.
+        </p>
+        <div className="flex items-start justify-between gap-4 rounded-xl border border-border/70 bg-card/50 p-4">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-semibold">PayKori enabled</Label>
+            <p className="text-xs text-muted-foreground">When on, EPS is switched off automatically.</p>
+          </div>
+          <Switch
+            checked={isOn(values["paykori_enabled"])}
+            onCheckedChange={(c) =>
+              setValues((prev) => ({ ...prev, paykori_enabled: c ? "on" : "off", ...(c ? { eps_enabled: "off" } : {}) }))
+            }
+            aria-label="PayKori enabled"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label>PayKori API key</Label>
+          <Input
+            type="password"
+            autoComplete="off"
+            value={values["paykori_api_key"] ?? ""}
+            onChange={(e) => setValues({ ...values, paykori_api_key: e.target.value.trim() })}
+            placeholder="brand API key from the PayKori dashboard"
+          />
+        </div>
+        {paykoriStatus ? (
+          <div
+            className={`rounded-xl border p-3 text-sm ${
+              paykoriStatus.ok ? "border-success/40 bg-success/10 text-success" : "border-destructive/40 bg-destructive/10 text-destructive"
+            }`}
+          >
+            {paykoriStatus.ok ? "✅ " : "❌ "}
+            {paykoriStatus.message}
+          </div>
+        ) : null}
+        <Button onClick={onSavePaykori} disabled={paykoriBusy}>
+          {paykoriBusy ? "Saving & testing…" : "Save & test connection"}
+        </Button>
       </CardContent>
     </Card>
   );
@@ -711,7 +787,12 @@ function SettingsPage() {
       title: "Website payments (EPS)",
       description: "bKash, Nagad, Rocket, Visa and Mastercard on the website checkout.",
       icon: Smartphone,
-      render: () => epsCard,
+      render: () => (
+        <div className="space-y-6">
+          {epsCard}
+          {paykoriCard}
+        </div>
+      ),
     },
 
 
