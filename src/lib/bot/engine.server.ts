@@ -1535,16 +1535,22 @@ async function menuStockCounts(): Promise<Record<string, number>> {
   return counts;
 }
 
+// Menu-only product list cache (same 5s window as stock). Checkout re-reads the product row.
+let menuProductsCache: { at: number; rows: any[] } | null = null;
+async function menuProducts(): Promise<any[]> {
+  if (menuProductsCache && Date.now() - menuProductsCache.at < MENU_STOCK_TTL_MS) return menuProductsCache.rows;
+  const { data, error } = await db
+    .from("products")
+    .select("*")
+    .eq("is_active", true)
+    .is("owner_reseller_id", null)
+    .order("sort_order", { ascending: true });
+  if (!error) menuProductsCache = { at: Date.now(), rows: data ?? [] };
+  return data ?? [];
+}
+
 async function productsWithStock() {
-  const [{ data: products }, counts] = await Promise.all([
-    db
-      .from("products")
-      .select("*")
-      .eq("is_active", true)
-      .is("owner_reseller_id", null)
-      .order("sort_order", { ascending: true }),
-    menuStockCounts(),
-  ]);
+  const [products, counts] = await Promise.all([menuProducts(), menuStockCounts()]);
   // Safety net: a switched-off product must never reach the bot menu.
   const { guardVisibleProducts } = await import("@/lib/suppliers/visibility-guard.server");
   const rows = guardVisibleProducts(products ?? [], "bot").map((p: any) => ({
@@ -1568,7 +1574,9 @@ function isFlash(p: any) {
 }
 
 /** Category → product links (a product can sit in several categories). */
+let categoryLinksCache: { at: number; value: { categories: any[]; byCat: Record<string, Set<string>> } } | null = null;
 async function categoryLinks() {
+  if (categoryLinksCache && Date.now() - categoryLinksCache.at < 15_000) return categoryLinksCache.value;
   const [{ data: cats }, { data: links }] = await Promise.all([
     db.from("categories").select("id,name,emoji,sort_order,channel,is_active").eq("is_active", true).order("sort_order"),
     db.from("product_categories").select("product_id,category_id"),
@@ -1576,6 +1584,7 @@ async function categoryLinks() {
   const byCat: Record<string, Set<string>> = {};
   for (const l of links ?? []) (byCat[l.category_id] ??= new Set()).add(l.product_id);
   const categories = (cats ?? []).filter((c: any) => (c.channel ?? "both") !== "website");
+  if (cats) categoryLinksCache = { at: Date.now(), value: { categories, byCat } };
   return { categories, byCat };
 }
 
