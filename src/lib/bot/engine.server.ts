@@ -3298,7 +3298,8 @@ async function handleMessage(msg: any) {
   const chatId = msg.chat.id as number;
   const text: string = msg.text ?? msg.caption ?? "";
   const payload = text.startsWith("/start ") ? text.slice(7).trim() : undefined;
-  const user = await upsertUser(msg.from, payload);
+  // Load the user and settings together so the first reply is not delayed.
+  const [user] = await Promise.all([upsertUser(msg.from, payload), getSettings()]);
   if (!user) return;
   if (user.is_banned) {
     await sendMessage(chatId, "🚫 Your account has been banned.");
@@ -3334,6 +3335,19 @@ async function handleMessage(msg: any) {
     }
     const settings = await getSettings();
     await sayWithBottomMenu(chatId, await homeText(user), settings, homeKeyboard(settings));
+    return;
+  }
+
+  if (/^\/help\b/.test(text)) {
+    await say(
+      chatId,
+      "ℹ️ <b>How this bot works</b>\n\n" +
+        "Browse AI & SaaS products, pay from your wallet and receive your order instantly in this chat.\n\n" +
+        "<b>Commands</b>\n" +
+        "/start – Main menu\n/products – Open the shop\n/wallet – Balance & deposit\n" +
+        "/api – Developer API\n/support – Contact support\n/help – This guide",
+      [[uiBtn(await getSettings(), "com_home", "home")]],
+    );
     return;
   }
 
