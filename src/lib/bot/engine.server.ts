@@ -878,7 +878,7 @@ const TIERS = [
   { name: "Silver", key: "tier_silver" as UiKey, min: 10, discount: 1, priority: true, perk: "priority support" },
   { name: "Gold", key: "tier_gold" as UiKey, min: 50, discount: 2, priority: true, perk: "early access to flash deals" },
   { name: "Platinum", key: "tier_platinum" as UiKey, min: 200, discount: 4, priority: true, perk: "VIP support + bonus drops" },
-  { name: "Diamond", key: "tier_diamond" as UiKey, min: 500, discount: 5, priority: true, perk: "top tier — best perks" },
+  { name: "Diamond", key: "tier_diamond" as UiKey, min: 500, discount: 5, priority: true, perk: "highest tier" },
 ];
 
 
@@ -937,7 +937,7 @@ async function profileView(chatId: number, user: any) {
 
 function shareUrl(settings: Record<string, string>, user: any) {
   const link = refLink(settings, user);
-  const msg = settings["referral_share_text"] || `Join ${settings["bot_name"] || "our shop"} and grab the best deals!`;
+  const msg = settings["referral_share_text"] || `Join ${settings["bot_name"] || "our shop"} — AI & SaaS products with wallet checkout.`;
   return `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(msg)}`;
 }
 
@@ -948,7 +948,7 @@ async function referralView(user: any) {
   const text =
     `${sectionHead(s, "referral", `<b>${escapeHtml(uiText(s, "ref_title").toUpperCase().split("").join(" "))}</b>`)}\n` +
     `──────────────\n` +
-    `${uiTag(s, "ref_rate")}: you earn <b>${pct}%</b> of every purchase your friends make — credited to your balance instantly.\n\n` +
+    `${uiTag(s, "ref_rate")}: you earn <b>${pct}%</b> of every purchase your friends make, added to your balance once the order is completed.\n\n` +
     `${uiTag(s, "prof_refs")}: <b>${user.referral_count ?? 0}</b>\n` +
     `${uiTag(s, "prof_earning")}: <b>${money(user.referral_earnings)}</b>\n\n` +
     `${uiTag(s, "prof_link")}\n<code>${escapeHtml(link)}</code>\n` +
@@ -2921,7 +2921,7 @@ export async function announcePurchase(user: any, product: any, qty: number, sou
     `${alertIcon(s, tagIcon)} <b>${tagLabel}</b>\n` +
     `<blockquote>${alertIcon(s, "sale_user")} <b>${who}</b> just bought\n` +
     `${alertIcon(s, "sale_qty")} <b>${qty}×</b> ${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b></blockquote>\n` +
-    `${alertIcon(s, "sale_done")} <i>Delivered instantly</i>`;
+    `${alertIcon(s, "sale_done")} <i>Order delivered</i>`;
   await postToChannel(s, text, await channelProductButton(s, product));
 }
 
@@ -2978,7 +2978,7 @@ export async function announceRestock(
       : `${alertIcon(s, "spark")} Available again right now.\n`) +
     `${alertIcon(s, "price")} <b>Price</b>  ${money(product?.price)}\n` +
     `${alertIcon(s, "stock")} <b>In stock</b>  ${available} ready\n` +
-    `${alertIcon(s, "delivery")} <b>Delivery</b>  instant &amp; automatic\n\n` +
+    `${alertIcon(s, "delivery")} <b>Delivery</b>  automatic for in-stock items; some products are delivered by our team\n\n` +
     `<i>${escapeHtml(footer)}</i>`;
 
   const banner = bannerFor(product, s);
@@ -2999,7 +2999,7 @@ export async function announceNewProduct(
   if (!product || product.is_active === false) return;
   if ((s["announce_new"] ?? "on").toLowerCase() === "off") return;
   const title = s["announce_new_title"] || "JUST ADDED";
-  const footer = s["announce_new_footer"] || "First come, first served — early buyers get the best stock.";
+  const footer = s["announce_new_footer"] || "Available while stock lasts.";
   const line = "━━━━━━━━━━━━━━━━";
   const stock = Number(product?.supplier_stock ?? product?.stock ?? 0);
   const text =
@@ -3008,7 +3008,7 @@ export async function announceNewProduct(
     `${alertIcon(s, "spark")} Brand new in the store.\n` +
     `${alertIcon(s, "price")} <b>Price</b>  ${money(product?.price)}\n` +
     (stock > 0 ? `${alertIcon(s, "stock")} <b>In stock</b>  ${stock} ready\n` : "") +
-    `${alertIcon(s, "delivery")} <b>Delivery</b>  instant &amp; automatic\n` +
+    `${alertIcon(s, "delivery")} <b>Delivery</b>  automatic for in-stock items; some products are delivered by our team\n` +
     `\n<i>${escapeHtml(footer)}</i>`;
 
   const banner = bannerFor(product, s);
@@ -3045,7 +3045,7 @@ export async function announceLowStock(
     `${alertIcon(s, "price")} <b>Price</b>  ${money(product?.price)}\n` +
     (out
       ? `${alertIcon(s, "bell")} We'll post again the second it's restocked\n`
-      : `${alertIcon(s, "delivery")} <b>Delivery</b>  instant &amp; automatic\n`) +
+      : `${alertIcon(s, "delivery")} <b>Delivery</b>  automatic for in-stock items; some products are delivered by our team\n`) +
     `\n<i>${escapeHtml(footer)}</i>`;
 
   const banner = bannerFor(product, s);
@@ -3089,7 +3089,7 @@ export async function announcePriceChange(
     `${alertIcon(s, "price")} <b>Was</b>  <s>${money(oldPrice)}</s>\n` +
     `${alertIcon(s, "spark")} <b>Now</b>  ${money(newPrice)}\n` +
     (down && saved > 0 ? `${alertIcon(s, "save")} <b>You save</b>  ${money(saved)}${percent > 0 ? ` (${percent}% off)` : ""}\n` : "") +
-    `${alertIcon(s, "delivery")} <b>Delivery</b>  instant &amp; automatic\n` +
+    `${alertIcon(s, "delivery")} <b>Delivery</b>  automatic for in-stock items; some products are delivered by our team\n` +
     `\n<i>${escapeHtml(footer)}</i>`;
 
   const banner = bannerFor(product, s);
@@ -3123,11 +3123,11 @@ export async function announceFlashSale(
     const off = oldPrice > 0 ? Math.round(((oldPrice - newPrice) / oldPrice) * 100) : 0;
     const left = flashLeft(product.flash_ends_at);
     text =
-      `${alertIcon(s, "flash")} <b>FLASH SALE — LIMITED TIME!</b>\n${line}\n\n` +
+      `${alertIcon(s, "flash")} <b>Limited-time sale</b>\n${line}\n\n` +
       `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
       `${alertIcon(s, "price")} <b>Was</b>  <s>${money(oldPrice)}</s>\n` +
       `${alertIcon(s, "spark")} <b>Now</b>  ${money(newPrice)}${off > 0 ? ` (-${off}%)` : ""}\n` +
-      (left ? `\n${alertIcon(s, "timer")} <b>Hurry — ends in ${left}</b>\n` : "\n") +
+      (left ? `\n${alertIcon(s, "timer")} <b>Sale ends in ${left}</b>\n` : "\n") +
       `<i>Grab it before the timer runs out.</i>`;
   } else {
     text =
@@ -3342,7 +3342,7 @@ async function handleMessage(msg: any) {
     await say(
       chatId,
       "ℹ️ <b>How this bot works</b>\n\n" +
-        "Browse AI & SaaS products, pay from your wallet and receive your order instantly in this chat.\n\n" +
+        "Browse AI & SaaS products, pay from your wallet and receive your order in this chat.\n\n" +
         "<b>Commands</b>\n" +
         "/start – Main menu\n/products – Open the shop\n/wallet – Balance & deposit\n" +
         "/api – Developer API\n/support – Contact support\n/help – This guide",
@@ -4411,7 +4411,7 @@ function joinSuccessText(s: Record<string, string>) {
     (s["join_gate_success"] || "").trim() ||
     "🎉 <b>Verification successful!</b>\n──────────────\n" +
       "✅ Your community membership is confirmed.\n" +
-      "🔓 Full access unlocked — browse products, top up your wallet and order instantly.\n\n" +
+      "🔓 Full access unlocked — browse products, top up your wallet and place orders.\n\n" +
       "<i>Thanks for joining us. Happy shopping!</i>"
   );
 }
@@ -7325,7 +7325,7 @@ async function apiPanelView(user: any) {
         `──────────────\n` +
         `Sell our whole catalogue from <b>your own website or bot</b>.\n\n` +
         `${apiIcon(s, "balance")} Your API balance pays the wholesale price\n` +
-        `${apiIcon(s, "orders")} Orders are delivered instantly through the API\n` +
+        `${apiIcon(s, "orders")} Orders are delivered through the API (manual products are fulfilled by our team)\n` +
         `${apiIcon(s, "key")} You get a private API key in one tap\n\n` +
         `<i>Open your free API account below.</i>`,
       kb: [
