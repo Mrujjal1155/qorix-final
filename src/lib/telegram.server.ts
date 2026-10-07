@@ -431,6 +431,7 @@ export const COMMAND_LIST = [
   { command: "wallet", description: "💰 Wallet & deposit" },
   { command: "api", description: "🔑 Developer API" },
   { command: "support", description: "🆘 Get help" },
+  { command: "help", description: "ℹ️ How the bot works" },
 ] as const;
 
 export const ADMIN_COMMAND_LIST = [
