@@ -11,6 +11,8 @@ function safeEqual(a: string, b: string): boolean {
   return left.length === right.length && timingSafeEqual(left, right);
 }
 
+let lastTrackAt = 0;
+
 export const Route = createFileRoute("/api/public/telegram/webhook")({
   server: {
     handlers: {
@@ -35,7 +37,12 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
         }
 
         // Status bookkeeping runs alongside the actual handling (never before it).
+        // Status heartbeat: at most one write per 30s per worker, not one per click.
+        const nowMs = Date.now();
+        const skipTrack = nowMs - lastTrackAt < 30_000;
+        if (!skipTrack) lastTrackAt = nowMs;
         const track = (async () => {
+          if (skipTrack) return;
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const from =
             update.message?.from ?? update.edited_message?.from ?? update.callback_query?.from;
