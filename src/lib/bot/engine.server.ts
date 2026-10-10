@@ -1702,7 +1702,7 @@ async function shopView(page: number) {
     ]);
     const text =
       `${sectionHead(settings, "shop", `${pageIconHtml(settings, "shop")} <b>C A T E G O R I E S</b>`)}\n\n` +
-      `${uiIconHtml(settings, "shop_instock")} <b>${inStock} of ${products.length}</b> ${uiText(settings, "shop_instock")}\n` +
+      `${uiIconHtml(settings, "shop_instock")} <b>${inStock}</b> ${uiText(settings, "shop_instock")}\n` +
       `<i>Pick a category to see its products.</i>`;
     return { text, kb };
   }
@@ -1779,7 +1779,7 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
   const text =
     `${sectionHead(settings, "products", `${pageIconHtml(settings, "shop")} <b>${title}</b>`)}\n` +
     (subtitle ? subtitle : "\n") +
-    `${uiIconHtml(settings, "shop_instock")} <b>${inStock} of ${products.length}</b> ${uiText(settings, "shop_instock")}\n` +
+    `${uiIconHtml(settings, "shop_instock")} <b>${inStock}</b> ${uiText(settings, "shop_instock")}\n` +
     (flash.length
       ? `${uiTag(settings, "shop_flash")} — <b>${flash.length}</b> discounted item(s) live now\n`
       : "") +
