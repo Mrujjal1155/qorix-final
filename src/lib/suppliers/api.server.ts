@@ -596,6 +596,29 @@ function isCanboso(s: SupplierRow) {
   return /canboso/i.test(s.key) || /canboso\.com/i.test(s.base_url || "");
 }
 
+/** DigitalCore (digitalcore.top): REST /api/user/*, Api-Key/Bearer auth, bare JSON arrays. */
+function isDigitalCore(s: SupplierRow) {
+  return /digitalcore/i.test(s.key) || /digitalcore\.top/i.test(s.base_url || "");
+}
+
+function digitalCoreProduct(p: any): SupplierProduct | null {
+  const id = p?.id ?? p?.slug;
+  if (id == null || String(id).trim() === "") return null;
+  const tiers = Array.isArray(p.tiers) ? p.tiers : [];
+  // Cost = the single-unit price (first tier), never the bulk "priceFrom".
+  const first = tiers.find((t: any) => Number(t?.minQty) <= 1) ?? tiers[0];
+  return {
+    external_id: String(id),
+    name: String(p.name ?? id),
+    description: p.description ? String(p.description) : null,
+    cost_price: Number(p.price ?? first?.price ?? 0),
+    stock: Math.max(0, Number(p.stock) || 0),
+    currency: "USD",
+    min_qty: 1,
+    raw: p,
+  };
+}
+
 function actionPath(action: string, extra = "") {
   return `?action=${action}${extra}`;
 }
@@ -623,6 +646,10 @@ async function callAny(
 }
 
 export async function supplierPing(s: SupplierRow) {
+  if (isDigitalCore(s)) {
+    await call(s, "/api/user/me");
+    return { ok: true as const, status: "active" };
+  }
   if (isActionDialect(s)) {
     // No dedicated ping action: a successful balance read proves the key works.
     const j = await call(s, actionPath("balance"));
@@ -672,6 +699,10 @@ export async function supplierDeleteWebhook(s: SupplierRow, endpointId: string) 
 
 
 export async function supplierBalance(s: SupplierRow) {
+  if (isDigitalCore(s)) {
+    const j = await call(s, "/api/user/me");
+    return { balance: Number(j?.balance ?? 0), currency: "USD" };
+  }
   const j = isCanboso(s)
     ? await callAny(s, CANBOSO_ME_PATHS)
     : await call(s, isActionDialect(s) ? actionPath("balance") : "/v1/balance");
@@ -685,6 +716,11 @@ export async function supplierBalance(s: SupplierRow) {
 }
 
 export async function supplierProducts(s: SupplierRow): Promise<SupplierProduct[]> {
+  if (isDigitalCore(s)) {
+    const j = await call(s, "/api/user/products");
+    const list: any[] = Array.isArray(j) ? j : (j?.products ?? j?.data ?? []);
+    return list.map(digitalCoreProduct).filter((x): x is SupplierProduct => x !== null);
+  }
   const action = isActionDialect(s);
   const j = action
     ? await call(s, actionPath("products"))
@@ -921,6 +957,15 @@ export async function supplierOrder(
     .replace(/[^A-Za-z0-9._:-]/g, "")
     .slice(0, 128)
     .padEnd(8, "0") || `ord${Date.now()}`;
+  if (isDigitalCore(s)) {
+    // No idempotency support on their side: one POST only, never retried.
+    const d = await call(s, "/api/user/buy", { method: "POST", body: { id: externalId, count: qty } });
+    const raw = Array.isArray(d?.items) ? d.items : [];
+    return {
+      code: d?.order_id ? String(d.order_id) : null,
+      items: splitBulkDelivery(raw.map(formatDeliveryItem).filter(Boolean), qty),
+    };
+  }
   const j = canboso
     ? await call(s, "/api/v2/telegram-buyer/purchase", {
         method: "POST",
