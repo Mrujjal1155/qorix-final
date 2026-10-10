@@ -1553,10 +1553,13 @@ async function productsWithStock() {
   const [products, counts] = await Promise.all([menuProducts(), menuStockCounts()]);
   // Safety net: a switched-off product must never reach the bot menu.
   const { guardVisibleProducts } = await import("@/lib/suppliers/visibility-guard.server");
-  const rows = guardVisibleProducts(products ?? [], "bot").map((p: any) => ({
-    ...p,
-    stock: p.supplier_id ? Number(p.supplier_stock ?? 0) : (counts[p.id] ?? 0),
-  }));
+  const rows = guardVisibleProducts(products ?? [], "bot")
+    .map((p: any) => ({
+      ...p,
+      stock: p.supplier_id ? Number(p.supplier_stock ?? 0) : (counts[p.id] ?? 0),
+    }))
+    // Out-of-stock products stay hidden until restocked (unlimited manual items always show).
+    .filter((p: any) => !isOutOfStock(p));
   // Admin-pinned products (featured_rank 1,2,3…) always come first, in that
   // exact serial; everything else keeps the normal sort_order.
   return rows.sort((a: any, b: any) => {
@@ -1648,7 +1651,7 @@ function categoryButton(settings: Record<string, string>, cat: any, text: string
 async function shopView(page: number) {
   const settings = await getSettings();
   const products = await productsWithStock();
-  const inStock = products.filter((p: any) => (p.delivery_type === "manual" && !p.manual_stock_limited) || p.stock > 0).length;
+  const inStock = products.length;
   const flash = products.filter(isFlash);
   const { categories, byCat } = await categoryLinks();
   const withProducts = categories
@@ -1734,7 +1737,7 @@ async function allProductsView(page: number, catId: "all" | string = "all") {
     hasCategories = categories.some((c: any) => productsOfCategory(all, c.id, byCat).length > 0);
   }
   const back = catId === "all" ? "cat:all" : `cat:${catId}`;
-  const inStock = products.filter((p: any) => (p.delivery_type === "manual" && !p.manual_stock_limited) || p.stock > 0).length;
+  const inStock = products.length;
   const flash = products.filter(isFlash);
   const slice = products.slice(page * PAGE, page * PAGE + PAGE);
   const kb: Button[][] = [];
