@@ -6460,6 +6460,110 @@ async function handleCallback(cq: any) {
     return;
   }
 
+  if (data.startsWith("po:") || data.startsWith("pob:") || data.startsWith("poc:")) {
+    const [kind, productId, n] = data.split(":");
+    const { data: p } = await db.from("products").select("*").eq("id", productId!).maybeSingle();
+    const s = await getSettings();
+    if (!p || p.is_active === false || p.owner_reseller_id || !p.preorder_enabled) {
+      await edit("⚠️ Pre-order is not available for this product right now.", [[uiBtn(s, "com_shop", "shop:0")]]);
+      return;
+    }
+    const { preorderUnitPrice, PREORDER_STATUS } = await import("@/lib/bot/preorder.server");
+    const pct = Number(p.preorder_percent ?? 5);
+    const unit = preorderUnitPrice(Number(p.price), pct);
+    if (kind === "po") {
+      await edit(
+        `🕒 <b>Pre-order — ${escapeHtml(p.name)}</b>\n──────────────\n` +
+          `Price: <s>${money(p.price)}</s> → <b>${money(unit)}</b> each (+${pct}% pre-order)\n\n` +
+          `<i>Paid from your wallet now. When stock arrives you get it automatically — earlier pre-orders are delivered first. Cancel any time for a full wallet refund.</i>\n\nHow many?`,
+        [
+          [1, 2, 3].map((q) => ({ text: `${q}×`, callback_data: `pob:${p.id}:${q}` })),
+          [5, 10].map((q) => ({ text: `${q}×`, callback_data: `pob:${p.id}:${q}` })),
+          [uiBtn(s, "com_back", `p:${p.id}`)],
+        ],
+      );
+      return;
+    }
+    const qty = Math.min(100, Math.max(1, Number(n) || 1));
+    const total = Math.round(unit * qty * 100) / 100;
+    if (kind === "pob") {
+      const fresh = await getUser(chatId);
+      const bal = Number(fresh?.balance ?? 0);
+      const enough = bal >= total;
+      await edit(
+        `🕒 <b>Confirm pre-order</b>\n──────────────\n${qty}× ${escapeHtml(p.name)}\nTotal: <b>${money(total)}</b>\nWallet balance: <b>${money(bal)}</b>\n\n` +
+          (enough ? `<i>Tap confirm to pay from your wallet.</i>` : `⚠️ Not enough balance. Please add funds first.`),
+        [
+          enough
+            ? [{ text: `✅ Confirm & pay ${money(total)}`, callback_data: `poc:${p.id}:${qty}`, style: "success" }]
+            : [uiBtn(s, "com_wallet", "wallet")],
+          [uiBtn(s, "com_back", `po:${p.id}`)],
+        ],
+      );
+      return;
+    }
+    const reference = `preorder:${chatId}:${p.id}:${Date.now()}`;
+    const { data: charged, error: chargeError } = await db.rpc("bot_user_debit", {
+      _telegram_id: chatId,
+      _amount: total,
+      _method: "wallet",
+      _reference: reference,
+      _note: `Pre-order ${qty}x ${p.name}`,
+    });
+    if (chargeError || !charged || (charged as any).ok === false) {
+      await edit(`❌ We could not charge this pre-order (insufficient balance). Nothing was taken.`, [[uiBtn(s, "com_wallet", "wallet")]]);
+      return;
+    }
+    const { data: order } = await db
+      .from("orders")
+      .insert({
+        telegram_id: chatId,
+        product_id: p.id,
+        product_name: p.name,
+        quantity: qty,
+        unit_price: unit,
+        total,
+        status: PREORDER_STATUS,
+        delivery_type: p.delivery_type,
+        payment_method: "wallet",
+        meta: { preorder: true, preorder_percent: pct, base_price: Number(p.price), reference },
+      })
+      .select("*")
+      .maybeSingle();
+    const { count: ahead } = await db
+      .from("orders")
+      .select("id", { count: "exact", head: true })
+      .eq("product_id", p.id)
+      .eq("status", PREORDER_STATUS)
+      .lt("created_at", order?.created_at ?? new Date().toISOString());
+    await notifyAdmins(`🕒 <b>New pre-order #${order?.order_no}</b>\nUser: <code>${chatId}</code>\n${qty}× ${escapeHtml(p.name)} — ${money(total)}`).catch(() => {});
+    await edit(
+      `✅ <b>Pre-order placed — #${order?.order_no}</b>\n──────────────\n${qty}× ${escapeHtml(p.name)}\nPaid: <b>${money(total)}</b>\nQueue position: <b>${Number(ahead ?? 0) + 1}</b>\n\n` +
+        `<i>You will receive it here automatically as soon as stock arrives. You can cancel from My Orders for a full wallet refund.</i>`,
+      [[uiBtn(s, "ord_my", "orders")], [uiBtn(s, "ord_home", "home")]],
+    );
+    // Stock may already be back (e.g. a supplier refill) — try right away.
+    defer(async () => {
+      const { fulfillPreorders } = await import("@/lib/bot/preorder.server");
+      await fulfillPreorders(p.id);
+    });
+    return;
+  }
+
+  if (data.startsWith("pox:")) {
+    const s = await getSettings();
+    const o = await findUserOrder(chatId, data.slice(4));
+    const { cancelPreorder } = await import("@/lib/bot/preorder.server");
+    const r = o ? await cancelPreorder(chatId, o.id) : { ok: false as const };
+    await edit(
+      r.ok
+        ? `✅ Pre-order cancelled. <b>${money((r as any).amount)}</b> has been returned to your wallet.`
+        : `⚠️ This pre-order can no longer be cancelled (it may already be delivered).`,
+      [[uiBtn(s, "ord_my", "orders")], [uiBtn(s, "com_wallet", "wallet")]],
+    );
+    return;
+  }
+
   if (data.startsWith("buy:")) {
     const [, productId, n] = data.split(":");
     const bq = Math.max(1, Number(n) || 1);
