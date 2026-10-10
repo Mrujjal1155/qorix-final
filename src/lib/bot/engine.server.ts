@@ -651,7 +651,7 @@ async function isAdmin(telegramId: number, settings?: Record<string, string>) {
 }
 
 
-async function notifyAdmins(text: string, kb?: Button[][]) {
+export async function notifyAdmins(text: string, kb?: Button[][]) {
   const s = await getSettings();
   for (const id of adminIds(s)) await sendMessage(id, text, kb);
 }
