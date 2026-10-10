@@ -1558,8 +1558,9 @@ async function productsWithStock() {
       ...p,
       stock: p.supplier_id ? Number(p.supplier_stock ?? 0) : (counts[p.id] ?? 0),
     }))
-    // Out-of-stock products stay hidden until restocked (unlimited manual items always show).
-    .filter((p: any) => !isOutOfStock(p));
+    // Out-of-stock products stay hidden until restocked (unlimited manual items
+    // always show); pre-order products stay visible so buyers can queue.
+    .filter((p: any) => !isOutOfStock(p) || p.preorder_enabled === true);
   // Admin-pinned products (featured_rank 1,2,3…) always come first, in that
   // exact serial; everything else keeps the normal sort_order.
   return rows.sort((a: any, b: any) => {
@@ -1977,6 +1978,13 @@ async function productView(productId: string) {
     ]);
   else {
     kb.push([uiBtn(settings, "prod_out", `p:${p.id}`)]);
+    if (p.preorder_enabled) {
+      const pct = Number(p.preorder_percent ?? 5);
+      text +=
+        `\n\n🕒 <b>Pre-order available</b> (+${pct}%)\n` +
+        `<i>Pay now and get it automatically when stock arrives. Earlier pre-orders are delivered first. You can cancel any time for a full wallet refund.</i>`;
+      kb.push([{ text: `🕒 Pre-order (+${pct}%)`, callback_data: `po:${p.id}`, style: "success" }]);
+    }
     kb.push([uiBtn(settings, "prod_notify", `notify:${p.id}`)]);
   }
   kb.push([
@@ -5999,6 +6007,12 @@ async function orderDetailView(chatId: number, code: string) {
   }
 
   const kb: Button[][] = [];
+  if (o.status === "preorder") {
+    text +=
+      `\n🕒 <b>Pre-order in queue</b>\n<i>You will receive it automatically as soon as stock arrives — earlier pre-orders are delivered first.</i>\n` +
+      `<i>Changed your mind? Cancel any time and the full amount returns to your wallet.</i>`;
+    kb.push([{ text: "❌ Cancel pre-order & refund", callback_data: `pox:${shortCode}`, style: "danger" }]);
+  }
   if (items.length) {
     kb.push([uiBtn(settings, "ord_download", `ord:dl:${shortCode}:full`)]);
     kb.push([uiBtn(settings, "ord_plain", `ord:dl:${shortCode}:plain`)]);
