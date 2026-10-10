@@ -92,6 +92,9 @@ export default {
             drainAllNotifications(),
             maybeAutoSyncSuppliers(),
           ]);
+          // After supplier stock refresh: deliver queued pre-orders in serial.
+          const { fulfillPreorders } = await import("./lib/bot/preorder.server");
+          await fulfillPreorders().catch((e) => console.error("Pre-order drain failed:", e));
         })
         .catch((error) => console.error("Scheduled supplier sync failed:", error)),
     );

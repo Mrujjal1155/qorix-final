@@ -3899,6 +3899,8 @@ async function handleMessage(msg: any) {
         const { enqueueManualRestock } = await import("@/lib/suppliers/sync.server");
         await enqueueManualRestock(db, productId, added, `bot:${chatId}:${msg?.message_id ?? Date.now()}`);
         defer(async () => {
+          const { fulfillPreorders } = await import("@/lib/bot/preorder.server");
+          await fulfillPreorders(productId).catch((e) => console.error("[preorder]", e));
           const { drainAllNotifications } = await import("@/lib/suppliers/sync.server");
           await drainAllNotifications(db);
         });

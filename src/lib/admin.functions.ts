@@ -342,6 +342,9 @@ export const saveProduct = createServerFn({ method: "POST" })
       api_price?: number | null;
       /** Admin-entered unit cost for in-house products (profit calc). */
       cost_price?: number | null;
+      /** Telegram-bot pre-order when out of stock, with extra percent. */
+      preorder_enabled?: boolean;
+      preorder_percent?: number;
     }) => d,
   )
   .handler(async ({ data, context }) => {
@@ -361,6 +364,9 @@ export const saveProduct = createServerFn({ method: "POST" })
       telegram_custom_emoji_id: rest.telegram_custom_emoji_id || null,
       ...(rest.cost_price !== undefined
         ? { cost_price: rest.cost_price != null && Number(rest.cost_price) >= 0 ? Math.round(Number(rest.cost_price) * 10000) / 10000 : null }
+        : {}),
+      ...(rest.preorder_percent !== undefined
+        ? { preorder_percent: Math.min(100, Math.max(0, Math.round(Number(rest.preorder_percent) * 100) / 100 || 0)) }
         : {}),
       ...(rest.api_price !== undefined
         ? { api_price: rest.api_price != null && Number(rest.api_price) > 0 ? Math.round(Number(rest.api_price) * 100) / 100 : null }
@@ -610,8 +616,17 @@ export const addStock = createServerFn({ method: "POST" })
         console.error("Admin stock alert delivery deferred to scheduled retry:", error);
       }
     }
+    let preordersDelivered = 0;
+    if (added > 0) {
+      try {
+        const { fulfillPreorders } = await import("@/lib/bot/preorder.server");
+        preordersDelivered = await fulfillPreorders(data.product_id);
+      } catch (error) {
+        console.error("Pre-order delivery deferred to scheduled retry:", error);
+      }
+    }
     const { data: totals } = await sb.rpc("stock_counts", { _product_ids: [data.product_id] });
-    return { added, skipped: rows.length - added, available: Number((totals ?? [])[0]?.available ?? 0) };
+    return { added, preordersDelivered, skipped: rows.length - added, available: Number((totals ?? [])[0]?.available ?? 0) };
   });
 
 export const listStock = createServerFn({ method: "GET" })
