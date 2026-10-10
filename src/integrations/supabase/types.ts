@@ -532,6 +532,8 @@ export type Database = {
           name: string
           old_price: number | null
           owner_reseller_id: string | null
+          preorder_enabled: boolean
+          preorder_percent: number
           price: number
           quick_guide: string | null
           sort_order: number
@@ -566,6 +568,8 @@ export type Database = {
           name: string
           old_price?: number | null
           owner_reseller_id?: string | null
+          preorder_enabled?: boolean
+          preorder_percent?: number
           price?: number
           quick_guide?: string | null
           sort_order?: number
@@ -600,6 +604,8 @@ export type Database = {
           name?: string
           old_price?: number | null
           owner_reseller_id?: string | null
+          preorder_enabled?: boolean
+          preorder_percent?: number
           price?: number
           quick_guide?: string | null
           sort_order?: number

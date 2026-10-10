@@ -31,7 +31,7 @@ function statusBadgeClass(status?: string | null) {
     return "bg-success/15 text-success border border-success/30";
   if (["failed", "rejected", "cancelled", "canceled", "error", "out_of_stock"].includes(s))
     return "bg-destructive/15 text-destructive border border-destructive/30";
-  if (["expired", "pending", "waiting", "processing", "retrying", "unverified"].includes(s))
+  if (["expired", "pending", "waiting", "processing", "retrying", "unverified", "preorder", "preorder_processing"].includes(s))
     return "bg-warning/15 text-warning border border-warning/30";
   return "";
 }

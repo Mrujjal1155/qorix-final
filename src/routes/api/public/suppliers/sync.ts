@@ -10,6 +10,12 @@ async function run({ request }: { request: Request }) {
   const { maybeAutoSyncSuppliers } = await import("@/lib/suppliers/sync.server");
   try {
     const res = await maybeAutoSyncSuppliers();
+    try {
+      const { fulfillPreorders } = await import("@/lib/bot/preorder.server");
+      await fulfillPreorders();
+    } catch (e) {
+      console.error("Pre-order drain failed:", e);
+    }
     return Response.json({ ok: true, ...res });
   } catch (e) {
     return Response.json({ ok: false, error: e instanceof Error ? e.message : "failed" }, { status: 500 });

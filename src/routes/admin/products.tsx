@@ -64,6 +64,8 @@ const EMPTY = {
   api_price: "" as string | number,
   cost_price: "" as string | number,
   manual_stock: "" as string | number,
+  preorder_enabled: false,
+  preorder_percent: 5 as string | number,
   supplier_id: "" as string,
   image_url: "",
   delivery_time: "",
@@ -283,6 +285,8 @@ function ProductsPage() {
           ...(form.supplier_id ? {} : { cost_price: form.cost_price === "" ? null : Number(form.cost_price) }),
           api_price: form.api_price === "" || Number(form.api_price) <= 0 ? null : Number(form.api_price),
           delivery_type: form.delivery_type,
+          preorder_enabled: Boolean(form.preorder_enabled),
+          preorder_percent: form.preorder_percent === "" ? 5 : Number(form.preorder_percent),
           image_url: form.image_url,
           delivery_time: form.delivery_time,
           badge: form.badge,
@@ -332,6 +336,8 @@ function ProductsPage() {
       api_price: (p as any).api_price ?? "",
       cost_price: (p as any).cost_price ?? "",
       manual_stock: p.delivery_type === "manual" && (p as any).manual_stock_limited ? Number((p as any).stock ?? 0) : "",
+      preorder_enabled: Boolean((p as any).preorder_enabled),
+      preorder_percent: (p as any).preorder_percent ?? 5,
       supplier_id: p.supplier_id ?? "",
       delivery_type: p.delivery_type,
       image_url: p.image_url ?? "",
@@ -664,6 +670,36 @@ function ProductsPage() {
             </p>
           </div>
         ) : null}
+        <div className="space-y-2 rounded-md border border-border p-3">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              checked={Boolean(form.preorder_enabled)}
+              onChange={(e) => setForm({ ...form, preorder_enabled: e.target.checked })}
+            />
+            Pre-order (Telegram bot only)
+          </label>
+          {form.preorder_enabled ? (
+            <>
+              <div className="space-y-1">
+                <Label>Pre-order extra charge (%)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  step="0.5"
+                  value={form.preorder_percent}
+                  onChange={(e) => setForm({ ...form, preorder_percent: e.target.value })}
+                />
+              </div>
+              <p className="rounded-md bg-muted p-2 text-xs text-muted-foreground">
+                Notice: when this product is out of stock, bot buyers can pre-order and pay now (+ this %). When you add
+                stock (or supplier stock returns), pre-orders are delivered automatically in serial — whoever ordered
+                first gets delivery first. Buyers can cancel a waiting pre-order for a full wallet refund.
+              </p>
+            </>
+          ) : null}
+        </div>
         <div className="space-y-1">
           <Label>Category</Label>
           <select
