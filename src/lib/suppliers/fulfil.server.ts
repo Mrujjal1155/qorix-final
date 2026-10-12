@@ -151,6 +151,28 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
       }
     }
 
+    // Reseller API order: tell the reseller in Telegram and push to their webhook
+    // so their own bot/site can deliver to their customer.
+    if ((order as any).reseller_id) {
+      const rid = String((order as any).reseller_id);
+      try {
+        const { data: r } = await db.from("resellers").select("telegram_id").eq("id", rid).maybeSingle();
+        if (r?.telegram_id) {
+          const { sendMessage } = await import("@/lib/telegram.server");
+          await sendMessage(
+            r.telegram_id,
+            `✅ <b>API order #${order.order_no}</b> completed\n${order.quantity}× ${esc(order.product_name)}` +
+              `${order.external_ref ? `\nRef: <code>${esc(order.external_ref)}</code>` : ""}\n` +
+              `Items are now available via GET /orders/${order.id}.`,
+          );
+        }
+      } catch (e) {
+        console.error("Reseller Telegram notice failed:", e);
+      }
+      const { pushResellerOrderEvent } = await import("@/lib/reseller/webhook.server");
+      await pushResellerOrderEvent(rid, { ...order, status: "completed", delivered_content: content });
+    }
+
     return { ok: true, items: res.items };
   } catch (e) {
     let msg = e instanceof Error ? e.message : String(e);

@@ -465,6 +465,43 @@ export async function purchase(
     failReason = e instanceof Error ? e.message : "Fulfilment failed";
   }
 
+  // 3a) Supplier-linked product failed on OUR side (e.g. our supplier wallet is
+  // empty): keep the reseller's payment and park the order as pending so the
+  // admin can top up and press "Retry API". The reseller gets "submitted".
+  const fromSupplierLink = Boolean(p.supplier_id && p.supplier_external_id);
+  if (status !== "completed" && fromSupplierLink) {
+    console.error("reseller supplier fulfilment parked", p.id, failReason);
+    const { data: parked } = await db
+      .from("orders")
+      .update({
+        status: "pending",
+        meta: { ...((reserved as any).meta ?? {}), supplier_failed: true, supplier_error: String(failReason ?? "").slice(0, 300) },
+      })
+      .eq("id", reserved.id)
+      .select("*")
+      .maybeSingle();
+    const notify = (async () => {
+      const { notifyAdmins } = await import("@/lib/bot/engine.server");
+      const esc = (t: string) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      await notifyAdmins(
+        `⚠️ <b>API order #${(reserved as any).order_no}</b> waiting — supplier purchase failed.\n` +
+          `Reseller: ${esc(reseller.name)}\n${qty}× ${esc(p.name)}\n` +
+          `Reason: ${esc(String(failReason ?? "unknown"))}\n` +
+          `Top up the supplier, then press Retry.`,
+        [[{ text: "🔁 Retry API delivery", callback_data: `adm:ar:${reserved.id}` }]] as any,
+      );
+    })().catch(() => {});
+    const { backgroundWaitUntil } = await import("@/lib/bg.server");
+    if (!backgroundWaitUntil(notify)) await notify;
+    return {
+      ok: true as const,
+      submitted: true,
+      message: "Order submitted — delivery is being processed. Check GET /orders/{id} for the items.",
+      order: orderPayload(parked ?? { ...reserved, status: "pending", delivered_content: null }),
+      balance: Number(balanceAfter ?? reseller.balance - total),
+    };
+  }
+
   // 3) Nothing delivered on an instant product → refund and void the order.
   if (status !== "completed" && p.delivery_type === "auto") {
     await db.rpc("reseller_adjust_balance", {
