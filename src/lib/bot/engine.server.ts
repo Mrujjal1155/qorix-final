@@ -2046,7 +2046,9 @@ async function cartDetails(user: any) {
       const p = (products ?? []).find((x: any) => x.id === l.product_id);
       if (!p) return null;
       const cp = custom[p.id];
-      const unit = cp && l.qty >= cp.min_qty ? cp.price : bulkUnit(p, Number(p.price), l.qty, bulk[p.id]);
+      const normal = bulkUnit(p, Number(p.price), l.qty, bulk[p.id]);
+      // A custom price only applies when it is cheaper than the current public price.
+      const unit = cp && l.qty >= cp.min_qty && cp.price < normal ? cp.price : normal;
       return {
         product: p,
         qty: l.qty,
@@ -5327,8 +5329,11 @@ async function coTotals(meta: CoMeta, chatId?: number) {
       if (!p) return null;
       // Custom price replaces bulk/membership discounts once the minimum quantity is met.
       const cp = custom[p.id];
-      const isCustom = Boolean(cp && i.qty >= cp.min_qty);
-      const unit = isCustom ? cp!.price : bulkUnit(p, Number(p.price), i.qty, bulk[p.id]);
+      const normal = bulkUnit(p, Number(p.price), i.qty, bulk[p.id]);
+      // A custom price only applies when it is cheaper than the current public price
+      // (stale custom prices must never charge more than the shop shows).
+      const isCustom = Boolean(cp && i.qty >= cp.min_qty && cp.price < normal);
+      const unit = isCustom ? cp!.price : normal;
       return { product: p, qty: i.qty, unit, custom: isCustom, subtotal: Math.round(unit * i.qty * 100) / 100 };
     })
     .filter(Boolean) as any[];
