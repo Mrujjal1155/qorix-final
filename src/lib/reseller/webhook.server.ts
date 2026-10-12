@@ -117,3 +117,41 @@ export async function pushResellerEvent(
     console.error("Reseller webhook push failed:", error);
   }
 }
+
+/**
+ * Tell ONE reseller that their API order finished (e.g. after an admin retry of a
+ * supplier-failed order). Always sent — order events are not opt-in. Never throws.
+ */
+export async function pushResellerOrderEvent(resellerId: string, order: any) {
+  try {
+    const db = await adminDb();
+    const { data: r } = await db
+      .from("resellers")
+      .select("id,webhook_url,webhook_secret")
+      .eq("id", resellerId)
+      .maybeSingle();
+    const url = String(r?.webhook_url ?? "").trim();
+    if (!r || !/^https?:\/\//i.test(url)) return;
+    const { orderPayload } = await import("./core.server");
+    const at = new Date().toISOString();
+    const event = "order.completed";
+    const body = JSON.stringify({ event, at, order: orderPayload(order) });
+    const headers: Record<string, string> = {
+      "content-type": "application/json",
+      "x-qorix-event": event,
+      "x-qorix-timestamp": at,
+    };
+    const secret = String(r.webhook_secret ?? "");
+    if (secret) headers["x-qorix-signature"] = await sign(secret, body);
+    let status = "";
+    try {
+      const res = await fetch(url, { method: "POST", headers, body, signal: AbortSignal.timeout(8000) });
+      status = `${res.status}`;
+    } catch (e) {
+      status = e instanceof Error ? e.message.slice(0, 120) : "failed";
+    }
+    await db.from("resellers").update({ webhook_last_status: status, webhook_last_at: at }).eq("id", r.id).then(() => {}, () => {});
+  } catch (error) {
+    console.error("Reseller order webhook failed:", error);
+  }
+}
