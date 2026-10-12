@@ -10,6 +10,7 @@ import { HeroAnimation } from "@/components/HeroAnimation";
 import { FeatureButtons } from "@/components/FeatureButtons";
 import { productionUrlFor } from "@/lib/site-url";
 import { useT } from "@/lib/i18n";
+import explainerAsset from "@/assets/qorix-reseller-explainer.mp4.asset.json";
 
 
 export const Route = createFileRoute("/")({
@@ -63,6 +64,31 @@ function Landing() {
         </div>
       </section>
 
+      {/* Explainer video */}
+      <section className="mx-auto max-w-7xl px-4 py-14">
+        <div className="mx-auto max-w-3xl text-center">
+          <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 text-primary">
+            <Sparkles className="h-5 w-5" />
+          </span>
+          <h2 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl">
+            See QORIX in Action
+          </h2>
+          <p className="mt-3 text-muted-foreground">
+            From our storefront to your own reselling business — watch how the
+            store, instant delivery and the Telegram bot work together in just
+            over a minute.
+          </p>
+        </div>
+        <div className="mt-8 overflow-hidden rounded-3xl border border-border bg-card shadow-lg">
+          <video
+            controls
+            preload="metadata"
+            playsInline
+            className="aspect-video w-full bg-background"
+            src={explainerAsset.url}
+          />
+        </div>
+      </section>
 
       {/* Categories */}
       {categories.length > 0 && (
