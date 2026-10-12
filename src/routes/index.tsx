@@ -10,7 +10,8 @@ import { HeroAnimation } from "@/components/HeroAnimation";
 import { FeatureButtons } from "@/components/FeatureButtons";
 import { productionUrlFor } from "@/lib/site-url";
 import { useT } from "@/lib/i18n";
-import explainerAsset from "@/assets/qorix-reseller-explainer.mp4.asset.json";
+// Served from public/ so it works on the Cloudflare deploy (qorixlab.com) too.
+const EXPLAINER_URL = "/qorix-explainer.mp4";
 
 
 export const Route = createFileRoute("/")({
@@ -85,8 +86,9 @@ function Landing() {
             preload="metadata"
             playsInline
             className="aspect-video w-full bg-background"
-            src={explainerAsset.url}
-          />
+          >
+            <source src={EXPLAINER_URL} type="video/mp4" />
+          </video>
         </div>
       </section>
 
