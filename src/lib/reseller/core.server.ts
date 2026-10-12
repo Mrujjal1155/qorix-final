@@ -475,7 +475,14 @@ export async function purchase(
       _note: `Refund: ${failReason ?? "delivery failed"}`,
     });
     await db.from("orders").delete().eq("id", reserved.id);
-    return { ok: false as const, status: 409, error: failReason ?? "Delivery failed", refunded: true };
+    // Supplier-side errors (e.g. OUR supplier wallet is empty → "Insufficient balance")
+    // must not look like the reseller's own balance problem.
+    const fromSupplier = Boolean(p.supplier_id && p.supplier_external_id);
+    const error = fromSupplier
+      ? "Product temporarily unavailable — please try again later. Your balance was refunded."
+      : (failReason ?? "Delivery failed");
+    if (fromSupplier) console.error("reseller supplier fulfilment failed", p.id, failReason);
+    return { ok: false as const, status: 409, error, code: fromSupplier ? "supplier_unavailable" : "delivery_failed", refunded: true };
   }
 
   const { data: order } = await db
