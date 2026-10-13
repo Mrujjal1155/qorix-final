@@ -2249,7 +2249,11 @@ function binanceView(row: any, settings: Record<string, string> = {}) {
     `${head}\n\n` +
     `${uiTag(settings, "dep_amount")}:\n<code>${Number(row.amount_usdt).toFixed(4)}</code>\n\n` +
     `${uiIconHtml(settings, "dep_warn")} ${escapeHtml(uiText(settings, "dep_warn"))} — send exactly this amount in USDT.\n` +
-    `${uiIconHtml(settings, "dep_timer")} ${escapeHtml(uiText(settings, "dep_timer"))}. After paying, tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b> and send the <b>Binance Order ID / TXID</b> — we confirm it directly with Binance.\n` +
+    `${uiIconHtml(settings, "dep_timer")} ${escapeHtml(uiText(settings, "dep_timer"))}. After paying, tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b> and send the ${
+      row.kind === "payid"
+        ? "<b>Binance Order ID</b> (Binance app → Pay → History → copy the Order ID)"
+        : "<b>Transaction ID (TXID)</b> of your USDT network transfer"
+    } — we confirm it directly with Binance.\n` +
     `⏳ <b>Important:</b> you must tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b> after you pay. If it is not tapped within 30 minutes, the pending order can be cancelled automatically.`;
   const kb: Button[][] = [
     [uiBtn(settings, "dep_verify", `bchk:${row.id}`)],
@@ -2293,7 +2297,7 @@ async function confirmByTxId(
   silent = false,
 ): Promise<{ ok: true; amount: number; txId: string } | { ok: false; message: string; notFound?: boolean }> {
   const txId = String(rawId || "").trim();
-  if (txId.length < 6) return { ok: false, message: "Please send the Binance Order ID / Transaction ID of your payment." };
+  if (txId.length < 6) return { ok: false, message: row.kind === "payid" ? "Please send the Binance Order ID of your payment." : "Please send the Transaction ID (TXID) of your USDT transfer." };
   if (await txUsed(txId)) return { ok: false, message: "❌ This Order ID / Transaction ID was already used." };
   const expected = Number(row.amount_usdt);
   const { findByTxId } = await import("@/lib/binance.server");
@@ -2345,7 +2349,7 @@ async function verifyBinanceDeposit(chatId: number, id: string) {
     await db.from("binance_deposits").update({ status: "expired" }).eq("id", id);
     return { message: "⌛ This deposit request expired. Please start a new one." };
   }
-  if (!row.tx_id) return { message: "", needTxid: true };
+  if (!row.tx_id) return { message: "", needTxid: true, kind: row.kind };
   return await submitBinanceTxid(chatId, id, String(row.tx_id), null);
 }
 
@@ -6685,8 +6689,11 @@ async function handleCallback(cq: any) {
   if (data.startsWith("btx:")) {
     const id = data.slice(4);
     await setState(chatId, { ...(user.state ?? {}), awaiting: "bin_txid", bin_dep_id: id });
+    const { data: depRow } = await db.from("binance_deposits").select("kind").eq("id", id).maybeSingle();
     await edit(
-      `${uiIconHtml(await getSettings(), "dep_txid_title")} Send the <b>Transaction ID</b> of your payment.\n\nBinance Pay → History → open the payment → copy the <b>Transaction ID / Order ID</b>.`,
+      depRow?.kind === "payid"
+        ? `${uiIconHtml(await getSettings(), "dep_txid_title")} Send the <b>Binance Order ID</b> of your payment.\n\nBinance app → Pay → History → open the payment → copy the <b>Order ID</b>.`
+        : `${uiIconHtml(await getSettings(), "dep_txid_title")} Send the <b>Transaction ID (TXID)</b> of your USDT network transfer.`,
       [[uiBtn(await getSettings(), "dep_wallet", "wallet")]],
     );
     return;
@@ -6698,7 +6705,11 @@ async function handleCallback(cq: any) {
     if (r.needTxid) {
       await setState(chatId, { ...(user.state ?? {}), awaiting: "bin_txid", bin_dep_id: id });
       await edit(
-        `${uiIconHtml(await getSettings(), "dep_txid_title")} Send the <b>Order ID / Transaction ID</b> of your payment.\n\nBinance app → Pay → History → open the payment → copy the <b>Order ID</b> (for USDT network transfers: the <b>TXID</b>).\n\nYour payment is confirmed only when this ID matches our Binance history.`,
+        `${uiIconHtml(await getSettings(), "dep_txid_title")} Send the ${
+          r.kind === "payid"
+            ? "<b>Binance Order ID</b> of your payment.\n\nBinance app → Pay → History → open the payment → copy the <b>Order ID</b>."
+            : "<b>Transaction ID (TXID)</b> of your USDT network transfer.\n\nCopy the TXID from the sending wallet or exchange."
+        }\n\nYour payment is confirmed only when this ID matches our Binance history.`,
         [[uiBtn(await getSettings(), "dep_wallet", "wallet")]],
       );
       return;
