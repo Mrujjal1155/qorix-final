@@ -2705,36 +2705,16 @@ export async function sweepBinanceDeposits(force = false) {
 
   if (!rows?.length) return { skipped: false, settled: 0 };
 
-  const { findCryptoDeposit, findPayTransaction, findByTxId } = await import("@/lib/binance.server");
   let settled = 0;
 
   for (const row of rows) {
-    const expected = Number(row.amount_usdt);
-    let txId: string | null = null;
-    let amount = expected;
-
-    // 1) If the user already gave us a TXID, confirm that exact transaction.
-    if (row.tx_id && !(await txUsed(row.tx_id))) {
-      const byId = await findByTxId(String(row.tx_id));
-      if (byId.ok && Math.abs(Number(byId.amount) - expected) < 0.01) {
-        txId = String(row.tx_id);
-        amount = Number(byId.amount);
-      }
-    }
-
-    // 2) Otherwise match by the unique amount in Binance Pay / deposit history.
-    if (!txId) {
-      const result =
-        row.kind === "payid"
-          ? await findPayTransaction(expected, txUsed)
-          : await findCryptoDeposit(expected, row.network, txUsed);
-      if (result.ok) {
-        txId = result.txId;
-        amount = Number(result.amount);
-      }
-    }
-
-    if (!txId) continue;
+    // Only payments with a customer-supplied Order ID / TXID are confirmed —
+    // matching by amount alone could credit someone else's transfer.
+    if (!row.tx_id) continue;
+    const r = await confirmByTxId(row, String(row.tx_id), true);
+    if (!r.ok) continue;
+    const txId = r.txId;
+    const amount = r.amount;
 
     const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: txId });
     if (usedErr) continue; // another worker took it
