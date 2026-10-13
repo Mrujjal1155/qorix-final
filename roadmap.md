@@ -1,8 +1,9 @@
 # Roadmap
 
-- [ ] Remove Binance unique extra amounts and require exact USDT amount plus verified ID.
-- [ ] Show immediate professional English verification status after ID submission.
-- [ ] Add a thank-you and invitation after successful Telegram delivery; run focused tests.
+- [x] Remove Binance unique extra amounts and require exact USDT amount plus verified ID.
+- [x] Show immediate professional English verification status after ID submission.
+- [x] Add a thank-you and invitation after successful Telegram delivery; run focused tests.
+- [ ] Verify the updated Binance payment and delivery messages on the live bot (requires deployment and an approved real payment).
 
 - [x] Separate scheduled Telegram delivery from supplier polling in the existing 15-second tick, with bounded text-only sends and unlimited durable retries.
 - [ ] Verify the bounded alert sender against the published Telegram bot after deployment (requires deployment).
