@@ -33,6 +33,10 @@ function BinancePage() {
     queryFn: () => fetchTx({ data: { days } }),
     refetchInterval: 30000,
     retry: 1,
+    // Show the previously loaded list instantly while fresh data loads in the background.
+    staleTime: 30_000,
+    gcTime: 10 * 60_000,
+    placeholderData: keepPreviousData,
   });
   const rows = data?.ok ? data.rows : [];
   const needle = q.trim().toLowerCase();
