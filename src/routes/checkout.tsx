@@ -29,6 +29,8 @@ import { toast } from "sonner";
 import { usePrefs } from "@/lib/prefs";
 import { productionUrlFor } from "@/lib/site-url";
 import { brandFallbackOnError, hideOnError } from "@/components/SmartImage";
+import binancePaymentIcon from "@/assets/binance-payment-icon.png";
+import oxapayPaymentIcon from "@/assets/oxapay-payment-icon.png";
 
 const STEPS = ["details", "pay", "confirm"] as const;
 type Step = (typeof STEPS)[number];
@@ -250,54 +252,58 @@ function CheckoutPage() {
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Payment method</Label>
-                  <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="grid gap-3 sm:grid-cols-2">
                     {visibleMethods.map((m) => {
                       const on = method === m.id;
                       return (
-                        <button
+                        <Button
                           key={m.id}
                           type="button"
+                          variant="outline"
+                          aria-pressed={on}
                           onClick={() => setMethod(m.id)}
-                          className={`rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 ${
+                          className={`h-auto min-h-24 justify-start gap-4 whitespace-normal rounded-2xl border p-4 text-left transition-colors ${
                             on ? "border-primary bg-primary/10 card-glow" : "border-border bg-card"
                           }`}
                         >
-                          <span
-                            className={`flex h-9 w-9 items-center justify-center rounded-xl ${
-                              on ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                            }`}
-                          >
-                            <m.icon className="h-4 w-4" />
+                          {m.id === "binance" ? (
+                            <img src={binancePaymentIcon} alt="" className="h-14 w-14 shrink-0 object-contain" />
+                          ) : (
+                            <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                              <m.icon className="h-5 w-5" />
+                            </span>
+                          )}
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-semibold text-foreground">{m.label}</span>
+                            <span className="mt-1 block text-xs font-normal text-muted-foreground">{m.hint}</span>
                           </span>
-                          <p className="mt-3 text-sm font-semibold">{m.label}</p>
-                          <p className="text-xs text-muted-foreground">{m.hint}</p>
-                        </button>
+                          <ArrowRight className="shrink-0 text-muted-foreground" />
+                        </Button>
                       );
                     })}
                     {oxa?.enabled ? (
-                      <button
+                      <Button
                         type="button"
+                        variant="outline"
+                        aria-pressed={isOxa}
                         onClick={() => setMethod("oxapay")}
-                        className={`rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 ${
+                        className={`h-auto min-h-24 justify-start gap-4 whitespace-normal rounded-2xl border p-4 text-left transition-colors ${
                           isOxa ? "border-primary bg-primary/10 card-glow" : "border-border bg-card"
                         }`}
                       >
-                        <span
-                          className={`flex h-9 w-9 items-center justify-center rounded-xl ${
-                            isOxa ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          <Bitcoin className="h-4 w-4" />
+                        <img src={oxapayPaymentIcon} alt="" className="h-14 w-14 shrink-0 object-contain" />
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-sm font-semibold text-foreground">Crypto · OxaPay</span>
+                          <span className="mt-1 block text-xs font-normal text-muted-foreground">USDT, BTC, LTC & more — auto confirm</span>
                         </span>
-                        <p className="mt-3 text-sm font-semibold">Crypto · OxaPay</p>
-                        <p className="text-xs text-muted-foreground">USDT, BTC, LTC & more — auto confirm</p>
-                      </button>
+                        <ArrowRight className="shrink-0 text-muted-foreground" />
+                      </Button>
                     ) : null}
                     {eps?.enabled ? (
                       <button
                         type="button"
                         onClick={() => setMethod(EPS_METHOD.id)}
-                        className={`rounded-2xl border p-3 text-left transition-all hover:-translate-y-0.5 sm:col-span-3 ${
+                        className={`rounded-2xl border p-3 text-left transition-all hover:-translate-y-0.5 sm:col-span-2 ${
                           isEps ? "border-primary bg-primary/10 card-glow" : "border-border bg-card"
                         }`}
                       >
