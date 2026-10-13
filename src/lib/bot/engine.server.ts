@@ -2628,7 +2628,7 @@ async function startOxapayDeposit(chatId: number, usd: number, meta: Record<stri
   const { oxapayEnabled, oxapayKey, oxapayCreateInvoice } = await import("@/lib/oxapay.server");
   if (!oxapayEnabled(s)) return { error: "Crypto (OxaPay) deposits are currently disabled." };
   if (!Number.isFinite(usd) || usd <= 0) return { error: "Invalid amount." };
-  const directCheckout = Array.isArray(meta.items) && meta.items.length > 0;
+  const directCheckout = Array.isArray(meta["items"]) && meta["items"].length > 0;
   const { data: row, error } = await db
     .from("binance_deposits")
     .insert({
@@ -2649,7 +2649,7 @@ async function startOxapayDeposit(chatId: number, usd: number, meta: Record<stri
     orderId: `D-${row.id}`,
     callbackUrl: `${base}/api/public/oxapay/webhook`,
     returnUrl: (s["bot_link"] || "https://t.me/QORIX3_bot").trim(),
-    description: directCheckout ? String(meta.summary || "Product checkout") : `Wallet top-up ${chatId}`,
+    description: directCheckout ? String(meta["summary"] || "Product checkout") : `Wallet top-up ${chatId}`,
   });
   if (!created.ok) {
     await db.from("binance_deposits").update({ status: "failed" }).eq("id", row.id);
