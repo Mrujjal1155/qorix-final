@@ -159,29 +159,45 @@ export async function checkBinanceKeys() {
   return { ...r, saved: true as const };
 }
 
-/** Match one specific transaction id against Binance Pay + on-chain deposit history. */
-export async function findByTxId(txId: string): Promise<{ ok: true; amount: number } | { ok: false; error?: string }> {
+/**
+ * Match one customer-supplied ID against Binance history.
+ * Pay: matches orderId or transactionId in /sapi/v1/pay/transactions.
+ * Crypto: matches txId of a credited/pending USDT deposit.
+ * `error` is set only for network/API failures (caller retries later).
+ */
+export async function findByTxId(
+  txId: string,
+  kind: "pay" | "crypto" | "any" = "any",
+): Promise<{ ok: true; amount: number; currency: string } | { ok: false; error?: string }> {
   const creds = await getCreds();
   if (!creds) return { ok: false, error: "Binance API keys are not configured." };
   const needle = txId.trim().toLowerCase();
   const start = Date.now() - 24 * 60 * 60 * 1000;
+  let pay: Awaited<ReturnType<typeof signedGet>> | null = null;
+  let dep: Awaited<ReturnType<typeof signedGet>> | null = null;
 
-  const pay = await signedGet("/sapi/v1/pay/transactions", { limit: 100, startTime: start }, creds);
-  if (pay.ok && Array.isArray(pay.data?.data)) {
-    for (const t of pay.data.data) {
-      if (String(t.transactionId ?? "").toLowerCase() === needle) return { ok: true, amount: Number(t.amount) };
-    }
-  }
-
-  const dep = await signedGet("/sapi/v1/capital/deposit/hisrec", { coin: "USDT", limit: 100, startTime: start }, creds);
-  if (dep.ok && Array.isArray(dep.data)) {
-    for (const d of dep.data) {
-      if (String(d.txId ?? d.id ?? "").toLowerCase() === needle && [0, 1, 6].includes(Number(d.status))) {
-        return { ok: true, amount: Number(d.amount) };
+  if (kind !== "crypto") {
+    pay = await signedGet("/sapi/v1/pay/transactions", { limit: 100, startTime: start }, creds);
+    if (pay.ok && Array.isArray(pay.data?.data)) {
+      for (const t of pay.data.data) {
+        const ids = [t.orderId, t.transactionId].map((x: unknown) => String(x ?? "").trim().toLowerCase());
+        const amount = Number(t.amount);
+        if (ids.includes(needle) && amount > 0) {
+          return { ok: true, amount, currency: String(t.currency || "USDT").toUpperCase() };
+        }
       }
     }
   }
-
-  const err = !pay.ok && !dep.ok ? String(pay.error ?? dep.error) : undefined;
-  return err ? { ok: false, error: err } : { ok: false };
+  if (kind !== "pay") {
+    dep = await signedGet("/sapi/v1/capital/deposit/hisrec", { coin: "USDT", limit: 100, startTime: start }, creds);
+    if (dep.ok && Array.isArray(dep.data)) {
+      for (const d of dep.data) {
+        if (String(d.txId ?? d.id ?? "").trim().toLowerCase() === needle && [1, 6].includes(Number(d.status))) {
+          return { ok: true, amount: Number(d.amount), currency: String(d.coin || "USDT").toUpperCase() };
+        }
+      }
+    }
+  }
+  const failed = [pay, dep].filter(Boolean).every((r) => r && !r.ok);
+  return failed ? { ok: false, error: String((pay && !pay.ok ? pay.error : dep?.error) ?? "Binance unreachable") } : { ok: false };
 }
