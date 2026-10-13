@@ -815,7 +815,8 @@ export const listOrders = createServerFn({ method: "GET" })
     const sb = (context as any).supabase;
     await assertAdmin(context);
     // Unpaid gateway checkouts older than 30 minutes fail automatically.
-    await expireStaleAwaitingOrders(sb);
+    const upkeep = async () => {
+    await expireStaleAwaitingOrders(sb).catch((e: unknown) => console.error("expire failed", e));
     // Re-check unverified website TXIDs against Binance (max 5, once a minute each).
     try {
       const { data: unv } = await sb
@@ -840,6 +841,10 @@ export const listOrders = createServerFn({ method: "GET" })
     } catch (e) {
       console.error("Website TXID recheck failed", e);
     }
+    };
+    // Run upkeep (expiry + Binance recheck) at most every 20s per isolate so opening the page stays fast.
+    const g = globalThis as any;
+    if (!g.__ordersUpkeepAt || Date.now() - g.__ordersUpkeepAt > 20_000) { g.__ordersUpkeepAt = Date.now(); await upkeep(); }
     let q = sb.from("orders").select("*").order("created_at", { ascending: false }).limit(200);
     if (data?.status && data.status !== "all") q = q.eq("status", data.status);
     if (data?.source && data.source !== "all") q = q.eq("source", data.source);
@@ -848,40 +853,30 @@ export const listOrders = createServerFn({ method: "GET" })
     const orders = rows ?? [];
     if (!orders.length) return orders;
 
-    // Attach the Telegram buyer's username/name so admins can contact them.
     const tgIds = [...new Set(orders.map((o: any) => o.telegram_id).filter((t: any) => Number.isFinite(Number(t))))];
-    const { data: bots } = tgIds.length
-      ? await sb.from("bot_users").select("telegram_id,username,first_name,last_name").in("telegram_id", tgIds)
-      : { data: [] as any[] };
-    const botById = new Map((bots ?? []).map((b: any) => [String(b.telegram_id), b]));
-
-    // Attach supplier info so admins can see which API/supplier an order came from.
     const productIds = [...new Set(orders.map((o: any) => o.product_id).filter(Boolean))];
-    const { data: prods } = productIds.length
-      ? await sb.from("products").select("id,supplier_id,supplier_external_id,cost_price").in("id", productIds)
-      : { data: [] as any[] };
+    const resellerIds = [...new Set(orders.map((o: any) => o.reseller_id).filter(Boolean))];
+    const empty = Promise.resolve({ data: [] as any[] });
+    // Independent lookups run in parallel so the Orders page loads faster.
+    const [{ data: bots }, { data: prods }, { data: supProds }, { data: rsellers }] = await Promise.all([
+      tgIds.length ? sb.from("bot_users").select("telegram_id,username,first_name,last_name").in("telegram_id", tgIds) : empty,
+      productIds.length ? sb.from("products").select("id,supplier_id,supplier_external_id,cost_price").in("id", productIds) : empty,
+      productIds.length ? sb.from("supplier_products").select("product_id,cost_price").in("product_id", productIds) : empty,
+      resellerIds.length ? sb.from("resellers").select("id,name").in("id", resellerIds) : empty,
+    ]);
+    const botById = new Map((bots ?? []).map((b: any) => [String(b.telegram_id), b]));
     const supplierIds = [...new Set((prods ?? []).map((p: any) => p.supplier_id).filter(Boolean))];
     const { data: sups } = supplierIds.length
       ? await sb.from("suppliers").select("id,key,name").in("id", supplierIds)
       : { data: [] as any[] };
-    // Supplier cost per product so each order can show its profit.
-    const { data: supProds } = productIds.length
-      ? await sb.from("supplier_products").select("product_id,cost_price").in("product_id", productIds)
-      : { data: [] as any[] };
     const costByProduct = new Map<string, number>(
       ((supProds ?? []) as any[]).map((r: any) => [String(r.product_id), Number(r.cost_price ?? 0)]),
     );
-    // In-house products: admin-entered cost.
     for (const p of (prods ?? []) as any[]) {
       if (!p.supplier_id && p.cost_price != null) costByProduct.set(String(p.id), Number(p.cost_price));
     }
     const supById = new Map((sups ?? []).map((s: any) => [s.id, s]));
     const prodById = new Map((prods ?? []).map((p: any) => [p.id, p]));
-    // Reseller names so admins can tell which reseller's API an order came from.
-    const resellerIds = [...new Set(orders.map((o: any) => o.reseller_id).filter(Boolean))];
-    const { data: rsellers } = resellerIds.length
-      ? await sb.from("resellers").select("id,name").in("id", resellerIds)
-      : { data: [] as any[] };
     const resellerById = new Map((rsellers ?? []).map((r: any) => [r.id, r.name]));
     return orders.map((o: any) => {
       const p: any = prodById.get(o.product_id);
@@ -2278,8 +2273,15 @@ export const listBinanceTransactions = createServerFn({ method: "GET" })
   .inputValidator((d: { days?: number }) => ({ days: Number(d?.days ?? 7) || 7 }))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
+    // Short per-isolate cache so repeated opens/refreshes don't wait on Binance each time.
+    const g = globalThis as any;
+    g.__binanceTxCache ??= new Map<number, { at: number; value: any }>();
+    const hit = g.__binanceTxCache.get(data.days);
+    if (hit && Date.now() - hit.at < 15_000) return hit.value;
     const { listBinanceActivity } = await import("@/lib/binance.server");
-    return listBinanceActivity(data.days);
+    const value = await listBinanceActivity(data.days);
+    if (value?.ok) g.__binanceTxCache.set(data.days, { at: Date.now(), value });
+    return value;
   });
 
 export const recheckOrderBinance = createServerFn({ method: "POST" })
