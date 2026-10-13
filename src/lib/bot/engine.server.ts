@@ -49,6 +49,7 @@ import { parseStock } from "@/lib/stock-format";
 import { MANUAL_INPUT_PREFIX, parseManualInput, validateManualReply, type ManualInputConfig } from "@/lib/manual-input";
 import { SITE_ORIGIN } from "@/lib/site-url";
 import { backgroundWaitUntil } from "@/lib/bg.server";
+import { binancePaymentAmount, exactBinanceAmount } from "@/lib/binance-payment";
 
 
 const db = supabaseAdmin as any;
@@ -2176,11 +2177,6 @@ async function txUsed(tx: string) {
   return !!data;
 }
 
-/** Unique USDT amount so concurrent deposits can be told apart. */
-function uniqueAmount(base: number) {
-  return Math.round((base + Math.floor(Math.random() * 99 + 1) / 10000) * 10000) / 10000;
-}
-
 async function startBinanceDeposit(
   chatId: number,
   kind: "payid" | "crypto",
@@ -2189,7 +2185,7 @@ async function startBinanceDeposit(
   meta: Record<string, unknown> = {},
 ) {
   const s = await getSettings();
-  const amountUsdt = uniqueAmount(amount);
+  const amountUsdt = binancePaymentAmount(amount);
   const personal = (s["binance_mode"] ?? "live") === "personal";
   let address = "";
 
@@ -2287,7 +2283,7 @@ async function alreadyPaidMessage(chatId: number, depositId: string, fallback: s
 /**
  * Confirm one deposit by the customer's Binance Pay Order ID / on-chain TXID.
  * Success requires: the ID exists in our Binance history, currency USDT,
- * amount within ±0.01 of the expected amount, and the ID never used before.
+ * amount exactly matching the expected amount, and the ID never used before.
  * On success the ID is claimed in binance_used_txs (unique) so it can never
  * credit twice.
  */
@@ -2315,8 +2311,8 @@ async function confirmByTxId(
       : { ok: false, notFound: true, message: `⏳ Order ID <code>${escapeHtml(txId)}</code> was not found in our Binance history yet. Check the ID and try again in a minute.` };
   }
   if (m.currency !== "USDT") return { ok: false, message: `❌ Payment must be sent in USDT. Received: ${escapeHtml(m.currency)}.` };
-  if (Math.abs(m.amount - expected) > 0.01) {
-    return { ok: false, message: `❌ Amount mismatch. Expected <b>${expected.toFixed(4)} USDT</b>, received <b>${m.amount.toFixed(4)} USDT</b>. Contact support.` };
+  if (!exactBinanceAmount(expected, m.amount)) {
+    return { ok: false, message: `❌ Amount mismatch. Expected <b>${expected} USDT</b>, received <b>${m.amount} USDT</b>. Contact support.` };
   }
   const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: txId });
   if (usedErr) return { ok: false, message: "❌ This Order ID / Transaction ID was already used." };
@@ -3516,10 +3512,25 @@ async function handleMessage(msg: any) {
     }
     case "bin_txid": {
       const txid = text.trim();
+      const progress = await say(chatId, "⏳ <b>Verifying your payment. Please wait.</b>");
       state.awaiting = null;
       await setState(chatId, state);
-      const r = await submitBinanceTxid(chatId, state.bin_dep_id, txid, msg.from.username ?? null);
-      await say(chatId, r.message, r.keyboard);
+      try {
+        const r = await submitBinanceTxid(chatId, state.bin_dep_id, txid, msg.from.username ?? null);
+        if (progress.ok && progress.result?.message_id) {
+          const updated = await editMessage(chatId, progress.result.message_id, r.message, r.keyboard);
+          if (!updated.ok) await say(chatId, r.message, r.keyboard);
+        } else {
+          await say(chatId, r.message, r.keyboard);
+        }
+      } catch (error) {
+        console.error("Binance payment submission interrupted", error);
+        const message = "⏳ Payment verification is temporarily unavailable. Please try again shortly.";
+        if (progress.ok && progress.result?.message_id) {
+          const updated = await editMessage(chatId, progress.result.message_id, message);
+          if (!updated.ok) await say(chatId, message);
+        } else await say(chatId, message);
+      }
       return;
     }
     case "deposit_amount": {
@@ -6701,6 +6712,7 @@ async function handleCallback(cq: any) {
 
   if (data.startsWith("bchk:")) {
     const id = data.slice(5);
+    await edit("⏳ <b>Verifying your payment. Please wait.</b>");
     const r: any = await verifyBinanceDeposit(chatId, id);
     if (r.needTxid) {
       await setState(chatId, { ...(user.state ?? {}), awaiting: "bin_txid", bin_dep_id: id });

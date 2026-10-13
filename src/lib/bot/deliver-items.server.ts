@@ -45,6 +45,19 @@ function batchItems(items: string[]): Batch[] {
 
 export type DeliverItemsResult = { sent: number; failed: number; fallbackFile: boolean };
 
+async function thankBuyer(chatId: number | string) {
+  // Appreciation is best effort and must never change the delivery outcome.
+  try {
+    await sendMessage(
+      chatId,
+      "✅ <b>Delivery complete</b>\n\nThank you for choosing QORIX Store. We appreciate your trust and hope you enjoy your purchase.\n\nEnjoyed your experience? Invite your friends to discover QORIX.",
+      [[{ text: "🤝 Invite friends", callback_data: "refearn", style: "primary" }]],
+    );
+  } catch (error) {
+    console.error("Post-delivery appreciation failed", error);
+  }
+}
+
 /**
  * Send every credential of an order to the buyer.
  * `items` are raw (unescaped) credential blocks.
@@ -72,7 +85,10 @@ export async function deliverItemsToChat(
       fileText(),
       `📦 <b>${esc(productName)}</b> — all <b>${list.length}</b> item(s) in this file.${orderLine}`,
     );
-    if (doc?.ok) return { sent: list.length, failed: 0, fallbackFile: true };
+    if (doc?.ok) {
+      await thankBuyer(chatId);
+      return { sent: list.length, failed: 0, fallbackFile: true };
+    }
     console.error(
       `Bulk file delivery failed for order ${opts.orderNo ?? opts.orderId ?? "unknown"} — falling back to messages`,
     );
@@ -124,5 +140,6 @@ export async function deliverItemsToChat(
     fallbackFile = Boolean(doc?.ok);
   }
 
+  if (sent === list.length || fallbackFile) await thankBuyer(chatId);
   return { sent, failed: missed.length, fallbackFile };
 }
