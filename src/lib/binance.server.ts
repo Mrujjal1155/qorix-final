@@ -75,6 +75,7 @@ async function signedGet(path: string, params: Record<string, string | number>, 
           "User-Agent": "Mozilla/5.0 (compatible; QorixBot/1.0)",
           Accept: "application/json",
         },
+        signal: AbortSignal.timeout(8000),
       });
     } catch {
       last = { ok: false, status: 0, error: "Binance API unreachable (network error).", data: null };

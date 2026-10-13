@@ -28,10 +28,11 @@ function BinancePage() {
   const [days, setDays] = useState(7);
   const [q, setQ] = useState("");
   const fetchTx = useServerFn(listBinanceTransactions);
-  const { data, isFetching, refetch, dataUpdatedAt } = useQuery({
+  const { data, error, isFetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["binance-tx", days],
     queryFn: () => fetchTx({ data: { days } }),
     refetchInterval: 30000,
+    retry: 1,
   });
   const rows = data?.ok ? data.rows : [];
   const needle = q.trim().toLowerCase();
@@ -78,7 +79,13 @@ function BinancePage() {
 
       <Card>
         <CardContent className="p-0">
-          {!data && <div className="p-6 text-sm text-muted-foreground">Loading from Binance…</div>}
+          {!data && !error && <div className="p-6 text-sm text-muted-foreground">Loading from Binance…</div>}
+          {!data && error && (
+            <div className="p-6 text-sm text-destructive">
+              Could not load: {error instanceof Error ? error.message : String(error)}
+              <Button size="sm" variant="outline" className="ml-2" onClick={() => refetch()}>Try again</Button>
+            </div>
+          )}
           {data?.ok && shown.length === 0 && <div className="p-6 text-sm text-muted-foreground">No transactions in this period.</div>}
           <div className="divide-y divide-border">
             {shown.map((r) => (
