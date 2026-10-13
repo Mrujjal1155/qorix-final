@@ -311,12 +311,20 @@ function ProductsPage() {
         });
       return res;
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       const wasEdit = Boolean(form.id);
+      const newId = form.id || res?.id;
+      const goStock = nextStock.current;
+      nextStock.current = false;
       { setForm({ ...EMPTY }); setMi({ ...EMPTY_MANUAL_INPUT }); }
       refresh();
       toast.success("Product saved");
-      setView(wasEdit ? "products" : "hub");
+      if (!wasEdit && goStock && newId) {
+        setStockFor(newId);
+        setView("stock");
+      } else {
+        setView(wasEdit ? "products" : "hub");
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
