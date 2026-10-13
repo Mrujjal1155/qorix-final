@@ -2617,15 +2617,18 @@ async function verifyEpsDeposit(chatId: number, id: string) {
 }
 
 /* ------------------------------------------------------------ OxaPay (crypto) */
-/* Wallet top-up only. Credit happens only after OxaPay's payment-info API reports
+/* Wallet top-ups and direct checkout. Credit happens only after OxaPay's payment-info API reports
    paid/manual_accept for the exact invoice we created, amount covers the deposit,
    and the track id has never been used before. */
 
-async function startOxapayDeposit(chatId: number, usd: number) {
+async function startOxapayDeposit(chatId: number, usd: number, meta: Record<string, unknown> = {}) {
   const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
   const s = { ...(await getSettings()), ...(await oxapaySettings()) };
+  const { oxapayDepositMeta } = await import("@/lib/oxapay");
   const { oxapayEnabled, oxapayKey, oxapayCreateInvoice } = await import("@/lib/oxapay.server");
   if (!oxapayEnabled(s)) return { error: "Crypto (OxaPay) deposits are currently disabled." };
+  if (!Number.isFinite(usd) || usd <= 0) return { error: "Invalid amount." };
+  const directCheckout = Array.isArray(meta["items"]) && meta["items"].length > 0;
   const { data: row, error } = await db
     .from("binance_deposits")
     .insert({
@@ -2634,7 +2637,7 @@ async function startOxapayDeposit(chatId: number, usd: number) {
       network: "oxapay",
       address: null,
       amount_usdt: usd,
-      meta: { gateway: "oxapay" },
+      meta: oxapayDepositMeta(meta),
       expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     })
     .select("*")
@@ -2646,29 +2649,33 @@ async function startOxapayDeposit(chatId: number, usd: number) {
     orderId: `D-${row.id}`,
     callbackUrl: `${base}/api/public/oxapay/webhook`,
     returnUrl: (s["bot_link"] || "https://t.me/QORIX3_bot").trim(),
-    description: `Wallet top-up ${chatId}`,
+    description: directCheckout ? String(meta["summary"] || "Product checkout") : `Wallet top-up ${chatId}`,
   });
   if (!created.ok) {
     await db.from("binance_deposits").update({ status: "failed" }).eq("id", row.id);
     await notifyAdmins(`⚠️ <b>OxaPay create failed</b>\n${escapeHtml(String(created.error))}`);
     return { error: String(created.error) };
   }
-  await db
+  const invoiceMeta = oxapayDepositMeta(meta, created.trackId, created.url);
+  const { error: saveError } = await db
     .from("binance_deposits")
-    .update({ address: created.url, tx_id: null, meta: { gateway: "oxapay", track_id: created.trackId, pay_url: created.url } })
+    .update({ address: created.url, tx_id: null, meta: invoiceMeta })
     .eq("id", row.id);
+  if (saveError) return { error: "Could not save the payment. Please try again." };
   const text =
     `${uiIconHtml(s, "wal_oxapay")} <b>${escapeHtml(uiText(s, "wal_oxapay"))}</b>\n\nAmount: <b>${money(usd)}</b>\n\n` +
     `Tap <b>Pay now</b>, choose your coin and send the exact amount shown on the OxaPay page. ` +
-    `Your wallet is credited automatically once the network confirms it.\n` +
+    (directCheckout
+      ? `Your order is processed automatically after payment confirmation. If stock is unavailable, the payment stays in your wallet.\n`
+      : `Your wallet is credited automatically once the network confirms it.\n`) +
     `⏳ The payment link is valid for 60 minutes.`;
   const kb: Button[][] = [
     [{ text: `💳 Pay now — ${money(usd)}`, url: created.url } as any],
     [uiBtn(s, "dep_verify", `oxachk:${row.id}`)],
     [uiUrlBtn(s, "dep_support", (s["support_link"] || "").trim() || DEFAULT_SUPPORT_LINK)],
-    [uiBtn(s, "dep_cancel", "wallet")],
+    [uiBtn(s, "dep_cancel", directCheckout ? "copay" : "wallet")],
   ];
-  return { text, kb };
+  return { text, kb, row: { ...row, address: created.url, meta: invoiceMeta } };
 }
 
 async function creditOxapayRow(row: any, info: import("@/lib/oxapay.server").OxapayInfo) {
@@ -2698,7 +2705,8 @@ async function creditOxapayRow(row: any, info: import("@/lib/oxapay.server").Oxa
 }
 
 async function verifyOxapayDeposit(chatId: number, id: string) {
-  const s = await getSettings();
+  const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
+  const s = { ...(await getSettings()), ...(await oxapaySettings()) };
   const back: Button[][] = [
     [uiBtn(s, "dep_verify", `oxachk:${id}`)],
     [uiUrlBtn(s, "dep_support", (s["support_link"] || "").trim() || DEFAULT_SUPPORT_LINK)],
@@ -2712,7 +2720,7 @@ async function verifyOxapayDeposit(chatId: number, id: string) {
     .eq("kind", "oxapay")
     .maybeSingle();
   if (!row) return { message: "❌ Payment not found.", keyboard: back };
-  if (row.status === "credited") return { message: "✅ This payment was already added to your wallet.", keyboard: back };
+  if (row.status === "credited") return { message: "✅ This payment was already processed.", keyboard: back };
   const trackId = String((row.meta as any)?.track_id ?? "");
   const { oxapayKey, oxapayPaymentInfo } = await import("@/lib/oxapay.server");
   const v = await oxapayPaymentInfo(oxapayKey(s), trackId);
@@ -5315,6 +5323,7 @@ async function admPaymentIconsView() {
   const gateways = [
     ["mfs_bkash", "MFS"],
     ["card_visa", "Card"],
+    ["wal_oxapay", "OxaPay"],
   ] as const;
   const kb: Button[][] = gateways.map(([key]) => [uiBtn(settings, key, `adm:uii:${key}`)]);
   kb.push([{ text: "— Row labels —", callback_data: "adm:pay" }]);
@@ -5326,6 +5335,7 @@ async function admPaymentIconsView() {
     uiBtn(settings, "wal_card", "adm:uie:wal_card", "· Wallet"),
     uiBtn(settings, "pay_card", "adm:uie:pay_card", "· Checkout"),
   ]);
+  kb.push([uiBtn(settings, "wal_oxapay", "adm:uie:wal_oxapay", "· Wallet / Checkout")]);
   kb.push([{ text: "🎛 All UI icons & tags", callback_data: "adm:ui" }]);
   kb.push(...ADM_BACK);
   return {
@@ -5333,6 +5343,7 @@ async function admPaymentIconsView() {
       `${uiTag(settings, "pay_title")}\n\n` +
       `Mobile row: ${mfsIconsHtml(settings)} <b>${escapeHtml(uiText(settings, "wal_mfs"))}</b>\n` +
       `Card row: ${cardIconsHtml(settings)} <b>${escapeHtml(uiText(settings, "wal_card"))}</b>\n\n` +
+      `OxaPay: ${uiTag(settings, "wal_oxapay")} · shared by Wallet and Checkout\n\n` +
       "Set one Premium custom emoji (or normal emoji) for each merged payment option. " +
       "Row labels rename the merged wallet / checkout buttons.",
     kb,
@@ -5635,6 +5646,11 @@ async function coPayView(chatId: number) {
   if (cfg.active && cfg.crypto) {
     kb.push([uiBtn(settings, "pay_bep20", "copm:BSC")]);
     kb.push([uiBtn(settings, "pay_trc20", "copm:TRX")]);
+  }
+  {
+    const { oxapayEnabled } = await import("@/lib/oxapay.server");
+    const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
+    if (oxapayEnabled(await oxapaySettings())) kb.push([uiBtn(settings, "wal_oxapay", "copm:oxapay")]);
   }
   {
     const { epsConfig } = await import("@/lib/eps.server");
@@ -6551,6 +6567,25 @@ async function handleCallback(cq: any) {
       }
       const res = await fulfillCheckout(chatId, meta, "balance", "wallet");
       await edit(res.text, res.kb);
+      return;
+    }
+
+    if (method === "oxapay") {
+      const { lines } = await coTotals(meta, chatId);
+      const stockProblems = await checkoutStockIssues(lines);
+      if (stockProblems.length) {
+        await edit(`⚠️ <b>Out of stock</b>\n${stockProblems.join("\n")}\nNothing was charged.`, [
+          [{ text: "⬅️ Back", callback_data: "copay" }],
+        ]);
+        return;
+      }
+      const r = await startOxapayDeposit(chatId, total, { ...meta, total });
+      if ("error" in r) {
+        await edit(`❌ ${escapeHtml(r.error)}`, [[{ text: "⬅️ Back", callback_data: "copay" }]]);
+        return;
+      }
+      const orders = await createAwaitingOrders(chatId, meta, String(r.row.id), "oxapay");
+      await edit(awaitingOrderNote(orders) + r.text, r.kb);
       return;
     }
 

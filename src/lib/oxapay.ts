@@ -16,3 +16,12 @@ export function oxapayCovers(paidAmount: number, expectedUsd: number) {
 export function oxapayIsOn(settings: Record<string, string>) {
   return ["1", "on", "true", "yes"].includes(String(settings["oxapay_enabled"] || "").trim().toLowerCase());
 }
+
+/** Preserve the checkout snapshot through invoice creation and later settlement. */
+export function oxapayDepositMeta(meta: Record<string, unknown>, trackId?: string, payUrl?: string) {
+  return {
+    ...meta,
+    gateway: "oxapay",
+    ...(trackId ? { track_id: trackId, pay_url: payUrl } : {}),
+  };
+}
