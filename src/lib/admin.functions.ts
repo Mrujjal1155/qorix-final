@@ -1231,11 +1231,15 @@ export const decidePayment = createServerFn({ method: "POST" })
 
 export const listBotUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { search?: string }) => d ?? {})
+  .inputValidator((d: { search?: string; balance?: string }) => d ?? {})
   .handler(async ({ data, context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
-    let q = sb.from("bot_users").select("*").order("created_at", { ascending: false }).limit(200);
+    let q = sb.from("bot_users").select("*");
+    if (data?.balance === "with") q = q.gt("balance", 0).order("balance", { ascending: false });
+    else if (data?.balance === "without") q = q.lte("balance", 0).order("created_at", { ascending: false });
+    else q = q.order("created_at", { ascending: false });
+    q = q.limit(data?.balance === "with" ? 1000 : 200);
     if (data?.search) {
       const s = data.search.replace(/[%,]/g, "");
       q = /^\d+$/.test(s) ? q.eq("telegram_id", Number(s)) : q.ilike("username", `%${s}%`);
