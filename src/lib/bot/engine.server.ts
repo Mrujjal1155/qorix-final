@@ -7387,7 +7387,7 @@ function plain(msg: string) {
   return String(msg || "").replace(/<[^>]+>/g, "");
 }
 
-export async function verifyResellerTopup(resellerId: string, depositId: string) {
+export async function verifyResellerTopup(resellerId: string, depositId: string, txId = "") {
   const { data: row } = await db
     .from("binance_deposits")
     .select("*")
@@ -7401,7 +7401,6 @@ export async function verifyResellerTopup(resellerId: string, depositId: string)
     return { ok: false as const, message: "This payment request expired. Please start a new one." };
   }
 
-  const { findCryptoDeposit, findPayTransaction } = await import("@/lib/binance.server");
   const r = await confirmByTxId(row, txId);
   if (!r.ok) return { ok: false as const, message: plain(r.message) };
   const s = await settlePayment(0, row, r.amount, r.txId, "Verified via Binance — Order ID / TXID matched");
