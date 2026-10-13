@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Store } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/orders")({
@@ -52,6 +53,16 @@ function supplierBadgeStyle(index: number): CSSProperties {
     color: `oklch(0.72 0.16 ${h})`,
     borderColor: `oklch(0.72 0.16 ${h} / 0.55)`,
     backgroundColor: `oklch(0.72 0.16 ${h} / 0.12)`,
+  };
+}
+
+/** Reseller chips are filled in more heavily so they catch the eye in a long list. */
+function resellerBadgeStyle(index: number): CSSProperties {
+  const h = SUPPLIER_HUES[(index + 3) % SUPPLIER_HUES.length];
+  return {
+    color: `oklch(0.85 0.13 ${h})`,
+    borderColor: `oklch(0.72 0.15 ${h} / 0.7)`,
+    backgroundColor: `oklch(0.58 0.17 ${h} / 0.28)`,
   };
 }
 
@@ -185,6 +196,14 @@ function OrdersPage() {
     return new Map(names.map((name, index) => [name, index]));
   }, [data]);
   const supplierStyle = (name: string) => supplierBadgeStyle(supplierColorIndexes.get(name) ?? 0);
+  const resellerColorIndexes = useMemo(() => {
+    const names = Array.from(
+      new Set<string>((data ?? []).map((order: any) => String(order.reseller_name ?? "")).filter(Boolean)),
+    ).sort((a, b) => a.localeCompare(b));
+
+    return new Map(names.map((name, index) => [name, index]));
+  }, [data]);
+  const resellerStyle = (name: string) => resellerBadgeStyle(resellerColorIndexes.get(name) ?? 0);
   const rows = useMemo(() => {
     const q = normalizeOrderQuery(search);
     const base = ((data ?? []) as any[]).filter(
@@ -391,7 +410,15 @@ function OrdersPage() {
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                   <Badge variant={o.source === "website" ? "default" : "secondary"}>{SOURCE_LABEL[o.source] ?? o.source ?? "telegram"}</Badge>
                   {(o.source === "api_website" || o.source === "api_bot") && (
-                    <span className="font-medium text-foreground">Reseller: {o.reseller_name ?? "unknown"}</span>
+                    <Badge
+                      variant="outline"
+                      title="Ordered through this reseller's API"
+                      className="gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+                      style={resellerStyle(String(o.reseller_name ?? ""))}
+                    >
+                      <Store className="size-3" />
+                      {o.reseller_name ?? "Unknown reseller"}
+                    </Badge>
                   )}
                   <span>{money(o.total)}</span>
                   {o.status === "completed" && (
@@ -493,7 +520,15 @@ function OrdersPage() {
                     <td>
                       <Badge variant={o.source === "website" ? "default" : "secondary"}>{SOURCE_LABEL[o.source] ?? o.source ?? "telegram"}</Badge>
                       {(o.source === "api_website" || o.source === "api_bot") && (
-                        <div className="mt-1 text-xs font-medium">{o.reseller_name ?? "Unknown reseller"}</div>
+                        <Badge
+                          variant="outline"
+                          title="Ordered through this reseller's API"
+                          className="mt-1 gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+                          style={resellerStyle(String(o.reseller_name ?? ""))}
+                        >
+                          <Store className="size-3" />
+                          {o.reseller_name ?? "Unknown reseller"}
+                        </Badge>
                       )}
                     </td>
                     <td>
