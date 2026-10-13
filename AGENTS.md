@@ -20,3 +20,4 @@
 - Bot pre-orders are wallet-paid order rows with status `preorder`, drained oldest-first by `fulfillPreorders` (row lock via status flip to `preorder_processing`) after stock uploads and on every scheduled tick; this keeps serial delivery durable without a separate queue table.
 - Keep Binance amount generation and matching in a pure shared helper with focused tests so direct checkout, wallet deposits, reseller top-ups and scheduled verification enforce the same payment rule.
 - Send Telegram post-delivery appreciation through the shared credential-delivery helper only after Telegram accepts the complete delivery, so automatic, manual and retry paths remain consistent.
+- OxaPay (crypto) is off by default (`oxapay_enabled`); website orders use order_id `W-<orders.id>`, bot wallet deposits `D-<binance_deposits.id>`, and every credit re-reads the invoice from OxaPay after HMAC check, so a forged webhook can never mark anything paid.

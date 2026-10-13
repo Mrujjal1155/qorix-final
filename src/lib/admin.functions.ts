@@ -2250,6 +2250,22 @@ export const setManualStock = createServerFn({ method: "POST" })
   });
 
 
+/** Admin: check an OxaPay merchant key (typed or saved). Never returns the key. */
+export const testOxapay = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { apiKey?: string }) => ({ apiKey: String(d?.apiKey ?? "").trim().slice(0, 300) }))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    let key = data.apiKey;
+    if (!key) {
+      const { data: row } = await (context as any).supabase
+        .from("bot_settings").select("value").eq("key", "oxapay_api_key").maybeSingle();
+      key = String(row?.value ?? process.env["OXAPAY_MERCHANT_KEY"] ?? "").trim();
+    }
+    const { oxapayTest } = await import("@/lib/oxapay.server");
+    return oxapayTest(key);
+  });
+
 /** Admin: check a PayKori API key (typed or saved) by creating a ৳10 test link. */
 export const testPaykori = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

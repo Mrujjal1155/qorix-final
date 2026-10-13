@@ -106,7 +106,7 @@ export async function settleEpsPayment(
 }
 
 /** Supplier API purchase or in-house stock claim; manual products stay pending. */
-async function autoDeliver(order: any) {
+export async function autoDeliver(order: any) {
   try {
     const { data: product } = await db
       .from("products")
@@ -158,7 +158,7 @@ async function autoDeliver(order: any) {
 }
 
 /** Buyer receipt + admin notification. Email problems never fail a payment. */
-async function sendPaidEmails(order: any, settings: Record<string, string>, entity: string) {
+export async function sendPaidEmails(order: any, settings: Record<string, string>, entity: string, gateway = "EPS") {
   try {
     const origin = resolveSiteOrigin();
     const siteName = settings["bot_name"] || "Qorix Store";
@@ -166,7 +166,7 @@ async function sendPaidEmails(order: any, settings: Record<string, string>, enti
     const { sendResendEmail, getEmailBrand } = await import("@/lib/email/resend.server");
     const { logoUrl } = await getEmailBrand();
     const { orderReceiptEmail, adminNewOrderEmail } = await import("@/lib/email/templates");
-    const method = `EPS${entity ? ` · ${entity}` : ""}`;
+    const method = `${gateway}${entity ? ` · ${entity}` : ""}`;
     const { orderAccessToken } = await import("@/lib/order-access.server");
     const trackUrl = `${origin}/track?order=${order.order_no}&email=${encodeURIComponent(order.customer_email ?? "")}&t=${orderAccessToken(order.order_no, order.customer_email ?? "")}`;
 

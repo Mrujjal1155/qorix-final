@@ -56,6 +56,8 @@ import { Route as ApiPublicBinanceAutoVerifyRouteImport } from './routes/api/pub
 import { Route as ApiPublicEpsBotReturnRouteImport } from './routes/api/public/eps/bot-return'
 import { Route as ApiPublicEpsIpnRouteImport } from './routes/api/public/eps/ipn'
 import { Route as ApiPublicEpsReturnRouteImport } from './routes/api/public/eps/return'
+import { Route as ApiPublicOxapayReturnRouteImport } from './routes/api/public/oxapay/return'
+import { Route as ApiPublicOxapayWebhookRouteImport } from './routes/api/public/oxapay/webhook'
 import { Route as ApiPublicProductImageIdRouteImport } from './routes/api/public/product-image/$id'
 import { Route as ApiPublicSuppliersNotifyRouteImport } from './routes/api/public/suppliers/notify'
 import { Route as ApiPublicSuppliersSyncRouteImport } from './routes/api/public/suppliers/sync'
@@ -310,6 +312,16 @@ const ApiPublicEpsReturnRoute = ApiPublicEpsReturnRouteImport.update({
   path: '/api/public/eps/return',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicOxapayReturnRoute = ApiPublicOxapayReturnRouteImport.update({
+  id: '/api/public/oxapay/return',
+  path: '/api/public/oxapay/return',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicOxapayWebhookRoute = ApiPublicOxapayWebhookRouteImport.update({
+  id: '/api/public/oxapay/webhook',
+  path: '/api/public/oxapay/webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicProductImageIdRoute = ApiPublicProductImageIdRouteImport.update({
   id: '/api/public/product-image/$id',
   path: '/api/public/product-image/$id',
@@ -433,6 +445,8 @@ export interface FileRoutesByFullPath {
   '/api/public/eps/bot-return': typeof ApiPublicEpsBotReturnRoute
   '/api/public/eps/ipn': typeof ApiPublicEpsIpnRoute
   '/api/public/eps/return': typeof ApiPublicEpsReturnRoute
+  '/api/public/oxapay/return': typeof ApiPublicOxapayReturnRoute
+  '/api/public/oxapay/webhook': typeof ApiPublicOxapayWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
   '/api/public/suppliers/notify': typeof ApiPublicSuppliersNotifyRoute
   '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
@@ -493,6 +507,8 @@ export interface FileRoutesByTo {
   '/api/public/eps/bot-return': typeof ApiPublicEpsBotReturnRoute
   '/api/public/eps/ipn': typeof ApiPublicEpsIpnRoute
   '/api/public/eps/return': typeof ApiPublicEpsReturnRoute
+  '/api/public/oxapay/return': typeof ApiPublicOxapayReturnRoute
+  '/api/public/oxapay/webhook': typeof ApiPublicOxapayWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
   '/api/public/suppliers/notify': typeof ApiPublicSuppliersNotifyRoute
   '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
@@ -556,6 +572,8 @@ export interface FileRoutesById {
   '/api/public/eps/bot-return': typeof ApiPublicEpsBotReturnRoute
   '/api/public/eps/ipn': typeof ApiPublicEpsIpnRoute
   '/api/public/eps/return': typeof ApiPublicEpsReturnRoute
+  '/api/public/oxapay/return': typeof ApiPublicOxapayReturnRoute
+  '/api/public/oxapay/webhook': typeof ApiPublicOxapayWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
   '/api/public/suppliers/notify': typeof ApiPublicSuppliersNotifyRoute
   '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
@@ -619,6 +637,8 @@ export interface FileRouteTypes {
     | '/api/public/eps/bot-return'
     | '/api/public/eps/ipn'
     | '/api/public/eps/return'
+    | '/api/public/oxapay/return'
+    | '/api/public/oxapay/webhook'
     | '/api/public/product-image/$id'
     | '/api/public/suppliers/notify'
     | '/api/public/suppliers/sync'
@@ -679,6 +699,8 @@ export interface FileRouteTypes {
     | '/api/public/eps/bot-return'
     | '/api/public/eps/ipn'
     | '/api/public/eps/return'
+    | '/api/public/oxapay/return'
+    | '/api/public/oxapay/webhook'
     | '/api/public/product-image/$id'
     | '/api/public/suppliers/notify'
     | '/api/public/suppliers/sync'
@@ -741,6 +763,8 @@ export interface FileRouteTypes {
     | '/api/public/eps/bot-return'
     | '/api/public/eps/ipn'
     | '/api/public/eps/return'
+    | '/api/public/oxapay/return'
+    | '/api/public/oxapay/webhook'
     | '/api/public/product-image/$id'
     | '/api/public/suppliers/notify'
     | '/api/public/suppliers/sync'
@@ -782,6 +806,8 @@ export interface RootRouteChildren {
   ApiPublicEpsBotReturnRoute: typeof ApiPublicEpsBotReturnRoute
   ApiPublicEpsIpnRoute: typeof ApiPublicEpsIpnRoute
   ApiPublicEpsReturnRoute: typeof ApiPublicEpsReturnRoute
+  ApiPublicOxapayReturnRoute: typeof ApiPublicOxapayReturnRoute
+  ApiPublicOxapayWebhookRoute: typeof ApiPublicOxapayWebhookRoute
   ApiPublicProductImageIdRoute: typeof ApiPublicProductImageIdRoute
   ApiPublicSuppliersNotifyRoute: typeof ApiPublicSuppliersNotifyRoute
   ApiPublicSuppliersSyncRoute: typeof ApiPublicSuppliersSyncRoute
@@ -1126,6 +1152,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicEpsReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/oxapay/return': {
+      id: '/api/public/oxapay/return'
+      path: '/api/public/oxapay/return'
+      fullPath: '/api/public/oxapay/return'
+      preLoaderRoute: typeof ApiPublicOxapayReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/oxapay/webhook': {
+      id: '/api/public/oxapay/webhook'
+      path: '/api/public/oxapay/webhook'
+      fullPath: '/api/public/oxapay/webhook'
+      preLoaderRoute: typeof ApiPublicOxapayWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/product-image/$id': {
       id: '/api/public/product-image/$id'
       path: '/api/public/product-image/$id'
@@ -1337,6 +1377,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicEpsBotReturnRoute: ApiPublicEpsBotReturnRoute,
   ApiPublicEpsIpnRoute: ApiPublicEpsIpnRoute,
   ApiPublicEpsReturnRoute: ApiPublicEpsReturnRoute,
+  ApiPublicOxapayReturnRoute: ApiPublicOxapayReturnRoute,
+  ApiPublicOxapayWebhookRoute: ApiPublicOxapayWebhookRoute,
   ApiPublicProductImageIdRoute: ApiPublicProductImageIdRoute,
   ApiPublicSuppliersNotifyRoute: ApiPublicSuppliersNotifyRoute,
   ApiPublicSuppliersSyncRoute: ApiPublicSuppliersSyncRoute,

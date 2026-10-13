@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
-import { checkBinanceStatus, checkBotToken, getBotSettings, registerWebhook, saveBinanceKeys, saveBotSettings, sendTestEmail, getEmailStatus, testPaykori } from "@/lib/admin.functions";
+import { checkBinanceStatus, checkBotToken, getBotSettings, registerWebhook, saveBinanceKeys, saveBotSettings, sendTestEmail, getEmailStatus, testPaykori, testOxapay } from "@/lib/admin.functions";
 import { AdminShell } from "@/components/AdminShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -121,6 +121,29 @@ function SettingsPage() {
   const runPaykoriTest = useServerFn(testPaykori);
   const [paykoriStatus, setPaykoriStatus] = useState<{ ok: boolean; message: string } | null>(null);
   const [paykoriBusy, setPaykoriBusy] = useState(false);
+  const runOxapayTest = useServerFn(testOxapay);
+  const [oxapayStatus, setOxapayStatus] = useState<{ ok: boolean; message: string } | null>(null);
+  const [oxapayBusy, setOxapayBusy] = useState(false);
+
+  /** Save OxaPay settings, then test the merchant key. */
+  async function onSaveOxapay() {
+    setOxapayBusy(true);
+    setOxapayStatus(null);
+    try {
+      await save({ data: { values } });
+      await refetchSettings();
+      const r = await runOxapayTest({ data: { apiKey: values["oxapay_api_key"] ?? "" } });
+      setOxapayStatus(r);
+      if (r.ok) toast.success("Saved · OxaPay API active");
+      else toast.error(r.message);
+    } catch (e) {
+      const message = e instanceof Error ? e.message : "Failed";
+      setOxapayStatus({ ok: false, message });
+      toast.error(message);
+    } finally {
+      setOxapayBusy(false);
+    }
+  }
 
   /** Save PayKori settings, then immediately test the connection. */
   async function onSavePaykori() {
@@ -693,6 +716,66 @@ function SettingsPage() {
   );
 
 
+  const oxapayCard = (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex flex-wrap items-center gap-2">
+          OxaPay (crypto checkout)
+          {oxapayStatus ? (
+            <span
+              className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+                oxapayStatus.ok ? "bg-success/15 text-success" : "bg-destructive/15 text-destructive"
+              }`}
+            >
+              {oxapayStatus.ok ? "API Active" : "Not connected"}
+            </span>
+          ) : null}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <p className="text-sm text-muted-foreground">
+          Customers pay with USDT, BTC, LTC, TRX and more on the OxaPay page — on the website checkout and as a Telegram
+          wallet deposit. Nothing is marked paid until OxaPay itself confirms the full amount. Webhook URL:{" "}
+          <code className="break-all">{PRODUCTION_SITE_URL}/api/public/oxapay/webhook</code>
+        </p>
+        <div className="flex items-start justify-between gap-4 rounded-xl border border-border/70 bg-card/50 p-4">
+          <div className="space-y-0.5">
+            <Label className="text-sm font-semibold">Enable OxaPay</Label>
+            <p className="text-xs text-muted-foreground">Off = hidden on the website and in the bot.</p>
+          </div>
+          <Switch
+            checked={isOn(values["oxapay_enabled"])}
+            onCheckedChange={(c) => setValues((prev) => ({ ...prev, oxapay_enabled: c ? "on" : "off" }))}
+            aria-label="Enable OxaPay"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label>Merchant API key</Label>
+          <Input
+            type="password"
+            autoComplete="off"
+            value={values["oxapay_api_key"] ?? ""}
+            onChange={(e) => setValues({ ...values, oxapay_api_key: e.target.value.trim() })}
+            placeholder="OxaPay dashboard → Merchant Service → API key"
+          />
+        </div>
+        {oxapayStatus ? (
+          <div
+            className={`rounded-xl border p-3 text-sm ${
+              oxapayStatus.ok ? "border-success/40 bg-success/10 text-success" : "border-destructive/40 bg-destructive/10 text-destructive"
+            }`}
+          >
+            {oxapayStatus.ok ? "✅ " : "❌ "}
+            {oxapayStatus.message}
+          </div>
+        ) : null}
+        <Button onClick={onSaveOxapay} disabled={oxapayBusy}>
+          {oxapayBusy ? "Saving & testing…" : "Save & test connection"}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+
   const referralCard = (
     <Card>
       <CardHeader>
@@ -793,6 +876,13 @@ function SettingsPage() {
           {paykoriCard}
         </div>
       ),
+    },
+    {
+      id: "oxapay",
+      title: "Crypto checkout (OxaPay)",
+      description: "USDT, BTC, LTC and more via OxaPay — website and bot deposits.",
+      icon: Coins,
+      render: () => oxapayCard,
     },
 
 
