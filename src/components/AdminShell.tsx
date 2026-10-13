@@ -252,9 +252,7 @@ export function AdminShell({
               {subtitle ?? "Here's what's going on at your business right now"}
             </p>
           </div>
-          <span className="hidden shrink-0 items-center gap-2 rounded-full border border-border/70 bg-card/70 px-3 py-1.5 text-xs text-muted-foreground sm:flex">
-            <span className="size-1.5 rounded-full bg-success" /> Systems online
-          </span>
+          <SystemStatus />
         </div>
 
         <main className="min-w-0 px-4 pb-10 pt-6 lg:px-8">{children}</main>
@@ -290,5 +288,32 @@ export function AdminPanel({
       )}
       <div className="min-w-0 p-4 sm:p-5">{children}</div>
     </section>
+  );
+}
+
+/** Real health: green only when the supplier sync ran in the last 2 minutes. */
+function SystemStatus() {
+  const { data } = useQuery({
+    queryKey: ["system-status"],
+    refetchInterval: 30_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("suppliers")
+        .select("last_synced_at")
+        .eq("is_enabled", true)
+        .order("last_synced_at", { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+      return data?.last_synced_at ? Date.parse(String(data.last_synced_at)) : null;
+    },
+  });
+  if (data === undefined) return null;
+  const ok = data !== null && Date.now() - data < 120_000;
+  const mins = data ? Math.round((Date.now() - data) / 60_000) : null;
+  return (
+    <span className="hidden shrink-0 items-center gap-2 rounded-full border border-border/70 bg-card/70 px-3 py-1.5 text-xs text-muted-foreground sm:flex">
+      <span className={cn("size-1.5 rounded-full", ok ? "bg-success" : "bg-destructive")} />
+      {ok ? "Systems online" : mins === null ? "Supplier sync not running" : `Supplier sync delayed (${mins} min)`}
+    </span>
   );
 }
