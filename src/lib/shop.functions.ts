@@ -186,16 +186,23 @@ export const getStorePayInfo = createServerFn({ method: "GET" }).handler(async (
         "usdt_trc20",
         "bot_username",
         "support_contact",
+        "binance_status",
+        "binance_enable_payid",
+        "binance_enable_crypto",
       ]);
     for (const r of data ?? []) raw[r.key] = (r.value ?? "").trim();
   } catch (e) {
     console.error("[storefront] pay info unavailable:", e);
   }
+  const sw = binanceSwitches(raw);
   // Website + bot share one payment configuration: prefer the website key,
   // fall back to the bot panel key so resellers/users see the same address.
-  map["binance_pay_id"] = raw["binance_pay_id"] || raw["binance_pay"] || "";
-  map["usdt_bep20_address"] = raw["usdt_bep20_address"] || raw["usdt_bep20"] || "";
-  map["usdt_trc20_address"] = raw["usdt_trc20_address"] || raw["usdt_trc20"] || "";
+  // A method switched off in Admin → Binance Setup is hidden (blank).
+  map["binance_pay_id"] = sw.payid ? raw["binance_pay_id"] || raw["binance_pay"] || "" : "";
+  map["usdt_bep20_address"] = sw.crypto ? raw["usdt_bep20_address"] || raw["usdt_bep20"] || "" : "";
+  map["usdt_trc20_address"] = sw.crypto ? raw["usdt_trc20_address"] || raw["usdt_trc20"] || "" : "";
+  map["enable_payid"] = sw.payid ? "1" : "0";
+  map["enable_crypto"] = sw.crypto ? "1" : "0";
   map["bot_username"] = (raw["bot_username"] || "").replace(/^@/, "");
   map["support_contact"] = raw["support_contact"] || "";
   return map;
