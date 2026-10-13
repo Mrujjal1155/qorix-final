@@ -17,7 +17,7 @@ export async function verifyWebsiteOrderTxid(orderId: string): Promise<WebsiteBi
   const { data: o } = await db.from("orders").select("id,source,txid,total,payment_method,meta,status").eq("id", orderId).maybeSingle();
   if (!o || o.source !== "website" || !o.txid) return null;
   const meta = (o.meta ?? {}) as Record<string, any>;
-  if (meta.binance?.status === "verified") return meta.binance as WebsiteBinanceCheck;
+  if (meta["binance"]?.status === "verified") return meta["binance"] as WebsiteBinanceCheck;
 
   const txId = String(o.txid).trim();
   const kind = o.payment_method === "binance" ? "pay" : "crypto";
