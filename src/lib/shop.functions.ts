@@ -167,6 +167,15 @@ export const getProductSeo = createServerFn({ method: "GET" })
 
 
 
+function binanceSwitches(raw: Record<string, string | null | undefined>) {
+  const on = (k: string) => {
+    const v = (raw[k] ?? "").trim();
+    return v === "" || v === "1" || v === "true";
+  };
+  const active = (raw["binance_status"] ?? "active") !== "inactive";
+  return { payid: active && on("binance_enable_payid"), crypto: active && on("binance_enable_crypto") };
+}
+
 export const getStorePayInfo = createServerFn({ method: "GET" }).handler(async () => {
   const map: Record<string, string> = {};
   const raw: Record<string, string> = {};
@@ -239,6 +248,17 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
       .eq("id", data.product_id)
       .maybeSingle();
     if (!product || !product.is_active) throw new Error("Product is not available");
+    {
+      const { data: rows } = await supabaseAdmin
+        .from("bot_settings")
+        .select("key,value")
+        .in("key", ["binance_status", "binance_enable_payid", "binance_enable_crypto"]);
+      const raw: Record<string, string> = {};
+      for (const r of rows ?? []) raw[r.key] = r.value ?? "";
+      const sw = binanceSwitches(raw);
+      const allowed = data.payment_method === "binance" ? sw.payid : sw.crypto;
+      if (!allowed) throw new Error("This payment method is currently unavailable");
+    }
 
     // Never accept a supplier order against a stale catalogue snapshot. Read
     // the supplier API immediately before submission and fail closed if its
