@@ -2621,6 +2621,9 @@ async function verifyEpsDeposit(chatId: number, id: string) {
    paid/manual_accept for the exact invoice we created, amount covers the deposit,
    and the track id has never been used before. */
 
+/** OxaPay rejects tiny invoices ("minimum required amount has not been met"). */
+const OXAPAY_MIN_USD = 1;
+
 async function startOxapayDeposit(chatId: number, usd: number, meta: Record<string, unknown> = {}) {
   const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
   const s = { ...(await getSettings()), ...(await oxapaySettings()) };
@@ -2628,6 +2631,13 @@ async function startOxapayDeposit(chatId: number, usd: number, meta: Record<stri
   const { oxapayEnabled, oxapayKey, oxapayCreateInvoice } = await import("@/lib/oxapay.server");
   if (!oxapayEnabled(s)) return { error: "Crypto (OxaPay) deposits are currently disabled." };
   if (!Number.isFinite(usd) || usd <= 0) return { error: "Invalid amount." };
+  const OXAPAY_MIN_NOTICE =
+    `ℹ️ <b>Amount too small for crypto payment</b>\n\n` +
+    `Crypto networks cannot process very small payments, so a payment link could not be created for ${money(usd)}.\n\n` +
+    `• The minimum for <b>Crypto (OxaPay)</b> is <b>$${OXAPAY_MIN_USD.toFixed(2)}</b>.\n` +
+    `• For smaller amounts, please use <b>Binance Pay</b> or your <b>wallet balance</b>.\n` +
+    `• Tip: top up your wallet with $${OXAPAY_MIN_USD.toFixed(2)} or more via OxaPay, then buy any product instantly.`;
+  if (usd < OXAPAY_MIN_USD) return { error: OXAPAY_MIN_NOTICE };
   const directCheckout = Array.isArray(meta["items"]) && meta["items"].length > 0;
   const { data: row, error } = await db
     .from("binance_deposits")
@@ -2653,8 +2663,9 @@ async function startOxapayDeposit(chatId: number, usd: number, meta: Record<stri
   });
   if (!created.ok) {
     await db.from("binance_deposits").update({ status: "failed" }).eq("id", row.id);
+    if (/minimum/i.test(String(created.error))) return { error: OXAPAY_MIN_NOTICE };
     await notifyAdmins(`⚠️ <b>OxaPay create failed</b>\n${escapeHtml(String(created.error))}`);
-    return { error: String(created.error) };
+    return { error: "Crypto payment is temporarily unavailable. Please use Binance Pay or try again shortly." };
   }
   const invoiceMeta = oxapayDepositMeta(meta, created.trackId, created.url);
   const { error: saveError } = await db
@@ -3619,7 +3630,7 @@ async function handleMessage(msg: any) {
       await setState(chatId, state);
       const r = await startOxapayDeposit(chatId, amount);
       if ("error" in r) {
-        await say(chatId, `❌ ${escapeHtml(r.error)}`, [[{ text: "⬅️ Wallet", callback_data: "wallet" }]]);
+        await say(chatId, r.error.startsWith("ℹ️") ? r.error : `❌ ${escapeHtml(r.error)}`, [[{ text: "⬅️ Wallet", callback_data: "wallet" }]]);
         return;
       }
       await say(chatId, r.text, r.kb);
@@ -6581,7 +6592,7 @@ async function handleCallback(cq: any) {
       }
       const r = await startOxapayDeposit(chatId, total, { ...meta, total });
       if ("error" in r) {
-        await edit(`❌ ${escapeHtml(r.error)}`, [[{ text: "⬅️ Back", callback_data: "copay" }]]);
+        await edit(r.error.startsWith("ℹ️") ? r.error : `❌ ${escapeHtml(r.error)}`, [[{ text: "⬅️ Back", callback_data: "copay" }]]);
         return;
       }
       const orders = await createAwaitingOrders(chatId, meta, String(r.row.id), "oxapay");
