@@ -90,9 +90,16 @@ function CheckoutPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [method, setMethod] = useState<string>("binance");
+  const [picked, setMethod] = useState<string>("binance");
   const [txid, setTxid] = useState("");
 
+  const visibleMethods = METHODS.filter((m) =>
+    m.id === "binance" ? pay?.["enable_payid"] !== "0" : pay?.["enable_crypto"] !== "0",
+  );
+  const method =
+    picked === "eps" || visibleMethods.some((m) => m.id === picked)
+      ? picked
+      : (visibleMethods[0]?.id ?? (eps?.enabled ? "eps" : picked));
   const total = Number(product?.price ?? 0) * qty;
   const isEps = method === "eps";
   const cryptoMethod = METHODS.find((m) => m.id === method);
@@ -230,7 +237,7 @@ function CheckoutPage() {
                 <div className="space-y-2 md:col-span-2">
                   <Label>Payment method</Label>
                   <div className="grid gap-3 sm:grid-cols-3">
-                    {METHODS.map((m) => {
+                    {visibleMethods.map((m) => {
                       const on = method === m.id;
                       return (
                         <button

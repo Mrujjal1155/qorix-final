@@ -41,9 +41,21 @@ export function BinanceSetupCard({
   return (
     <Card className="mb-4">
       <CardContent className="space-y-6 pt-6">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <span className="rounded bg-[#F0B90B] px-2 py-1 text-xs font-bold text-black">BINANCE</span>
           <h2 className="text-2xl font-bold">Binance Setup</h2>
+          {apiStatus && (
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold ${
+                apiStatus.ok
+                  ? "border-success/40 bg-success/15 text-success"
+                  : "border-destructive/40 bg-destructive/15 text-destructive"
+              }`}
+            >
+              <span className={`h-2 w-2 rounded-full ${apiStatus.ok ? "bg-success" : "bg-destructive"}`} />
+              {apiStatus.ok ? "API Active" : "API Not Connected"}
+            </span>
+          )}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
