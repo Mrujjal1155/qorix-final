@@ -7402,19 +7402,10 @@ export async function verifyResellerTopup(resellerId: string, depositId: string)
   }
 
   const { findCryptoDeposit, findPayTransaction } = await import("@/lib/binance.server");
-  const expected = Number(row.amount_usdt);
-  const result =
-    row.kind === "payid" ? await findPayTransaction(expected, txUsed) : await findCryptoDeposit(expected, row.network, txUsed);
-  if (!result.ok) {
-    return {
-      ok: false as const,
-      message: `Not confirmed yet. Make sure you sent exactly ${expected.toFixed(4)} USDT, then check again in a minute.`,
-    };
-  }
-  const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: result.txId });
-  if (usedErr) return { ok: false as const, message: "Payment not found yet. Please try again." };
-  const r = await settlePayment(0, row, Number(result.amount), result.txId!, "Auto-verified via Binance API");
-  return { ok: true as const, message: plain(r.message) };
+  const r = await confirmByTxId(row, txId);
+  if (!r.ok) return { ok: false as const, message: plain(r.message) };
+  const s = await settlePayment(0, row, r.amount, r.txId, "Verified via Binance — Order ID / TXID matched");
+  return { ok: true as const, message: plain(s.message) };
 }
 
 export async function listResellerDeposits(resellerId: string) {
