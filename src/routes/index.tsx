@@ -35,6 +35,18 @@ export const Route = createFileRoute("/")({
   component: Landing,
 });
 
+/** Columns of the category grid: 2 on phones, 3 on tablets, 5 on desktops — mirrors the grid classes. */
+function useGridCols() {
+  const [cols, setCols] = useState(5);
+  useEffect(() => {
+    const read = () => setCols(window.innerWidth >= 1024 ? 5 : window.innerWidth >= 640 ? 3 : 2);
+    read();
+    window.addEventListener("resize", read);
+    return () => window.removeEventListener("resize", read);
+  }, []);
+  return cols;
+}
+
 function Landing() {
   const t = useT();
   const fetchStore = useServerFn(listStorefront);
@@ -123,6 +135,22 @@ function Landing() {
               </Link>
             ))}
           </div>
+
+          {moreCats && (
+            <div className="mt-6 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setShowAllCats((v) => !v)}
+                aria-expanded={showAllCats}
+                className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-6 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground"
+              >
+                {showAllCats ? t("Show less") : t("More")}
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform duration-200 ${showAllCats ? "rotate-180" : ""}`}
+                />
+              </button>
+            </div>
+          )}
         </section>
       )}
 
