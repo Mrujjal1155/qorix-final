@@ -2276,9 +2276,9 @@ export const listBinanceTransactions = createServerFn({ method: "GET" })
     // Short per-isolate cache so repeated opens/refreshes don't wait on Binance each time.
     const g = globalThis as any;
     g.__binanceTxCache ??= new Map<number, { at: number; value: any }>();
-    const hit = g.__binanceTxCache.get(data.days);
-    if (hit && Date.now() - hit.at < 15_000) return hit.value;
     const { listBinanceActivity } = await import("@/lib/binance.server");
+    const hit = g.__binanceTxCache.get(data.days);
+    if (hit && Date.now() - hit.at < 15_000) return hit.value as Awaited<ReturnType<typeof listBinanceActivity>>;
     const value = await listBinanceActivity(data.days);
     if (value?.ok) g.__binanceTxCache.set(data.days, { at: Date.now(), value });
     return value;
