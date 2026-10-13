@@ -17,7 +17,7 @@ export async function oxapaySettings(): Promise<Record<string, string>> {
   return map;
 }
 
-export type OxaSettle = { ok: boolean; kind?: "website" | "bot"; orderNo?: number; reason?: string };
+export type OxaSettle = { ok: boolean; kind?: "website" | "bot"; orderNo?: number; reason?: string | undefined };
 
 export async function settleOxapay(trackId: string): Promise<OxaSettle> {
   const settings = await oxapaySettings();
