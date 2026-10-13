@@ -17,6 +17,7 @@ import {
 
 import { getStoreProduct, getStorePayInfo, placeWebsiteOrder } from "@/lib/shop.functions";
 import { getEpsStatus, startEpsCheckout } from "@/lib/eps.functions";
+import { getOxapayStatus, startOxapayCheckout } from "@/lib/oxapay.functions";
 import { StoreShell, priceTag } from "@/components/StoreShell";
 import { CategoryIcon } from "@/components/CategoryIcon";
 
@@ -77,6 +78,8 @@ function CheckoutPage() {
   const submit = useServerFn(placeWebsiteOrder);
   const fetchEps = useServerFn(getEpsStatus);
   const startEps = useServerFn(startEpsCheckout);
+  const fetchOxa = useServerFn(getOxapayStatus);
+  const startOxa = useServerFn(startOxapayCheckout);
   const { money, usd, currency } = usePrefs();
 
   const { data: product } = useQuery({
@@ -86,6 +89,7 @@ function CheckoutPage() {
   });
   const { data: pay } = useQuery({ queryKey: ["store-pay"], queryFn: () => fetchPay() });
   const { data: eps } = useQuery({ queryKey: ["eps-status"], queryFn: () => fetchEps() });
+  const { data: oxa } = useQuery({ queryKey: ["oxapay-status"], queryFn: () => fetchOxa() });
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -97,11 +101,12 @@ function CheckoutPage() {
     m.id === "binance" ? pay?.["enable_payid"] !== "0" : pay?.["enable_crypto"] !== "0",
   );
   const method =
-    picked === "eps" || visibleMethods.some((m) => m.id === picked)
+    picked === "eps" || (picked === "oxapay" && oxa?.enabled) || visibleMethods.some((m) => m.id === picked)
       ? picked
       : (visibleMethods[0]?.id ?? (eps?.enabled ? "eps" : picked));
   const total = Number(product?.price ?? 0) * qty;
   const isEps = method === "eps";
+  const isOxa = method === "oxapay";
   const cryptoMethod = METHODS.find((m) => m.id === method);
   const address = cryptoMethod ? (pay?.[cryptoMethod.key] ?? "") : "";
   const botUser = pay?.["bot_username"] ?? "";
@@ -130,6 +135,15 @@ function CheckoutPage() {
   const epsMut = useMutation({
     mutationFn: () =>
       startEps({ data: { product_id: id, quantity: qty, customer_name: name, customer_email: email, customer_phone: phone } }),
+    onSuccess: (r) => {
+      if (typeof window !== "undefined") window.location.href = r.url;
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const oxaMut = useMutation({
+    mutationFn: () =>
+      startOxa({ data: { product_id: id, quantity: qty, customer_name: name, customer_email: email } }),
     onSuccess: (r) => {
       if (typeof window !== "undefined") window.location.href = r.url;
     },
@@ -260,6 +274,25 @@ function CheckoutPage() {
                         </button>
                       );
                     })}
+                    {oxa?.enabled ? (
+                      <button
+                        type="button"
+                        onClick={() => setMethod("oxapay")}
+                        className={`rounded-2xl border p-4 text-left transition-all hover:-translate-y-0.5 ${
+                          isOxa ? "border-primary bg-primary/10 card-glow" : "border-border bg-card"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-9 w-9 items-center justify-center rounded-xl ${
+                            isOxa ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                          }`}
+                        >
+                          <Bitcoin className="h-4 w-4" />
+                        </span>
+                        <p className="mt-3 text-sm font-semibold">Crypto · OxaPay</p>
+                        <p className="text-xs text-muted-foreground">USDT, BTC, LTC & more — auto confirm</p>
+                      </button>
+                    ) : null}
                     {eps?.enabled ? (
                       <button
                         type="button"
@@ -300,7 +333,16 @@ function CheckoutPage() {
                   </div>
                 ) : null}
 
-                {isEps ? (
+                {isOxa ? (
+                  <Button
+                    className="md:col-span-2"
+                    disabled={!name.trim() || !email.trim() || oxaMut.isPending}
+                    onClick={() => oxaMut.mutate()}
+                  >
+                    {oxaMut.isPending ? "Opening secure payment…" : `Pay ${priceTag(total)} with crypto`}{" "}
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                ) : isEps ? (
                   <Button
                     className="md:col-span-2"
                     disabled={!name.trim() || !email.trim() || phone.replace(/\D/g, "").length < 11 || epsMut.isPending}
