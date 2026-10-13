@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { listBinanceTransactions } from "@/lib/admin.functions";
@@ -33,6 +33,10 @@ function BinancePage() {
     queryFn: () => fetchTx({ data: { days } }),
     refetchInterval: 30000,
     retry: 1,
+    // Show the previously loaded list instantly while fresh data loads in the background.
+    staleTime: 30_000,
+    gcTime: 10 * 60_000,
+    placeholderData: keepPreviousData,
   });
   const rows = data?.ok ? data.rows : [];
   const needle = q.trim().toLowerCase();
