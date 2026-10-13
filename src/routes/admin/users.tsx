@@ -85,6 +85,7 @@ function Avatar({ user }: { user: BotUser }) {
 function UsersPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
+  const [balFilter, setBalFilter] = useState<"all" | "with" | "without">("all");
   const fetchUsers = useServerFn(listBotUsers);
   const adjust = useServerFn(adjustBalance);
   const ban = useServerFn(setBanned);
@@ -184,8 +185,8 @@ function UsersPage() {
   }
 
   const { data, isLoading } = useQuery({
-    queryKey: ["botUsers", search],
-    queryFn: () => fetchUsers({ data: { search } }) as Promise<BotUser[]>,
+    queryKey: ["botUsers", search, balFilter],
+    queryFn: () => fetchUsers({ data: { search, balance: balFilter } }) as Promise<BotUser[]>,
   });
   const users = data ?? [];
   const refresh = () => qc.invalidateQueries({ queryKey: ["botUsers"] });
@@ -239,7 +240,14 @@ function UsersPage() {
           <Megaphone className="mr-2 size-4" />
           Broadcast
         </Button>
-      </div>
+        </div>
+        <div className="flex gap-1 rounded-lg border bg-muted/40 p-1">
+          {([["all", "All"], ["with", "With balance"], ["without", "No balance"]] as const).map(([k, l]) => (
+            <Button key={k} size="sm" variant={balFilter === k ? "default" : "ghost"} onClick={() => setBalFilter(k)}>
+              {l}
+            </Button>
+          ))}
+        </div>
 
       {bcOpen && (
         <Card className="mb-4 border-primary/30">

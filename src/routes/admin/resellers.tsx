@@ -60,8 +60,13 @@ function ResellersPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
+  const [balFilter, setBalFilter] = useState<"all" | "with" | "without">("all");
+  const balCount = (resellers ?? []).filter((r: any) => Number(r.balance || 0) > 0).length;
 
   const filtered = (resellers ?? []).filter((r: any) => {
+    const has = Number(r.balance || 0) > 0;
+    if (balFilter === "with" && !has) return false;
+    if (balFilter === "without" && has) return false;
     const q = search.trim().toLowerCase();
     if (!q) return true;
     return [r.email, r.name].some((f: any) => String(f ?? "").toLowerCase().includes(q));
@@ -120,6 +125,17 @@ function ResellersPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 className="max-w-md pl-9"
               />
+            </div>
+            <div className="flex w-fit gap-1 rounded-lg border bg-muted/40 p-1">
+              {([
+                ["all", `All (${(resellers ?? []).length})`],
+                ["with", `With balance (${balCount})`],
+                ["without", `No balance (${(resellers ?? []).length - balCount})`],
+              ] as const).map(([k, l]) => (
+                <Button key={k} size="sm" variant={balFilter === k ? "default" : "ghost"} onClick={() => setBalFilter(k as any)}>
+                  {l}
+                </Button>
+              ))}
             </div>
             {filtered.map((r: any) => (
               <AdminPanel key={r.id}>
