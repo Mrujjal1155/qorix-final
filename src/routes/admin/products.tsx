@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { EMPTY_MANUAL_INPUT, type ManualInputConfig } from "@/lib/manual-input";
 import { ArrowDown, ArrowLeft, ArrowUp, Boxes, Filter, FolderTree, PlusCircle, Search, Sparkles } from "lucide-react";
 import {
@@ -268,6 +268,7 @@ function ProductsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const nextStock = useRef(false);
   const prodMut = useMutation({
     mutationFn: async () => {
       const res: any = await saveProd({
@@ -310,12 +311,20 @@ function ProductsPage() {
         });
       return res;
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
       const wasEdit = Boolean(form.id);
+      const newId = form.id || res?.id;
+      const goStock = nextStock.current;
+      nextStock.current = false;
       { setForm({ ...EMPTY }); setMi({ ...EMPTY_MANUAL_INPUT }); }
       refresh();
       toast.success("Product saved");
-      setView(wasEdit ? "products" : "hub");
+      if (!wasEdit && goStock && newId) {
+        setStockFor(newId);
+        setView("stock");
+      } else {
+        setView(wasEdit ? "products" : "hub");
+      }
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -870,6 +879,18 @@ function ProductsPage() {
           <Button onClick={() => prodMut.mutate()} disabled={!form.name}>
             {form.id ? "Update product" : "Create product"}
           </Button>
+          {!form.id && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                nextStock.current = true;
+                prodMut.mutate();
+              }}
+              disabled={!form.name}
+            >
+              Create &amp; add stock →
+            </Button>
+          )}
           {form.id && (
             <Button
               variant="outline"
