@@ -201,3 +201,65 @@ export async function findByTxId(
   const failed = [pay, dep].filter(Boolean).every((r) => r && !r.ok);
   return failed ? { ok: false, error: String((pay && !pay.ok ? pay.error : dep?.error) ?? "Binance unreachable") } : { ok: false };
 }
+
+export type BinanceIncoming = {
+  id: string;
+  time: number;
+  amount: number;
+  currency: string;
+  via: string; // "Binance Pay" | "Deposit · TRC20" ...
+  direction: "in" | "out";
+  status: string;
+  counterparty: string | null;
+  orderId: string | null;
+};
+
+/** Every Binance Pay transfer + every coin deposit of the last `days` (max 30). */
+export async function listBinanceActivity(days = 7): Promise<{ ok: true; rows: BinanceIncoming[]; warnings: string[] } | { ok: false; error: string }> {
+  const creds = await getCreds();
+  if (!creds) return { ok: false, error: "Binance API keys are not configured." };
+  const d = Math.max(1, Math.min(30, Math.floor(days)));
+  const start = Date.now() - d * 86400_000;
+  const [pay, dep] = await Promise.all([
+    signedGet("/sapi/v1/pay/transactions", { limit: 100, startTime: start }, creds),
+    // Deposit history allows max 90 days per window; no coin filter = all coins.
+    signedGet("/sapi/v1/capital/deposit/hisrec", { limit: 1000, startTime: start }, creds),
+  ]);
+  if (!pay.ok && !dep.ok) return { ok: false, error: String(pay.error ?? dep.error) };
+  const warnings: string[] = [];
+  if (!pay.ok) warnings.push(`Binance Pay history unavailable: ${pay.error}`);
+  if (!dep.ok) warnings.push(`Deposit history unavailable: ${dep.error}`);
+  const rows: BinanceIncoming[] = [];
+  for (const t of (pay.ok && Array.isArray(pay.data?.data) ? pay.data.data : []) as any[]) {
+    const amount = Number(t.amount);
+    const payer = t.payerInfo?.name || t.payerInfo?.binanceId || null;
+    const receiver = t.receiverInfo?.name || t.receiverInfo?.binanceId || null;
+    rows.push({
+      id: String(t.transactionId ?? t.orderId),
+      time: Number(t.transactionTime ?? 0),
+      amount: Math.abs(amount),
+      currency: String(t.currency ?? "USDT").toUpperCase(),
+      via: `Binance Pay${t.orderType ? ` · ${String(t.orderType)}` : ""}`,
+      direction: amount >= 0 ? "in" : "out",
+      status: "Success",
+      counterparty: amount >= 0 ? (payer ? String(payer) : null) : receiver ? String(receiver) : null,
+      orderId: t.orderId ? String(t.orderId) : null,
+    });
+  }
+  const depStatus: Record<number, string> = { 0: "Pending", 1: "Success", 6: "Credited", 7: "Wrong deposit", 8: "Waiting confirm" };
+  for (const x of (dep.ok && Array.isArray(dep.data) ? dep.data : []) as any[]) {
+    rows.push({
+      id: String(x.txId ?? x.id),
+      time: Number(x.insertTime ?? 0),
+      amount: Number(x.amount),
+      currency: String(x.coin ?? "").toUpperCase(),
+      via: `Deposit · ${String(x.network ?? "")}`,
+      direction: "in",
+      status: depStatus[Number(x.status)] ?? `Status ${x.status}`,
+      counterparty: x.address ? String(x.address) : null,
+      orderId: null,
+    });
+  }
+  rows.sort((a, b) => b.time - a.time);
+  return { ok: true, rows, warnings };
+}

@@ -2243,3 +2243,22 @@ export const testPaykori = createServerFn({ method: "POST" })
     const { resolveSiteOrigin } = await import("@/lib/site-url");
     return paykoriTest(key, resolveSiteOrigin());
   });
+
+/* ---------- Binance: live transactions + website TXID verification ---------- */
+export const listBinanceTransactions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { days?: number }) => ({ days: Number(d?.days ?? 7) || 7 }))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { listBinanceActivity } = await import("@/lib/binance.server");
+    return listBinanceActivity(data.days);
+  });
+
+export const recheckOrderBinance = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => ({ id: String(d.id) }))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { verifyWebsiteOrderTxid } = await import("@/lib/website-binance-verify.server");
+    return verifyWebsiteOrderTxid(data.id);
+  });
