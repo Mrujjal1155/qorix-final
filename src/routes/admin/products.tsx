@@ -879,6 +879,18 @@ function ProductsPage() {
           <Button onClick={() => prodMut.mutate()} disabled={!form.name}>
             {form.id ? "Update product" : "Create product"}
           </Button>
+          {!form.id && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                nextStock.current = true;
+                prodMut.mutate();
+              }}
+              disabled={!form.name}
+            >
+              Create &amp; add stock →
+            </Button>
+          )}
           {form.id && (
             <Button
               variant="outline"
