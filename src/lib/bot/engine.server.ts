@@ -2248,8 +2248,8 @@ function binanceView(row: any, settings: Record<string, string> = {}) {
   const text =
     `${head}\n\n` +
     `${uiTag(settings, "dep_amount")}:\n<code>${Number(row.amount_usdt).toFixed(4)}</code>\n\n` +
-    `${uiIconHtml(settings, "dep_warn")} ${escapeHtml(uiText(settings, "dep_warn"))} — it is how we identify your payment.\n` +
-    `${uiIconHtml(settings, "dep_timer")} ${escapeHtml(uiText(settings, "dep_timer"))}. After paying, tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b> — verification is automatic.\n` +
+    `${uiIconHtml(settings, "dep_warn")} ${escapeHtml(uiText(settings, "dep_warn"))} — send exactly this amount in USDT.\n` +
+    `${uiIconHtml(settings, "dep_timer")} ${escapeHtml(uiText(settings, "dep_timer"))}. After paying, tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b> and send the <b>Binance Order ID / TXID</b> — we confirm it directly with Binance.\n` +
     `⏳ <b>Important:</b> you must tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b> after you pay. If it is not tapped within 30 minutes, the pending order can be cancelled automatically.`;
   const kb: Button[][] = [
     [uiBtn(settings, "dep_verify", `bchk:${row.id}`)],
@@ -2280,6 +2280,58 @@ async function alreadyPaidMessage(chatId: number, depositId: string, fallback: s
   return fallback;
 }
 
+/**
+ * Confirm one deposit by the customer's Binance Pay Order ID / on-chain TXID.
+ * Success requires: the ID exists in our Binance history, currency USDT,
+ * amount within ±0.01 of the expected amount, and the ID never used before.
+ * On success the ID is claimed in binance_used_txs (unique) so it can never
+ * credit twice.
+ */
+async function confirmByTxId(
+  row: any,
+  rawId: string,
+  silent = false,
+): Promise<{ ok: true; amount: number; txId: string } | { ok: false; message: string; notFound?: boolean }> {
+  const txId = String(rawId || "").trim();
+  if (txId.length < 6) return { ok: false, message: "Please send the Binance Order ID / Transaction ID of your payment." };
+  if (await txUsed(txId)) return { ok: false, message: "❌ This Order ID / Transaction ID was already used." };
+  const expected = Number(row.amount_usdt);
+  const { findByTxId } = await import("@/lib/binance.server");
+  let m: Awaited<ReturnType<typeof findByTxId>>;
+  try {
+    m = await findByTxId(txId, row.kind === "payid" ? "pay" : "crypto");
+  } catch (e) {
+    console.error("Binance verify failed", e);
+    m = { ok: false, error: "network" };
+  }
+  if (!silent) console.log(`Binance verify dep=${row.id} id=${txId} ->`, m.ok ? `ok ${m.amount} ${m.currency}` : m.error ?? "not found");
+  if (!m.ok) {
+    return m.error
+      ? { ok: false, message: "⏳ Could not reach Binance right now. Please try again in a minute." }
+      : { ok: false, notFound: true, message: `⏳ Order ID <code>${escapeHtml(txId)}</code> was not found in our Binance history yet. Check the ID and try again in a minute.` };
+  }
+  if (m.currency !== "USDT") return { ok: false, message: `❌ Payment must be sent in USDT. Received: ${escapeHtml(m.currency)}.` };
+  if (Math.abs(m.amount - expected) > 0.01) {
+    return { ok: false, message: `❌ Amount mismatch. Expected <b>${expected.toFixed(4)} USDT</b>, received <b>${m.amount.toFixed(4)} USDT</b>. Contact support.` };
+  }
+  const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: txId });
+  if (usedErr) return { ok: false, message: "❌ This Order ID / Transaction ID was already used." };
+  return { ok: true, amount: m.amount, txId };
+}
+
+/** Rate limit: max 6 verification attempts per deposit per 10 minutes. */
+async function verifyAttemptAllowed(row: any) {
+  const meta = (row.meta ?? {}) as any;
+  const now = Date.now();
+  const tries: number[] = (Array.isArray(meta.verify_tries) ? meta.verify_tries : []).filter((t: number) => now - t < 10 * 60_000);
+  if (tries.length >= 6) return false;
+  tries.push(now);
+  await db.from("binance_deposits").update({ meta: { ...meta, verify_tries: tries } }).eq("id", row.id);
+  row.meta = { ...meta, verify_tries: tries };
+  return true;
+}
+
+/** "I have paid" button: re-check the saved Order ID, or ask the customer for it. */
 async function verifyBinanceDeposit(chatId: number, id: string) {
   const { data: row } = await db
     .from("binance_deposits")
@@ -2287,41 +2339,14 @@ async function verifyBinanceDeposit(chatId: number, id: string) {
     .eq("id", id)
     .eq("telegram_id", chatId)
     .maybeSingle();
-  const vs = await getSettings();
   if (!row) return { message: "❌ Deposit not found." };
   if (row.status === "credited") return { message: await alreadyPaidMessage(chatId, id, "✅ This deposit was already added to your wallet.") };
   if (new Date(row.expires_at).getTime() < Date.now()) {
     await db.from("binance_deposits").update({ status: "expired" }).eq("id", id);
     return { message: "⌛ This deposit request expired. Please start a new one." };
   }
-
-  const { findCryptoDeposit, findPayTransaction } = await import("@/lib/binance.server");
-  const expected = Number(row.amount_usdt);
-  const result =
-    row.kind === "payid"
-      ? await findPayTransaction(expected, txUsed)
-      : await findCryptoDeposit(expected, row.network, txUsed);
-
-  if (!result.ok) {
-    return {
-      message:
-        `⏳ Payment not confirmed yet.\n\n` +
-        `Make sure you sent exactly <b>${expected.toFixed(4)} USDT</b>. Payments can take a few minutes.\n\n` +
-        `👉 Tap <b>${escapeHtml(uiText(vs, "dep_reverify"))}</b> in a minute. Still stuck? Contact support below.`,
-      keyboard: [
-        [uiBtn(vs, "dep_reverify", `bchk:${id}`)],
-        [uiUrlBtn(vs, "dep_support", (vs["support_link"] || "").trim() || DEFAULT_SUPPORT_LINK)],
-        [uiBtn(vs, "dep_wallet", "wallet")],
-      ] as Button[][],
-
-    };
-  }
-
-
-  const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: result.txId });
-  if (usedErr) return { message: "⏳ Payment not found yet. Please try again." };
-
-  return await settlePayment(chatId, row, Number(result.amount), result.txId!, "Auto-verified via Binance API");
+  if (!row.tx_id) return { message: "", needTxid: true };
+  return await submitBinanceTxid(chatId, id, String(row.tx_id), null);
 }
 
 /** Credit a wallet deposit, or fulfil a direct checkout attached to the deposit row. */
@@ -2618,11 +2643,13 @@ export async function settleEpsBotPayment(depId: string | null, mtid?: string | 
 
 
 
-/** User-supplied transaction id: auto-match against Binance, else queue for admin. */
+/** Customer sends the Binance Order ID / TXID: confirm it against Binance. */
 async function submitBinanceTxid(chatId: number, depId: string, txid: string, username: string | null) {
-  const back: Button[][] = [[uiBtn(await getSettings(), "com_wallet", "wallet")], [uiBtn(await getSettings(), "com_home", "home")]];
-  if (!txid || txid.length < 6) {
-    return { message: "❌ That does not look like a valid transaction ID. Please try again.", keyboard: back };
+  const vs = await getSettings();
+  const back: Button[][] = [[uiBtn(vs, "com_wallet", "wallet")], [uiBtn(vs, "com_home", "home")]];
+  txid = String(txid || "").trim().slice(0, 128);
+  if (txid.length < 6) {
+    return { message: "❌ That does not look like a valid Order ID / Transaction ID. Please try again.", keyboard: back };
   }
   const { data: row } = await db
     .from("binance_deposits")
@@ -2632,51 +2659,50 @@ async function submitBinanceTxid(chatId: number, depId: string, txid: string, us
     .maybeSingle();
   if (!row) return { message: "❌ Deposit request not found. Please start again.", keyboard: back };
   if (row.status === "credited") return { message: await alreadyPaidMessage(chatId, depId, "✅ This deposit was already added to your wallet."), keyboard: back };
-  if (await txUsed(txid)) return { message: "❌ This transaction ID was already used.", keyboard: back };
+  if (new Date(row.expires_at).getTime() < Date.now()) {
+    await db.from("binance_deposits").update({ status: "expired" }).eq("id", depId);
+    return { message: "⌛ This deposit request expired. Please start a new one.", keyboard: back };
+  }
+  if (!(await verifyAttemptAllowed(row))) {
+    return { message: "⏳ Too many attempts. Please wait 10 minutes and try again, or contact support.", keyboard: back };
+  }
+
+  const r = await confirmByTxId(row, txid);
+  if (r.ok) {
+    const s = await settlePayment(chatId, row, r.amount, r.txId, "Verified via Binance — Order ID / TXID matched");
+    return { message: s.message, keyboard: s.keyboard };
+  }
 
   const expected = Number(row.amount_usdt);
   const method = row.kind === "payid" ? "Binance Pay" : `USDT ${row.network}`;
-
-  let match: { ok: boolean; amount?: number; error?: string } = { ok: false };
-  try {
-    const { findByTxId } = await import("@/lib/binance.server");
-    match = await findByTxId(txid);
-  } catch {
-    match = { ok: false };
-  }
-
-  if (match.ok && Math.abs(Number(match.amount) - expected) < 0.01) {
-    const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: txid });
-    if (usedErr) return { message: "❌ This transaction ID was already used.", keyboard: back };
-    const r = await settlePayment(chatId, row, Number(match.amount), txid, "Auto-approved — transaction ID matched");
-    return { message: r.message, keyboard: r.keyboard };
-  }
-
   const meta = (row.meta ?? {}) as any;
   const isOrder = Array.isArray(meta.items) && meta.items.length;
-
-  await db.from("payment_requests").insert({
-    telegram_id: chatId,
-    method,
-    amount: expected,
-    txid,
-    sender_info: username ? "@" + username : String(chatId),
-    status: "pending",
-  });
-  await db.from("binance_deposits").update({ tx_id: txid }).eq("id", depId);
-  await notifyAdmins(
-    `💳 <b>${isOrder ? "Order payment" : "Binance deposit"} — manual check</b>\nUser: <code>${chatId}</code>\nMethod: ${method}\nAmount: <b>${expected.toFixed(4)} USDT</b>\nTXID: <code>${escapeHtml(txid)}</code>` +
-      (isOrder ? `\nItems: ${escapeHtml(String(meta.summary ?? ""))}` : ""),
-  );
+  // Keep the ID so the background checker can retry it; tell the admin once per ID.
+  if (row.tx_id !== txid && !r.message.includes("already used")) {
+    await db.from("binance_deposits").update({ tx_id: txid }).eq("id", depId);
+    await db.from("payment_requests").insert({
+      telegram_id: chatId,
+      method,
+      amount: expected,
+      txid,
+      sender_info: username ? "@" + username : String(chatId),
+      status: "pending",
+    });
+    await notifyAdmins(
+      `💳 <b>${isOrder ? "Order payment" : "Binance deposit"} — not confirmed yet</b>\nUser: <code>${chatId}</code>\nMethod: ${method}\nAmount: <b>${expected.toFixed(4)} USDT</b>\nOrder ID / TXID: <code>${escapeHtml(txid)}</code>\nReason: ${r.message.replace(/<[^>]+>/g, "")}` +
+        (isOrder ? `\nItems: ${escapeHtml(String(meta.summary ?? ""))}` : ""),
+    ).catch(() => {});
+  }
   return {
-    message: isOrder
-      ? `🧾 Transaction ID received.\n\n⏳ <b>Your order is waiting for payment confirmation.</b>\nAn admin is verifying your payment — delivery will be sent here as soon as it is confirmed.\n\n<i>Order:</i> ${escapeHtml(String(meta.summary ?? ""))}\n<i>Amount:</i> <b>${expected.toFixed(4)} USDT</b>`
-      : `🧾 Transaction ID received.\n\nWe could not match it automatically yet, so an admin will verify it shortly. ` +
-        `You can also tap auto verify again in a few minutes.`,
-    keyboard: back,
+    message: `${r.message}\n\nWe keep checking automatically. You can also send a corrected Order ID, or tap verify again.`,
+    keyboard: [
+      [uiBtn(vs, "dep_reverify", `bchk:${depId}`)],
+      [uiBtn(vs, "dep_txid_title", `btx:${depId}`)],
+      [uiUrlBtn(vs, "dep_support", (vs["support_link"] || "").trim() || DEFAULT_SUPPORT_LINK)],
+      [uiBtn(vs, "dep_wallet", "wallet")],
+    ] as Button[][],
   };
 }
-
 
 /* --------------------------------------------- automatic payment verifier */
 
@@ -2715,9 +2741,6 @@ export async function sweepBinanceDeposits(force = false) {
     if (!r.ok) continue;
     const txId = r.txId;
     const amount = r.amount;
-
-    const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: txId });
-    if (usedErr) continue; // another worker took it
 
     const res = await settlePayment(
       Number(row.telegram_id),
@@ -6671,7 +6694,15 @@ async function handleCallback(cq: any) {
 
   if (data.startsWith("bchk:")) {
     const id = data.slice(5);
-    const r = await verifyBinanceDeposit(chatId, id);
+    const r: any = await verifyBinanceDeposit(chatId, id);
+    if (r.needTxid) {
+      await setState(chatId, { ...(user.state ?? {}), awaiting: "bin_txid", bin_dep_id: id });
+      await edit(
+        `${uiIconHtml(await getSettings(), "dep_txid_title")} Send the <b>Order ID / Transaction ID</b> of your payment.\n\nBinance app → Pay → History → open the payment → copy the <b>Order ID</b> (for USDT network transfers: the <b>TXID</b>).\n\nYour payment is confirmed only when this ID matches our Binance history.`,
+        [[uiBtn(await getSettings(), "dep_wallet", "wallet")]],
+      );
+      return;
+    }
     await edit(r.message, r.keyboard ?? [[uiBtn(await getSettings(), "dep_wallet", "wallet")]]);
     return;
   }
