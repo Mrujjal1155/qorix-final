@@ -145,6 +145,12 @@ export const setApplicationStatus = createServerFn({ method: "POST" })
     const { data: app } = await db.from("reseller_applications").select("*").eq("id", data.id).maybeSingle();
     if (!app) throw new Error("Application not found");
 
+    // A rejected application is final — it cannot be approved or re-opened.
+    // The person must apply again from the public /reseller page.
+    if (app.status === "rejected") {
+      throw new Error("This application was rejected and can no longer be changed. Ask them to apply again.");
+    }
+
     const patch: Record<string, unknown> = { status, admin_note: data.admin_note ?? null };
     let inviteUrl: string | null = null;
     let emailed = false;
