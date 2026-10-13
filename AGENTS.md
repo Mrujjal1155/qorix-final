@@ -18,3 +18,5 @@
 - Reseller single-product GET uses bounded per-isolate caches (auth 30s keyed by API-key hash, product 10s keyed by reseller id + discount + product id) and throttled last_used_at writes; order/balance/transaction endpoints always authenticate live so purchases stay real-time.
 - Manual in-house products with `manual_stock_limited` keep their admin-set count in `stock_counters` and `take_manual_stock()` reduces it per paid order; unlimited stays the default so older manual products keep working.
 - Bot pre-orders are wallet-paid order rows with status `preorder`, drained oldest-first by `fulfillPreorders` (row lock via status flip to `preorder_processing`) after stock uploads and on every scheduled tick; this keeps serial delivery durable without a separate queue table.
+- Keep Binance amount generation and matching in a pure shared helper with focused tests so direct checkout, wallet deposits, reseller top-ups and scheduled verification enforce the same payment rule.
+- Send Telegram post-delivery appreciation through the shared credential-delivery helper only after Telegram accepts the complete delivery, so automatic, manual and retry paths remain consistent.
