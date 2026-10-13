@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Add reference-based Binance and OxaPay checkout logo artwork; verify selection and layout without creating a real order.
+- [x] Add reference-based Binance and OxaPay checkout logo artwork; verify selection and layout without creating a real order.
 
 - [x] Fix enabled OxaPay visibility in the bot using current gateway settings, without changing other payment methods.
 - [x] Add the approved crypto label and bot-admin Premium icon support; verify focused tests.
