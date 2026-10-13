@@ -5,6 +5,7 @@ import { useMemo, useState, type CSSProperties } from "react";
 import {
   checkSupplierBalances,
   deliverOrder,
+  recheckOrderBinance,
   completeManualOrder,
   listOrders,
   markOrderPaid,
@@ -225,6 +226,19 @@ function OrdersPage() {
   const active = (data ?? []).find((o: any) => o.id === deliverFor) as any;
 
 
+  const recheckFn = useServerFn(recheckOrderBinance);
+  async function recheckBinance(id: string) {
+    try {
+      const r: any = await recheckFn({ data: { id } });
+      if (r?.status === "verified") toast.success("Payment found on Binance");
+      else toast.warning(r?.status === "error" ? "Could not reach Binance" : "Payment not confirmed on Binance");
+      refresh();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  }
+  const binanceUnverified = active?.source === "website" && !!active?.txid && active?.meta?.binance?.status !== "verified";
+
   const deliverMut = useMutation({
     mutationFn: () =>
       active?.delivery_type === "manual"
@@ -443,6 +457,7 @@ function OrdersPage() {
                     <>
                       <div className="break-all">{o.customer_name}</div>
                       <div className="break-all">{o.customer_email}</div>
+                      <BinanceCheckBadge o={o} onRecheck={() => recheckBinance(o.id)} />
                     </>
                   ) : (
                     <>
@@ -561,6 +576,7 @@ function OrdersPage() {
                           <div>{o.customer_name}</div>
                           <div className="text-muted-foreground">{o.customer_email}</div>
                           {o.txid && <div className="text-muted-foreground">TX: {String(o.txid).slice(0, 18)}…</div>}
+                          <BinanceCheckBadge o={o} onRecheck={() => recheckBinance(o.id)} />
                         </div>
                        ) : (
                          <div className="text-xs">
@@ -668,6 +684,12 @@ function OrdersPage() {
                 )}
               </div>
             )}
+            {binanceUnverified && (
+              <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive">
+                ⚠️ This payment was not found on Binance. Check the Binance Transactions page before delivering.
+                <BinanceCheckBadge o={active} onRecheck={() => recheckBinance(active.id)} />
+              </div>
+            )}
             <Textarea
               rows={7}
               placeholder={"Email: user@mail.com\nPassword: ******\nLogin link: https://..."}
@@ -675,7 +697,12 @@ function OrdersPage() {
               onChange={(e) => setContent(e.target.value)}
             />
             <div className="flex gap-2">
-              <Button onClick={() => deliverMut.mutate()} disabled={!content.trim() || deliverMut.isPending}>
+              <Button
+                onClick={() => {
+                  if (binanceUnverified && !window.confirm("Payment is NOT confirmed on Binance. Deliver anyway?")) return;
+                  deliverMut.mutate();
+                }}
+                disabled={!content.trim() || deliverMut.isPending}>
                 {deliverMut.isPending ? "Sending…" : active?.delivery_type === "manual" ? "Complete order" : "Send to user & complete"}
               </Button>
               <Button variant="outline" onClick={() => setDeliverFor("")}>
@@ -791,6 +818,30 @@ function DeliveryToggle({ content, narrow }: { content: string; narrow?: boolean
       </button>
       {open && (
         <pre className="mt-2 max-h-60 overflow-auto whitespace-pre-wrap break-words rounded bg-muted p-2 text-xs">{content}</pre>
+      )}
+    </div>
+  );
+}
+
+
+function BinanceCheckBadge({ o, onRecheck }: { o: any; onRecheck?: () => void }) {
+  if (o.source !== "website" || !o.txid) return null;
+  const b = o.meta?.binance;
+  const map: Record<string, { label: string; cls: string }> = {
+    verified: { label: `✅ Found on Binance${b?.amount ? ` · ${b.amount} ${b.currency ?? "USDT"}` : ""}`, cls: "border-success/40 bg-success/10 text-success" },
+    mismatch: { label: `⚠️ Amount mismatch${b?.amount ? ` · got ${b.amount} ${b.currency ?? ""}` : ""}`, cls: "border-destructive/40 bg-destructive/10 text-destructive" },
+    used: { label: "⚠️ ID already used", cls: "border-destructive/40 bg-destructive/10 text-destructive" },
+    not_found: { label: "⚠️ Not found on Binance", cls: "border-warning/40 bg-warning/10 text-warning" },
+    error: { label: "⏳ Binance check failed", cls: "border-warning/40 bg-warning/10 text-warning" },
+  };
+  const v = map[b?.status] ?? { label: "⏳ Not checked yet", cls: "border-border bg-muted text-muted-foreground" };
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-1">
+      <span className={`rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${v.cls}`}>{v.label}</span>
+      {onRecheck && b?.status !== "verified" && (
+        <button type="button" className="text-[11px] text-primary underline" onClick={onRecheck}>
+          Re-check
+        </button>
       )}
     </div>
   );
