@@ -578,12 +578,12 @@ export const startAutoTopUp = createServerFn({ method: "POST" })
 
 export const checkAutoTopUp = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { id: string }) => d)
+  .inputValidator((d: { id: string; txId?: string }) => d)
   .handler(async ({ data, context }) => {
     const { reseller } = await resolveReseller(context as any);
     if (!reseller) throw new Error("No reseller account linked to this login");
     const { verifyResellerTopup } = await import("@/lib/bot/engine.server");
-    return await verifyResellerTopup(reseller.id, String(data.id));
+    return await verifyResellerTopup(reseller.id, String(data.id), String(data.txId ?? "").trim().slice(0, 128));
   });
 
 export const listAutoTopUps = createServerFn({ method: "GET" })

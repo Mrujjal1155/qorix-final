@@ -678,6 +678,7 @@ function AutoTopUp({ balance, onDone }: { balance: number; onDone: () => void })
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [dep, setDep] = useState<any>(null);
+  const [txId, setTxId] = useState("");
 
   const list: any[] = (methods.data as any[]) ?? [];
   const active = method || list[0]?.id || "";
@@ -756,17 +757,23 @@ function AutoTopUp({ balance, onDone }: { balance: number; onDone: () => void })
                   </Button>
                 </div>
                 <p className="text-sm">
-                  Send exactly <span className="font-semibold">{Number(dep.amount_usdt).toFixed(4)} USDT</span> — the exact amount identifies your payment.
+                  Send exactly <span className="font-semibold">{Number(dep.amount_usdt).toFixed(4)} USDT</span>, then paste the{" "}
+                  <span className="font-semibold">{dep.kind === "payid" ? "Binance Pay Order ID" : "transaction ID (TXID)"}</span> below.
                 </p>
+                <Input
+                  placeholder={dep.kind === "payid" ? "Binance Pay Order ID" : "Transaction ID (TXID)"}
+                  value={txId}
+                  onChange={(e) => setTxId(e.target.value)}
+                />
               </>
             )}
             <div className="flex flex-wrap gap-2">
               <Button
-                disabled={busy}
+                disabled={busy || (!dep.pay_url && txId.trim().length < 6)}
                 onClick={async () => {
                   setBusy(true);
                   try {
-                    const r: any = await check({ data: { id: dep.id } });
+                    const r: any = await check({ data: { id: dep.id, txId: txId.trim() } });
                     if (r.ok) {
                       toast.success(r.message || "Balance credited");
                       setDep(null);
