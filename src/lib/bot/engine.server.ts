@@ -3630,7 +3630,7 @@ async function handleMessage(msg: any) {
       await setState(chatId, state);
       const r = await startOxapayDeposit(chatId, amount);
       if ("error" in r) {
-        await say(chatId, `❌ ${escapeHtml(r.error)}`, [[{ text: "⬅️ Wallet", callback_data: "wallet" }]]);
+        await say(chatId, r.error.startsWith("ℹ️") ? r.error : `❌ ${escapeHtml(r.error)}`, [[{ text: "⬅️ Wallet", callback_data: "wallet" }]]);
         return;
       }
       await say(chatId, r.text, r.kb);
@@ -6592,7 +6592,7 @@ async function handleCallback(cq: any) {
       }
       const r = await startOxapayDeposit(chatId, total, { ...meta, total });
       if ("error" in r) {
-        await edit(`❌ ${escapeHtml(r.error)}`, [[{ text: "⬅️ Back", callback_data: "copay" }]]);
+        await edit(r.error.startsWith("ℹ️") ? r.error : `❌ ${escapeHtml(r.error)}`, [[{ text: "⬅️ Back", callback_data: "copay" }]]);
         return;
       }
       const orders = await createAwaitingOrders(chatId, meta, String(r.row.id), "oxapay");
