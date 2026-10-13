@@ -268,6 +268,7 @@ function ProductsPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const nextStock = useRef(false);
   const prodMut = useMutation({
     mutationFn: async () => {
       const res: any = await saveProd({
