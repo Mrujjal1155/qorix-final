@@ -92,6 +92,7 @@ export const UI_ELEMENTS = {
   /* ---- wallet page ---- */
   wal_binance: { icon: "🪙", label: "Binance Pay", group: "wallet" },
   wal_usdt: { icon: "💵", label: "USDT crypto (auto)", group: "wallet" },
+  wal_oxapay: { icon: "🪙", label: "Any Crypto · BTC, LTC, USDT", group: "wallet" },
   wal_bkash: { icon: "📱", label: "bKash", group: "wallet" },
   wal_nagad: { icon: "📲", label: "Nagad", group: "wallet" },
   wal_rocket: { icon: "🚀", label: "Rocket", group: "wallet" },

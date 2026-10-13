@@ -1,5 +1,9 @@
 # Roadmap
 
+- [x] Fix enabled OxaPay visibility in the bot using current gateway settings, without changing other payment methods.
+- [x] Add the approved crypto label and bot-admin Premium icon support; verify focused tests.
+- [ ] Verify OxaPay visibility and icon on the published bot (requires deployment and live bot access).
+
 - [x] Remove Binance unique extra amounts and require exact USDT amount plus verified ID.
 - [x] Show immediate professional English verification status after ID submission.
 - [x] Add a thank-you and invitation after successful Telegram delivery; run focused tests.

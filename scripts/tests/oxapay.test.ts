@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { createHmac } from "crypto";
 import { oxapayCovers, oxapayIsOn, oxapayIsPaid } from "../../src/lib/oxapay";
-import { oxapayVerifySignature } from "../../src/lib/oxapay.server";
+import { oxapayEnabled, oxapayVerifySignature } from "../../src/lib/oxapay.server";
 
 describe("OxaPay rules", () => {
   test("only paid / manual_accept count as paid", () => {
@@ -29,5 +29,10 @@ describe("OxaPay rules", () => {
     expect(oxapayVerifySignature("k1", body, sig)).toBe(true);
     expect(oxapayVerifySignature("k2", body, sig)).toBe(false);
     expect(oxapayVerifySignature("k1", body + " ", sig)).toBe(false);
+  });
+
+  test("configured gateway follows the saved admin switch", () => {
+    expect(oxapayEnabled({ oxapay_enabled: "on", oxapay_api_key: "test-merchant-key" })).toBe(true);
+    expect(oxapayEnabled({ oxapay_enabled: "off", oxapay_api_key: "test-merchant-key" })).toBe(false);
   });
 });

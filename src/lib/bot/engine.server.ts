@@ -2156,7 +2156,9 @@ async function walletView(user: any) {
 
   {
     const { oxapayEnabled } = await import("@/lib/oxapay.server");
-    if (oxapayEnabled(s)) kb.push([wBtn({ text: "🪙 Crypto (OxaPay) (auto)", callback_data: "dep:oxapay" })]);
+    const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
+    // Gateway visibility must reflect admin saves even on another worker isolate.
+    if (oxapayEnabled(await oxapaySettings())) kb.push([wBtn(uiBtn(s, "wal_oxapay", "dep:oxapay"))]);
   }
   kb.push([wBtn(uiBtn(s, "wal_redeem", "redeem"))]);
   kb.push([wBtn(uiBtn(s, "wal_history", "hist:0"))]);
@@ -2620,7 +2622,8 @@ async function verifyEpsDeposit(chatId: number, id: string) {
    and the track id has never been used before. */
 
 async function startOxapayDeposit(chatId: number, usd: number) {
-  const s = await getSettings();
+  const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
+  const s = { ...(await getSettings()), ...(await oxapaySettings()) };
   const { oxapayEnabled, oxapayKey, oxapayCreateInvoice } = await import("@/lib/oxapay.server");
   if (!oxapayEnabled(s)) return { error: "Crypto (OxaPay) deposits are currently disabled." };
   const { data: row, error } = await db
@@ -2655,7 +2658,7 @@ async function startOxapayDeposit(chatId: number, usd: number) {
     .update({ address: created.url, tx_id: null, meta: { gateway: "oxapay", track_id: created.trackId, pay_url: created.url } })
     .eq("id", row.id);
   const text =
-    `🪙 <b>Crypto (OxaPay)</b>\n\nAmount: <b>${money(usd)}</b>\n\n` +
+    `${uiIconHtml(s, "wal_oxapay")} <b>${escapeHtml(uiText(s, "wal_oxapay"))}</b>\n\nAmount: <b>${money(usd)}</b>\n\n` +
     `Tap <b>Pay now</b>, choose your coin and send the exact amount shown on the OxaPay page. ` +
     `Your wallet is credited automatically once the network confirms it.\n` +
     `⏳ The payment link is valid for 60 minutes.`;
@@ -6777,7 +6780,8 @@ async function handleCallback(cq: any) {
   }
 
   if (data === "dep:oxapay") {
-    const s = await getSettings();
+    const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
+    const s = { ...(await getSettings()), ...(await oxapaySettings()) };
     const { oxapayEnabled } = await import("@/lib/oxapay.server");
     if (!oxapayEnabled(s)) {
       await edit("⚠️ Crypto (OxaPay) deposits are currently disabled. Please use another method.", [
@@ -6787,7 +6791,7 @@ async function handleCallback(cq: any) {
     }
     await setState(chatId, { ...(user.state ?? {}), awaiting: "oxa_amount" });
     await edit(
-      `🪙 <b>Crypto (OxaPay)</b>\n\nPay with USDT, BTC, LTC, TRX and other coins on the secure OxaPay page.\n\nHow much do you want to add? Reply with the amount in <b>USD</b>, e.g. <code>5</code>.`,
+      `${uiIconHtml(s, "wal_oxapay")} <b>${escapeHtml(uiText(s, "wal_oxapay"))}</b>\n\nPay with USDT, BTC, LTC, TRX and other coins on the secure OxaPay page.\n\nHow much do you want to add? Reply with the amount in <b>USD</b>, e.g. <code>5</code>.`,
       [[uiBtn(s, "com_back", "wallet")]],
     );
     return;
