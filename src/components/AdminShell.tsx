@@ -28,6 +28,7 @@ import {
   BellRing,
   LifeBuoy,
   Percent,
+  Wallet,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { BrandLogo } from "@/components/BrandLogo";
@@ -44,6 +45,7 @@ const NAV_GROUPS = [
       { to: "/admin/user-prices", label: "User Prices", icon: Tag },
       { to: "/admin/orders", label: "Orders", icon: ReceiptText },
       { to: "/admin/payments", label: "Payments", icon: CreditCard },
+      { to: "/admin/binance", label: "Binance Transactions", icon: Wallet },
       { to: "/admin/suppliers", label: "Supplier APIs", icon: Network },
       { to: "/admin/alerts", label: "Alert health", icon: BellRing },
     ],
