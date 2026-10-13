@@ -816,6 +816,30 @@ export const listOrders = createServerFn({ method: "GET" })
     await assertAdmin(context);
     // Unpaid gateway checkouts older than 30 minutes fail automatically.
     await expireStaleAwaitingOrders(sb);
+    // Re-check unverified website TXIDs against Binance (max 5, once a minute each).
+    try {
+      const { data: unv } = await sb
+        .from("orders")
+        .select("id,meta")
+        .eq("source", "website")
+        .eq("status", "pending")
+        .not("txid", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(20);
+      const due = ((unv ?? []) as any[])
+        .filter((o) => {
+          const b = o.meta?.binance;
+          if (b?.status === "verified" || b?.status === "used") return false;
+          return !b?.checked_at || Date.now() - Date.parse(b.checked_at) > 60_000;
+        })
+        .slice(0, 5);
+      if (due.length) {
+        const { verifyWebsiteOrderTxid } = await import("@/lib/website-binance-verify.server");
+        await Promise.all(due.map((o) => verifyWebsiteOrderTxid(o.id).catch(() => null)));
+      }
+    } catch (e) {
+      console.error("Website TXID recheck failed", e);
+    }
     let q = sb.from("orders").select("*").order("created_at", { ascending: false }).limit(200);
     if (data?.status && data.status !== "all") q = q.eq("status", data.status);
     if (data?.source && data.source !== "all") q = q.eq("source", data.source);
@@ -2242,4 +2266,23 @@ export const testPaykori = createServerFn({ method: "POST" })
     const { paykoriTest } = await import("@/lib/paykori.server");
     const { resolveSiteOrigin } = await import("@/lib/site-url");
     return paykoriTest(key, resolveSiteOrigin());
+  });
+
+/* ---------- Binance: live transactions + website TXID verification ---------- */
+export const listBinanceTransactions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { days?: number }) => ({ days: Number(d?.days ?? 7) || 7 }))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { listBinanceActivity } = await import("@/lib/binance.server");
+    return listBinanceActivity(data.days);
+  });
+
+export const recheckOrderBinance = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => ({ id: String(d.id) }))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { verifyWebsiteOrderTxid } = await import("@/lib/website-binance-verify.server");
+    return verifyWebsiteOrderTxid(data.id);
   });

@@ -325,9 +325,20 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
         payment_method: data.payment_method,
         txid: data.txid,
       })
-      .select("order_no")
+      .select("id,order_no")
       .maybeSingle();
     if (error) throw new Error(error.message);
+
+    // Check the typed ID against real Binance history right away; the admin
+    // panel shows the result (found / not found) before anyone delivers.
+    if (order?.id) {
+      try {
+        const { verifyWebsiteOrderTxid } = await import("@/lib/website-binance-verify.server");
+        await verifyWebsiteOrderTxid(String(order.id));
+      } catch (e) {
+        console.error("[storefront] Binance TXID check failed:", e);
+      }
+    }
 
     // Best-effort service emails: order receipt to the buyer + a new-order
     // notification to the admin email stored in bot_settings. Email failures
