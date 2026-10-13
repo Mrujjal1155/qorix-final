@@ -167,6 +167,15 @@ export const getProductSeo = createServerFn({ method: "GET" })
 
 
 
+function binanceSwitches(raw: Record<string, string | null | undefined>) {
+  const on = (k: string) => {
+    const v = (raw[k] ?? "").trim();
+    return v === "" || v === "1" || v === "true";
+  };
+  const active = (raw["binance_status"] ?? "active") !== "inactive";
+  return { payid: active && on("binance_enable_payid"), crypto: active && on("binance_enable_crypto") };
+}
+
 export const getStorePayInfo = createServerFn({ method: "GET" }).handler(async () => {
   const map: Record<string, string> = {};
   const raw: Record<string, string> = {};
@@ -186,16 +195,23 @@ export const getStorePayInfo = createServerFn({ method: "GET" }).handler(async (
         "usdt_trc20",
         "bot_username",
         "support_contact",
+        "binance_status",
+        "binance_enable_payid",
+        "binance_enable_crypto",
       ]);
     for (const r of data ?? []) raw[r.key] = (r.value ?? "").trim();
   } catch (e) {
     console.error("[storefront] pay info unavailable:", e);
   }
+  const sw = binanceSwitches(raw);
   // Website + bot share one payment configuration: prefer the website key,
   // fall back to the bot panel key so resellers/users see the same address.
-  map["binance_pay_id"] = raw["binance_pay_id"] || raw["binance_pay"] || "";
-  map["usdt_bep20_address"] = raw["usdt_bep20_address"] || raw["usdt_bep20"] || "";
-  map["usdt_trc20_address"] = raw["usdt_trc20_address"] || raw["usdt_trc20"] || "";
+  // A method switched off in Admin → Binance Setup is hidden (blank).
+  map["binance_pay_id"] = sw.payid ? raw["binance_pay_id"] || raw["binance_pay"] || "" : "";
+  map["usdt_bep20_address"] = sw.crypto ? raw["usdt_bep20_address"] || raw["usdt_bep20"] || "" : "";
+  map["usdt_trc20_address"] = sw.crypto ? raw["usdt_trc20_address"] || raw["usdt_trc20"] || "" : "";
+  map["enable_payid"] = sw.payid ? "1" : "0";
+  map["enable_crypto"] = sw.crypto ? "1" : "0";
   map["bot_username"] = (raw["bot_username"] || "").replace(/^@/, "");
   map["support_contact"] = raw["support_contact"] || "";
   return map;
@@ -232,6 +248,17 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
       .eq("id", data.product_id)
       .maybeSingle();
     if (!product || !product.is_active) throw new Error("Product is not available");
+    {
+      const { data: rows } = await supabaseAdmin
+        .from("bot_settings")
+        .select("key,value")
+        .in("key", ["binance_status", "binance_enable_payid", "binance_enable_crypto"]);
+      const raw: Record<string, string> = {};
+      for (const r of rows ?? []) raw[r.key] = r.value ?? "";
+      const sw = binanceSwitches(raw);
+      const allowed = data.payment_method === "binance" ? sw.payid : sw.crypto;
+      if (!allowed) throw new Error("This payment method is currently unavailable");
+    }
 
     // Never accept a supplier order against a stale catalogue snapshot. Read
     // the supplier API immediately before submission and fail closed if its
