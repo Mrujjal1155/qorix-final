@@ -77,6 +77,7 @@ const GATEWAY_LABEL: Record<string, string> = {
   eps_mfs: "EPS · Mobile banking (bKash / Nagad / Rocket)",
   eps_card: "EPS · Card (Visa / Mastercard)",
   eps: "EPS gateway",
+  oxapay: "Crypto (OxaPay)",
   payid: "Binance Pay ID",
   binance: "Binance Pay",
   wallet: "Wallet balance",
