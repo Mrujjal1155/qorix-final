@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronDown, Sparkles } from "lucide-react";
 import { listStorefront } from "@/lib/shop.functions";
 import { StoreShell } from "@/components/StoreShell";
 import { CategoryIcon } from "@/components/CategoryIcon";
@@ -42,8 +43,12 @@ function Landing() {
   const categories = data?.categories ?? [];
   const products = (data?.products ?? []) as StoreProduct[];
   const countFor = (id: string) => products.filter((p: any) => p.category_id === id).length;
-  /* keep rows perfectly filled (5 per row) so no odd dangling card */
-  const visibleCategories = categories.slice(0, Math.max(5, Math.floor(categories.length / 5) * 5));
+  /* show only two lines of category cards; the rest stays behind "More" */
+  const [showAllCats, setShowAllCats] = useState(false);
+  const cols = useGridCols();
+  const twoLines = cols * 2;
+  const moreCats = categories.length > twoLines;
+  const visibleCategories = moreCats && !showAllCats ? categories.slice(0, twoLines) : categories;
 
   return (
     <StoreShell>
