@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { binancePaymentAmount, exactBinanceAmount } from "./binance-payment";
+import { binancePaymentAmount, exactBinanceAmount } from "../../src/lib/binance-payment";
 
 describe("ID-based Binance payments", () => {
   test("a $0.04 purchase requires 0.04 USDT, without a random suffix", () => {
