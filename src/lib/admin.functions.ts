@@ -25,14 +25,37 @@ export const getOverview = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
-    const since = new Date();
-    since.setHours(0, 0, 0, 0);
+    // Business day = Bangladesh time (UTC+6); everything resets at 12:00 AM Dhaka.
+    const DHAKA = 6 * 3600_000;
+    const todayStart = Math.floor((Date.now() + DHAKA) / 86400_000) * 86400_000 - DHAKA;
+    const yStart = todayStart - 86400_000;
+    const since = new Date(todayStart);
+    const ySince = new Date(yStart);
 
-    const [users, pendingPayments, ordersToday, completed, recent, prods, supRows] = await Promise.all([
+    // Page through all completed orders — a single query stops at 1000 rows.
+    const loadCompleted = async () => {
+      const all: any[] = [];
+      for (let from = 0; ; from += 1000) {
+        const { data } = await sb
+          .from("orders")
+          .select("total,quantity,product_id,created_at")
+          .eq("status", "completed")
+          .order("created_at", { ascending: true })
+          .range(from, from + 999);
+        all.push(...(data ?? []));
+        if (!data || data.length < 1000) break;
+      }
+      return all;
+    };
+
+    const [users, usersToday, usersYesterday, pendingPayments, ordersToday, ordersYesterday, doneOrders, recent, prods, supRows] = await Promise.all([
       sb.from("bot_users").select("telegram_id", { count: "exact", head: true }),
+      sb.from("bot_users").select("telegram_id", { count: "exact", head: true }).gte("created_at", since.toISOString()),
+      sb.from("bot_users").select("telegram_id", { count: "exact", head: true }).gte("created_at", ySince.toISOString()).lt("created_at", since.toISOString()),
       sb.from("payment_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
       sb.from("orders").select("id", { count: "exact", head: true }).gte("created_at", since.toISOString()),
-      sb.from("orders").select("total,quantity,product_id,created_at").eq("status", "completed"),
+      sb.from("orders").select("id", { count: "exact", head: true }).gte("created_at", ySince.toISOString()).lt("created_at", since.toISOString()),
+      loadCompleted(),
       sb.from("orders").select("*").order("created_at", { ascending: false }).limit(10),
       sb.from("products").select("id,supplier_id,is_active,cost_price"),
       sb.from("supplier_products").select("product_id,cost_price"),
@@ -46,15 +69,15 @@ export const getOverview = createServerFn({ method: "GET" })
     for (const p of (prods.data ?? []) as any[]) {
       if (!p.supplier_id && p.cost_price != null) costMap[p.id] = Number(p.cost_price);
     }
-    const doneOrders = (completed.data ?? []) as any[];
-    const revenue = doneOrders.reduce((a: number, r: any) => a + Number(r.total), 0);
-    let profit = 0;
-    let todayProfit = 0;
-    const todayStart = since.getTime();
+    let revenue = 0, profit = 0, todayProfit = 0, yesterdayProfit = 0, todayRevenue = 0, yesterdayRevenue = 0;
     for (const o of doneOrders) {
-      const p = Number(o.total ?? 0) - (o.product_id ? (costMap[o.product_id] ?? 0) : 0) * Number(o.quantity ?? 1);
+      const t = Number(o.total ?? 0);
+      const p = t - (o.product_id ? (costMap[o.product_id] ?? 0) : 0) * Number(o.quantity ?? 1);
+      revenue += t;
       profit += p;
-      if (Date.parse(String(o.created_at)) >= todayStart) todayProfit += p;
+      const at = Date.parse(String(o.created_at));
+      if (at >= todayStart) { todayProfit += p; todayRevenue += t; }
+      else if (at >= yStart) { yesterdayProfit += p; yesterdayRevenue += t; }
     }
     const products = (prods.data ?? []) as any[];
     const inHouse = products.filter((p) => !p.supplier_id);
@@ -63,9 +86,16 @@ export const getOverview = createServerFn({ method: "GET" })
       totalUsers: users.count ?? 0,
       pendingPayments: pendingPayments.count ?? 0,
       ordersToday: ordersToday.count ?? 0,
+      ordersYesterday: ordersYesterday.count ?? 0,
+      newUsersToday: usersToday.count ?? 0,
+      newUsersYesterday: usersYesterday.count ?? 0,
       revenue,
+      todayRevenue,
+      yesterdayRevenue,
       profit,
       todayProfit,
+      yesterdayProfit,
+      dayStartedAt: since.toISOString(),
       recentOrders: recent.data ?? [],
       productStats: {
         total: products.length,
