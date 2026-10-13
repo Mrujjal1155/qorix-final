@@ -71,6 +71,13 @@ const GATEWAY_LABEL: Record<string, string> = {
   balance: "Wallet balance",
 };
 
+const SOURCE_LABEL: Record<string, string> = {
+  telegram: "telegram",
+  website: "website",
+  api_website: "reseller API",
+  api_bot: "reseller bot API",
+};
+
 /** What the buyer used to pay — works for both initiated and completed payments. */
 function fmtOrderTime(v: string | null | undefined) {
   if (!v) return "";
@@ -382,7 +389,10 @@ function OrdersPage() {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <Badge variant={o.source === "website" ? "default" : "secondary"}>{o.source ?? "telegram"}</Badge>
+                  <Badge variant={o.source === "website" ? "default" : "secondary"}>{SOURCE_LABEL[o.source] ?? o.source ?? "telegram"}</Badge>
+                  {(o.source === "api_website" || o.source === "api_bot") && (
+                    <span className="font-medium text-foreground">Reseller: {o.reseller_name ?? "unknown"}</span>
+                  )}
                   <span>{money(o.total)}</span>
                   {o.status === "completed" && (
                     <span className={Number(o.profit ?? 0) >= 0 ? "font-semibold text-success" : "font-semibold text-destructive"}>
@@ -481,7 +491,10 @@ function OrdersPage() {
                       </div>
                     </td>
                     <td>
-                      <Badge variant={o.source === "website" ? "default" : "secondary"}>{o.source ?? "telegram"}</Badge>
+                      <Badge variant={o.source === "website" ? "default" : "secondary"}>{SOURCE_LABEL[o.source] ?? o.source ?? "telegram"}</Badge>
+                      {(o.source === "api_website" || o.source === "api_bot") && (
+                        <div className="mt-1 text-xs font-medium">{o.reseller_name ?? "Unknown reseller"}</div>
+                      )}
                     </td>
                     <td>
                       <div className="text-xs">

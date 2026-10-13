@@ -853,6 +853,12 @@ export const listOrders = createServerFn({ method: "GET" })
     }
     const supById = new Map((sups ?? []).map((s: any) => [s.id, s]));
     const prodById = new Map((prods ?? []).map((p: any) => [p.id, p]));
+    // Reseller names so admins can tell which reseller's API an order came from.
+    const resellerIds = [...new Set(orders.map((o: any) => o.reseller_id).filter(Boolean))];
+    const { data: rsellers } = resellerIds.length
+      ? await sb.from("resellers").select("id,name").in("id", resellerIds)
+      : { data: [] as any[] };
+    const resellerById = new Map((rsellers ?? []).map((r: any) => [r.id, r.name]));
     return orders.map((o: any) => {
       const p: any = prodById.get(o.product_id);
       const s: any = p?.supplier_id ? supById.get(p.supplier_id) : null;
@@ -863,6 +869,7 @@ export const listOrders = createServerFn({ method: "GET" })
         supplier_name: s?.name ?? null,
         supplier_key: s?.key ?? null,
         supplier_external_id: p?.supplier_external_id ?? null,
+        reseller_name: o.reseller_id ? resellerById.get(o.reseller_id) ?? null : null,
         profit: Math.round((Number(o.total ?? 0) - cost) * 100) / 100,
         fulfilment: s ? "api" : "manual",
         buyer_username: b?.username ?? null,
