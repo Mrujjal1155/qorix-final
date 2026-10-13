@@ -105,7 +105,9 @@ function paymentInfo(o: any): { label: string; detail: string; paid: boolean; re
     Boolean(meta.paid_at) ||
     o.status === "completed" ||
     o.status === "refunded" ||
-    (o.status === "pending" && !meta.awaiting_payment);
+    // Website orders are paid only when a gateway/admin verified the money
+    // (meta flags above). A typed-in TXID alone proves nothing.
+    (o.status === "pending" && o.source !== "website" && !meta.awaiting_payment);
 
   const refunded = Boolean(meta.refunded);
 
