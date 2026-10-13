@@ -359,28 +359,37 @@ function Applications() {
               {a.message ? <p className="mt-2 whitespace-pre-wrap text-sm">{a.message}</p> : null}
             </div>
             <div className="flex gap-2">
-              <Button size="sm" onClick={() => approve(a)}>
-                {a.status === "approved" ? "Resend invite" : "Approve"}
-              </Button>
-              {a.status === "approved" && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    const url = productionUrlFor(`/reseller/start?email=${encodeURIComponent(a.email)}`);
-                    navigator.clipboard.writeText(url).then(() => toast.success("Login link copied"));
-                  }}
-                >
-                  Copy login link
-                </Button>
+              {a.status === "pending" && (
+                <>
+                  <Button size="sm" onClick={() => approve(a)}>
+                    Approve
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => act(() => setStatus({ data: { id: a.id, status: "rejected" } }), "Rejected")}
+                  >
+                    Reject
+                  </Button>
+                </>
               )}
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => act(() => setStatus({ data: { id: a.id, status: "rejected" } }), "Rejected")}
-              >
-                Reject
-              </Button>
+              {a.status === "approved" && (
+                <>
+                  <Button size="sm" onClick={() => approve(a)}>
+                    Resend invite
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const url = productionUrlFor(`/reseller/start?email=${encodeURIComponent(a.email)}`);
+                      navigator.clipboard.writeText(url).then(() => toast.success("Login link copied"));
+                    }}
+                  >
+                    Copy login link
+                  </Button>
+                </>
+              )}
               <Button
                 size="sm"
                 variant="ghost"
