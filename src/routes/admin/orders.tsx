@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState, type CSSProperties } from "react";
 import {
@@ -188,6 +188,11 @@ function OrdersPage() {
   const { data } = useQuery({
     queryKey: ["orders", status, source],
     queryFn: () => fetchOrders({ data: { status, source } }),
+    // Keep the last list on screen while switching filters or refreshing.
+    staleTime: 15_000,
+    gcTime: 10 * 60_000,
+    refetchInterval: 30_000,
+    placeholderData: keepPreviousData,
   });
   const supplierColorIndexes = useMemo(() => {
     const names = Array.from(
