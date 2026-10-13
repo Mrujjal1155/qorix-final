@@ -40,7 +40,12 @@ export const Route = createFileRoute("/admin/")({
 
 function OverviewPage() {
   const fetchOverview = useServerFn(getOverview);
-  const { data, isLoading } = useQuery({ queryKey: ["overview"], queryFn: () => fetchOverview() });
+  const { data, isLoading } = useQuery({
+    queryKey: ["overview"],
+    queryFn: () => fetchOverview(),
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
+  });
 
   const ps = data?.productStats;
 
@@ -51,16 +56,44 @@ function OverviewPage() {
     { label: "Active products", value: ps?.active ?? 0, note: "Visible in store & bot", icon: CheckCircle2 },
   ];
 
+  // Real comparisons: today (since 12:00 AM Bangladesh time) vs the whole of yesterday.
+  const vsYesterday = (today: number, yesterday: number) => {
+    if (!data) return { delta: "", up: true };
+    if (yesterday <= 0) return { delta: today > 0 ? "new today" : "0% vs yesterday", up: true };
+    const pct = ((today - yesterday) / yesterday) * 100;
+    return { delta: `${pct >= 0 ? "+" : ""}${pct.toFixed(0)}% vs yesterday`, up: pct >= 0 };
+  };
+  const newToday = data?.newUsersToday ?? 0;
+  const startUsers = Math.max(0, (data?.totalUsers ?? 0) - newToday);
+  const userGrowth = startUsers > 0 ? (newToday / startUsers) * 100 : 0;
   const stats = [
-    { label: "Total users", value: data?.totalUsers ?? 0, icon: Users, delta: "+12%", up: true },
-    { label: "Total revenue", value: money(data?.revenue), icon: DollarSign, delta: "+8%", up: true },
-    { label: "Orders today", value: data?.ordersToday ?? 0, icon: ShoppingBag, delta: "+24%", up: true },
-    { label: "Pending payments", value: data?.pendingPayments ?? 0, icon: TrendingUp, delta: "-4%", up: false },
+    {
+      label: "Total users",
+      value: data?.totalUsers ?? 0,
+      icon: Users,
+      delta: data ? `+${newToday} today (${userGrowth.toFixed(1)}%)` : "",
+      up: true,
+    },
+    {
+      label: "Total revenue",
+      value: money(data?.revenue),
+      icon: DollarSign,
+      ...vsYesterday(data?.todayRevenue ?? 0, data?.yesterdayRevenue ?? 0),
+      delta: data ? `${money(data.todayRevenue)} today` : "",
+      up: true,
+    },
+    { label: "Orders today", value: data?.ordersToday ?? 0, icon: ShoppingBag, ...vsYesterday(data?.ordersToday ?? 0, data?.ordersYesterday ?? 0) },
+    { label: "Pending payments", value: data?.pendingPayments ?? 0, icon: TrendingUp, delta: "", up: true },
   ];
 
   const profitCards = [
     { label: "Total profit", value: money(data?.profit), note: "Completed orders − supplier cost", icon: DollarSign },
-    { label: "Profit today", value: money(data?.todayProfit), note: "Since midnight", icon: TrendingUp },
+    {
+      label: "Profit today",
+      value: money(data?.todayProfit),
+      note: `Since 12:00 AM (Bangladesh) · ${vsYesterday(data?.todayProfit ?? 0, data?.yesterdayProfit ?? 0).delta}`,
+      icon: TrendingUp,
+    },
   ];
 
   const highlights = [
