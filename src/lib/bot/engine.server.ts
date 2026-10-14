@@ -5638,8 +5638,14 @@ async function coView(chatId: number) {
   kb.push([uiBtn(settings, "co_pay", "copay", `· ${money(total)}`)]);
   // Single-product checkout: let the buyer go back and pick another quantity.
   if (meta.items.length === 1) {
-    kb.push([{ text: "✏️ Change quantity", callback_data: `qty:${meta.items[0]!.product_id}` }]);
+    kb.push([
+      styled(
+        { text: "✏️ Change quantity", callback_data: `qty:${meta.items[0]!.product_id}` },
+        btnColor(settings, "quantity"),
+      ),
+    ]);
   }
+
   kb.push([iconButton(settings, "shop", "shop:0"), iconButton(settings, "back", "home")]);
   return { text, kb };
 }
