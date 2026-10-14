@@ -7614,7 +7614,7 @@ async function handleCallback(cq: any) {
  * routes the credit to the reseller wallet instead of a bot wallet.
  */
 
-export type ResellerTopupMethod = { id: string; label: string; kind: "payid" | "crypto"; note?: string };
+export type ResellerTopupMethod = { id: string; label: string; kind: "payid" | "crypto" | "oxapay" | "eps"; note?: string };
 
 export async function resellerTopupMethods(): Promise<ResellerTopupMethod[]> {
   const s = await getSettings();
@@ -7626,6 +7626,19 @@ export async function resellerTopupMethods(): Promise<ResellerTopupMethod[]> {
     out.push({ id: "BSC", label: "USDT BEP-20 (BSC)", kind: "crypto", note: "On-chain, auto-verified" });
     out.push({ id: "TRX", label: "USDT TRC-20 (Tron)", kind: "crypto", note: "On-chain, auto-verified" });
   }
+  try {
+    const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
+    const { oxapayEnabled } = await import("@/lib/oxapay.server");
+    if (oxapayEnabled({ ...s, ...(await oxapaySettings()) }))
+      out.push({ id: "oxapay", label: "Any Crypto · BTC, LTC, USDT (OxaPay)", kind: "oxapay", note: `Min $${OXAPAY_MIN_USD}` });
+  } catch {}
+  try {
+    const { epsConfig } = await import("@/lib/eps.server");
+    if (epsConfig(s).enabled) {
+      out.push({ id: "eps_mfs", label: "bKash · Nagad · Rocket (EPS)", kind: "eps", note: "Auto-verified" });
+      out.push({ id: "eps_card", label: "Visa · Mastercard (EPS)", kind: "eps", note: "Auto-verified" });
+    }
+  } catch {}
   return out;
 }
 
@@ -7636,7 +7649,29 @@ export async function startResellerTopup(resellerId: string, method: string, usd
   const picked = methods.find((m) => m.id === method);
   if (!picked) return { error: "This payment method is not available right now." };
 
-  const meta = { reseller_id: resellerId, purpose: "reseller_topup" };
+  const meta = { reseller_id: resellerId, purpose: "reseller_topup", summary: "Reseller balance top-up" };
+
+  if (picked.kind === "oxapay" || picked.kind === "eps") {
+    const r: any =
+      picked.kind === "oxapay"
+        ? await startOxapayDeposit(0, amount, meta)
+        : await startEpsDeposit(0, picked.id === "eps_card" ? "card" : "mfs", amount, meta);
+    if (r.error) return { error: plain(String(r.error)) };
+    const row: any = r.row;
+    return {
+      deposit: {
+        id: row.id,
+        kind: row.kind,
+        method: picked.label,
+        amount_usdt: Number(row.amount_usdt),
+        bdt: Number((row.meta as any)?.bdt ?? 0),
+        pay_url: String(row.address || ""),
+        address: null,
+        network: row.network,
+        expires_at: row.expires_at,
+      },
+    };
+  }
 
   const r = await startBinanceDeposit(0, picked.kind, amount, picked.kind === "crypto" ? picked.id : undefined, meta);
   if ((r as any).error) return { error: (r as any).error };
@@ -7672,6 +7707,19 @@ export async function verifyResellerTopup(resellerId: string, depositId: string,
   if (new Date(row.expires_at).getTime() < Date.now()) {
     await db.from("binance_deposits").update({ status: "expired" }).eq("id", row.id);
     return { ok: false as const, message: "This payment request expired. Please start a new one." };
+  }
+
+  if (row.kind === "oxapay") {
+    const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
+    const { oxapayKey, oxapayPaymentInfo } = await import("@/lib/oxapay.server");
+    const v = await oxapayPaymentInfo(oxapayKey({ ...(await getSettings()), ...(await oxapaySettings()) }), String((row.meta as any)?.track_id ?? ""));
+    if (!v.ok) return { ok: false as const, message: "Could not verify yet: " + plain(v.error) };
+    const c = await creditOxapayRow(row, v.info);
+    return { ok: c.credited, message: plain(c.message) };
+  }
+  if (row.kind === "eps") {
+    const c = await creditEpsRow(row);
+    return { ok: c.credited, message: plain(c.message) };
   }
 
   const r = await confirmByTxId(row, txId);
