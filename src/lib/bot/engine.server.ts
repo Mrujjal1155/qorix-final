@@ -2891,6 +2891,7 @@ export async function sweepBinanceDeposits(force = false) {
     .select("*")
     .neq("status", "credited")
     .neq("status", "expired")
+    .not("tx_id", "is", null)
     .gt("expires_at", nowIso)
     .order("created_at", { ascending: true })
     .limit(25);
