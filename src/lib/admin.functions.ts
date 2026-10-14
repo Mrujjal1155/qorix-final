@@ -995,7 +995,7 @@ export const checkSupplierBalances = createServerFn({ method: "GET" })
 export const setOrderStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (d: { id: string; status: "pending" | "completed" | "cancelled" | "failed" | "refunded" }) => d,
+    (d: { id: string; status: "pending" | "completed" | "cancelled" | "failed" | "refunded"; refund?: boolean }) => d,
   )
   .handler(async ({ data, context }) => {
     const sb = (context as any).supabase;
@@ -1018,7 +1018,8 @@ export const setOrderStatus = createServerFn({ method: "POST" })
     if (order?.telegram_id && data.status === "cancelled") {
       // Paid orders (pending) get an automatic wallet refund on cancel.
       let refundNote = "If you already paid, please open a support ticket — we will refund your wallet.";
-      if (before.status === "pending" && Number(before.total) > 0) {
+      if (data.refund === false) refundNote = "";
+      if (data.refund !== false && before.status === "pending" && Number(before.total) > 0) {
         const amount = Math.round(Number(before.total) * 100) / 100;
         const reference = `order-${before.order_no}-cancel`;
         // Atomic + idempotent: the same reference can never be credited twice.
@@ -1085,7 +1086,34 @@ async function expireStaleAwaitingOrders(sb: any) {
       .in("id", deposits)
       .neq("status", "credited");
   }
-  return data.length;
+  return data.length + (await expireUnpaidWebsiteOrders(sb));
+}
+
+/**
+ * Website checkouts (Binance/USDT/EPS/OxaPay) that sit in "pending" without any
+ * verified payment for 30 minutes are cancelled — no refund, since no money
+ * arrived. Admin can still reopen/mark paid later.
+ */
+async function expireUnpaidWebsiteOrders(sb: any) {
+  const cutoff = new Date(Date.now() - AWAITING_PAYMENT_MINUTES * 60_000).toISOString();
+  const { data: rows } = await sb
+    .from("orders")
+    .select("id,meta,payment_method")
+    .eq("status", "pending")
+    .eq("source", "website")
+    .lt("created_at", cutoff)
+    .limit(200);
+  const ids = (rows ?? [])
+    .filter((o: any) => {
+      const m = o.meta ?? {};
+      if (m.paid || m.eps_paid || m.paid_at) return false;
+      const pm = String(o.payment_method ?? "").toLowerCase();
+      return pm !== "" && !pm.includes("wallet") && !pm.includes("balance");
+    })
+    .map((o: any) => o.id);
+  if (!ids.length) return 0;
+  await sb.from("orders").update({ status: "cancelled" }).in("id", ids).eq("status", "pending");
+  return ids.length;
 }
 
 /**
