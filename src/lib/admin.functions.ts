@@ -70,13 +70,15 @@ export const getOverview = createServerFn({ method: "GET" })
       if (!p.supplier_id && p.cost_price != null) costMap[p.id] = Number(p.cost_price);
     }
     let revenue = 0, profit = 0, todayProfit = 0, yesterdayProfit = 0, todayRevenue = 0, yesterdayRevenue = 0;
+    let completedToday = 0, completedYesterday = 0;
     for (const o of doneOrders) {
       const t = Number(o.total ?? 0);
       const p = t - (o.product_id ? (costMap[o.product_id] ?? 0) : 0) * Number(o.quantity ?? 1);
       revenue += t;
       profit += p;
       const at = Date.parse(String(o.created_at));
-      if (at >= todayStart) { todayProfit += p; todayRevenue += t; }
+      if (at >= todayStart) { todayProfit += p; todayRevenue += t; completedToday += 1; }
+      else if (at >= yStart) { completedYesterday += 1; }
       else if (at >= yStart) { yesterdayProfit += p; yesterdayRevenue += t; }
     }
     const products = (prods.data ?? []) as any[];
@@ -87,6 +89,8 @@ export const getOverview = createServerFn({ method: "GET" })
       pendingPayments: pendingPayments.count ?? 0,
       ordersToday: ordersToday.count ?? 0,
       ordersYesterday: ordersYesterday.count ?? 0,
+      completedToday,
+      completedYesterday,
       newUsersToday: usersToday.count ?? 0,
       newUsersYesterday: usersYesterday.count ?? 0,
       revenue,
