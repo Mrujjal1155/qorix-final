@@ -2146,7 +2146,7 @@ async function walletView(user: any) {
     `🏅 Membership: ${user.membership}\n` +
     `──────────────\n\n` +
     `<i>Choose a payment method below to add funds to your wallet.</i>`;
-  const walStyle = btnColor(s, "wallet");
+  const walStyle: ButtonStyle = "primary";
   const wBtn = (b: Button) => styled(b, walStyle);
   const kb: Button[][] = [];
   if (cfg.active && cfg.payid)
@@ -5641,7 +5641,7 @@ async function coView(chatId: number) {
     kb.push([
       styled(
         { text: "✏️ Change quantity", callback_data: `qty:${meta.items[0]!.product_id}` },
-        btnColor(settings, "quantity"),
+        "primary",
       ),
     ]);
   }
@@ -5668,7 +5668,7 @@ async function coPayView(chatId: number) {
     };
   }
   const kb: Button[][] = [];
-  const payStyle = btnColor(settings, "wallet");
+  const payStyle: ButtonStyle = "primary";
   if (Number(user.balance) >= total && total > 0)
     kb.push([styled(uiBtn(settings, "pay_balance", "copm:balance", `(${money(user.balance)})`), payStyle)]);
   if (cfg.active && cfg.payid) kb.push([styled(uiBtn(settings, "pay_payid", "copm:payid"), payStyle)]);
@@ -6472,7 +6472,7 @@ async function handleCallback(cq: any) {
       }
     }
     const qs = await getSettings();
-    const qtyStyle = btnColor(qs, "quantity");
+    const qtyStyle: ButtonStyle = "primary";
     const kb: Button[][] = [
       [1, 2, 3].map((n) => styled({ text: `${n}×`, callback_data: `buy:${productId}:${n}` }, qtyStyle)),
       [5, 10].map((n) => styled({ text: `${n}×`, callback_data: `buy:${productId}:${n}` }, qtyStyle)),
