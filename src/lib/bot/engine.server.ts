@@ -5668,29 +5668,32 @@ async function coPayView(chatId: number) {
     };
   }
   const kb: Button[][] = [];
+  const payStyle = btnColor(settings, "wallet");
   if (Number(user.balance) >= total && total > 0)
-    kb.push([uiBtn(settings, "pay_balance", "copm:balance", `(${money(user.balance)})`)]);
-  if (cfg.active && cfg.payid) kb.push([uiBtn(settings, "pay_payid", "copm:payid")]);
+    kb.push([styled(uiBtn(settings, "pay_balance", "copm:balance", `(${money(user.balance)})`), payStyle)]);
+  if (cfg.active && cfg.payid) kb.push([styled(uiBtn(settings, "pay_payid", "copm:payid"), payStyle)]);
   if (cfg.active && cfg.crypto) {
-    kb.push([uiBtn(settings, "pay_bep20", "copm:BSC")]);
-    kb.push([uiBtn(settings, "pay_trc20", "copm:TRX")]);
+    kb.push([styled(uiBtn(settings, "pay_bep20", "copm:BSC"), payStyle)]);
+    kb.push([styled(uiBtn(settings, "pay_trc20", "copm:TRX"), payStyle)]);
   }
   {
     const { oxapayEnabled } = await import("@/lib/oxapay.server");
     const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
-    if (oxapayEnabled(await oxapaySettings())) kb.push([uiBtn(settings, "wal_oxapay", "copm:oxapay")]);
+    if (oxapayEnabled(await oxapaySettings()))
+      kb.push([styled(uiBtn(settings, "wal_oxapay", "copm:oxapay"), payStyle)]);
   }
   {
     const { epsConfig } = await import("@/lib/eps.server");
     const eps = epsConfig(settings);
     if (eps.enabled) {
-      kb.push([mfsBtn(settings, "pay_mfs", "copm:eps_mfs")]);
-      kb.push([cardBtn(settings, "pay_card", "copm:eps_card")]);
+      kb.push([styled(mfsBtn(settings, "pay_mfs", "copm:eps_mfs"), payStyle)]);
+      kb.push([styled(cardBtn(settings, "pay_card", "copm:eps_card"), payStyle)]);
     } else {
     }
   }
 
   kb.push([uiBtn(settings, "pay_back", "co")]);
+
 
   const items = lines
     .map(
