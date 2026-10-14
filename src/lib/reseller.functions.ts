@@ -169,7 +169,7 @@ export const resellerLoginLink = createServerFn({ method: "POST" })
     const { data: link, error } = await supabaseAdmin.auth.admin.generateLink({
       type: "magiclink",
       email,
-      options: origin ? { redirectTo: `${origin}/reseller/panel` } : undefined,
+      options: { redirectTo: origin ? `${origin}/reseller/panel` : "https://qorixlab.com/reseller/panel" },
     });
     if (error || !link?.properties?.action_link) throw new Error(error?.message || "Could not create login link");
     console.log(`[admin] login-as-reseller ${r.id} by ${(context as any).userId}`);
