@@ -5913,7 +5913,8 @@ async function fulfillCheckout(
             );
             // Advisory only — use supplier cost, never the customer selling price.
             const pre = supplierCost ? await supplierPreflight(sup, supplierCost * l.qty) : { ok: true };
-            const res = await supplierOrder(
+            const { supplierOrderWithRetry } = await import("@/lib/suppliers/fulfil.server");
+            const res = await supplierOrderWithRetry(
               sup as any,
               externalId,
               l.qty,
@@ -5977,8 +5978,17 @@ async function fulfillCheckout(
       delivered_content: delivered,
       coupon_code: meta.coupon?.code ?? null,
       discount: Math.round(share * 100) / 100,
-      ...(miLines?.length || p.delivery_type === "manual"
-        ? { meta: { ...((claimRow?.meta as any) ?? {}), manual: true, ...(miLines?.length ? { manual_input: miLines } : {}) } }
+      ...(miLines?.length || p.delivery_type === "manual" || (status !== "completed" && autoFailReason)
+        ? {
+            meta: {
+              ...((claimRow?.meta as any) ?? {}),
+              ...(miLines?.length || p.delivery_type === "manual" ? { manual: true } : {}),
+              ...(miLines?.length ? { manual_input: miLines } : {}),
+              ...(status !== "completed" && autoFailReason
+                ? { supplier_error: String(autoFailReason).slice(0, 500), supplier_error_at: new Date().toISOString() }
+                : {}),
+            },
+          }
         : {}),
     };
     const { data: order } = claimRow

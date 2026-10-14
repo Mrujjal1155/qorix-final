@@ -607,6 +607,11 @@ function OrdersPage() {
                         <pre className="mt-1 max-w-xs overflow-x-auto rounded border border-border bg-background p-2 text-xs">{o.meta.manual_input.join("\n")}</pre>
                       )}
                       {o.delivered_content && <DeliveryToggle content={o.delivered_content} narrow />}
+                      {o.status !== "completed" && o.meta?.supplier_error && (
+                        <div className="mt-1 max-w-xs rounded border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive">
+                          <span className="font-semibold">Supplier failed:</span> {String(o.meta.supplier_error)}
+                        </div>
+                      )}
                     </td>
                     <td>{o.quantity}</td>
                     <td>{money(o.total)}</td>

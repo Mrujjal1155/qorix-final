@@ -153,8 +153,7 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
     : { ok: true };
 
   try {
-    const { supplierOrder } = await import("@/lib/suppliers/api.server");
-    const res = await supplierOrder(
+    const res = await supplierOrderWithRetry(
       sup as any,
       String(product.supplier_external_id),
       Number(order.quantity ?? 1),
@@ -162,14 +161,11 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
       { customerEmail: (order as any).customer_email ?? null },
     );
 
-    if (!res.items.length)
-      return {
-        ok: false,
-        reason: `Supplier accepted the order but returned no items${res.code ? ` (ref ${res.code})` : ""}`,
-      };
-
     const content = res.items.join("\n---\n");
-    await db.from("orders").update({ status: "completed", delivered_content: content }).eq("id", order.id);
+    const meta = { ...((order.meta as any) ?? {}) };
+    delete meta.supplier_error;
+    delete meta.supplier_error_at;
+    await db.from("orders").update({ status: "completed", delivered_content: content, meta }).eq("id", order.id);
     // Bot orders are announced by the bot flow; website orders are announced here.
     if ((order as any).source === "website") {
       const { announceOrderSale } = await import("@/lib/bot/engine.server");
@@ -228,7 +224,9 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
         `Supplier no longer has this product id (it was replaced with a new batch). ` +
         `Run "Sync catalogue" for ${sup.name ?? sup.key} and retry, or deliver manually. [${msg}]`;
     }
-    return { ok: false, reason: pre.ok ? msg : `${msg} — ${pre.reason}` };
+    const reason = pre.ok ? msg : `${msg} — ${pre.reason}`;
+    try { await recordSupplierError(String(order.id), reason); } catch { /* display only */ }
+    return { ok: false, reason };
   }
 
 
