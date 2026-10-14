@@ -6463,13 +6463,18 @@ async function handleCallback(cq: any) {
       }
     }
     const qs = await getSettings();
+    const qtyStyle = btnColor(qs, "quantity");
     const kb: Button[][] = [
-      [1, 2, 3].map((n) => ({ text: `${n}×`, callback_data: `buy:${productId}:${n}` })),
-      [5, 10].map((n) => ({ text: `${n}×`, callback_data: `buy:${productId}:${n}` })),
-      [uiBtn(qs, "qty_custom", `cq:${productId}`)],
-      [uiBtn(qs, "qty_add1", `cadd:${productId}:1`), uiBtn(qs, "qty_add5", `cadd:${productId}:5`)],
+      [1, 2, 3].map((n) => styled({ text: `${n}×`, callback_data: `buy:${productId}:${n}` }, qtyStyle)),
+      [5, 10].map((n) => styled({ text: `${n}×`, callback_data: `buy:${productId}:${n}` }, qtyStyle)),
+      [styled(uiBtn(qs, "qty_custom", `cq:${productId}`), qtyStyle)],
+      [
+        styled(uiBtn(qs, "qty_add1", `cadd:${productId}:1`), qtyStyle),
+        styled(uiBtn(qs, "qty_add5", `cadd:${productId}:5`), qtyStyle),
+      ],
       [uiBtn(qs, "qty_back", `p:${productId}`)],
     ];
+
     const pv = await productView(productId);
     const qtyHead = `${uiIconHtml(qs, "qty_title")} <b>${escapeHtml(uiText(qs, "qty_title"))}</b>`;
     const head = pv
