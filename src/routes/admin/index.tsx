@@ -22,6 +22,7 @@ import {
   CheckCircle2,
   ShieldAlert,
   LifeBuoy,
+  type LucideIcon,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
@@ -66,7 +67,14 @@ function OverviewPage() {
   const newToday = data?.newUsersToday ?? 0;
   const startUsers = Math.max(0, (data?.totalUsers ?? 0) - newToday);
   const userGrowth = startUsers > 0 ? (newToday / startUsers) * 100 : 0;
-  const stats = [
+  const stats: Array<{
+    label: string;
+    value: string | number;
+    icon: LucideIcon;
+    delta: string;
+    deltaIcon?: LucideIcon;
+    up: boolean;
+  }> = [
     {
       label: "Total users",
       value: data?.totalUsers ?? 0,
@@ -86,7 +94,10 @@ function OverviewPage() {
       label: "Orders today",
       value: data?.ordersToday ?? 0,
       icon: ShoppingBag,
-      delta: data ? `✅ ${data.completedToday ?? 0} completed · ${vsYesterday(data.ordersToday ?? 0, data.ordersYesterday ?? 0).delta}` : "",
+      delta: data
+        ? `${data.completedToday ?? 0} completed · ${vsYesterday(data.ordersToday ?? 0, data.ordersYesterday ?? 0).delta}`
+        : "",
+      deltaIcon: CheckCircle2,
       up: true,
     },
     { label: "Pending payments", value: data?.pendingPayments ?? 0, icon: TrendingUp, delta: "", up: true },
@@ -154,7 +165,12 @@ function OverviewPage() {
               <p className="text-2xl font-extrabold tracking-tight tabular-nums lg:text-3xl">
                 {isLoading ? "…" : s.value}
               </p>
-              <span className={s.up ? "text-xs font-semibold text-success" : "text-xs font-semibold text-brand"}>
+              <span
+                className={`inline-flex items-center gap-1 text-xs font-semibold ${
+                  s.up ? "text-success" : "text-brand"
+                }`}
+              >
+                {s.delta && s.deltaIcon && <s.deltaIcon className="size-3.5 shrink-0" aria-hidden />}
                 {s.delta}
               </span>
             </div>
