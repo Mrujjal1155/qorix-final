@@ -63,6 +63,51 @@ export async function supplierPreflight(supplier: any, needed: number): Promise<
 
 export type RetryResult = { ok: boolean; reason?: string | undefined; items?: string[] | undefined };
 
+/** Ambiguous failures (timeout/network) may already be charged, so they are never retried automatically. */
+function isAmbiguousFailure(msg: string) {
+  return /timeout|timed out|abort|network|fetch failed|ECONN|socket|5\d\d/i.test(msg);
+}
+
+/**
+ * Supplier purchase with one automatic retry a few seconds later. Both attempts
+ * use the same reference, and only clear rejections are retried, so one order
+ * can never be bought twice.
+ */
+export async function supplierOrderWithRetry(
+  sup: any,
+  externalId: string,
+  qty: number,
+  ref: string,
+  opts?: { customerEmail?: string | null },
+) {
+  const { supplierOrder } = await import("@/lib/suppliers/api.server");
+  try {
+    const res = await supplierOrder(sup, externalId, qty, ref, opts as any);
+    if (res.items.length) return res;
+    throw new Error(`Supplier accepted the order but returned no items${res.code ? ` (ref ${res.code})` : ""}`);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (isAmbiguousFailure(msg) || /returned no items/.test(msg)) throw e;
+    await new Promise((r) => setTimeout(r, 5000));
+    return await supplierOrder(sup, externalId, qty, ref, opts as any);
+  }
+}
+
+/** Store (or clear) the last supplier failure on the order so admins see it in Orders. */
+export async function recordSupplierError(orderId: string, reason: string | null) {
+  const { data: o } = await db.from("orders").select("meta").eq("id", orderId).maybeSingle();
+  const meta = { ...((o?.meta as any) ?? {}) };
+  if (reason) {
+    meta.supplier_error = reason.slice(0, 500);
+    meta.supplier_error_at = new Date().toISOString();
+  } else {
+    delete meta.supplier_error;
+    delete meta.supplier_error_at;
+  }
+  await db.from("orders").update({ meta }).eq("id", orderId);
+}
+
+
 /** Re-run the supplier API purchase for a pending order and deliver on success. */
 export async function retrySupplierDelivery(orderId: string): Promise<RetryResult> {
   const { data: order } = await db.from("orders").select("*").eq("id", orderId).maybeSingle();
@@ -108,8 +153,7 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
     : { ok: true };
 
   try {
-    const { supplierOrder } = await import("@/lib/suppliers/api.server");
-    const res = await supplierOrder(
+    const res = await supplierOrderWithRetry(
       sup as any,
       String(product.supplier_external_id),
       Number(order.quantity ?? 1),
@@ -117,14 +161,11 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
       { customerEmail: (order as any).customer_email ?? null },
     );
 
-    if (!res.items.length)
-      return {
-        ok: false,
-        reason: `Supplier accepted the order but returned no items${res.code ? ` (ref ${res.code})` : ""}`,
-      };
-
     const content = res.items.join("\n---\n");
-    await db.from("orders").update({ status: "completed", delivered_content: content }).eq("id", order.id);
+    const meta = { ...((order.meta as any) ?? {}) };
+    delete meta.supplier_error;
+    delete meta.supplier_error_at;
+    await db.from("orders").update({ status: "completed", delivered_content: content, meta }).eq("id", order.id);
     // Bot orders are announced by the bot flow; website orders are announced here.
     if ((order as any).source === "website") {
       const { announceOrderSale } = await import("@/lib/bot/engine.server");
@@ -183,7 +224,9 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
         `Supplier no longer has this product id (it was replaced with a new batch). ` +
         `Run "Sync catalogue" for ${sup.name ?? sup.key} and retry, or deliver manually. [${msg}]`;
     }
-    return { ok: false, reason: pre.ok ? msg : `${msg} — ${pre.reason}` };
+    const reason = pre.ok ? msg : `${msg} — ${pre.reason}`;
+    try { await recordSupplierError(String(order.id), reason); } catch { /* display only */ }
+    return { ok: false, reason };
   }
 
 
