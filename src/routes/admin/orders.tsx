@@ -773,36 +773,50 @@ function OrdersPage() {
             <p className="text-sm">
               Order <b>#{cancelFor?.order_no}</b> — {cancelFor?.product_name}
             </p>
-            <p className="text-xs text-muted-foreground">
-              If the buyer already paid, ${Number(cancelFor?.total ?? 0).toFixed(2)} is refunded to their wallet once.
-              Confirm only one time — repeated clicks will not send a second refund.
-            </p>
-            <div className="flex gap-2">
-              <Button
-                variant="destructive"
-                disabled={busy === cancelFor?.id}
-                onClick={async () => {
-                  const id = cancelFor?.id as string;
-                  setBusy(id);
-                  setCancelFor(null);
-                  try {
-                    const r: any = await changeStatus({ data: { id, status: "cancelled" } });
-                    if (r?.skipped) toast.info("This order was already cancelled");
-                    else toast.success("Order cancelled");
-                    refresh();
-                  } catch (e) {
-                    toast.error(e instanceof Error ? e.message : "Cancel failed");
-                  } finally {
-                    setBusy("");
-                  }
-                }}
-              >
-                {busy === cancelFor?.id ? "Cancelling…" : "Yes, cancel & refund"}
-              </Button>
-              <Button variant="outline" onClick={() => setCancelFor(null)}>
-                Keep order
-              </Button>
-            </div>
+            {(() => {
+              const m = (cancelFor?.meta ?? {}) as any;
+              const canRefund =
+                !!cancelFor &&
+                Number(cancelFor.telegram_id ?? 0) > 0 &&
+                (Boolean(m.paid || m.eps_paid || m.paid_at) || cancelFor.source !== "website");
+              const run = async (refund: boolean) => {
+                const id = cancelFor?.id as string;
+                setBusy(id);
+                setCancelFor(null);
+                try {
+                  const r: any = await changeStatus({ data: { id, status: "cancelled", refund } });
+                  if (r?.skipped) toast.info("This order was already cancelled");
+                  else toast.success(refund ? "Order cancelled & refunded" : "Order cancelled (no refund)");
+                  refresh();
+                } catch (e) {
+                  toast.error(e instanceof Error ? e.message : "Cancel failed");
+                } finally {
+                  setBusy("");
+                }
+              };
+              return (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    {canRefund
+                      ? `Choose: cancel without refund, or cancel and refund $${Number(cancelFor?.total ?? 0).toFixed(2)} to the buyer's wallet (sent once only).`
+                      : "No verified payment on this order — it can only be cancelled without refund."}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="destructive" disabled={busy === cancelFor?.id} onClick={() => run(false)}>
+                      Cancel without refund
+                    </Button>
+                    {canRefund && (
+                      <Button variant="default" disabled={busy === cancelFor?.id} onClick={() => run(true)}>
+                        Cancel & refund
+                      </Button>
+                    )}
+                    <Button variant="outline" onClick={() => setCancelFor(null)}>
+                      Keep order
+                    </Button>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </DialogContent>
       </Dialog>
