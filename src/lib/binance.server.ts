@@ -178,25 +178,37 @@ export async function findByTxId(
   let dep: Awaited<ReturnType<typeof signedGet>> | null = null;
 
   if (kind !== "crypto") {
-    pay = await signedGet("/sapi/v1/pay/transactions", { limit: 100, startTime: start }, creds);
-    if (pay.ok && Array.isArray(pay.data?.data)) {
-      for (const t of pay.data.data) {
+    // Page backwards through the full 24 h (Binance returns at most 100 per call).
+    let endTime = Date.now();
+    for (let page = 0; page < 30; page++) {
+      const r = await signedGet("/sapi/v1/pay/transactions", { limit: 100, startTime: start, endTime }, creds);
+      if (!pay || r.ok) pay = r;
+      if (!r.ok || !Array.isArray(r.data?.data) || !r.data.data.length) break;
+      let oldest = endTime;
+      for (const t of r.data.data) {
         const ids = [t.orderId, t.transactionId].map((x: unknown) => String(x ?? "").trim().toLowerCase());
         const amount = Number(t.amount);
         if (ids.includes(needle) && amount > 0) {
           return { ok: true, amount, currency: String(t.currency || "USDT").toUpperCase() };
         }
+        const ts = Number(t.transactionTime ?? 0);
+        if (ts > 0 && ts < oldest) oldest = ts;
       }
+      if (r.data.data.length < 100 || oldest >= endTime) break;
+      endTime = oldest - 1;
     }
   }
   if (kind !== "pay") {
-    dep = await signedGet("/sapi/v1/capital/deposit/hisrec", { coin: "USDT", limit: 100, startTime: start }, creds);
-    if (dep.ok && Array.isArray(dep.data)) {
-      for (const d of dep.data) {
+    for (let offset = 0; offset < 5000; offset += 1000) {
+      const r = await signedGet("/sapi/v1/capital/deposit/hisrec", { coin: "USDT", limit: 1000, offset, startTime: start }, creds);
+      if (!dep || r.ok) dep = r;
+      if (!r.ok || !Array.isArray(r.data)) break;
+      for (const d of r.data) {
         if (String(d.txId ?? d.id ?? "").trim().toLowerCase() === needle && [1, 6].includes(Number(d.status))) {
           return { ok: true, amount: Number(d.amount), currency: String(d.coin || "USDT").toUpperCase() };
         }
       }
+      if (r.data.length < 1000) break;
     }
   }
   const failed = [pay, dep].filter(Boolean).every((r) => r && !r.ok);
