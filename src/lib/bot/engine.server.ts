@@ -2325,7 +2325,7 @@ async function confirmByTxId(
   if (!m.ok) {
     return m.error
       ? { ok: false, message: "⏳ Could not reach Binance right now. Please try again in a minute." }
-      : { ok: false, notFound: true, message: `⏳ Order ID <code>${escapeHtml(txId)}</code> was not found in our Binance history yet. Check the ID and try again in a minute.` };
+      : { ok: false, notFound: true, message: `⏳ Payment received for checking — Binance can take 1–5 minutes, we'll confirm automatically.\nID: <code>${escapeHtml(txId)}</code>` };
   }
   if (m.currency !== "USDT") return { ok: false, message: `❌ Payment must be sent in USDT. Received: ${escapeHtml(m.currency)}.` };
   if (!exactBinanceAmount(expected, m.amount)) {
@@ -2837,7 +2837,13 @@ async function submitBinanceTxid(chatId: number, depId: string, txid: string, us
   const isOrder = Array.isArray(meta.items) && meta.items.length;
   // Keep the ID so the background checker can retry it; tell the admin once per ID.
   if (row.tx_id !== txid && !r.message.includes("already used")) {
-    await db.from("binance_deposits").update({ tx_id: txid }).eq("id", depId);
+    // Keep the request open at least 15 minutes after the ID arrives so the
+    // background checker can still confirm a slow Binance history update.
+    const keepUntil = Math.max(new Date(row.expires_at).getTime(), Date.now() + 15 * 60_000);
+    await db
+      .from("binance_deposits")
+      .update({ tx_id: txid, expires_at: new Date(keepUntil).toISOString() })
+      .eq("id", depId);
     await db.from("payment_requests").insert({
       telegram_id: chatId,
       method,
@@ -2852,7 +2858,9 @@ async function submitBinanceTxid(chatId: number, depId: string, txid: string, us
     ).catch(() => {});
   }
   return {
-    message: `${r.message}\n\nWe keep checking automatically. You can also send a corrected Order ID, or tap verify again.`,
+    message: r.notFound
+      ? `${r.message}\n\nNo need to tap anything — you'll get a message here as soon as it's confirmed.`
+      : `${r.message}\n\nWe keep checking automatically. You can also send a corrected Order ID, or tap verify again.`,
     keyboard: [
       [uiBtn(vs, "dep_reverify", `bchk:${depId}`)],
       [uiBtn(vs, "dep_txid_title", `btx:${depId}`)],
