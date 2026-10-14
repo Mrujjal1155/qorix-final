@@ -17,6 +17,7 @@ import {
   deleteReseller,
   getResellerDetail,
   listResellers,
+  resellerLoginLink,
   rotateResellerKey,
   updateReseller,
 } from "@/lib/reseller.functions";
@@ -46,6 +47,7 @@ function ResellersPage() {
   const qc = useQueryClient();
   const fetchList = useServerFn(listResellers);
   const create = useServerFn(createReseller);
+  const loginAs = useServerFn(resellerLoginLink);
   const update = useServerFn(updateReseller);
   const rotate = useServerFn(rotateResellerKey);
   const remove = useServerFn(deleteReseller);
@@ -157,6 +159,24 @@ function ResellersPage() {
                     <span className="rounded-full border border-border bg-card px-3 py-1 text-sm font-bold">
                       Balance {money(r.balance)}
                     </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        try {
+                          const l = await loginAs({ data: { id: r.id, origin: window.location.origin } });
+                          await navigator.clipboard.writeText(l.url).catch(() => {});
+                          toast.success(`Login link for ${l.name} copied`, {
+                            description: "Paste it in an Incognito / private window so your admin login stays active. The link works once.",
+                            duration: 10000,
+                          });
+                        } catch (e) {
+                          toast.error(e instanceof Error ? e.message : "Failed");
+                        }
+                      }}
+                    >
+                      Login as reseller
+                    </Button>
                     <Button variant="secondary" size="sm" onClick={() => setOpenId(openId === r.id ? null : r.id)}>
                       {openId === r.id ? "Close" : "Manage"}
                     </Button>

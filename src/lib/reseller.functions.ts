@@ -148,3 +148,30 @@ export const getResellerDetail = createServerFn({ method: "GET" })
     ]);
     return { reseller, transactions: transactions ?? [], orders: orders ?? [] };
   });
+
+/** Admin-only: one-time sign-in link into a reseller's own account (for checking their panel). */
+export const resellerLoginLink = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; origin: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data: r } = await db.from("resellers").select("id,name,user_id,email").eq("id", data.id).maybeSingle();
+    if (!r) throw new Error("Reseller not found");
+    let email = "";
+    if (r.user_id) {
+      const { data: u } = await supabaseAdmin.auth.admin.getUserById(String(r.user_id));
+      email = String(u?.user?.email ?? "");
+    }
+    if (!email) throw new Error("This reseller has no website login yet");
+    const origin = /^https?:\/\/[^/]+$/.test(String(data.origin)) ? String(data.origin) : "";
+    const { data: link, error } = await supabaseAdmin.auth.admin.generateLink({
+      type: "magiclink",
+      email,
+      options: { redirectTo: origin ? `${origin}/reseller/panel` : "https://qorixlab.com/reseller/panel" },
+    });
+    if (error || !link?.properties?.action_link) throw new Error(error?.message || "Could not create login link");
+    console.log(`[admin] login-as-reseller ${r.id} by ${(context as any).userId}`);
+    return { url: link.properties.action_link, email, name: r.name };
+  });
