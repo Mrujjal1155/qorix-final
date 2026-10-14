@@ -1,6 +1,6 @@
 # Roadmap
 
-- [x] Make Telegram quantity buttons blue by default and expose them as their own admin colour slot.
+- [x] Make Telegram quantity buttons (quantity picker and checkout "Change quantity") blue by default and expose them as their own admin colour slot.
 
 - [x] Add enabled OxaPay to Telegram product checkout and expose its shared Premium icon in Bot Admin payment settings; focused payment/icon tests pass without a real payment.
 
