@@ -848,7 +848,13 @@ export const listOrders = createServerFn({ method: "GET" })
     };
     // Run upkeep (expiry + Binance recheck) at most every 20s per isolate so opening the page stays fast.
     const g = globalThis as any;
-    if (!g.__ordersUpkeepAt || Date.now() - g.__ordersUpkeepAt > 20_000) { g.__ordersUpkeepAt = Date.now(); await upkeep(); }
+    if (!g.__ordersUpkeepAt || Date.now() - g.__ordersUpkeepAt > 20_000) {
+      g.__ordersUpkeepAt = Date.now();
+      // Upkeep calls Binance — never make the admin wait for it. Run in the background.
+      const job = upkeep().catch(() => {});
+      const { backgroundWaitUntil } = await import("@/lib/bg.server");
+      if (!backgroundWaitUntil(job)) void job;
+    }
     let q = sb.from("orders").select("*").order("created_at", { ascending: false }).limit(200);
     if (data?.status && data.status !== "all") q = q.eq("status", data.status);
     if (data?.source && data.source !== "all") q = q.eq("source", data.source);
