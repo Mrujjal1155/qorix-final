@@ -741,7 +741,12 @@ function AutoTopUp({ balance, onDone }: { balance: number; onDone: () => void })
             {dep.pay_url ? (
               <>
                 <p className="text-sm text-muted-foreground">
-                  Amount: <span className="font-semibold text-foreground">৳{Number(dep.bdt).toFixed(2)}</span> ({priceTag(Number(dep.amount_usdt))})
+                  Amount:{" "}
+                  {Number(dep.bdt) > 0 && <span className="font-semibold text-foreground">৳{Number(dep.bdt).toFixed(2)} </span>}
+                  ({priceTag(Number(dep.amount_usdt))})
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Complete the payment on the opened page, then come back and tap “I have paid — verify”. Your balance is also credited automatically once the payment is confirmed.
                 </p>
                 <Button asChild>
                   <a href={dep.pay_url} target="_blank" rel="noreferrer">Open payment page</a>
