@@ -1610,11 +1610,21 @@ function allProductsIcon(settings: Record<string, string>) {
 
 /* ---------------------------------------- configurable button colours */
 
-type ColorSlot = "category" | "product" | "orders" | "pagination" | "wallet" | "api" | "nav" | "menu";
+type ColorSlot =
+  | "category"
+  | "product"
+  | "quantity"
+  | "orders"
+  | "pagination"
+  | "wallet"
+  | "api"
+  | "nav"
+  | "menu";
 
 const COLOR_SLOTS: { key: ColorSlot; label: string; def: ButtonStyle }[] = [
   { key: "category", label: "Category cards", def: "primary" },
   { key: "product", label: "Product cards", def: "primary" },
+  { key: "quantity", label: "Quantity buttons", def: "primary" },
   { key: "orders", label: "Order list cards", def: "primary" },
   { key: "pagination", label: "Pagination (Prev/Next)", def: "primary" },
   { key: "wallet", label: "Wallet & payment buttons", def: "primary" },
@@ -1622,6 +1632,7 @@ const COLOR_SLOTS: { key: ColorSlot; label: string; def: ButtonStyle }[] = [
   { key: "nav", label: "Navigation & actions", def: "default" },
   { key: "menu", label: "Main menu", def: "primary" },
 ];
+
 
 const COLOR_LABEL: Record<ButtonStyle, string> = {
   primary: "🔵 Blue",
@@ -6452,13 +6463,18 @@ async function handleCallback(cq: any) {
       }
     }
     const qs = await getSettings();
+    const qtyStyle = btnColor(qs, "quantity");
     const kb: Button[][] = [
-      [1, 2, 3].map((n) => ({ text: `${n}×`, callback_data: `buy:${productId}:${n}` })),
-      [5, 10].map((n) => ({ text: `${n}×`, callback_data: `buy:${productId}:${n}` })),
-      [uiBtn(qs, "qty_custom", `cq:${productId}`)],
-      [uiBtn(qs, "qty_add1", `cadd:${productId}:1`), uiBtn(qs, "qty_add5", `cadd:${productId}:5`)],
+      [1, 2, 3].map((n) => styled({ text: `${n}×`, callback_data: `buy:${productId}:${n}` }, qtyStyle)),
+      [5, 10].map((n) => styled({ text: `${n}×`, callback_data: `buy:${productId}:${n}` }, qtyStyle)),
+      [styled(uiBtn(qs, "qty_custom", `cq:${productId}`), qtyStyle)],
+      [
+        styled(uiBtn(qs, "qty_add1", `cadd:${productId}:1`), qtyStyle),
+        styled(uiBtn(qs, "qty_add5", `cadd:${productId}:5`), qtyStyle),
+      ],
       [uiBtn(qs, "qty_back", `p:${productId}`)],
     ];
+
     const pv = await productView(productId);
     const qtyHead = `${uiIconHtml(qs, "qty_title")} <b>${escapeHtml(uiText(qs, "qty_title"))}</b>`;
     const head = pv
