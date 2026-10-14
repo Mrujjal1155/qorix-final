@@ -82,7 +82,13 @@ function OverviewPage() {
       delta: data ? `${money(data.todayRevenue)} today` : "",
       up: true,
     },
-    { label: "Orders today", value: data?.ordersToday ?? 0, icon: ShoppingBag, ...vsYesterday(data?.ordersToday ?? 0, data?.ordersYesterday ?? 0) },
+    {
+      label: "Orders today",
+      value: data?.ordersToday ?? 0,
+      icon: ShoppingBag,
+      delta: data ? `✅ ${data.completedToday ?? 0} completed · ${vsYesterday(data.ordersToday ?? 0, data.ordersYesterday ?? 0).delta}` : "",
+      up: true,
+    },
     { label: "Pending payments", value: data?.pendingPayments ?? 0, icon: TrendingUp, delta: "", up: true },
   ];
 
