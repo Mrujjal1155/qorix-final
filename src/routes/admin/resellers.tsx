@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search } from "lucide-react";
+import { Mail, Search } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { AdminShell, AdminPanel, money } from "@/components/AdminShell";
@@ -10,6 +10,15 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   adjustResellerBalance,
@@ -17,6 +26,7 @@ import {
   deleteReseller,
   getResellerDetail,
   listResellers,
+  notifyAllResellers,
   resellerLoginLink,
   rotateResellerKey,
   updateReseller,
@@ -95,6 +105,7 @@ function ResellersPage() {
         </TabsList>
 
         <TabsContent value="accounts" className="space-y-5">
+          <NotifyAllResellers resellerCount={(resellers ?? []).filter((r: any) => r.is_active && r.email).length} />
           <AdminPanel title="New reseller">
             <div className="grid gap-3 sm:grid-cols-[1.4fr_1.4fr_0.7fr_auto]">
               <Input placeholder="Reseller name" value={name} onChange={(e) => setName(e.target.value)} />
@@ -310,6 +321,89 @@ function ResellersPage() {
         </TabsContent>
       </Tabs>
     </AdminShell>
+  );
+}
+
+function NotifyAllResellers({ resellerCount }: { resellerCount: number }) {
+  const notify = useServerFn(notifyAllResellers);
+  const [open, setOpen] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const send = async () => {
+    if (!subject.trim() || !message.trim()) {
+      toast.error("Subject and message are required");
+      return;
+    }
+    if (!confirm(`Send this email to all ${resellerCount} active resellers?`)) return;
+    setSending(true);
+    try {
+      const payload: { subject: string; message: string; imageUrl?: string } = { subject, message };
+      if (imageUrl.trim()) payload.imageUrl = imageUrl.trim();
+      const res: any = await notify({ data: payload });
+      if (res.failed?.length) {
+        toast.warning(`Sent to ${res.sent}/${res.total}`, {
+          description: `Failed: ${res.failed.map((f: any) => f.name).join(", ")}`,
+          duration: 10000,
+        });
+      } else {
+        toast.success(`Email sent to all ${res.sent} resellers`);
+      }
+      setOpen(false);
+      setSubject("");
+      setMessage("");
+      setImageUrl("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="gap-2">
+          <Mail className="size-4" /> Notify all resellers
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Email all resellers</DialogTitle>
+          <DialogDescription>
+            Goes to every active reseller with an email address ({resellerCount}). Sent from your Resend mail system
+            with your logo header.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Input placeholder="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
+          <Textarea
+            placeholder="Write your message… (blank lines start a new paragraph)"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={8}
+          />
+          <Input
+            placeholder="Optional banner image URL (https://…)"
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+          />
+          {imageUrl.trim() && (
+            <img src={imageUrl} alt="" className="max-h-40 w-full rounded-lg border object-contain" />
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpen(false)} disabled={sending}>
+            Cancel
+          </Button>
+          <Button onClick={send} disabled={sending}>
+            {sending ? "Sending…" : `Send to ${resellerCount} resellers`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

@@ -216,6 +216,44 @@ export function accountVerifyEmail(d: AccountVerifyData) {
   };
 }
 
+/* ------------------------------------------------- reseller broadcast mail */
+
+export interface ResellerBroadcastData {
+  siteName: string;
+  logoUrl?: string;
+  name: string;
+  subject: string;
+  /** Plain-text message written by the admin; line breaks are preserved. */
+  message: string;
+  /** Optional banner image URL shown under the header. */
+  imageUrl?: string;
+  docsUrl: string;
+  panelUrl: string;
+}
+
+export function resellerBroadcastEmail(d: ResellerBroadcastData) {
+  const paragraphs = d.message
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map(
+      (p) =>
+        `<p style="margin:0 0 14px;font-size:14px;line-height:1.7;color:#111827;">${esc(p).replace(/\n/g, "<br/>")}</p>`,
+    )
+    .join("");
+  const inner = `
+    <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;">Hi${d.name ? ` ${esc(d.name)}` : ""},</h1>
+    ${d.imageUrl ? `<p style="margin:14px 0 18px;"><img src="${esc(d.imageUrl)}" alt="" width="504" style="display:block;width:100%;max-width:504px;height:auto;border-radius:10px;border:1px solid ${BORDER};" /></p>` : ""}
+    ${paragraphs}
+    <p style="margin:18px 0 8px;">${btn(d.docsUrl, "Read the API docs")}</p>
+    <p style="margin:0 0 4px;font-size:13px;color:${MUTED};">Your reseller panel: <a href="${esc(d.panelUrl)}" style="color:${BRAND_DARK};">${esc(d.panelUrl)}</a></p>`;
+  return {
+    subject: d.subject,
+    html: shell(inner, d.siteName, d.logoUrl),
+    text: `Hi ${d.name || "reseller"},\n\n${d.message}\n\nAPI docs: ${d.docsUrl}\nReseller panel: ${d.panelUrl}`,
+  };
+}
+
 /* ------------------------------------------- reseller application received */
 
 export interface ResellerApplicationData {
