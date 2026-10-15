@@ -4,7 +4,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 const db = supabaseAdmin as any;
-const MIN_AGE_MS = 2 * 60_000;
+const MIN_AGE_MS = 45_000;
 
 export async function recoverUnchargedResellerOrders(onlyId?: string): Promise<number> {
   let q = db
@@ -45,11 +45,12 @@ export async function recoverUnchargedResellerOrders(onlyId?: string): Promise<n
 
     const { data: p } = await db
       .from("products")
-      .select("id,delivery_type,supplier_id")
+      .select("id,delivery_type,supplier_id,supplier_external_id")
       .eq("id", o.product_id)
       .maybeSingle();
-    // Only own auto-stock products are recovered automatically.
-    if (!p || p.supplier_id || p.delivery_type !== "auto") {
+    const supplierLinked = Boolean(p?.supplier_id && p?.supplier_external_id);
+    // Own auto-stock and supplier-linked products are recovered automatically.
+    if (!p || (!supplierLinked && p.delivery_type !== "auto")) {
       await db.from("orders").update({ meta: { ...meta, recovered: "skipped" } }).eq("id", o.id);
       continue;
     }
@@ -67,6 +68,20 @@ export async function recoverUnchargedResellerOrders(onlyId?: string): Promise<n
         .from("orders")
         .update({ status: "cancelled", meta: { ...meta, recovered: "no_balance" } })
         .eq("id", o.id);
+      continue;
+    }
+
+    if (supplierLinked) {
+      // Charged now; buy from the supplier. Success completes the order and
+      // pushes the reseller webhook; failure stays pending for admin Retry.
+      await db.from("orders").update({ meta: { ...meta, recovered: "charged" } }).eq("id", o.id);
+      try {
+        const { retrySupplierDelivery } = await import("@/lib/suppliers/fulfil.server");
+        const r = await retrySupplierDelivery(String(o.id));
+        if (r.ok) done++;
+      } catch (e) {
+        console.error("reseller recovery supplier delivery failed", o.id, e);
+      }
       continue;
     }
 
