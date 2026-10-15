@@ -5804,7 +5804,7 @@ async function fulfillCheckout(
     ? ((
         await db
           .from("orders")
-          .select("id,product_id,quantity,meta")
+          .select("id,product_id,quantity,total,meta")
           .eq("telegram_id", chatId)
           .eq("status", "awaiting_payment")
           .contains("meta", { deposit_id: depositId })
@@ -5817,8 +5817,27 @@ async function fulfillCheckout(
   const blocked = await checkoutStockIssues(lines);
   if (blocked.length) {
     if (awaitingRows.length) {
+      const now = new Date().toISOString();
       for (const row of awaitingRows) {
-        await db.from("orders").update({ status: "cancelled" }).eq("id", row.id);
+        // The gateway money arrived and was kept in the wallet: show it as
+        // paid + refunded to wallet, never as an unpaid cancel.
+        await db
+          .from("orders")
+          .update({
+            status: "cancelled",
+            payment_method: methodKey,
+            txid: reference,
+            meta: {
+              ...((row.meta as any) ?? {}),
+              awaiting_payment: false,
+              paid: true,
+              paid_at: now,
+              refunded: true,
+              refund_amount: Number(row.total ?? 0),
+              refund_reason: "Out of stock at payment confirmation — credited to wallet",
+            },
+          })
+          .eq("id", row.id);
       }
     }
     try {
