@@ -791,6 +791,10 @@ export const completeManualOrder = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!order) throw new Error("This order is no longer pending (already completed or cancelled).");
+    if (order?.reseller_id) {
+      const { pushResellerOrderEvent } = await import("@/lib/reseller/webhook.server");
+      await pushResellerOrderEvent(String(order.reseller_id), order);
+    }
     try {
       const { announceOrderSale } = await import("@/lib/bot/engine.server");
       await announceOrderSale(String(order.id));
@@ -921,6 +925,10 @@ export const deliverOrder = createServerFn({ method: "POST" })
       .select("*")
       .maybeSingle();
     if (error) throw new Error(error.message);
+    if (order?.reseller_id) {
+      const { pushResellerOrderEvent } = await import("@/lib/reseller/webhook.server");
+      await pushResellerOrderEvent(String(order.reseller_id), order);
+    }
     if (order?.source === "website") {
       const { announceOrderSale } = await import("@/lib/bot/engine.server");
       await announceOrderSale(String(order.id));

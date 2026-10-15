@@ -4011,6 +4011,11 @@ async function handleMessage(msg: any) {
         .from("orders")
         .update({ status: "completed", delivered_content: text })
         .eq("id", orderId);
+      if (o.reseller_id) {
+        const { pushResellerOrderEvent } = await import("@/lib/reseller/webhook.server");
+        await pushResellerOrderEvent(String(o.reseller_id), { ...o, status: "completed", delivered_content: text });
+      }
+      if (!o.telegram_id) { await say(chatId, `✅ Order #${o.order_no} delivered.`, ADM_BACK); return; }
       const parts = parseStock(text, "auto");
       const items = parts.length ? parts : [text];
       const { deliverItemsToChat } = await import("@/lib/bot/deliver-items.server");
