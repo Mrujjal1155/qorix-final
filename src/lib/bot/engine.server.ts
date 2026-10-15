@@ -5828,10 +5828,15 @@ async function fulfillCheckout(
     } catch {
       /* admin notice is best effort */
     }
+    const paidViaGateway = methodKey !== "balance";
     return {
       text:
         `⚠️ <b>Out of stock</b>\n──────────────\n${blocked.join("\n")}\n\n` +
-        `Your order was not created and <b>no money was taken</b>. Any amount you paid stays in your wallet balance and can be used for another order.`,
+        (paidViaGateway
+          ? `This item sold out while your payment was being confirmed, so the order was not placed.\n\n` +
+            `✅ <b>Your payment was added to your wallet balance.</b>\n` +
+            `Balance: <b>${money(user?.balance)}</b> — use it for any other product, or when this item is back in stock.`
+          : `Your order was not created and <b>no money was taken</b>.`),
       kb: [[uiBtn(await getSettings(), "com_wallet", "wallet")], [uiBtn(await getSettings(), "com_shop", "shop:0")]] as Button[][],
     };
   }
