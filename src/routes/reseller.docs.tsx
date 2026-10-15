@@ -74,6 +74,7 @@ const NAV = [
   ["bot", "10. Build a Telegram bot (A→Z)"],
   ["checklist", "11. Go-live checklist"],
   ["faq", "12. FAQ"],
+  ["changelog", "13. API changelog"],
 ];
 
 function DocsPage() {
@@ -302,8 +303,19 @@ x-api-key: YOUR_API_KEY`}</Code>
               </li>
               <li>
                 <code className="font-mono">status: "completed"</code> → credentials are inside{" "}
-                <code className="font-mono">items</code>. <code className="font-mono">"pending"</code> → manual
-                delivery; poll the order until it completes.
+                <code className="font-mono">items</code>. <code className="font-mono">"pending"</code> → delivery is
+                still in progress (manual product, supplier processing, or <code className="font-mono">"submitted": true</code>);
+                poll the order until it completes.
+              </li>
+              <li>
+                <strong>Never mark an order completed on your side unless our response says{" "}
+                <code className="font-mono">"completed"</code> and <code className="font-mono">items</code> is not empty.</strong>{" "}
+                An empty <code className="font-mono">items</code> list means "not delivered yet".
+              </li>
+              <li>
+                Wait up to <strong>60 seconds</strong> for the response. If your request times out or the connection
+                drops, the order still finishes on our side — fetch it with <code className="font-mono">GET /orders</code>{" "}
+                (or resend the same <code className="font-mono">external_ref</code>) instead of creating a new one.
               </li>
               <li>Insufficient balance returns HTTP 402 with the required amount.</li>
             </ul>
@@ -316,9 +328,15 @@ curl -H "Authorization: Bearer YOUR_API_KEY" ${base}/orders/9d…
 # last 50 orders
 curl -H "Authorization: Bearer YOUR_API_KEY" "${base}/orders?limit=50"`}</Code>
             <p>
-              For pending (manual) products, poll every 30–60 seconds until{" "}
+              For pending orders, poll every 30–60 seconds until{" "}
               <code className="font-mono">status</code> becomes <code className="font-mono">completed</code>, then show{" "}
               <code className="font-mono">items</code> to your customer.
+            </p>
+            <p>
+              <strong>Recommended:</strong> set an order webhook URL in your reseller panel. When a pending order is
+              delivered later (supplier retry or automatic recovery) we POST the completed order with its{" "}
+              <code className="font-mono">items</code> to that URL, so your site updates without polling. Keep polling as a
+              fallback in case your server was down.
             </p>
           </Section>
 
@@ -576,8 +594,9 @@ bot.on("callback_query", async (q) => {
               <code className="font-mono">price</code>; whatever you charge your customer is your profit.
             </p>
             <p>
-              <strong>What if delivery fails?</strong> The order is marked failed and your wallet is refunded
-              automatically.
+              <strong>What if delivery fails?</strong> If an in-stock item cannot be delivered, the order is voided and
+              your wallet is refunded automatically. Supplier-linked orders stay <code className="font-mono">pending</code>{" "}
+              (paid) while we retry, then complete with items — or are cancelled and refunded.
             </p>
             <p>
               <strong>Can I use one key for a website and a bot?</strong> Yes, if both channels are enabled on your
@@ -594,6 +613,43 @@ bot.on("callback_query", async (q) => {
               </Link>{" "}
               — we help with integration for free.
             </p>
+          </Section>
+
+          <Section id="changelog" title="13. API changelog">
+            <p>Every change to the API is listed here, newest first. Check it when something behaves differently.</p>
+            <p>
+              <strong>2026-10-15</strong>
+            </p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>
+                Orders now finish on our side even if your request times out or disconnects. Do not create a new order —
+                fetch the existing one or resend the same <code className="font-mono">external_ref</code>.
+              </li>
+              <li>
+                Automatic recovery: an order interrupted before charging is charged and delivered within about 1–2
+                minutes (own stock and supplier products). If balance or stock is missing it becomes{" "}
+                <code className="font-mono">cancelled</code> (nothing charged or a full refund).
+              </li>
+              <li>
+                Orders delivered later are pushed to your order webhook with <code className="font-mono">items</code>.
+                Set a webhook URL in your panel to receive them automatically.
+              </li>
+              <li>
+                Only treat an order as delivered when <code className="font-mono">status</code> is{" "}
+                <code className="font-mono">completed</code> and <code className="font-mono">items</code> is not empty.
+              </li>
+            </ul>
+            <p>
+              <strong>Earlier</strong>
+            </p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>
+                Supplier-linked orders that cannot be bought instantly return HTTP 201 with{" "}
+                <code className="font-mono">"submitted": true</code> and <code className="font-mono">status: "pending"</code>;
+                your balance is kept and items arrive once we deliver.
+              </li>
+              <li>Supplier problems return <code className="font-mono">code: "supplier_unavailable"</code> instead of "Insufficient balance".</li>
+            </ul>
           </Section>
         </div>
       </div>
