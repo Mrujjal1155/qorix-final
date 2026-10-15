@@ -340,7 +340,9 @@ function NotifyAllResellers({ resellerCount }: { resellerCount: number }) {
     if (!confirm(`Send this email to all ${resellerCount} active resellers?`)) return;
     setSending(true);
     try {
-      const res: any = await notify({ data: { subject, message, imageUrl: imageUrl || undefined } });
+      const payload: { subject: string; message: string; imageUrl?: string } = { subject, message };
+      if (imageUrl.trim()) payload.imageUrl = imageUrl.trim();
+      const res: any = await notify({ data: payload });
       if (res.failed?.length) {
         toast.warning(`Sent to ${res.sent}/${res.total}`, {
           description: `Failed: ${res.failed.map((f: any) => f.name).join(", ")}`,
