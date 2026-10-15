@@ -74,6 +74,7 @@ const NAV = [
   ["bot", "10. Build a Telegram bot (A→Z)"],
   ["checklist", "11. Go-live checklist"],
   ["faq", "12. FAQ"],
+  ["changelog", "13. API changelog"],
 ];
 
 function DocsPage() {
@@ -302,8 +303,19 @@ x-api-key: YOUR_API_KEY`}</Code>
               </li>
               <li>
                 <code className="font-mono">status: "completed"</code> → credentials are inside{" "}
-                <code className="font-mono">items</code>. <code className="font-mono">"pending"</code> → manual
-                delivery; poll the order until it completes.
+                <code className="font-mono">items</code>. <code className="font-mono">"pending"</code> → delivery is
+                still in progress (manual product, supplier processing, or <code className="font-mono">"submitted": true</code>);
+                poll the order until it completes.
+              </li>
+              <li>
+                <strong>Never mark an order completed on your side unless our response says{" "}
+                <code className="font-mono">"completed"</code> and <code className="font-mono">items</code> is not empty.</strong>{" "}
+                An empty <code className="font-mono">items</code> list means "not delivered yet".
+              </li>
+              <li>
+                Wait up to <strong>60 seconds</strong> for the response. If your request times out or the connection
+                drops, the order still finishes on our side — fetch it with <code className="font-mono">GET /orders</code>{" "}
+                (or resend the same <code className="font-mono">external_ref</code>) instead of creating a new one.
               </li>
               <li>Insufficient balance returns HTTP 402 with the required amount.</li>
             </ul>
@@ -316,9 +328,15 @@ curl -H "Authorization: Bearer YOUR_API_KEY" ${base}/orders/9d…
 # last 50 orders
 curl -H "Authorization: Bearer YOUR_API_KEY" "${base}/orders?limit=50"`}</Code>
             <p>
-              For pending (manual) products, poll every 30–60 seconds until{" "}
+              For pending orders, poll every 30–60 seconds until{" "}
               <code className="font-mono">status</code> becomes <code className="font-mono">completed</code>, then show{" "}
               <code className="font-mono">items</code> to your customer.
+            </p>
+            <p>
+              <strong>Recommended:</strong> set an order webhook URL in your reseller panel. When a pending order is
+              delivered later (supplier retry or automatic recovery) we POST the completed order with its{" "}
+              <code className="font-mono">items</code> to that URL, so your site updates without polling. Keep polling as a
+              fallback in case your server was down.
             </p>
           </Section>
 
