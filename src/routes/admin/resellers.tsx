@@ -324,6 +324,87 @@ function ResellersPage() {
   );
 }
 
+function NotifyAllResellers({ resellerCount }: { resellerCount: number }) {
+  const notify = useServerFn(notifyAllResellers);
+  const [open, setOpen] = useState(false);
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const send = async () => {
+    if (!subject.trim() || !message.trim()) {
+      toast.error("Subject and message are required");
+      return;
+    }
+    if (!confirm(`Send this email to all ${resellerCount} active resellers?`)) return;
+    setSending(true);
+    try {
+      const res: any = await notify({ data: { subject, message, imageUrl: imageUrl || undefined } });
+      if (res.failed?.length) {
+        toast.warning(`Sent to ${res.sent}/${res.total}`, {
+          description: `Failed: ${res.failed.map((f: any) => f.name).join(", ")}`,
+          duration: 10000,
+        });
+      } else {
+        toast.success(`Email sent to all ${res.sent} resellers`);
+      }
+      setOpen(false);
+      setSubject("");
+      setMessage("");
+      setImageUrl("");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="gap-2">
+          <Mail className="size-4" /> Notify all resellers
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Email all resellers</DialogTitle>
+          <DialogDescription>
+            Goes to every active reseller with an email address ({resellerCount}). Sent from your Resend mail system
+            with your logo header.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-3">
+          <Input placeholder="Subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
+          <Textarea
+            placeholder="Write your message… (blank lines start a new paragraph)"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={8}
+          />
+          <Input
+            placeholder="Optional banner image URL (https://…)"
+            value={imageUrl}
+            onChange={(e) => setImageUrl(e.target.value)}
+          />
+          {imageUrl.trim() && (
+            <img src={imageUrl} alt="" className="max-h-40 w-full rounded-lg border object-contain" />
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => setOpen(false)} disabled={sending}>
+            Cancel
+          </Button>
+          <Button onClick={send} disabled={sending}>
+            {sending ? "Sending…" : `Send to ${resellerCount} resellers`}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function Applications() {
   const qc = useQueryClient();
   const fetchApps = useServerFn(listResellerApplications);
