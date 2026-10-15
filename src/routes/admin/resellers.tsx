@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Search } from "lucide-react";
+import { Mail, Search } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { AdminShell, AdminPanel, money } from "@/components/AdminShell";
@@ -10,6 +10,15 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   adjustResellerBalance,
@@ -17,6 +26,7 @@ import {
   deleteReseller,
   getResellerDetail,
   listResellers,
+  notifyAllResellers,
   resellerLoginLink,
   rotateResellerKey,
   updateReseller,
@@ -95,6 +105,7 @@ function ResellersPage() {
         </TabsList>
 
         <TabsContent value="accounts" className="space-y-5">
+          <NotifyAllResellers resellerCount={(resellers ?? []).filter((r: any) => r.is_active && r.email).length} />
           <AdminPanel title="New reseller">
             <div className="grid gap-3 sm:grid-cols-[1.4fr_1.4fr_0.7fr_auto]">
               <Input placeholder="Reseller name" value={name} onChange={(e) => setName(e.target.value)} />
