@@ -41,7 +41,7 @@ export const notifyAllResellers = createServerFn({ method: "POST" })
         name: String(r.name ?? ""),
         subject,
         message,
-        imageUrl: imageUrl || undefined,
+        ...(imageUrl ? { imageUrl } : {}),
         docsUrl: `${base}/reseller/docs`,
         panelUrl: `${base}/reseller/panel`,
       });
