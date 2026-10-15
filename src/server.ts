@@ -95,6 +95,8 @@ export default {
           // After supplier stock refresh: deliver queued pre-orders in serial.
           const { fulfillPreorders } = await import("./lib/bot/preorder.server");
           await fulfillPreorders().catch((e) => console.error("Pre-order drain failed:", e));
+          const { recoverUnchargedResellerOrders } = await import("./lib/reseller/recover.server");
+          await recoverUnchargedResellerOrders().catch((e) => console.error("Reseller order recovery failed:", e));
         })
         .catch((error) => console.error("Scheduled supplier sync failed:", error)),
     );
