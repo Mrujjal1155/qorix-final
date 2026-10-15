@@ -1,6 +1,65 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+/**
+ * Email every active reseller that has an email address on file. Admin-only.
+ * Sends are sequential with a small pause so Resend rate limits are not hit;
+ * failures are collected and reported, never thrown mid-loop.
+ */
+export const notifyAllResellers = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { subject: string; message: string; imageUrl?: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const subject = (data.subject ?? "").trim();
+    const message = (data.message ?? "").trim();
+    if (!subject || !message) throw new Error("Subject and message are required");
+    const imageUrl = (data.imageUrl ?? "").trim();
+    if (imageUrl && !/^https:\/\//i.test(imageUrl)) throw new Error("Image must be an https:// URL");
+
+    const sb = (context as any).supabase;
+    const { data: rows, error } = await sb
+      .from("resellers")
+      .select("id,name,email,is_active")
+      .eq("is_active", true)
+      .not("email", "is", null);
+    if (error) throw new Error(error.message);
+    const targets = (rows ?? []).filter((r: any) => String(r.email ?? "").includes("@"));
+    if (!targets.length) throw new Error("No active reseller has an email address");
+
+    const { sendResendEmail, getEmailBrand, siteBaseUrl } = await import("@/lib/email/resend.server");
+    const { resellerBroadcastEmail } = await import("@/lib/email/templates");
+    const brand = await getEmailBrand();
+    const base = siteBaseUrl();
+
+    let sent = 0;
+    const failed: { name: string; error: string }[] = [];
+    for (const r of targets) {
+      const tpl = resellerBroadcastEmail({
+        siteName: brand.siteName,
+        logoUrl: brand.logoUrl,
+        name: String(r.name ?? ""),
+        subject,
+        message,
+        imageUrl: imageUrl || undefined,
+        docsUrl: `${base}/reseller/docs`,
+        panelUrl: `${base}/reseller/panel`,
+      });
+      const res = await sendResendEmail({
+        to: String(r.email),
+        subject: tpl.subject,
+        html: tpl.html,
+        text: tpl.text,
+        kind: "reseller",
+        tags: [{ name: "type", value: "reseller_broadcast" }],
+      });
+      if (res.ok) sent += 1;
+      else failed.push({ name: String(r.name ?? r.email), error: res.error ?? "unknown" });
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+    return { total: targets.length, sent, failed };
+  });
+
 async function assertAdmin(context: any) {
   const { data } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
   if (!data) throw new Error("Forbidden");
