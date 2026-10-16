@@ -190,7 +190,7 @@ export async function catalogue(reseller: Reseller, channel: Channel) {
     db
       .from("products")
       .select(
-        "id,name,emoji,description,important_note,quick_guide,price,old_price,delivery_type,category_id,sort_order,image_url,delivery_time,badge,featured_rank,supplier_id,supplier_stock,owner_reseller_id,is_active,api_price,flash_ends_at,flash_discount",
+        "id,name,emoji,description,important_note,quick_guide,price,old_price,delivery_type,category_id,sort_order,image_url,delivery_time,badge,featured_rank,supplier_id,supplier_stock,owner_reseller_id,is_active,api_price,flash_ends_at,flash_discount,manual_stock_limited",
       )
       .eq("is_active", true)
       .or(`owner_reseller_id.is.null,owner_reseller_id.eq.${reseller.id}`)
@@ -222,7 +222,9 @@ export async function catalogue(reseller: Reseller, channel: Channel) {
   const { guardVisibleProducts } = await import("@/lib/suppliers/visibility-guard.server");
   const products = guardVisibleProducts(prods ?? [], "api")
     .filter((p: any) => !p.category_id || allowed.has(p.category_id))
-    .map((p: any) => publicProduct(p, reseller, counts, catName, customPrices[p.id]));
+    .map((p: any) => publicProduct(p, reseller, counts, catName, customPrices[p.id]))
+    // Same rule as the bot/website: out-of-stock products are hidden until restocked.
+    .filter((p: any) => p.in_stock);
 
   return {
     categories: categories.map((c: any) => ({ id: c.id, name: c.name, emoji: c.emoji, sort_order: c.sort_order })),
@@ -277,7 +279,7 @@ export async function singleProduct(reseller: Reseller, id: string) {
   const { data: p } = await db
     .from("products")
     .select(
-      "id,name,emoji,description,important_note,quick_guide,price,old_price,delivery_type,category_id,sort_order,image_url,delivery_time,badge,featured_rank,supplier_id,supplier_stock,owner_reseller_id,api_price,flash_ends_at,flash_discount",
+      "id,name,emoji,description,important_note,quick_guide,price,old_price,delivery_type,category_id,sort_order,image_url,delivery_time,badge,featured_rank,supplier_id,supplier_stock,owner_reseller_id,api_price,flash_ends_at,flash_discount,manual_stock_limited",
     )
     .eq("id", id)
     .eq("is_active", true)
@@ -298,7 +300,8 @@ export async function singleProduct(reseller: Reseller, id: string) {
   if (stockRes.error) throw new Error(`Stock lookup failed: ${stockRes.error.message}`);
   const count = Number(((stockRes.data ?? []) as any[])[0]?.available ?? 0);
   const cat = catRes.data;
-  return publicProduct(p, reseller, { [id]: count }, cat ? { [p.category_id]: cat.name } : {}, customMap[id]);
+  const out = publicProduct(p, reseller, { [id]: count }, cat ? { [p.category_id]: cat.name } : {}, customMap[id]);
+  return out.in_stock ? out : null;
 }
 
 export function orderPayload(o: any) {
