@@ -803,40 +803,77 @@ function AutoTopUp({ balance, onDone }: { balance: number; onDone: () => void })
   );
 }
 
+function orderTone(o: any) {
+  if (Number(o.refunded_amount) > 0 || o.status === "refunded")
+    return { label: "refunded", cls: "border-destructive/50 bg-destructive/15 text-destructive" };
+  if (o.status === "completed") return { label: "completed", cls: "border-emerald-500/40 bg-emerald-500/15 text-emerald-500" };
+  if (o.status === "pending" || o.status === "processing")
+    return { label: o.status, cls: "border-amber-500/40 bg-amber-500/15 text-amber-500" };
+  return { label: o.status, cls: "border-destructive/40 bg-destructive/10 text-destructive" };
+}
+
 function OrdersTable({ orders }: { orders: any[] }) {
+  const [q, setQ] = useState("");
   if (orders.length === 0) {
     return <p className="text-sm text-muted-foreground">No API orders yet.</p>;
   }
+  const term = q.trim().replace(/^#/, "").toLowerCase();
+  const shown = term
+    ? orders.filter((o) => String(o.order_no).includes(term) || String(o.external_ref ?? "").toLowerCase().includes(term))
+    : orders;
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border/60">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
-          <tr>
-            <th className="px-3 py-2">Order</th>
-            <th className="px-3 py-2">Product</th>
-            <th className="px-3 py-2">Qty</th>
-            <th className="px-3 py-2">Paid</th>
-            <th className="px-3 py-2">Source</th>
-            <th className="px-3 py-2">Status</th>
-            <th className="px-3 py-2">Date</th>
-          </tr>
-        </thead>
-        <tbody>
-          {orders.map((o) => (
-            <tr key={o.id} className="border-t border-border/50">
-              <td className="px-3 py-2 font-mono text-xs">#{o.order_no}</td>
-              <td className="px-3 py-2">{o.product_name}</td>
-              <td className="px-3 py-2 tabular-nums">{o.quantity}</td>
-              <td className="px-3 py-2 tabular-nums">{priceTag(Number(o.total))}</td>
-              <td className="px-3 py-2">{o.source}</td>
-              <td className="px-3 py-2">
-                <Badge variant={o.status === "completed" ? "secondary" : "outline"}>{o.status}</Badge>
-              </td>
-              <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString()}</td>
+    <div className="space-y-3">
+      <Input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Search by order ID (e.g. 1391) or your reference"
+        className="max-w-sm"
+      />
+      <div className="overflow-x-auto rounded-2xl border border-border/60">
+        <table className="w-full text-sm">
+          <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2">Order</th>
+              <th className="px-3 py-2">Product</th>
+              <th className="px-3 py-2">Qty</th>
+              <th className="px-3 py-2">Paid</th>
+              <th className="px-3 py-2">Source</th>
+              <th className="px-3 py-2">Status</th>
+              <th className="px-3 py-2">Date</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {shown.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">No order matches “{q}”.</td>
+              </tr>
+            ) : (
+              shown.map((o) => {
+                const tone = orderTone(o);
+                const refunded = Number(o.refunded_amount) || 0;
+                return (
+                  <tr key={o.id} className="border-t border-border/50">
+                    <td className="px-3 py-2 font-mono text-xs">#{o.order_no}</td>
+                    <td className="px-3 py-2">{o.product_name}</td>
+                    <td className="px-3 py-2 tabular-nums">{o.quantity}</td>
+                    <td className="px-3 py-2 tabular-nums">
+                      {priceTag(Number(o.total))}
+                      {refunded > 0 && (
+                        <span className="ml-2 font-semibold text-emerald-500">+{priceTag(refunded)} returned</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2">{o.source}</td>
+                    <td className="px-3 py-2">
+                      <span className={`inline-flex rounded-md border px-2 py-0.5 text-xs font-semibold ${tone.cls}`}>{tone.label}</span>
+                    </td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString()}</td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
