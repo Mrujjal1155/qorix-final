@@ -1,6 +1,7 @@
 # Roadmap
 
-- [ ] Audit supplier identity exposure across visitor, user, reseller, bot and API paths; propose verified security fixes for approval.
+- [x] Audit supplier identity exposure across visitor, user, reseller, bot and API paths; propose verified security fixes for approval.
+- [ ] Apply supplier privacy and endpoint hardening after plan approval; verify without real purchases (blocked on approval).
 - [x] Close public supplier metadata exposure; anonymous access tests, storefront/product/SEO responses and database linter pass without real purchases.
 - [ ] Verify the privacy update on the published site and signed-in reseller account (requires deployment and external Supabase account access).
 
