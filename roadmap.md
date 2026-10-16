@@ -1,5 +1,6 @@
 # Roadmap
 
+- [ ] Keep product descriptions, details and images unchanged; restrict this audit to supplier credentials/endpoints and unauthorized spending (awaiting revised plan approval).
 - [x] Audit supplier identity exposure across visitor, user, reseller, bot and API paths; propose verified security fixes for approval.
 - [ ] Apply supplier privacy and endpoint hardening after plan approval; verify without real purchases (blocked on approval).
 - [x] Close public supplier metadata exposure; anonymous access tests, storefront/product/SEO responses and database linter pass without real purchases.
