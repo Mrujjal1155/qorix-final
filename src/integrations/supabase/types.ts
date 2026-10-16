@@ -916,6 +916,51 @@ export type Database = {
           },
         ]
       }
+      reseller_product_prices: {
+        Row: {
+          created_at: string
+          id: string
+          min_qty: number
+          price: number
+          product_id: string
+          reseller_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          min_qty?: number
+          price?: number
+          product_id: string
+          reseller_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          min_qty?: number
+          price?: number
+          product_id?: string
+          reseller_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reseller_product_prices_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reseller_product_prices_reseller_id_fkey"
+            columns: ["reseller_id"]
+            isOneToOne: false
+            referencedRelation: "resellers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reseller_topups: {
         Row: {
           admin_note: string | null

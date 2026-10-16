@@ -618,6 +618,20 @@ bot.on("callback_query", async (q) => {
           <Section id="changelog" title="13. API changelog">
             <p>Every change to the API is listed here, newest first. Check it when something behaves differently.</p>
             <p>
+              <strong>2026-10-29</strong>
+            </p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>
+                Per-reseller custom prices: we can set a fixed price for your account on specific products. Products
+                then include <code className="font-mono">custom_price</code> and{" "}
+                <code className="font-mono">custom_min_qty</code>. When your order quantity reaches{" "}
+                <code className="font-mono">custom_min_qty</code>, the custom price is charged instead of your normal
+                discounted price — no discount percent or bulk discount applies on top. When{" "}
+                <code className="font-mono">custom_min_qty</code> is 1, the list <code className="font-mono">price</code>{" "}
+                already shows the custom price.
+              </li>
+            </ul>
+            <p>
               <strong>2026-10-15</strong>
             </p>
             <ul className="list-disc space-y-1 pl-5">

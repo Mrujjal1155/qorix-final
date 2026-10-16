@@ -153,6 +153,29 @@ export function resellerPrice(price: number, discountPercent: number) {
   return Math.max(0, Math.round(p * 100) / 100);
 }
 
+export type ResellerCustomPrice = { price: number; min_qty: number };
+
+/**
+ * Per-reseller custom prices set by the admin. A custom price is FINAL: the
+ * reseller's discount percent and bulk discounts do not apply, and it only
+ * kicks in when the order quantity reaches min_qty.
+ */
+export async function resellerCustomPrices(
+  resellerId: string,
+  productIds: string[],
+): Promise<Record<string, ResellerCustomPrice>> {
+  if (!productIds.length) return {};
+  const { data } = await db
+    .from("reseller_product_prices")
+    .select("product_id,price,min_qty")
+    .eq("reseller_id", resellerId)
+    .in("product_id", productIds);
+  const map: Record<string, ResellerCustomPrice> = {};
+  for (const r of (data ?? []) as any[])
+    map[String(r.product_id)] = { price: Number(r.price), min_qty: Number(r.min_qty ?? 1) };
+  return map;
+}
+
 function channelFilter(channel: Channel) {
   // categories.channel is 'both' | 'website' | 'telegram'
   if (channel === "website") return (c: any) => c.channel !== "telegram";
@@ -191,10 +214,15 @@ export async function catalogue(reseller: Reseller, channel: Channel) {
   const catName: Record<string, string> = {};
   for (const c of categories) catName[c.id] = c.name;
 
+  const customPrices = await resellerCustomPrices(
+    reseller.id,
+    (prods ?? []).map((p: any) => String(p.id)),
+  );
+
   const { guardVisibleProducts } = await import("@/lib/suppliers/visibility-guard.server");
   const products = guardVisibleProducts(prods ?? [], "api")
     .filter((p: any) => !p.category_id || allowed.has(p.category_id))
-    .map((p: any) => publicProduct(p, reseller, counts, catName));
+    .map((p: any) => publicProduct(p, reseller, counts, catName, customPrices[p.id]));
 
   return {
     categories: categories.map((c: any) => ({ id: c.id, name: c.name, emoji: c.emoji, sort_order: c.sort_order })),
@@ -207,10 +235,15 @@ export function publicProduct(
   reseller: Reseller,
   counts: Record<string, number>,
   catName: Record<string, string> = {},
+  custom?: ResellerCustomPrice,
 ) {
   const stock = p.supplier_id ? Number(p.supplier_stock ?? 0) : (counts[p.id] ?? 0);
   // A reseller's own uploaded product costs them nothing at Qorix — they own the stock.
   const own = Boolean(p.owner_reseller_id) && p.owner_reseller_id === reseller.id;
+  // Custom price shows as the listing price only when a single item already
+  // qualifies (min_qty 1); otherwise the normal price shows and the custom
+  // deal is advertised via custom_price / custom_min_qty.
+  const listed = custom && custom.min_qty <= 1 ? custom.price : apiUnitPrice(p, reseller);
   return {
     own,
     id: p.id,
@@ -225,7 +258,9 @@ export function publicProduct(
     category_id: p.category_id,
     category_name: p.category_id ? (catName[p.category_id] ?? null) : null,
     retail_price: Number(p.price),
-    price: own ? 0 : apiUnitPrice(p, reseller),
+    price: own ? 0 : listed,
+    custom_price: !own && custom ? custom.price : null,
+    custom_min_qty: !own && custom ? custom.min_qty : null,
     flash_sale_ends_at: p.flash_ends_at && Date.parse(String(p.flash_ends_at)) > Date.now() ? p.flash_ends_at : null,
     old_price: p.old_price != null ? Number(p.old_price) : null,
     currency: "USD",
@@ -251,18 +286,19 @@ export async function singleProduct(reseller: Reseller, id: string) {
   if (!p) return null;
   // Stock from the exact stock_counters table (no stock_items scan); supplier
   // products use supplier_stock, so no count is needed for them. Category in parallel.
-  const [stockRes, catRes] = await Promise.all([
+  const [stockRes, catRes, customMap] = await Promise.all([
     p.supplier_id
       ? Promise.resolve({ data: [] as any[], error: null as any })
       : db.rpc("stock_counts", { _product_ids: [id] }),
     p.category_id
       ? db.from("categories").select("name").eq("id", p.category_id).maybeSingle()
       : Promise.resolve({ data: null as any }),
+    resellerCustomPrices(reseller.id, [id]),
   ]);
   if (stockRes.error) throw new Error(`Stock lookup failed: ${stockRes.error.message}`);
   const count = Number(((stockRes.data ?? []) as any[])[0]?.available ?? 0);
   const cat = catRes.data;
-  return publicProduct(p, reseller, { [id]: count }, cat ? { [p.category_id]: cat.name } : {});
+  return publicProduct(p, reseller, { [id]: count }, cat ? { [p.category_id]: cat.name } : {}, customMap[id]);
 }
 
 export function orderPayload(o: any) {
@@ -311,8 +347,12 @@ export async function purchase(
     return { ok: false as const, status: 404, error: "Product not found" };
 
   const ownProduct = p.owner_reseller_id === reseller.id;
-  let unit = ownProduct ? 0 : apiUnitPrice(p, reseller);
-  if (!ownProduct) {
+  // A custom price (qty >= min_qty) is final: no discount percent, no bulk tiers.
+  const customMap = ownProduct ? {} : await resellerCustomPrices(reseller.id, [String(p.id)]);
+  const custom = customMap[String(p.id)];
+  const customApplies = Boolean(custom && qty >= custom!.min_qty);
+  let unit = ownProduct ? 0 : customApplies ? custom!.price : apiUnitPrice(p, reseller);
+  if (!ownProduct && !customApplies) {
     const { bulkTiersFor, bulkUnit } = await import("@/lib/bulk-discount.server");
     const bulk = await bulkTiersFor([String(p.id)], "api");
     unit = bulkUnit(p, unit, qty, bulk[String(p.id)]);
