@@ -217,7 +217,6 @@ export const getAnalytics = createServerFn({ method: "POST" })
       revenue += total;
       profit += p;
       units += qty;
-      const b = buckets[key];
       if (b) {
         b.orders++;
         b.revenue += total;
