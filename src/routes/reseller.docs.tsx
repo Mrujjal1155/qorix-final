@@ -622,6 +622,12 @@ bot.on("callback_query", async (q) => {
             </p>
             <ul className="list-disc space-y-1 pl-5">
               <li>
+                Out-of-stock products are now hidden: <code className="font-mono">GET /products</code> only lists
+                products you can buy right now, and <code className="font-mono">GET /products/:id</code> returns 404
+                while a product is out of stock. They reappear automatically when restocked. Remove products from
+                your site when they disappear from the list.
+              </li>
+              <li>
                 Per-reseller custom prices: we can set a fixed price for your account on specific products. Products
                 then include <code className="font-mono">custom_price</code> and{" "}
                 <code className="font-mono">custom_min_qty</code>. When your order quantity reaches{" "}

@@ -843,33 +843,73 @@ function OrdersTable({ orders }: { orders: any[] }) {
 
 function Catalogue() {
   const fetchCatalogue = useServerFn(getResellerCatalogue);
-  const { data } = useQuery({ queryKey: ["reseller-catalogue"], queryFn: () => fetchCatalogue() });
-  const rows: any[] = (data as any[]) ?? [];
-  if (rows.length === 0) return <p className="text-sm text-muted-foreground">Loading price list…</p>;
+  const { data, isLoading, isFetching, refetch, dataUpdatedAt } = useQuery({
+    queryKey: ["reseller-catalogue"],
+    queryFn: () => fetchCatalogue(),
+    refetchInterval: 60_000,
+  });
+  const [q, setQ] = useState("");
+  const all: any[] = (data as any[]) ?? [];
+  const term = q.trim().toLowerCase();
+  const rows = term ? all.filter((p) => String(p.name).toLowerCase().includes(term)) : all;
+  const sync = async () => {
+    const r = await refetch();
+    if (r.error) toast.error("Sync failed — please try again");
+    else toast.success("Prices and stock updated");
+  };
   return (
-    <div className="overflow-x-auto rounded-2xl border border-border/60">
-      <table className="w-full text-sm">
-        <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
-          <tr>
-            <th className="px-3 py-2">Product</th>
-            <th className="px-3 py-2">Category</th>
-            <th className="px-3 py-2">Retail</th>
-            <th className="px-3 py-2">Your price</th>
-            <th className="px-3 py-2">Stock</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((p) => (
-            <tr key={p.id} className="border-t border-border/50">
-              <td className="px-3 py-2">{p.name}</td>
-              <td className="px-3 py-2 text-muted-foreground">{p.category}</td>
-              <td className="px-3 py-2 tabular-nums text-muted-foreground line-through">{priceTag(p.retail)}</td>
-              <td className="px-3 py-2 font-semibold tabular-nums">{priceTag(p.your_price)}</td>
-              <td className="px-3 py-2 tabular-nums">{p.stock === null ? "—" : p.stock}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Input
+          className="max-w-xs"
+          placeholder="Search product name…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <Button variant="secondary" size="sm" onClick={sync} disabled={isFetching}>
+          <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} /> Sync prices
+        </Button>
+        <span className="text-xs text-muted-foreground">
+          {rows.length} products{dataUpdatedAt ? ` · updated ${new Date(dataUpdatedAt).toLocaleTimeString()}` : ""}
+        </span>
+      </div>
+      {isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading price list…</p>
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No products found.</p>
+      ) : (
+        <div className="overflow-x-auto rounded-2xl border border-border/60">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-left text-xs uppercase text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2">Product</th>
+                <th className="px-3 py-2">Category</th>
+                <th className="px-3 py-2">Retail</th>
+                <th className="px-3 py-2">Your price</th>
+                <th className="px-3 py-2">Stock</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((p) => (
+                <tr key={p.id} className="border-t border-border/50">
+                  <td className="px-3 py-2">{p.name}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{p.category}</td>
+                  <td className="px-3 py-2 tabular-nums text-muted-foreground line-through">{priceTag(p.retail)}</td>
+                  <td className="px-3 py-2 font-semibold tabular-nums">
+                    {priceTag(p.your_price)}
+                    {p.custom_price != null ? (
+                      <Badge variant="secondary" className="ml-2">
+                        {p.custom_min_qty > 1 ? `Special ${priceTag(p.custom_price)} for ${p.custom_min_qty}+` : "Special price"}
+                      </Badge>
+                    ) : null}
+                  </td>
+                  <td className="px-3 py-2 tabular-nums">{p.stock > 0 ? p.stock : "Available"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
