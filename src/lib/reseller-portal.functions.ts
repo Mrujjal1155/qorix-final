@@ -359,7 +359,21 @@ export const getResellerPanel = createServerFn({ method: "GET" })
       },
       stats,
       myProducts,
-      orders: (orders ?? []).slice(0, 100),
+      orders: await (async () => {
+        const list = (orders ?? []).slice(0, 300) as any[];
+        const refs = list.map((o) => o.external_ref).filter(Boolean);
+        const refunds = new Map<string, number>();
+        if (refs.length) {
+          const { data: rt } = await db
+            .from("reseller_transactions")
+            .select("reference,amount")
+            .eq("reseller_id", reseller.id)
+            .eq("type", "refund")
+            .in("reference", refs);
+          for (const t of (rt ?? []) as any[]) refunds.set(t.reference, (refunds.get(t.reference) ?? 0) + Number(t.amount));
+        }
+        return list.map((o) => ({ ...o, refunded_amount: refunds.get(o.external_ref) ?? 0 }));
+      })(),
       transactions: transactions ?? [],
       topups: topups ?? [],
     };
