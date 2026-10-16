@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Close public supplier metadata exposure; anonymous access tests, storefront/product/SEO responses and database linter pass without real purchases.
+- [ ] Verify the privacy update on the published site and signed-in reseller account (requires deployment and external Supabase account access).
+
 - [x] Make Telegram quantity buttons (quantity picker and checkout "Change quantity") blue by default and expose them as their own admin colour slot.
 - [x] Make the bot's payment-method buttons blue through the existing Wallet & payment colour slot, keeping Back red.
 

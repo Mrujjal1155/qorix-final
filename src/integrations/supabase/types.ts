@@ -1790,7 +1790,34 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_products: {
+        Row: {
+          badge: string | null
+          category_id: string | null
+          created_at: string | null
+          delivery_time: string | null
+          delivery_type: string | null
+          description: string | null
+          details: Json | null
+          emoji: string | null
+          featured_rank: number | null
+          flash_ends_at: string | null
+          id: string | null
+          image_url: string | null
+          important_note: string | null
+          instant: boolean | null
+          is_active: boolean | null
+          manual_stock_limited: boolean | null
+          name: string | null
+          old_price: number | null
+          price: number | null
+          quick_guide: string | null
+          sort_order: number | null
+          stock: number | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       apply_supplier_snapshot: {
@@ -1910,6 +1937,34 @@ export type Database = {
           _user_id: string
         }
         Returns: Json
+      }
+      read_public_products: {
+        Args: never
+        Returns: {
+          badge: string
+          category_id: string
+          created_at: string
+          delivery_time: string
+          delivery_type: string
+          description: string
+          details: Json
+          emoji: string
+          featured_rank: number
+          flash_ends_at: string
+          id: string
+          image_url: string
+          important_note: string
+          instant: boolean
+          is_active: boolean
+          manual_stock_limited: boolean
+          name: string
+          old_price: number
+          price: number
+          quick_guide: string
+          sort_order: number
+          stock: number
+          updated_at: string
+        }[]
       }
       redeem_code_claim: {
         Args: { _code: string; _telegram_id: number }

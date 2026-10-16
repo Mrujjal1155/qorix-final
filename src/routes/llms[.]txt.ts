@@ -57,13 +57,12 @@ async function buildLlmsTxt() {
   let catalogue = "";
   try {
     const sb = await anonSupabase();
+    const { publicProducts } = await import("@/lib/public-products.server");
     const [{ data: cats }, { data: prods }] = await Promise.all([
       sb.from("categories").select("id,name,channel").eq("is_active", true),
-      sb
-        .from("products")
+      publicProducts()
         .select("id,name,price,category_id")
         .eq("is_active", true)
-        .is("owner_reseller_id", null)
         .limit(300),
     ]);
     const allowed = new Map<string, string>();

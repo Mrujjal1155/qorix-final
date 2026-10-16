@@ -225,7 +225,7 @@ function CheckoutPage() {
                 />
               ) : (
                 <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-secondary text-primary">
-                  <CategoryIcon name={product?.name} className="h-7 w-7" />
+                  <CategoryIcon name={product?.name ?? null} className="h-7 w-7" />
                 </span>
               )}
               <div className="min-w-0 flex-1">
