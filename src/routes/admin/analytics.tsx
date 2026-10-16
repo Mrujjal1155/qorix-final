@@ -8,11 +8,18 @@ import { MapPin } from "lucide-react";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 const RANGES = [
-  { key: "day", label: "Today" },
-  { key: "week", label: "7 days" },
-  { key: "month", label: "30 days" },
-  { key: "quarter", label: "3 months" },
+  { key: "today", label: "Today", days: 1, offset: 0 },
+  { key: "yesterday", label: "Yesterday", days: 1, offset: 1 },
+  { key: "3d", label: "3 days", days: 3, offset: 0 },
+  { key: "7d", label: "7 days", days: 7, offset: 0 },
+  { key: "30d", label: "30 days", days: 30, offset: 0 },
+  { key: "90d", label: "3 months", days: 90, offset: 0 },
+  { key: "custom", label: "Custom", days: 0, offset: 0 },
 ] as const;
+
+// Bangladesh calendar day (UTC+6), matching the server.
+const bdDay = (ms: number) => new Date(ms + 6 * 3600 * 1000).toISOString().slice(0, 10);
+const DAY = 86400000;
 
 export const Route = createFileRoute("/admin/analytics")({
   head: () => ({
@@ -29,11 +36,20 @@ export const Route = createFileRoute("/admin/analytics")({
 });
 
 function AnalyticsPage() {
-  const [range, setRange] = useState<(typeof RANGES)[number]["key"]>("week");
+  const [range, setRange] = useState<(typeof RANGES)[number]["key"]>("7d");
+  const todayStr = bdDay(Date.now());
+  const [customFrom, setCustomFrom] = useState(bdDay(Date.now() - 6 * DAY));
+  const [customTo, setCustomTo] = useState(todayStr);
+  const preset = RANGES.find((r) => r.key === range)!;
+  const now = Date.now();
+  const from = range === "custom" ? customFrom : bdDay(now - (preset.offset + preset.days - 1) * DAY);
+  const to = range === "custom" ? customTo : bdDay(now - preset.offset * DAY);
+
   const fetchAnalytics = useServerFn(getAnalytics);
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
-    queryKey: ["analytics", range],
-    queryFn: () => fetchAnalytics({ data: { range } }),
+    queryKey: ["analytics", from, to],
+    queryFn: () => fetchAnalytics({ data: { from, to } }),
+    enabled: Boolean(from && to),
   });
   const fetchOverview = useServerFn(getOverview);
   const { data: overview, isLoading: overviewLoading } = useQuery({
@@ -48,7 +64,7 @@ function AnalyticsPage() {
 
   const series = (analytics?.series ?? []).map((s) => ({
     ...s,
-    label: new Date(s.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+    label: new Date(`${s.date}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" }),
   }));
 
   return (
@@ -74,16 +90,40 @@ function AnalyticsPage() {
           </div>
         }
       >
+        {range === "custom" && (
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-sm">
+            <span className="text-muted-foreground">From</span>
+            <input
+              type="date"
+              value={customFrom}
+              max={customTo || todayStr}
+              onChange={(e) => setCustomFrom(e.target.value)}
+              className="rounded-lg border border-border bg-background px-3 py-1.5 text-foreground"
+            />
+            <span className="text-muted-foreground">to</span>
+            <input
+              type="date"
+              value={customTo}
+              min={customFrom}
+              max={todayStr}
+              onChange={(e) => setCustomTo(e.target.value)}
+              className="rounded-lg border border-border bg-background px-3 py-1.5 text-foreground"
+            />
+          </div>
+        )}
+        <p className="mb-3 text-xs text-muted-foreground">
+          {from === to ? from : `${from} → ${to}`} · Bangladesh time
+        </p>
         <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
           {[
-            { label: "Sales (completed)", value: analytics?.totals.completedOrders ?? 0 },
-            { label: "Units sold", value: analytics?.totals.units ?? 0 },
-            { label: "Revenue", value: money(analytics?.totals.revenue ?? 0) },
+            { label: "Total orders", value: analytics?.totals.orders ?? 0 },
+            { label: "Completed", value: analytics?.totals.completedOrders ?? 0 },
+            { label: "Pending orders", value: analytics?.totals.pendingOrders ?? 0 },
             { label: "Profit", value: money(analytics?.totals.profit ?? 0) },
+            { label: "Revenue", value: money(analytics?.totals.revenue ?? 0) },
+            { label: "Units sold", value: analytics?.totals.units ?? 0 },
             { label: "Avg order value", value: money(analytics?.totals.avgOrderValue ?? 0) },
             { label: "Margin", value: `${(analytics?.totals.margin ?? 0).toFixed(1)}%` },
-            { label: "Pending orders", value: analytics?.totals.pendingOrders ?? 0 },
-            { label: "Total orders", value: analytics?.totals.orders ?? 0 },
           ].map((k) => (
             <div key={k.label} className="rounded-xl border border-border/70 bg-background/40 p-3">
               <p className="truncate text-xs text-muted-foreground">{k.label}</p>
@@ -93,6 +133,7 @@ function AnalyticsPage() {
             </div>
           ))}
         </div>
+
 
         <div className="mt-5 h-[280px] w-full">
           <ResponsiveContainer width="100%" height="100%">
