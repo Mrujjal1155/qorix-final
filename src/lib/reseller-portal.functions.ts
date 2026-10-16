@@ -485,24 +485,19 @@ export const getResellerCatalogue = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { db, reseller } = await resolveReseller(context as any);
     if (!reseller) throw new Error("No reseller account linked to this login");
-    const [{ data: cats }, { data: prods }] = await Promise.all([
-      db.from("categories").select("id,name,emoji").eq("is_active", true).order("sort_order"),
-      db
-        .from("products")
-        .select("id,name,category_id,price,delivery_type,is_active,supplier_stock,supplier_id,api_price,flash_ends_at,flash_discount")
-        .eq("is_active", true)
-        .order("sort_order"),
-    ]);
-    const catName = new Map<string, string>((cats ?? []).map((c: any) => [c.id, c.name]));
-    const discount = Number(reseller.discount_percent ?? 0);
-    return (prods ?? []).map((p: any) => ({
+    // Same pricing + stock rules as the reseller API (custom prices, hidden out-of-stock).
+    const core = await import("@/lib/reseller/core.server");
+    const { products } = await core.catalogue(reseller as any, "all");
+    return products.map((p: any) => ({
       id: p.id,
       name: p.name,
-      category: catName.get(p.category_id) ?? "Uncategorised",
-      retail: Number(p.price ?? 0),
-      your_price: apiUnitPriceLocal(p, discount),
+      category: p.category_name ?? "Uncategorised",
+      retail: Number(p.retail_price ?? 0),
+      your_price: Number(p.price ?? 0),
+      custom_price: p.custom_price as number | null,
+      custom_min_qty: p.custom_min_qty as number | null,
       delivery_type: p.delivery_type,
-      stock: p.supplier_id ? Number(p.supplier_stock ?? 0) : null,
+      stock: Number(p.stock ?? 0),
     }));
   });
 
