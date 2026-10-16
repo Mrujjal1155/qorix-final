@@ -45,9 +45,10 @@ async function buildSitemap() {
 
   try {
     const sb = await anonSupabase();
+    const { publicProducts } = await import("@/lib/public-products.server");
     const [{ data: cats }, { data: prods }] = await Promise.all([
       sb.from("categories").select("id,channel").eq("is_active", true),
-      sb.from("products").select("id,category_id").eq("is_active", true).limit(5000),
+      publicProducts().select("id,category_id").eq("is_active", true).limit(5000),
     ]);
     const allowed = new Set((cats ?? []).filter((c: any) => c.channel !== "telegram").map((c: any) => c.id));
     for (const p of prods ?? []) {

@@ -36,19 +36,18 @@ export const listStorefront = createServerFn({ method: "GET" }).handler(async ()
   kickSupplierSync();
 
   const sb = await anonSupabase();
+  const { publicProducts } = await import("@/lib/public-products.server");
   const [cats, prods, hero] = await Promise.all([
     sb
       .from("categories")
       .select("id,name,emoji,image_url,sort_order,channel")
       .eq("is_active", true)
       .order("sort_order"),
-    sb
-      .from("products")
+    publicProducts()
       .select(
-        "id,name,emoji,description,price,old_price,delivery_type,category_id,sort_order,featured_rank,image_url,delivery_time,badge,supplier_id,supplier_stock,is_active",
+        "id,name,emoji,description,price,old_price,delivery_type,category_id,sort_order,featured_rank,image_url,delivery_time,badge,stock,instant,is_active",
       )
       .eq("is_active", true)
-      .is("owner_reseller_id", null)
       .order("sort_order"),
     sb.from("hero_items").select("id,name,image_url,accent,sort_order").eq("is_active", true).order("sort_order"),
   ]);
@@ -66,23 +65,7 @@ export const listStorefront = createServerFn({ method: "GET" }).handler(async ()
     }))
     .filter((p: any) => p.category_ids.length === 0 || p.category_ids.some((id: string) => allowed.has(id)));
 
-  const counts: Record<string, number> = {};
-  try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    // Counted in the database — reading rows was capped at 1000 and made big
-    // products show a smaller number than the bot.
-    const { data: stock } = await (supabaseAdmin as any).rpc("stock_counts");
-    for (const s of ((stock ?? []) as any[])) counts[String(s.product_id)] = Number(s.available ?? 0);
-  } catch (e) {
-    console.error("[storefront] stock counts unavailable:", e);
-  }
-
-
   const products = base
-    .map((p: any) => ({
-      ...p,
-      stock: p.supplier_id ? Number(p.supplier_stock ?? 0) : (counts[p.id] ?? 0),
-    }))
     // Same serial as the Telegram bot: admin-pinned (featured_rank 1,2,3…)
     // first in that exact order, then the normal sort_order.
     .sort((a: any, b: any) => {
@@ -97,45 +80,26 @@ export const listStorefront = createServerFn({ method: "GET" }).handler(async ()
 export const getStoreProduct = createServerFn({ method: "GET" })
   .inputValidator((d: { id: string }) => d)
   .handler(async ({ data }) => {
-    const sb = await anonSupabase();
-    const { data: row } = await sb
-      .from("products")
+    const { publicProducts } = await import("@/lib/public-products.server");
+    const { data: row } = await publicProducts()
       .select(
-        "id,name,emoji,description,important_note,quick_guide,details,price,old_price,delivery_type,category_id,image_url,delivery_time,badge,supplier_id,supplier_stock,manual_stock_limited",
+        "id,name,emoji,description,important_note,quick_guide,details,price,old_price,delivery_type,category_id,image_url,delivery_time,badge,stock,instant,manual_stock_limited",
       )
       .eq("id", data.id)
       .eq("is_active", true)
-      .is("owner_reseller_id", null)
       .maybeSingle();
     if (!row) return null;
-    let count = 0;
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      if ((row as any).manual_stock_limited) {
-        const { data: c } = await (supabaseAdmin as any).rpc("stock_counts", { _product_ids: [data.id] });
-        count = Number((c ?? [])[0]?.available ?? 0);
-      } else {
-      const res = await supabaseAdmin
-        .from("stock_items")
-        .select("id", { count: "exact", head: true })
-        .eq("product_id", data.id)
-        .eq("is_sold", false);
-      count = res.count ?? 0;
-      }
-    } catch (e) {
-      console.error("[storefront] product stock unavailable:", e);
-    }
-    let supplierStock = Number((row as any).supplier_stock ?? 0);
-    if ((row as any).supplier_id) {
+    let stock = Number(row.stock ?? 0);
+    if (row.instant) {
       try {
         const { refreshLiveStock } = await import("@/lib/suppliers/live-stock.server");
         const live = await refreshLiveStock(String((row as any).id));
-        if (live) supplierStock = live.stock;
+        if (live) stock = live.stock;
       } catch (e) {
         console.error("[storefront] live stock unavailable:", e);
       }
     }
-    return { ...row, stock: (row as any).supplier_id ? supplierStock : count };
+    return { ...row, stock };
   });
 
 /**
@@ -145,13 +109,11 @@ export const getStoreProduct = createServerFn({ method: "GET" })
 export const getProductSeo = createServerFn({ method: "GET" })
   .inputValidator((d: { id: string }) => d)
   .handler(async ({ data }) => {
-    const sb = await anonSupabase();
-    const { data: row } = await sb
-      .from("products")
-      .select("id,name,description,price,image_url,delivery_type,supplier_id,supplier_stock")
+    const { publicProducts } = await import("@/lib/public-products.server");
+    const { data: row } = await publicProducts()
+      .select("id,name,description,price,image_url,delivery_type,stock,instant,manual_stock_limited")
       .eq("id", data.id)
       .eq("is_active", true)
-      .is("owner_reseller_id", null)
       .maybeSingle();
     if (!row) return null;
     const anyRow = row as any;
@@ -161,7 +123,7 @@ export const getProductSeo = createServerFn({ method: "GET" })
       description: String(anyRow.description ?? ""),
       price: Number(anyRow.price ?? 0),
       image_url: (anyRow.image_url ?? null) as string | null,
-      in_stock: anyRow.supplier_id ? Number(anyRow.supplier_stock ?? 0) > 0 : true,
+      in_stock: Number(anyRow.stock ?? 0) > 0 || (!anyRow.instant && !anyRow.manual_stock_limited),
     };
   });
 

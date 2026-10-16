@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Close public supplier metadata exposure and verify safe storefront/API reads without real purchases.
+
 - [x] Make Telegram quantity buttons (quantity picker and checkout "Change quantity") blue by default and expose them as their own admin colour slot.
 - [x] Make the bot's payment-method buttons blue through the existing Wallet & payment colour slot, keeping Back red.
 
