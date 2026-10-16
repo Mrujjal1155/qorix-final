@@ -137,7 +137,7 @@ function AnalyticsPage() {
 
         <div className="mt-5 h-[280px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={series.length ? series : [{ label: "—", revenue: 0, profit: 0, orders: 0 }]}>
+            <BarChart data={series.length ? series : [{ label: "—", revenue: 0, profit: 0, orders: 0, total: 0 }]}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis dataKey="label" tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} stroke="var(--border)" interval="preserveStartEnd" />
               <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} stroke="var(--border)" width={40} />
@@ -161,7 +161,8 @@ function AnalyticsPage() {
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="py-2">Date</th>
-                <th className="py-2 text-right">Sales</th>
+                <th className="py-2 text-right">Orders</th>
+                <th className="py-2 text-right">Completed</th>
                 <th className="py-2 text-right">Units</th>
                 <th className="py-2 text-right">Revenue</th>
                 <th className="py-2 text-right">Profit</th>
@@ -171,7 +172,8 @@ function AnalyticsPage() {
               {[...series].reverse().map((s) => (
                 <tr key={s.date} className="border-t border-border/60">
                   <td className="py-2">{s.label}</td>
-                  <td className="py-2 text-right tabular-nums">{s.orders}</td>
+                  <td className="py-2 text-right tabular-nums">{s.total}</td>
+                  <td className="py-2 text-right tabular-nums text-success">{s.orders}</td>
                   <td className="py-2 text-right tabular-nums">{s.units}</td>
                   <td className="py-2 text-right tabular-nums">{money(s.revenue)}</td>
                   <td className="py-2 text-right tabular-nums text-success">{money(s.profit)}</td>
