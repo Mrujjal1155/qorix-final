@@ -58,7 +58,9 @@ export const listStorefront = createServerFn({ method: "GET" }).handler(async ()
   const linkMap: Record<string, string[]> = {};
   for (const l of links ?? []) (linkMap[l.product_id as string] ??= []).push(l.category_id as string);
   const { guardVisibleProducts } = await import("@/lib/suppliers/visibility-guard.server");
-  const base = guardVisibleProducts(prods.data ?? [], "web")
+  const base = guardVisibleProducts((prods.data ?? []).map((p) => ({
+    ...p, id: String(p.id ?? ""), name: String(p.name ?? ""), is_active: p.is_active === true,
+  })), "web")
     .map((p: any) => ({
       ...p,
       category_ids: Array.from(new Set([...(linkMap[p.id] ?? []), ...(p.category_id ? [p.category_id] : [])])),
@@ -99,7 +101,7 @@ export const getStoreProduct = createServerFn({ method: "GET" })
         console.error("[storefront] live stock unavailable:", e);
       }
     }
-    return { ...row, stock };
+    return { ...row, id: String(row.id ?? ""), name: String(row.name ?? ""), stock };
   });
 
 /**
