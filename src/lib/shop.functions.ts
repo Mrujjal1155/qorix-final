@@ -234,7 +234,7 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
         .eq("id", product.supplier_id)
         .eq("is_enabled", true)
         .maybeSingle();
-      if (!supplier) throw new Error("Supplier is temporarily unavailable");
+      if (!supplier) throw new Error("Product is temporarily unavailable");
       let liveStock: number;
       try {
         const { supplierProducts } = await import("@/lib/suppliers/api.server");

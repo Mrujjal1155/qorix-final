@@ -25,4 +25,13 @@ describe("Anonymous supplier privacy", () => {
     const { error } = await anon.rpc("read_public_products");
     expect(error?.code).toBe("42501");
   });
+  test("customer history RPC cannot be called anonymously with a forged owner", async () => {
+    const { error } = await anon.rpc("read_customer_orders", { _user_id: "00000000-0000-0000-0000-000000000001", _email: "attacker@example.invalid" });
+    expect(error?.code).toBe("42501");
+  });
+  test("order diagnostics cannot be read anonymously", async () => {
+    const { data, error } = await anon.from("orders").select("meta").limit(1);
+    expect(error).toBeNull();
+    expect(data).toEqual([]);
+  });
 });

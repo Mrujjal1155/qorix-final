@@ -17,14 +17,14 @@ export const Route = createFileRoute("/api/public/suppliers/webhook")({
       POST: async ({ request }) => {
         const url = new URL(request.url);
         const supplierId = url.searchParams.get("s") ?? "";
-        if (!supplierId) return new Response("Missing supplier", { status: 400 });
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(supplierId)) return new Response("Unauthorized", { status: 401 });
 
         const rawBody = await request.text();
         const header =
           request.headers.get("x-vexoran-signature-v2") ??
           request.headers.get("x-webhook-signature-v2") ??
           "";
-        if (!header) return new Response("Missing signature", { status: 401 });
+        if (!header) return new Response("Unauthorized", { status: 401 });
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const settingKey = `supplier_webhook_secret:${supplierId}`;
@@ -34,7 +34,7 @@ export const Route = createFileRoute("/api/public/suppliers/webhook")({
           .eq("key", settingKey)
           .maybeSingle();
         const secret = String(row?.value ?? "");
-        if (!secret) return new Response("Unknown endpoint", { status: 401 });
+        if (!secret) return new Response("Unauthorized", { status: 401 });
 
         const parts: Record<string, string> = {};
         for (const kv of header.split(",").slice(1)) {
@@ -45,13 +45,13 @@ export const Route = createFileRoute("/api/public/suppliers/webhook")({
         const nonce = parts["n"] ?? "";
         const sig = parts["s"] ?? "";
         if (!Number.isFinite(t) || Math.abs(Date.now() / 1000 - t) > 300) {
-          return new Response("Stale timestamp", { status: 401 });
+          return new Response("Unauthorized", { status: 401 });
         }
         const expected = createHmac("sha256", secret).update(`${t}.${nonce}.${rawBody}`).digest("hex");
         const a = Buffer.from(expected);
         const b = Buffer.from(sig);
         if (a.length !== b.length || !timingSafeEqual(a, b)) {
-          return new Response("Invalid signature", { status: 401 });
+          return new Response("Unauthorized", { status: 401 });
         }
 
         const { data: supplier } = await (supabaseAdmin as any)
@@ -74,7 +74,7 @@ export const Route = createFileRoute("/api/public/suppliers/webhook")({
         }));
         // The independently scheduled sender picks up the durable queue on
         // the next tick without delaying webhook acknowledgement.
-        return Response.json({ ok: true, sync: result });
+        return Response.json({ ok: true, sync: { ok: Boolean(result.ok) } });
       },
     },
   },

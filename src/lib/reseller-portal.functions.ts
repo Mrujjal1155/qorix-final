@@ -446,13 +446,8 @@ export const updateMyWebhook = createServerFn({ method: "POST" })
     const raw = String(data.webhook_url ?? "").trim();
     let url: string | null = null;
     if (raw) {
-      try {
-        const parsed = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
-        if (parsed.protocol !== "https:") throw new Error("bad");
-        url = parsed.toString();
-      } catch {
-        throw new Error("Enter a valid https URL, e.g. https://mystore.com/api/qorix-stock");
-      }
+      const { checkedWebhookUrl } = await import("@/lib/webhook-destination.server");
+      url = await checkedWebhookUrl(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
     }
 
     const patch: Record<string, unknown> = { webhook_url: url };

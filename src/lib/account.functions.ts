@@ -2,18 +2,17 @@ import { likeExact } from "@/lib/ilike-escape";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const ORDER_COLUMNS =
-  "order_no,product_name,quantity,unit_price,total,status,delivery_type,delivered_content,payment_method,txid,created_at";
-
 export const getMyAccount = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const email = String((context.claims as any)?.email ?? "");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const [{ data: profile }, { data: orders }] = await Promise.all([
+    const [{ data: profile }, { data: orders, error: ordersError }] = await Promise.all([
       context.supabase.from("profiles").select("full_name,email,created_at").eq("id", context.userId).maybeSingle(),
-      context.supabase.from("orders").select(ORDER_COLUMNS).order("created_at", { ascending: false }).limit(200),
+      supabaseAdmin.rpc("read_customer_orders", { _user_id: context.userId, _email: email }),
     ]);
+    if (ordersError) throw new Error("Unable to load your orders. Please try again.");
 
     const rows = orders ?? [];
     const completed = rows.filter((o: any) => o.status === "completed");
