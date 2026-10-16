@@ -214,10 +214,15 @@ export async function catalogue(reseller: Reseller, channel: Channel) {
   const catName: Record<string, string> = {};
   for (const c of categories) catName[c.id] = c.name;
 
+  const customPrices = await resellerCustomPrices(
+    reseller.id,
+    (prods ?? []).map((p: any) => String(p.id)),
+  );
+
   const { guardVisibleProducts } = await import("@/lib/suppliers/visibility-guard.server");
   const products = guardVisibleProducts(prods ?? [], "api")
     .filter((p: any) => !p.category_id || allowed.has(p.category_id))
-    .map((p: any) => publicProduct(p, reseller, counts, catName));
+    .map((p: any) => publicProduct(p, reseller, counts, catName, customPrices[p.id]));
 
   return {
     categories: categories.map((c: any) => ({ id: c.id, name: c.name, emoji: c.emoji, sort_order: c.sort_order })),
@@ -230,10 +235,15 @@ export function publicProduct(
   reseller: Reseller,
   counts: Record<string, number>,
   catName: Record<string, string> = {},
+  custom?: ResellerCustomPrice,
 ) {
   const stock = p.supplier_id ? Number(p.supplier_stock ?? 0) : (counts[p.id] ?? 0);
   // A reseller's own uploaded product costs them nothing at Qorix — they own the stock.
   const own = Boolean(p.owner_reseller_id) && p.owner_reseller_id === reseller.id;
+  // Custom price shows as the listing price only when a single item already
+  // qualifies (min_qty 1); otherwise the normal price shows and the custom
+  // deal is advertised via custom_price / custom_min_qty.
+  const listed = custom && custom.min_qty <= 1 ? custom.price : apiUnitPrice(p, reseller);
   return {
     own,
     id: p.id,
@@ -248,7 +258,9 @@ export function publicProduct(
     category_id: p.category_id,
     category_name: p.category_id ? (catName[p.category_id] ?? null) : null,
     retail_price: Number(p.price),
-    price: own ? 0 : apiUnitPrice(p, reseller),
+    price: own ? 0 : listed,
+    custom_price: !own && custom ? custom.price : null,
+    custom_min_qty: !own && custom ? custom.min_qty : null,
     flash_sale_ends_at: p.flash_ends_at && Date.parse(String(p.flash_ends_at)) > Date.now() ? p.flash_ends_at : null,
     old_price: p.old_price != null ? Number(p.old_price) : null,
     currency: "USD",
