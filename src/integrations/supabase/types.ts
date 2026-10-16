@@ -426,13 +426,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "orders_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "public_products"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "orders_reseller_id_fkey"
             columns: ["reseller_id"]
             isOneToOne: false
@@ -509,13 +502,6 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "product_categories_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "public_products"
             referencedColumns: ["id"]
           },
         ]
@@ -967,13 +953,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "reseller_product_prices_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "public_products"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "reseller_product_prices_reseller_id_fkey"
             columns: ["reseller_id"]
             isOneToOne: false
@@ -1190,13 +1169,6 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "stock_alerts_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "public_products"
-            referencedColumns: ["id"]
-          },
         ]
       }
       stock_counters: {
@@ -1221,13 +1193,6 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: true
             referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "stock_counters_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: true
-            referencedRelation: "public_products"
             referencedColumns: ["id"]
           },
         ]
@@ -1266,13 +1231,6 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "stock_items_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "public_products"
             referencedColumns: ["id"]
           },
         ]
@@ -1349,13 +1307,6 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "stock_notification_events_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "public_products"
-            referencedColumns: ["id"]
-          },
         ]
       }
       supplier_products: {
@@ -1428,13 +1379,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "supplier_products_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "public_products"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "supplier_products_supplier_id_fkey"
             columns: ["supplier_id"]
             isOneToOne: false
@@ -1498,13 +1442,6 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "supplier_review_queue_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "public_products"
             referencedColumns: ["id"]
           },
           {
@@ -1757,13 +1694,6 @@ export type Database = {
             referencedRelation: "products"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "user_product_prices_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "public_products"
-            referencedColumns: ["id"]
-          },
         ]
       }
       user_roles: {
@@ -1821,13 +1751,6 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "visibility_alerts_product_id_fkey"
-            columns: ["product_id"]
-            isOneToOne: false
-            referencedRelation: "public_products"
             referencedColumns: ["id"]
           },
         ]
@@ -1893,15 +1816,7 @@ export type Database = {
           stock: number | null
           updated_at: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "products_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Functions: {
@@ -2022,6 +1937,34 @@ export type Database = {
           _user_id: string
         }
         Returns: Json
+      }
+      read_public_products: {
+        Args: never
+        Returns: {
+          badge: string
+          category_id: string
+          created_at: string
+          delivery_time: string
+          delivery_type: string
+          description: string
+          details: Json
+          emoji: string
+          featured_rank: number
+          flash_ends_at: string
+          id: string
+          image_url: string
+          important_note: string
+          instant: boolean
+          is_active: boolean
+          manual_stock_limited: boolean
+          name: string
+          old_price: number
+          price: number
+          quick_guide: string
+          sort_order: number
+          stock: number
+          updated_at: string
+        }[]
       }
       redeem_code_claim: {
         Args: { _code: string; _telegram_id: number }
