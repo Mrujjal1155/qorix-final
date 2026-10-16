@@ -117,24 +117,57 @@ export const getOverview = createServerFn({ method: "GET" })
 
 type AnalyticsRange = "day" | "week" | "month" | "quarter";
 
+const DHAKA_MS = 6 * 3600 * 1000;
+const dhakaDay = (ms: number) => new Date(ms + DHAKA_MS).toISOString().slice(0, 10);
+const isDay = (s: unknown): s is string => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
+
 export const getAnalytics = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { range?: AnalyticsRange }) => ({ range: d?.range ?? "week" }))
+  .inputValidator((d: { range?: AnalyticsRange; from?: string; to?: string }) => ({
+    range: d?.range ?? "week",
+    from: isDay(d?.from) ? d.from : undefined,
+    to: isDay(d?.to) ? d.to : undefined,
+  }))
   .handler(async ({ data, context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
 
-    const days = data.range === "day" ? 1 : data.range === "week" ? 7 : data.range === "month" ? 30 : 90;
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    start.setDate(start.getDate() - (days - 1));
+    // All days are Bangladesh calendar days (UTC+6).
+    const today = dhakaDay(Date.now());
+    let fromDay: string;
+    let toDay: string;
+    if (data.from && data.to) {
+      fromDay = data.from <= data.to ? data.from : data.to;
+      toDay = data.from <= data.to ? data.to : data.from;
+    } else {
+      const n = data.range === "day" ? 1 : data.range === "week" ? 7 : data.range === "month" ? 30 : 90;
+      toDay = today;
+      fromDay = dhakaDay(Date.parse(`${today}T00:00:00Z`) - (n - 1) * 86400000);
+    }
+    let startMs = Date.parse(`${fromDay}T00:00:00+06:00`);
+    const endMs = Date.parse(`${toDay}T00:00:00+06:00`) + 86400000;
+    if (endMs - startMs > 366 * 86400000) startMs = endMs - 366 * 86400000;
+    const days = Math.round((endMs - startMs) / 86400000);
 
-    const [ordersRes, supRes, inRes] = await Promise.all([
-      sb
-        .from("orders")
-        .select("id,created_at,status,total,quantity,product_id,product_name,source")
-        .gte("created_at", start.toISOString())
-        .order("created_at", { ascending: true }),
+    const fetchOrders = async () => {
+      const all: any[] = [];
+      for (let off = 0; off < 50000; off += 1000) {
+        const { data: rows, error } = await sb
+          .from("orders")
+          .select("id,created_at,status,total,quantity,product_id,product_name,source")
+          .gte("created_at", new Date(startMs).toISOString())
+          .lt("created_at", new Date(endMs).toISOString())
+          .order("created_at", { ascending: true })
+          .range(off, off + 999);
+        if (error) throw new Error(error.message);
+        all.push(...(rows ?? []));
+        if (!rows || rows.length < 1000) break;
+      }
+      return all;
+    };
+
+    const [orders, supRes, inRes] = await Promise.all([
+      fetchOrders(),
       sb.from("supplier_products").select("product_id,cost_price"),
       sb.from("products").select("id,cost_price").is("supplier_id", null).not("cost_price", "is", null),
     ]);
@@ -145,13 +178,11 @@ export const getAnalytics = createServerFn({ method: "POST" })
     }
     for (const p of (inRes.data ?? []) as any[]) costMap[p.id] = Number(p.cost_price ?? 0);
 
-    const orders = (ordersRes.data ?? []) as any[];
-    const buckets: Record<string, { date: string; orders: number; revenue: number; profit: number; units: number }> = {};
+    type Bucket = { date: string; total: number; orders: number; pending: number; revenue: number; profit: number; units: number };
+    const buckets: Record<string, Bucket> = {};
     for (let i = 0; i < days; i++) {
-      const d = new Date(start);
-      d.setDate(start.getDate() + i);
-      const key = d.toISOString().slice(0, 10);
-      buckets[key] = { date: key, orders: 0, revenue: 0, profit: 0, units: 0 };
+      const key = dhakaDay(startMs + i * 86400000);
+      buckets[key] = { date: key, total: 0, orders: 0, pending: 0, revenue: 0, profit: 0, units: 0 };
     }
 
     let totalOrders = 0;
@@ -167,12 +198,18 @@ export const getAnalytics = createServerFn({ method: "POST" })
       totalOrders++;
       const src = o.source || "bot";
       bySource[src] = (bySource[src] ?? 0) + 1;
+      const key = dhakaDay(Date.parse(o.created_at));
+      const b = buckets[key];
+      if (b) b.total++;
       if (o.status !== "completed") {
-        if (o.status === "pending") pendingOrders++;
+        if (o.status === "pending") {
+          pendingOrders++;
+          if (b) b.pending++;
+        }
         continue;
       }
       completedOrders++;
-      const key = new Date(o.created_at).toISOString().slice(0, 10);
+
       const total = Number(o.total ?? 0);
       const qty = Number(o.quantity ?? 1);
       const cost = (o.product_id ? (costMap[o.product_id] ?? 0) : 0) * qty;
@@ -180,7 +217,6 @@ export const getAnalytics = createServerFn({ method: "POST" })
       revenue += total;
       profit += p;
       units += qty;
-      const b = buckets[key];
       if (b) {
         b.orders++;
         b.revenue += total;
