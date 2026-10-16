@@ -1954,22 +1954,6 @@ export type Database = {
           unit_price: number
         }[]
       }
-      read_my_orders: {
-        Args: never
-        Returns: {
-          created_at: string
-          delivered_content: string
-          delivery_type: string
-          order_no: number
-          payment_method: string
-          product_name: string
-          quantity: number
-          status: string
-          total: number
-          txid: string
-          unit_price: number
-        }[]
-      }
       read_public_products: {
         Args: never
         Returns: {
