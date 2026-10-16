@@ -32,6 +32,7 @@ import { Route as AdminCodesRouteImport } from './routes/admin/codes'
 import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 import { Route as AdminPaymentsRouteImport } from './routes/admin/payments'
 import { Route as AdminProductsRouteImport } from './routes/admin/products'
+import { Route as AdminResellerPricesRouteImport } from './routes/admin/reseller-prices'
 import { Route as AdminResellersRouteImport } from './routes/admin/resellers'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminSiteRouteImport } from './routes/admin/site'
@@ -184,6 +185,11 @@ const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
 const AdminProductsRoute = AdminProductsRouteImport.update({
   id: '/products',
   path: '/products',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminResellerPricesRoute = AdminResellerPricesRouteImport.update({
+  id: '/reseller-prices',
+  path: '/reseller-prices',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminResellersRoute = AdminResellersRouteImport.update({
@@ -420,6 +426,7 @@ export interface FileRoutesByFullPath {
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/products': typeof AdminProductsRoute
+  '/admin/reseller-prices': typeof AdminResellerPricesRoute
   '/admin/resellers': typeof AdminResellersRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/site': typeof AdminSiteRoute
@@ -482,6 +489,7 @@ export interface FileRoutesByTo {
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/products': typeof AdminProductsRoute
+  '/admin/reseller-prices': typeof AdminResellerPricesRoute
   '/admin/resellers': typeof AdminResellersRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/site': typeof AdminSiteRoute
@@ -547,6 +555,7 @@ export interface FileRoutesById {
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/products': typeof AdminProductsRoute
+  '/admin/reseller-prices': typeof AdminResellerPricesRoute
   '/admin/resellers': typeof AdminResellersRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/site': typeof AdminSiteRoute
@@ -612,6 +621,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/payments'
     | '/admin/products'
+    | '/admin/reseller-prices'
     | '/admin/resellers'
     | '/admin/settings'
     | '/admin/site'
@@ -674,6 +684,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/payments'
     | '/admin/products'
+    | '/admin/reseller-prices'
     | '/admin/resellers'
     | '/admin/settings'
     | '/admin/site'
@@ -738,6 +749,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/payments'
     | '/admin/products'
+    | '/admin/reseller-prices'
     | '/admin/resellers'
     | '/admin/settings'
     | '/admin/site'
@@ -982,6 +994,13 @@ declare module '@tanstack/react-router' {
       path: '/products'
       fullPath: '/admin/products'
       preLoaderRoute: typeof AdminProductsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/reseller-prices': {
+      id: '/admin/reseller-prices'
+      path: '/reseller-prices'
+      fullPath: '/admin/reseller-prices'
+      preLoaderRoute: typeof AdminResellerPricesRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/resellers': {
@@ -1288,6 +1307,7 @@ interface AdminRouteRouteChildren {
   AdminOrdersRoute: typeof AdminOrdersRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminProductsRoute: typeof AdminProductsRoute
+  AdminResellerPricesRoute: typeof AdminResellerPricesRoute
   AdminResellersRoute: typeof AdminResellersRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminSiteRoute: typeof AdminSiteRoute
@@ -1308,6 +1328,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminOrdersRoute: AdminOrdersRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,
   AdminProductsRoute: AdminProductsRoute,
+  AdminResellerPricesRoute: AdminResellerPricesRoute,
   AdminResellersRoute: AdminResellersRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminSiteRoute: AdminSiteRoute,

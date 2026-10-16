@@ -153,6 +153,29 @@ export function resellerPrice(price: number, discountPercent: number) {
   return Math.max(0, Math.round(p * 100) / 100);
 }
 
+export type ResellerCustomPrice = { price: number; min_qty: number };
+
+/**
+ * Per-reseller custom prices set by the admin. A custom price is FINAL: the
+ * reseller's discount percent and bulk discounts do not apply, and it only
+ * kicks in when the order quantity reaches min_qty.
+ */
+export async function resellerCustomPrices(
+  resellerId: string,
+  productIds: string[],
+): Promise<Record<string, ResellerCustomPrice>> {
+  if (!productIds.length) return {};
+  const { data } = await db
+    .from("reseller_product_prices")
+    .select("product_id,price,min_qty")
+    .eq("reseller_id", resellerId)
+    .in("product_id", productIds);
+  const map: Record<string, ResellerCustomPrice> = {};
+  for (const r of (data ?? []) as any[])
+    map[String(r.product_id)] = { price: Number(r.price), min_qty: Number(r.min_qty ?? 1) };
+  return map;
+}
+
 function channelFilter(channel: Channel) {
   // categories.channel is 'both' | 'website' | 'telegram'
   if (channel === "website") return (c: any) => c.channel !== "telegram";
