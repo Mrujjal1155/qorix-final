@@ -286,18 +286,19 @@ export async function singleProduct(reseller: Reseller, id: string) {
   if (!p) return null;
   // Stock from the exact stock_counters table (no stock_items scan); supplier
   // products use supplier_stock, so no count is needed for them. Category in parallel.
-  const [stockRes, catRes] = await Promise.all([
+  const [stockRes, catRes, customMap] = await Promise.all([
     p.supplier_id
       ? Promise.resolve({ data: [] as any[], error: null as any })
       : db.rpc("stock_counts", { _product_ids: [id] }),
     p.category_id
       ? db.from("categories").select("name").eq("id", p.category_id).maybeSingle()
       : Promise.resolve({ data: null as any }),
+    resellerCustomPrices(reseller.id, [id]),
   ]);
   if (stockRes.error) throw new Error(`Stock lookup failed: ${stockRes.error.message}`);
   const count = Number(((stockRes.data ?? []) as any[])[0]?.available ?? 0);
   const cat = catRes.data;
-  return publicProduct(p, reseller, { [id]: count }, cat ? { [p.category_id]: cat.name } : {});
+  return publicProduct(p, reseller, { [id]: count }, cat ? { [p.category_id]: cat.name } : {}, customMap[id]);
 }
 
 export function orderPayload(o: any) {
@@ -346,8 +347,12 @@ export async function purchase(
     return { ok: false as const, status: 404, error: "Product not found" };
 
   const ownProduct = p.owner_reseller_id === reseller.id;
-  let unit = ownProduct ? 0 : apiUnitPrice(p, reseller);
-  if (!ownProduct) {
+  // A custom price (qty >= min_qty) is final: no discount percent, no bulk tiers.
+  const customMap = ownProduct ? {} : await resellerCustomPrices(reseller.id, [String(p.id)]);
+  const custom = customMap[String(p.id)];
+  const customApplies = Boolean(custom && qty >= custom!.min_qty);
+  let unit = ownProduct ? 0 : customApplies ? custom!.price : apiUnitPrice(p, reseller);
+  if (!ownProduct && !customApplies) {
     const { bulkTiersFor, bulkUnit } = await import("@/lib/bulk-discount.server");
     const bulk = await bulkTiersFor([String(p.id)], "api");
     unit = bulkUnit(p, unit, qty, bulk[String(p.id)]);
