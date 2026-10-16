@@ -24,3 +24,6 @@
 - Bot OxaPay visibility and new payment attempts read current narrow gateway settings rather than the general bot cache; wallet and product checkout share the wallet UI registry icon exposed in Bot Admin payment settings. Direct checkout preserves its snapshot on the deposit row and uses the existing verified settlement/fulfillment path so payment rules remain consistent.
 - Checkout payment branding uses local imported image assets inside design-system selection buttons; artwork changes must not affect gateway availability or payment handlers.
 - Public product readers use the server-only `public_products` safe projection; raw `products` remains admin-only through RLS, preventing supplier identifiers and costs from reaching visitors.
+- Customer order history uses the service-role-only safe RPC after verified caller authentication; customers must not receive raw orders.meta, while admin RLS access remains intact.
+- Reseller webhook saving and sending share HTTPS/public-DNS checks and never follow redirects; DNS preflight does not pin resolution and must not be represented as complete DNS-rebinding protection.
+- Public payment cron routes must fail closed and accept scheduler credentials only in headers, never URLs.

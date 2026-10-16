@@ -562,7 +562,7 @@ export async function purchase(
       ? "Product temporarily unavailable — please try again later. Your balance was refunded."
       : (failReason ?? "Delivery failed");
     if (fromSupplier) console.error("reseller supplier fulfilment failed", p.id, failReason);
-    return { ok: false as const, status: 409, error, code: fromSupplier ? "supplier_unavailable" : "delivery_failed", refunded: true };
+    return { ok: false as const, status: 409, error, code: "delivery_failed", refunded: true };
   }
 
   const { data: order } = await db

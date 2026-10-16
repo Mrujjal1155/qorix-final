@@ -7,6 +7,7 @@
  * inactive product simply does not exist for the reseller API.
  */
 import { publicProduct, type Reseller } from "./core.server";
+import { sendCheckedWebhook } from "../webhook-destination.server";
 
 export type ResellerEvent = "restock" | "new" | "low" | "out" | "price" | "removed";
 
@@ -96,7 +97,7 @@ export async function pushResellerEvent(
         if (secret) headers["x-qorix-signature"] = await sign(secret, body);
         let status = "";
         try {
-          const res = await fetch(String(reseller.webhook_url), {
+          const res = await sendCheckedWebhook(String(reseller.webhook_url), {
             method: "POST",
             headers,
             body,
@@ -104,7 +105,7 @@ export async function pushResellerEvent(
           });
           status = `${res.status}`;
         } catch (e) {
-          status = e instanceof Error ? e.message.slice(0, 120) : "failed";
+          status = "delivery_failed";
         }
         await db
           .from("resellers")
@@ -145,10 +146,10 @@ export async function pushResellerOrderEvent(resellerId: string, order: any) {
     if (secret) headers["x-qorix-signature"] = await sign(secret, body);
     let status = "";
     try {
-      const res = await fetch(url, { method: "POST", headers, body, signal: AbortSignal.timeout(8000) });
+      const res = await sendCheckedWebhook(url, { method: "POST", headers, body, signal: AbortSignal.timeout(8000) });
       status = `${res.status}`;
     } catch (e) {
-      status = e instanceof Error ? e.message.slice(0, 120) : "failed";
+      status = "delivery_failed";
     }
     await db.from("resellers").update({ webhook_last_status: status, webhook_last_at: at }).eq("id", r.id).then(() => {}, () => {});
   } catch (error) {

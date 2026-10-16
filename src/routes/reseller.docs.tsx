@@ -619,7 +619,9 @@ bot.on("callback_query", async (q) => {
             <p>Every change to the API is listed here, newest first. Check it when something behaves differently.</p>
             <p><strong>2026-10-16 — Product data privacy</strong></p>
             <ul className="list-disc space-y-1 pl-5">
-              <li>Use the documented QORIX product endpoints rather than querying underlying database tables. Supplier identifiers, external supplier product IDs, costs and credentials are private. The documented product IDs, selling prices, stock and order endpoints are unchanged.</li>
+              <li>Use the documented QORIX product endpoints rather than querying underlying database tables. Internal connection settings and diagnostics are private. Product IDs, selling prices, stock, descriptions, images and order endpoints are unchanged.</li>
+              <li>Webhook addresses must use public HTTPS on the default port, without embedded credentials. Private network destinations are rejected and redirects are not followed; use your final webhook URL.</li>
+              <li>Unsuccessful automatic delivery returns the neutral error code <code>delivery_failed</code>. Read the response's <code>refunded</code> flag rather than assuming a balance change from the error code.</li>
             </ul>
             <p>
               <strong>2026-10-29</strong>
