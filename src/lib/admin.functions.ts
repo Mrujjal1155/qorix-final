@@ -1251,13 +1251,21 @@ export const refundOrderToWallet = createServerFn({ method: "POST" })
 
 export const listPayments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d: { q?: string } | undefined) => ({ q: String(d?.q ?? "").trim().slice(0, 120) }))
+  .handler(async ({ data: input, context }) => {
     await assertAdmin(context);
-    const { data } = await (context as any).supabase
+    let query = (context as any).supabase
       .from("payment_requests")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(200);
+    const q = input.q.replace(/[%,()*\\]/g, "");
+    if (q) {
+      query = /^\d{1,18}$/.test(q)
+        ? query.or(`telegram_id.eq.${q},txid.ilike.%${q}%`)
+        : query.ilike("txid", `%${q}%`);
+    }
+    const { data } = await query;
     return data ?? [];
   });
 

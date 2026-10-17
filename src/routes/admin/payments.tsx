@@ -1,4 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { decidePayment, listPayments } from "@/lib/admin.functions";
@@ -26,7 +29,17 @@ function PaymentsPage() {
   const qc = useQueryClient();
   const fetchPayments = useServerFn(listPayments);
   const decide = useServerFn(decidePayment);
-  const { data } = useQuery({ queryKey: ["payments"], queryFn: () => fetchPayments() });
+  const [input, setInput] = useState("");
+  const [q, setQ] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setQ(input.trim()), 350);
+    return () => clearTimeout(t);
+  }, [input]);
+  const { data, isFetching } = useQuery({
+    queryKey: ["payments", q],
+    queryFn: () => fetchPayments({ data: { q } }),
+    placeholderData: (prev) => prev,
+  });
 
   async function act(id: string, approve: boolean) {
     try {
@@ -42,6 +55,16 @@ function PaymentsPage() {
     <AdminShell title="Payments">
       <Card>
         <CardContent className="overflow-x-auto pt-6">
+          <div className="relative mb-4 max-w-md">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Search by user ID or TXID…"
+              className="pl-9"
+            />
+            {isFetching && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">…</span>}
+          </div>
           <table className="w-full text-sm">
             <thead className="text-left text-muted-foreground">
               <tr>
