@@ -1,9 +1,5 @@
 # Roadmap
 
-## Personal Telegram AI Support
-- [ ] Audit existing support, admin authentication, Telegram and storage integration; present an isolated implementation plan for approval.
-- [ ] Implement and verify personal private-DM connector, AI support, admin controls and regression checks (blocked on plan approval, separate always-on hosting and secure Telegram account setup).
-
 - [x] Keep product descriptions, details and images unchanged; restrict this audit to supplier credentials/endpoints and unauthorized spending.
 - [x] Audit supplier identity exposure across visitor, user, reseller, bot and API paths; propose verified security fixes for approval.
 - [x] Apply approved supplier privacy and endpoint hardening; 26 focused tests, unauthenticated endpoint rejection, admin-policy preservation and database linter pass without real purchases.
