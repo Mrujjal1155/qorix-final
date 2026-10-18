@@ -615,7 +615,10 @@ function vexorixProduct(p: any): SupplierProduct | null {
   const id = p?.id ?? p?.product_id ?? p?.slug;
   if (id == null || String(id).trim() === "") return null;
   const price = p.price?.amount ?? p.price ?? p.unit_price ?? p.price_usdt ?? 0;
-  const stock = p.stock?.available ?? p.available ?? p.stock ?? p.in_stock_count ?? 0;
+  // `available` is a true/false flag in Vexorix replies — never read it as a count.
+  const num = (v: unknown) => (typeof v === "number" || (typeof v === "string" && v.trim() !== "" && !isNaN(Number(v))) ? Number(v) : null);
+  const stock =
+    num(p.stock?.available) ?? num(p.stock) ?? num(p.in_stock_count) ?? num(p.available) ?? 0;
   return {
     external_id: String(id),
     name: String(p.name ?? p.title ?? id),
