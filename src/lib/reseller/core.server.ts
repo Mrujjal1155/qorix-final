@@ -377,7 +377,7 @@ export async function purchase(
       telegram_id: 0,
       source: input.channel === "bot" ? "api_bot" : "api_website",
       reseller_id: reseller.id,
-      external_ref: input.external_ref ?? null,
+      external_ref: ref,
       product_id: p.id,
       product_name: p.name,
       quantity: qty,
