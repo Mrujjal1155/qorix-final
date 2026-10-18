@@ -10,8 +10,9 @@ export async function fulfillChargedResellerStock(orderId: string) {
 }
 
 export async function recoverChargedResellerStock(onlyId?: string): Promise<number> {
-  let query = db.from("orders").select("id,reseller_id")
+  let query = db.from("orders").select("id,reseller_id,products!inner(delivery_type,supplier_id)")
     .eq("status", "pending").eq("payment_method", "reseller_balance")
+    .eq("products.delivery_type", "auto").is("products.supplier_id", null)
     .not("reseller_id", "is", null).is("delivered_content", null)
     .lt("created_at", new Date(Date.now() - 45_000).toISOString())
     .order("created_at", { ascending: true }).limit(20);
