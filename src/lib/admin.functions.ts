@@ -2178,10 +2178,12 @@ export const countUnreadTickets = createServerFn({ method: "GET" })
     await assertAdmin(context);
     const sb = (context as any).supabase;
     const [unread, open] = await Promise.all([
-      sb.from("support_tickets").select("id", { count: "exact", head: true }).gt("unread_admin", 0),
+      // Badge counts only OPEN tickets with unread messages; closed tickets never nag.
+      sb.from("support_tickets").select("id", { count: "exact", head: true }).gt("unread_admin", 0).eq("status", "open"),
       sb.from("support_tickets").select("id", { count: "exact", head: true }).eq("status", "open"),
     ]);
     if (unread.error) throw new Error(unread.error.message);
+    if (open.error) throw new Error(open.error.message);
     return { count: unread.count ?? 0, open: open.count ?? 0 };
   });
 
