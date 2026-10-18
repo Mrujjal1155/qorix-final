@@ -617,6 +617,11 @@ bot.on("callback_query", async (q) => {
 
           <Section id="changelog" title="13. API changelog">
             <p>Every change to the API is listed here, newest first. Check it when something behaves differently.</p>
+            <p><strong>2026-10-18 — Charged stock-order recovery</strong></p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Instant stock allocation and completion are saved together. Interrupted, already-charged stock orders are retried automatically without another wallet debit or duplicate stock allocation.</li>
+              <li>If an interrupted request returns pending, retain the same order ID/reference; read GET /orders/:id or receive order.completed. Only show completed when status is completed and items is non-empty. Do not place a replacement order.</li>
+            </ul>
             <p><strong>2026-10-16 — Product data privacy</strong></p>
             <ul className="list-disc space-y-1 pl-5">
               <li>Use the documented QORIX product endpoints rather than querying underlying database tables. Internal connection settings and diagnostics are private. Product IDs, selling prices, stock, descriptions, images and order endpoints are unchanged.</li>

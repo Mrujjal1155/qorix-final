@@ -11,12 +11,14 @@ async function run({ request }: { request: Request }) {
   if (!(await isCronAuthorized(request))) return new Response("Unauthorized", { status: 401 });
   const { drainAllNotifications } = await import("@/lib/suppliers/sync.server");
   const { recoverPaidOrders } = await import("@/lib/bot/recover-paid.server");
+  const { recoverChargedResellerStock } = await import("@/lib/reseller/charged-stock.server");
   try {
-    const [res, recovered] = await Promise.all([
+    const [res, recovered, resellerRecovered] = await Promise.all([
       drainAllNotifications(),
       recoverPaidOrders().catch((e) => ({ error: String(e) })),
+      recoverChargedResellerStock().catch(() => ({ error: "Stock recovery will retry" })),
     ]);
-    return Response.json({ ok: true, ...res, recovered });
+    return Response.json({ ok: true, ...res, recovered, resellerRecovered });
   } catch (e) {
     return Response.json({ ok: false, error: e instanceof Error ? e.message : "failed" }, { status: 500 });
   }

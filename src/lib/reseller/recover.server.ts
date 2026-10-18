@@ -85,11 +85,9 @@ export async function recoverUnchargedResellerOrders(onlyId?: string): Promise<n
       continue;
     }
 
-    const { data: items } = await db.rpc("claim_stock_items", { _product_id: p.id, _qty: o.quantity, _sold_to: null });
-    const got = (items ?? []) as any[];
-    if (got.length < o.quantity) {
-      if (got.length)
-        await db.from("stock_items").update({ is_sold: false, sold_to: null, sold_at: null }).in("id", got.map((i) => i.id));
+    const { fulfillChargedResellerStock } = await import("./charged-stock.server");
+    const result = await fulfillChargedResellerStock(o.id);
+    if (result.status === "out_of_stock") {
       await db.rpc("reseller_adjust_balance", {
         _reseller_id: o.reseller_id,
         _amount: total,
@@ -104,16 +102,8 @@ export async function recoverUnchargedResellerOrders(onlyId?: string): Promise<n
       continue;
     }
 
-    const { data: order } = await db
-      .from("orders")
-      .update({
-        status: "completed",
-        delivered_content: got.map((i) => String(i.content)).join("\n---\n"),
-        meta: { ...meta, recovered: "delivered" },
-      })
-      .eq("id", o.id)
-      .select("*")
-      .maybeSingle();
+    if (result.status !== "completed" || !result.changed) continue;
+    const { data: order } = await db.from("orders").select("*").eq("id", o.id).maybeSingle();
     done++;
     try {
       const { pushResellerOrderEvent } = await import("@/lib/reseller/webhook.server");

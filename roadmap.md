@@ -1,5 +1,9 @@
 # Roadmap
 
+- [x] Complete charged own-stock reseller order #1611 without another debit; verified one $1.30 debit and authenticated API returns completed with one delivery item.
+- [x] Make charged own-stock fulfilment atomic and include safe recovery in the existing notify schedule; repeat live call changes nothing, 17 focused tests pass, API docs updated.
+- [ ] Verify charged reseller recovery on the production schedule after deployment (requires deployment); Vibex has no webhook, so its website must read GET /orders/:id to receive delivery.
+
 - [x] Keep product descriptions, details and images unchanged; restrict this audit to supplier credentials/endpoints and unauthorized spending.
 - [x] Audit supplier identity exposure across visitor, user, reseller, bot and API paths; propose verified security fixes for approval.
 - [x] Apply approved supplier privacy and endpoint hardening; 26 focused tests, unauthenticated endpoint rejection, admin-policy preservation and database linter pass without real purchases.
