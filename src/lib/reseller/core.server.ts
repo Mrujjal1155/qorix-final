@@ -489,22 +489,30 @@ export async function purchase(
 
       }
     } else if (p.delivery_type === "auto") {
-      // Atomic claim so two API calls can never be sold the same item.
-      const { data: items } = await db.rpc("claim_stock_items", { _product_id: p.id, _qty: qty, _sold_to: null });
-      const claimed = (items ?? []) as any[];
-      if (claimed.length >= qty) {
-        delivered = claimed.map((i: any) => String(i.content)).join("\n---\n");
+      const { fulfillChargedResellerStock } = await import("./charged-stock.server");
+      const result = await fulfillChargedResellerStock(reserved.id);
+      if (result.status === "completed") {
+        const { data: saved, error } = await db.from("orders").select("delivered_content").eq("id", reserved.id).single();
+        if (error || !saved?.delivered_content) throw new Error("Delivery readback unavailable");
+        delivered = saved.delivered_content;
         status = "completed";
-      } else {
-        if (claimed.length)
-          await db
-            .from("stock_items")
-            .update({ is_sold: false, sold_to: null, sold_at: null })
-            .in("id", claimed.map((i: any) => i.id));
+      } else if (result.status === "out_of_stock") {
         failReason = "Out of stock";
+      } else {
+        throw new Error("Stock delivery awaiting recovery");
       }
     }
   } catch (e) {
+    // An interrupted RPC may already have committed. Never refund/delete it
+    // or claim again outside the atomic function; GET/recovery reads it back.
+    if (!p.supplier_id && p.delivery_type === "auto") {
+      return {
+        ok: true as const, submitted: true,
+        message: "Order submitted — check GET /orders/{id} for delivery.",
+        order: orderPayload(reserved),
+        balance: Number(balanceAfter ?? reseller.balance - total),
+      };
+    }
     failReason = e instanceof Error ? e.message : "Fulfilment failed";
   }
 
