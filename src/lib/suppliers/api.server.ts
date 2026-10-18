@@ -606,6 +606,11 @@ function isVexorix(s: SupplierRow) {
   return /vexorix/i.test(s.key) || /207-148-64-141\.sslip\.io/i.test(s.base_url || "");
 }
 
+/** Partner API v1 at api.cmpdr.dev: Bearer auth, idempotent POST /v1/orders. */
+function isRouteis(s: SupplierRow) {
+  return /routeis/i.test(s.key) || /cmpdr\.dev/i.test(s.base_url || "");
+}
+
 function vexorixList(j: any): any[] {
   if (Array.isArray(j)) return j;
   return j?.products ?? j?.data?.products ?? j?.data?.items ?? (Array.isArray(j?.data) ? j.data : null) ?? j?.items ?? [];
@@ -676,6 +681,10 @@ async function callAny(
 }
 
 export async function supplierPing(s: SupplierRow) {
+  if (isRouteis(s)) {
+    await call(s, "/v1/balance");
+    return { ok: true as const, status: "active" };
+  }
   if (isVexorix(s)) {
     await call(s, "/api/reseller/me");
     return { ok: true as const, status: "active" };
@@ -733,6 +742,10 @@ export async function supplierDeleteWebhook(s: SupplierRow, endpointId: string) 
 
 
 export async function supplierBalance(s: SupplierRow) {
+  if (isRouteis(s)) {
+    const j = await call(s, "/v1/balance");
+    return { balance: Number(j?.balance ?? 0) || 0, currency: String(j?.currency ?? "USD") };
+  }
   if (isVexorix(s)) {
     const j = await call(s, "/api/reseller/me");
     const b = j?.balance ?? j?.wallet?.balance ?? j?.data?.balance ?? j?.account?.balance ?? 0;
@@ -755,6 +768,22 @@ export async function supplierBalance(s: SupplierRow) {
 }
 
 export async function supplierProducts(s: SupplierRow): Promise<SupplierProduct[]> {
+  if (isRouteis(s)) {
+    const j = await call(s, "/v1/catalog/products?description=true");
+    const list: any[] = Array.isArray(j?.data) ? j.data : [];
+    return list
+      .filter((p) => p?.id != null)
+      .map((p) => ({
+        external_id: String(p.id),
+        name: String(p.name ?? p.productRef ?? p.id),
+        description: p.description ? String(p.description) : null,
+        cost_price: Number(p.price) || 0,
+        stock: Math.max(0, Number(p.stock?.count ?? 0) || 0),
+        currency: "USD",
+        min_qty: 1,
+        raw: p,
+      }));
+  }
   if (isVexorix(s)) {
     const j = await call(s, "/api/reseller/products");
     return vexorixList(j).map(vexorixProduct).filter((x): x is SupplierProduct => x !== null);
@@ -1000,6 +1029,24 @@ export async function supplierOrder(
     .replace(/[^A-Za-z0-9._:-]/g, "")
     .slice(0, 128)
     .padEnd(8, "0") || `ord${Date.now()}`;
+  if (isRouteis(s)) {
+    // externalOrderId is idempotent: a retry returns the same order, never charged twice.
+    const ext = idemKey.slice(0, 64);
+    const idNum = Number(externalId);
+    const j = await call(s, "/v1/orders", {
+      method: "POST",
+      body: {
+        ...(Number.isFinite(idNum) && String(idNum) === externalId ? { productId: idNum } : { productName: externalId }),
+        quantity: qty,
+        externalOrderId: ext,
+      },
+    });
+    const lines: string[] = [];
+    if (Array.isArray(j?.lines)) for (const l of j.lines) { const c = l?.content ?? l; if (c != null && String(c).trim()) lines.push(String(c)); }
+    else if (Array.isArray(j?.delivery?.lines)) for (const l of j.delivery.lines) { const c = l?.content ?? l; if (c != null && String(c).trim()) lines.push(String(c)); }
+    else if (j?.delivery?.content != null) lines.push(String(j.delivery.content));
+    return { code: j?.orderCode ? String(j.orderCode) : null, items: splitBulkDelivery(lines, qty) };
+  }
   if (isVexorix(s)) {
     // Same external_order_id always returns the same order and is charged once.
     const j = await call(s, "/api/reseller/orders", {
@@ -1318,6 +1365,7 @@ export type SupplierAnnouncement = {
 /** Candidate announcement endpoints per API dialect. */
 function announcementPaths(s: SupplierRow): string[] {
   if (isCanboso(s)) return ["/api/v2/telegram-buyer/announcements"];
+  if (isRouteis(s)) return [];
   if (isActionDialect(s)) return [actionPath("announcements"), actionPath("notices")];
   return ["/v1/announcements", "/api/announcements"];
 }
