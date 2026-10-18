@@ -601,6 +601,33 @@ function isDigitalCore(s: SupplierRow) {
   return /digitalcore/i.test(s.key) || /digitalcore\.top/i.test(s.base_url || "");
 }
 
+/** VEXORIX: REST /api/reseller/*, X-Reseller-Key or Bearer auth, idempotent orders. */
+function isVexorix(s: SupplierRow) {
+  return /vexorix/i.test(s.key) || /207-148-64-141\.sslip\.io/i.test(s.base_url || "");
+}
+
+function vexorixList(j: any): any[] {
+  if (Array.isArray(j)) return j;
+  return j?.products ?? j?.data?.products ?? j?.data?.items ?? (Array.isArray(j?.data) ? j.data : null) ?? j?.items ?? [];
+}
+
+function vexorixProduct(p: any): SupplierProduct | null {
+  const id = p?.id ?? p?.product_id ?? p?.slug;
+  if (id == null || String(id).trim() === "") return null;
+  const price = p.price?.amount ?? p.price ?? p.unit_price ?? p.price_usdt ?? 0;
+  const stock = p.stock?.available ?? p.available ?? p.stock ?? p.in_stock_count ?? 0;
+  return {
+    external_id: String(id),
+    name: String(p.name ?? p.title ?? id),
+    description: p.description ? String(p.description) : null,
+    cost_price: Number(price) || 0,
+    stock: Math.max(0, Number(stock) || 0),
+    currency: "USD",
+    min_qty: Math.max(1, Number(p.min_qty ?? p.min_quantity ?? 1) || 1),
+    raw: p,
+  };
+}
+
 function digitalCoreProduct(p: any): SupplierProduct | null {
   const id = p?.id ?? p?.slug;
   if (id == null || String(id).trim() === "") return null;
@@ -646,6 +673,10 @@ async function callAny(
 }
 
 export async function supplierPing(s: SupplierRow) {
+  if (isVexorix(s)) {
+    await call(s, "/api/reseller/me");
+    return { ok: true as const, status: "active" };
+  }
   if (isDigitalCore(s)) {
     await call(s, "/api/user/me");
     return { ok: true as const, status: "active" };
@@ -699,6 +730,11 @@ export async function supplierDeleteWebhook(s: SupplierRow, endpointId: string) 
 
 
 export async function supplierBalance(s: SupplierRow) {
+  if (isVexorix(s)) {
+    const j = await call(s, "/api/reseller/me");
+    const b = j?.balance ?? j?.wallet?.balance ?? j?.data?.balance ?? j?.account?.balance ?? 0;
+    return { balance: Number(typeof b === "object" && b ? (b.amount ?? 0) : b) || 0, currency: "USDT" };
+  }
   if (isDigitalCore(s)) {
     const j = await call(s, "/api/user/me");
     return { balance: Number(j?.balance ?? 0), currency: "USD" };
@@ -716,6 +752,10 @@ export async function supplierBalance(s: SupplierRow) {
 }
 
 export async function supplierProducts(s: SupplierRow): Promise<SupplierProduct[]> {
+  if (isVexorix(s)) {
+    const j = await call(s, "/api/reseller/products");
+    return vexorixList(j).map(vexorixProduct).filter((x): x is SupplierProduct => x !== null);
+  }
   if (isDigitalCore(s)) {
     const j = await call(s, "/api/user/products");
     const list: any[] = Array.isArray(j) ? j : (j?.products ?? j?.data ?? []);
@@ -957,6 +997,21 @@ export async function supplierOrder(
     .replace(/[^A-Za-z0-9._:-]/g, "")
     .slice(0, 128)
     .padEnd(8, "0") || `ord${Date.now()}`;
+  if (isVexorix(s)) {
+    // Same external_order_id always returns the same order and is charged once.
+    const j = await call(s, "/api/reseller/orders", {
+      method: "POST",
+      headers: { "Idempotency-Key": idemKey.slice(0, 64) },
+      body: { product_id: externalId, quantity: qty, external_order_id: idemKey.slice(0, 64) },
+    });
+    const order = (j?.order ?? j?.data?.order ?? j?.data ?? j) as any;
+    const raw = firstDeliveryItems(order?.items, j?.items, order?.codes, order?.delivery);
+    const lines = raw
+      .map((it: any) => (it && typeof it === "object" && it.content != null ? String(it.content) : formatDeliveryItem(it)))
+      .filter(Boolean);
+    const oid = order?.order_id ?? order?.id ?? j?.order_id;
+    return { code: oid != null ? String(oid) : null, items: splitBulkDelivery(lines, qty) };
+  }
   if (isDigitalCore(s)) {
     // No idempotency support on their side: one POST only, never retried.
     const d = await call(s, "/api/user/buy", { method: "POST", body: { id: externalId, count: qty } });
