@@ -1661,7 +1661,7 @@ function categoryButton(settings: Record<string, string>, cat: any, text: string
 
 
 /** Category picker — blue category buttons, green navigation buttons. */
-async function shopView(page: number) {
+async function shopView(page: number, chatId?: number) {
   const settings = await getSettings();
   const products = await productsWithStock();
   const inStock = products.length;
@@ -3573,7 +3573,7 @@ async function handleMessage(msg: any) {
       const settings = await getSettings();
       await sayWithBottomMenu(chatId, await homeText(fresh), settings, homeKeyboard(settings));
     } else if (cmd === "products") {
-      const v = await shopView(0);
+      const v = await shopView(0, chatId);
       await say(chatId, v.text, v.kb);
     } else if (cmd === "wallet") {
       const v = await walletView(fresh);
@@ -6494,7 +6494,7 @@ async function handleCallback(cq: any) {
 
   if (data.startsWith("shop:")) {
     const page = Number(data.split(":")[1] || 0);
-    const view = await shopView(page);
+    const view = await shopView(page, chatId);
     await edit(view.text, view.kb);
     return;
   }
