@@ -13,7 +13,8 @@
  * everyone else sees the fallback glyph.
  */
 
-const CE_TOKEN = /\{\s*ce\s*:\s*(\d{5,25})\s*(?::\s*([^}]*?))?\s*\}/gi;
+// Also matches the bare `[5204116184986844054]` form some suppliers send.
+const CE_TOKEN = /\{\s*ce\s*:\s*(\d{5,25})\s*(?::\s*([^}]*?))?\s*\}|\[\s*(\d{15,25})\s*\]/gi;
 const DEFAULT_GLYPH = "🔹";
 
 export function escapeHtml(value: string) {
