@@ -1720,13 +1720,25 @@ async function shopView(page: number) {
     return { text, kb };
   }
 
-  return allProductsView(page);
+  return allProductsView(page, "all", chatId);
 }
 
 /** Flat product list — original shop page, optionally scoped to one category. */
-async function allProductsView(page: number, catId: "all" | string = "all") {
+/** Show a bot user's admin-set custom price from the very first screen (single-unit prices only). */
+async function applyUserPrices<T extends any>(chatId: number | undefined, products: T[]): Promise<T[]> {
+  if (!chatId || !products.length) return products;
+  const custom = await userPricesFor(chatId, products.map((p: any) => String(p.id)));
+  if (!Object.keys(custom).length) return products;
+  return products.map((p: any) => {
+    const cp = custom[String(p.id)];
+    if (!cp || cp.min_qty > 1 || !(cp.price < Number(p.price))) return p;
+    return { ...p, _public_price: Number(p.price), price: cp.price, _custom: true };
+  });
+}
+
+async function allProductsView(page: number, catId: "all" | string = "all", chatId?: number) {
   const settings = await getSettings();
-  const all = await productsWithStock();
+  const all = await applyUserPrices(chatId, await productsWithStock());
   let title = "P R O D U C T S";
   let products = all;
   let hasCategories = false;
@@ -1837,9 +1849,9 @@ async function freebiesView() {
 
 }
 
-async function flashView() {
+async function flashView(chatId?: number) {
   const settings = await getSettings();
-  const products = (await productsWithStock()).filter(isFlash);
+  const products = await applyUserPrices(chatId, (await productsWithStock()).filter(isFlash));
   const head = `${uiTag(settings, "shop_flash")}\n──────────────\n`;
   if (!products.length) {
     return {
@@ -1885,8 +1897,9 @@ function countdown(iso?: string | null) {
   return parts.join(" ");
 }
 
-async function productView(productId: string) {
-  const { data: p } = await db.from("products").select("*").eq("id", productId).maybeSingle();
+async function productView(productId: string, chatId?: number) {
+  const { data: raw } = await db.from("products").select("*").eq("id", productId).maybeSingle();
+  const p: any = raw ? (await applyUserPrices(chatId, [raw]))[0] : raw;
   // Products switched off in admin are hidden from the bot, exactly like the website.
   if (!p || p.is_active === false || p.owner_reseller_id) return null;
   const [{ count }, { count: soldCount }] = await Promise.all([
@@ -1931,6 +1944,8 @@ async function productView(productId: string) {
     if (ends)
       text += `${uiIconHtml(settings, "prod_ends")} <b>${escapeHtml(uiText(settings, "prod_ends"))}:</b> ${ends}\n`;
     text += `\n`;
+  } else if (p._custom) {
+    text += `${uiTag(settings, "prod_price")}: <s>${money(p._public_price)}</s> → <b>${money(p.price)}</b> <i>(your special price)</i>\n\n`;
   } else {
     text += `${uiTag(settings, "prod_price")}: <b>${money(p.price)}</b>\n\n`;
   }
@@ -3519,7 +3534,7 @@ async function handleMessage(msg: any) {
 
     // Deep link from a channel post: /start p_<product-id> opens that product.
     if (payload?.startsWith("p_")) {
-      const view = await productView(payload.slice(2));
+      const view = await productView(payload.slice(2), chatId);
       if (view) {
         await showView(chatId, undefined, view);
         return;
@@ -3575,7 +3590,7 @@ async function handleMessage(msg: any) {
   const menuChoice = text.replace(/^[^\p{L}\p{N}]+/u, "").trim().toLowerCase();
   if (menuChoice === "products" || menuChoice === "deposit" || menuChoice === "my orders") {
     if (menuChoice === "products") {
-      const v = await allProductsView(0);
+      const v = await allProductsView(0, "all", chatId);
       await say(chatId, v.text, v.kb);
     } else if (menuChoice === "deposit") {
       const v = await walletView(user);
@@ -6472,7 +6487,7 @@ async function handleCallback(cq: any) {
   }
 
   if (data === "flash") {
-    const view = await flashView();
+    const view = await flashView(chatId);
     await edit(view.text, view.kb);
     return;
   }
@@ -6486,14 +6501,14 @@ async function handleCallback(cq: any) {
 
   if (data.startsWith("cat:")) {
     const [, id, pg] = data.split(":");
-    const view = await allProductsView(Number(pg || 0), id || "all");
+    const view = await allProductsView(Number(pg || 0), id || "all", chatId);
     await edit(view.text, view.kb);
     return;
   }
 
   if (data.startsWith("p:")) {
     defer(() => awardReferralCredit(user));
-    const view = await productView(data.slice(2));
+    const view = await productView(data.slice(2), chatId);
     if (!view) return;
     await showView(chatId, messageId, view, fromMedia);
     return;
@@ -6504,7 +6519,7 @@ async function handleCallback(cq: any) {
     const productId = data.slice("notify:".length);
     const msg = await toggleStockAlert(chatId, productId);
     await say(chatId, msg);
-    const view = await productView(productId);
+    const view = await productView(productId, chatId);
     if (view) await showView(chatId, messageId, view, fromMedia);
     return;
   }
@@ -6532,7 +6547,7 @@ async function handleCallback(cq: any) {
       [uiBtn(qs, "qty_back", `p:${productId}`)],
     ];
 
-    const pv = await productView(productId);
+    const pv = await productView(productId, chatId);
     const qtyHead = `${uiIconHtml(qs, "qty_title")} <b>${escapeHtml(uiText(qs, "qty_title"))}</b>`;
     const head = pv
       ? `${qtyHead}\n──────────────\n${pv.product.name}\nPrice: <b>${money(pv.product.price)}</b>\n\n<i>Choose how many you want — payment options come next.</i>`
