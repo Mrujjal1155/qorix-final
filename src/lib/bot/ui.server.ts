@@ -19,6 +19,12 @@ export const UI_ELEMENTS = {
   shop_instock: { icon: "🟢", label: "in stock", group: "shop" },
   flash_tag: { icon: "🏷", label: "SALE", group: "shop" },
   flash_timer: { icon: "⏳", label: "limited offer", group: "shop" },
+  plist_title: { icon: "🛍", label: "Title", group: "plist" },
+  plist_price: { icon: "💲", label: "Price ($)", group: "plist" },
+  plist_instant: { icon: "✅", label: "Instant delivery", group: "plist" },
+  plist_warranty: { icon: "🛡", label: "Warranty", group: "plist" },
+  plist_bulk: { icon: "🔥", label: "Cheaper in bulk", group: "plist" },
+  plist_order: { icon: "🛒", label: "Order here", group: "plist" },
 
   /* ---- product page ---- */
   prod_icon_default: { icon: "📦", label: "Default product icon", group: "product" },
@@ -268,7 +274,7 @@ const BACK_UI_KEYS = new Set<UiKey>([
   "com_back",
 ]);
 
-export const UI_GROUPS = ["shop", "product", "cart", "checkout", "payment", "wallet", "orders", "deposit", "quantity", "profile", "refstore", "freebies", "support", "history", "common"] as const;
+export const UI_GROUPS = ["shop", "plist", "product", "cart", "checkout", "payment", "wallet", "orders", "deposit", "quantity", "profile", "refstore", "freebies", "support", "history", "common"] as const;
 export type UiGroup = (typeof UI_GROUPS)[number];
 
 export function uiKeysOf(group: string): UiKey[] {
