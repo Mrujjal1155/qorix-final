@@ -29,3 +29,4 @@
 - Public payment cron routes must fail closed and accept scheduler credentials only in headers, never URLs.
 - Fulfill charged reseller own-stock orders through the service-role-only atomic stock/order RPC in normal purchase and recovery; run bounded recovery on the existing notify tick so interruptions cannot cause repeat debits or orphaned stock claims.
 - Store Telegram Shop top-product IDs as one ordered bot_settings value, independent of website featured ranks; read that narrow setting fresh and render through the existing availability and user-price pipeline so admin picks cannot alter pricing or expose hidden products.
+- Admin supplier/reseller colour chips take their hues from the shared helpers in `src/lib/supplier-colors.ts` so one supplier keeps one colour on every admin screen; new screens import them instead of redefining a palette.
