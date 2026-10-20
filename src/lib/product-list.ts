@@ -9,7 +9,7 @@ export const PRODUCT_LIST_EMOJI_KEYS = [
   { key: "order", label: "Order here", fallback: "🛒" },
 ] as const;
 export type ProductListEmojiKey = (typeof PRODUCT_LIST_EMOJI_KEYS)[number]["key"];
-export const productListSettingKey = (k: string) => `plist_emoji_${k}`;
+export const productListSettingKey = (k: string) => `ui_icon_plist_${k}`;
 
 export type ListProduct = { name: string; price: number; emoji?: string | null; custom_emoji_id?: string | null };
 
