@@ -130,25 +130,41 @@ export function ProductListPostCard() {
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               <span className="text-xs text-muted-foreground">Goes to all bot users + {list.groups} group(s)</span>
-              <Button
-                disabled={busy !== ""}
-                onClick={async () => {
-                  if (!confirm("Send this price list to all bot users and groups?")) return;
-                  setBusy("send");
-                  try {
-                    const r = await send();
-                    toast.success(`Sent to ${r.sent}/${r.total} users · ${r.groupsSent}/${r.groupsTotal} groups`);
-                    if (r.failed || r.groupsSent < r.groupsTotal) toast.warning(r.error || "Some messages failed");
-                  } catch (e) {
-                    toast.error(e instanceof Error ? e.message : "Failed");
-                  } finally {
-                    setBusy("");
-                  }
-                }}
-              >
-                <Send className="mr-2 size-4" />
-                {busy === "send" ? "Sending..." : "Send"}
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button disabled={busy !== ""}>
+                    <Send className="mr-2 size-4" />
+                    {busy === "send" ? "Sending..." : "Send"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Send product list?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This price list goes to every bot user and {list.groups} group(s). This cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={async () => {
+                        setBusy("send");
+                        try {
+                          const r = await send();
+                          toast.success(`Sent to ${r.sent}/${r.total} users · ${r.groupsSent}/${r.groupsTotal} groups`);
+                          if (r.failed || r.groupsSent < r.groupsTotal) toast.warning(r.error || "Some messages failed");
+                        } catch (e) {
+                          toast.error(e instanceof Error ? e.message : "Failed");
+                        } finally {
+                          setBusy("");
+                        }
+                      }}
+                    >
+                      Send now
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </div>
         )}
