@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { tg } from "@/lib/telegram.server";
+import { loadAllBotUserIds, sendPaced } from "@/lib/bot/audience.server";
 import {
   PRODUCT_LIST_EMOJI_KEYS,
   buildProductListMarkdown,
@@ -84,19 +85,9 @@ export async function sendProductList() {
     else lastError = r.error ?? lastError;
   }
 
-  const db = supabaseAdmin as any;
-  const users: number[] = [];
-  for (let from = 0; ; from += 1000) {
-    const { data } = await db.from("bot_users").select("telegram_id,is_banned").range(from, from + 999);
-    for (const u of (data ?? []) as any[]) if (!u.is_banned && Number(u.telegram_id) > 1_000_000) users.push(Number(u.telegram_id));
-    if (!data || data.length < 1000) break;
-  }
-  let sent = 0, failed = 0;
-  for (const id of users) {
-    const r = await sendTo(id, list, kb);
-    if (r.ok) sent++;
-    else { failed++; if (r.error) lastError = r.error; }
-    await new Promise((res) => setTimeout(res, 40));
-  }
+  const users = await loadAllBotUserIds();
+  const r = await sendPaced(users, (id) => sendTo(id, list, kb));
+  const sent = r.sent, failed = r.failed;
+  if (r.error) lastError = r.error;
   return { sent, failed, total: users.length, groupsSent, groupsTotal: list.groups.length, error: lastError };
 }

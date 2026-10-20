@@ -1,6 +1,6 @@
 // Shared broadcast engine used by both the Telegram admin panel and the website admin.
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendMessage, sendPhoto } from "@/lib/telegram.server";
+import { loadAllBotUserIds, loadAnnounceGroups, sendPaced } from "@/lib/bot/audience.server";
 
 const CAPTION_LIMIT = 1024;
 
@@ -8,6 +8,8 @@ export type BroadcastResult = {
   sent: number;
   failed: number;
   total: number;
+  groupsSent?: number;
+  groupsTotal?: number;
   error: string;
 };
 
@@ -49,7 +51,6 @@ export async function runBroadcast(input: {
   text?: string;
   photo?: string;
 }): Promise<BroadcastResult> {
-  const db = supabaseAdmin as any;
   const text = String(input.text ?? "");
   const photo = input.photo?.trim() || undefined;
 
@@ -57,29 +58,24 @@ export async function runBroadcast(input: {
     return { sent: 0, failed: 0, total: 0, error: "Nothing to send (no text, no image)" };
   }
 
-  const { data, error } = await db.from("bot_users").select("telegram_id,is_banned");
-  if (error) {
-    return { sent: 0, failed: 0, total: 0, error: `Could not load users: ${error.message}` };
+  let users: number[];
+  try {
+    users = await loadAllBotUserIds();
+  } catch (e: any) {
+    return { sent: 0, failed: 0, total: 0, error: String(e?.message ?? e) };
   }
 
-  // Skip seeded/test rows: real Telegram ids are far above this range.
-  const targets = (data ?? []).filter(
-    (u: any) => !u.is_banned && Number(u.telegram_id) > 1_000_000,
-  );
-  let sent = 0;
-  let failed = 0;
-  let lastError = "";
+  // Groups/channels get one post each; every bot user gets it in their own chat.
+  const groups = await loadAnnounceGroups();
+  const g = await sendPaced(groups, (id) => sendOne(id, text, photo));
+  const u = await sendPaced(users, (id) => sendOne(id, text, photo));
 
-  for (const u of targets) {
-    const res = await sendOne(u.telegram_id, text, photo);
-    if (res.ok) sent++;
-    else {
-      failed++;
-      if (res.error) lastError = res.error;
-    }
-    // Stay inside Telegram's ~30 messages/second broadcast limit.
-    await new Promise((r) => setTimeout(r, 40));
-  }
-
-  return { sent, failed, total: targets.length, error: lastError };
+  return {
+    sent: u.sent,
+    failed: u.failed,
+    total: users.length,
+    groupsSent: g.sent,
+    groupsTotal: groups.length,
+    error: u.error || g.error,
+  };
 }
