@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseTopProductIds, selectTopProducts } from "../../src/lib/telegram-top-products";
+import { IN_HOUSE_FILTER, countBySupplier, filterCatalogue, parseTopProductIds, selectTopProducts } from "../../src/lib/telegram-top-products";
 
 describe("Admin-selected Telegram top products", () => {
   const products = [{ id: "a", price: 1.2, stock: 4, featured_rank: 0 }, { id: "b", price: 2, stock: 5, featured_rank: 1 }];

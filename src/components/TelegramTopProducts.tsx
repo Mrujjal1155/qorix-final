@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { colorIndexesFor, supplierBadgeStyle } from "@/lib/supplier-colors";
+import { IN_HOUSE_FILTER, countBySupplier, filterCatalogue } from "@/lib/telegram-top-products";
 import { getTelegramTopProducts, saveTelegramTopProducts } from "@/lib/telegram-top-products.functions";
+import { cn } from "@/lib/utils";
 
 type Product = { id: string; name: string; price: number; stock?: number; is_active: boolean; owner_reseller_id?: string | null; supplier_name?: string | null };
 
@@ -19,10 +21,12 @@ export function TelegramTopProducts({ products }: { products: Product[] }) {
   const { data, isPending, error } = useQuery({ queryKey: ["telegram-top-products"], queryFn: () => load() });
   const [draft, setDraft] = useState<string[] | null>(null);
   const [search, setSearch] = useState("");
+  const [supplier, setSupplier] = useState<string | null>(null);
   const ids = draft ?? data?.product_ids ?? [];
   const catalogue = products.filter((p) => !p.owner_reseller_id);
-  const visible = catalogue.filter((p) => p.name.toLowerCase().includes(search.trim().toLowerCase()));
+  const visible = useMemo(() => filterCatalogue(catalogue, { search, supplier }), [products, search, supplier]);
   const supplierColors = useMemo(() => colorIndexesFor(catalogue.map((p) => p.supplier_name)), [products]);
+  const counts = useMemo(() => countBySupplier(catalogue), [products]);
   const mutation = useMutation({
     mutationFn: () => save({ data: { product_ids: ids.filter((id) => catalogue.some((p) => p.id === id)) } }),
     onSuccess: (result) => {
@@ -38,11 +42,12 @@ export function TelegramTopProducts({ products }: { products: Product[] }) {
     if (!clean) return <Badge variant="outline" className="text-[11px] text-muted-foreground">In-house</Badge>;
     return <Badge variant="outline" className="text-[11px]" style={supplierBadgeStyle(supplierColors.get(clean) ?? 0)}>{clean}</Badge>;
   };
+  const filterChip = "h-6 px-2 text-[11px] font-semibold";
 
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="text-sm text-muted-foreground">{ids.length} selected</span>
+        <span className="text-sm text-muted-foreground">{ids.length} selected · {visible.length} shown</span>
         <div className="flex gap-2">
           <Button variant="outline" disabled={isPending || !!error || mutation.isPending || !ids.length} onClick={() => setDraft([])}><X className="size-4" /> Clear selection</Button>
           <Button disabled={isPending || !!error || mutation.isPending} onClick={() => mutation.mutate()}><Save className="size-4" /> {mutation.isPending ? "Saving…" : "Save Top Products"}</Button>
@@ -52,13 +57,34 @@ export function TelegramTopProducts({ products }: { products: Product[] }) {
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input aria-label="Search top products" className="pl-9" placeholder="Search products…" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
-      {supplierColors.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
+      {catalogue.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filter products by supplier">
           <span className="text-xs text-muted-foreground">Supplier colours:</span>
+          <Button variant="outline" size="sm" className={cn(filterChip, !supplier && "border-primary/70 text-primary")} aria-pressed={!supplier} onClick={() => setSupplier(null)}>
+            All · {catalogue.length}
+          </Button>
           {Array.from(supplierColors.keys()).map((name, i) => (
-            <Badge key={name} variant="outline" className="text-[11px]" style={supplierBadgeStyle(i)}>{name}</Badge>
+            <Button
+              key={name}
+              variant="outline"
+              size="sm"
+              className={cn(filterChip, supplier && supplier !== name && "opacity-50")}
+              aria-pressed={supplier === name}
+              onClick={() => setSupplier(supplier === name ? null : name)}
+              style={supplierBadgeStyle(i)}
+            >
+              {name} · {counts.get(name) ?? 0}
+            </Button>
           ))}
-          <Badge variant="outline" className="text-[11px] text-muted-foreground">In-house</Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            className={cn(filterChip, "text-muted-foreground", supplier && supplier !== IN_HOUSE_FILTER && "opacity-50")}
+            aria-pressed={supplier === IN_HOUSE_FILTER}
+            onClick={() => setSupplier(supplier === IN_HOUSE_FILTER ? null : IN_HOUSE_FILTER)}
+          >
+            In-house · {counts.get(IN_HOUSE_FILTER) ?? 0}
+          </Button>
         </div>
       )}
       {error ? <p role="alert" className="text-sm text-destructive">Could not load top products. <Button variant="link" onClick={() => qc.invalidateQueries({ queryKey: ["telegram-top-products"] })}>Retry</Button></p> : isPending ? <p className="text-sm text-muted-foreground">Loading top products…</p> : (
@@ -74,7 +100,7 @@ export function TelegramTopProducts({ products }: { products: Product[] }) {
               <span className="shrink-0 text-sm text-muted-foreground">${Number(p.price).toFixed(2)} · {p.stock ?? 0} items</span>
             </label>
           ))}
-          {!visible.length && <p className="py-6 text-sm text-muted-foreground">No products found.</p>}
+          {!visible.length && <p className="py-6 text-sm text-muted-foreground">No products match this filter.</p>}
         </div>
       )}
     </section>
