@@ -38,7 +38,7 @@ export const getOverview = createServerFn({ method: "GET" })
       for (let from = 0; ; from += 1000) {
         const { data } = await sb
           .from("orders")
-          .select("total,quantity,product_id,created_at")
+          .select("total,quantity,product_id,created_at,meta")
           .eq("status", "completed")
           .order("created_at", { ascending: true })
           .range(from, from + 999);
@@ -73,7 +73,7 @@ export const getOverview = createServerFn({ method: "GET" })
     let completedToday = 0, completedYesterday = 0;
     for (const o of doneOrders) {
       const t = Number(o.total ?? 0);
-      const p = t - (o.product_id ? (costMap[o.product_id] ?? 0) : 0) * Number(o.quantity ?? 1);
+      const p = t - unitCostOf(o, costMap) * Number(o.quantity ?? 1);
       revenue += t;
       profit += p;
       const at = Date.parse(String(o.created_at));
@@ -153,7 +153,7 @@ export const getAnalytics = createServerFn({ method: "POST" })
       for (let off = 0; off < 50000; off += 1000) {
         const { data: rows, error } = await sb
           .from("orders")
-          .select("id,created_at,status,total,quantity,product_id,product_name,source")
+          .select("id,created_at,status,total,quantity,product_id,product_name,source,meta")
           .gte("created_at", new Date(startMs).toISOString())
           .lt("created_at", new Date(endMs).toISOString())
           .order("created_at", { ascending: true })
@@ -211,7 +211,7 @@ export const getAnalytics = createServerFn({ method: "POST" })
 
       const total = Number(o.total ?? 0);
       const qty = Number(o.quantity ?? 1);
-      const cost = (o.product_id ? (costMap[o.product_id] ?? 0) : 0) * qty;
+      const cost = unitCostOf(o, costMap) * qty;
       const p = total - cost;
       revenue += total;
       profit += p;
@@ -931,7 +931,7 @@ export const listOrders = createServerFn({ method: "GET" })
       const p: any = prodById.get(o.product_id);
       const s: any = p?.supplier_id ? supById.get(p.supplier_id) : null;
       const b: any = botById.get(String(o.telegram_id));
-      const cost = (o.product_id ? (costByProduct.get(o.product_id) ?? 0) : 0) * Number(o.quantity ?? 1);
+      const cost = unitCostOf(o, Object.fromEntries(costByProduct)) * Number(o.quantity ?? 1);
       return {
         ...o,
         supplier_name: s?.name ?? null,
@@ -2399,3 +2399,10 @@ export const recheckOrderBinance = createServerFn({ method: "POST" })
     const { verifyWebsiteOrderTxid } = await import("@/lib/website-binance-verify.server");
     return verifyWebsiteOrderTxid(data.id);
   });
+
+/** Cost per unit saved on the order at purchase time; falls back to the current cost for older orders. Unknown cost = 0. */
+function unitCostOf(o: any, costMap: Record<string, number>): number {
+  const saved = o?.meta?.unit_cost;
+  if (saved != null && Number.isFinite(Number(saved))) return Number(saved);
+  return o?.product_id ? (costMap[o.product_id] ?? 0) : 0;
+}
