@@ -58,7 +58,7 @@ export const getOverview = createServerFn({ method: "GET" })
       loadCompleted(),
       sb.from("orders").select("*").order("created_at", { ascending: false }).limit(10),
       sb.from("products").select("id,supplier_id,is_active,cost_price"),
-      sb.from("supplier_products").select("product_id,cost_price"),
+      sb.from("supplier_products").select("product_id,cost_price").not("product_id", "is", null).limit(5000),
     ]);
 
     // Profit = order total − supplier cost (today's supplier price; in-house = full total).
@@ -78,8 +78,7 @@ export const getOverview = createServerFn({ method: "GET" })
       profit += p;
       const at = Date.parse(String(o.created_at));
       if (at >= todayStart) { todayProfit += p; todayRevenue += t; completedToday += 1; }
-      else if (at >= yStart) { completedYesterday += 1; }
-      else if (at >= yStart) { yesterdayProfit += p; yesterdayRevenue += t; }
+      else if (at >= yStart) { completedYesterday += 1; yesterdayProfit += p; yesterdayRevenue += t; }
     }
     const products = (prods.data ?? []) as any[];
     const inHouse = products.filter((p) => !p.supplier_id);
@@ -168,7 +167,7 @@ export const getAnalytics = createServerFn({ method: "POST" })
 
     const [orders, supRes, inRes] = await Promise.all([
       fetchOrders(),
-      sb.from("supplier_products").select("product_id,cost_price"),
+      sb.from("supplier_products").select("product_id,cost_price").not("product_id", "is", null).limit(5000),
       sb.from("products").select("id,cost_price").is("supplier_id", null).not("cost_price", "is", null),
     ]);
 
