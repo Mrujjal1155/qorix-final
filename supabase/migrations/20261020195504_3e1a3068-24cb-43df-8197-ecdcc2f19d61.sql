@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.orders_snapshot_unit_cost() FROM PUBLIC, anon, authenticated;
