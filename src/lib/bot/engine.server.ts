@@ -37,6 +37,7 @@ import {
 } from "@/lib/bot/ui.server";
 
 import { renderRich, plainRich } from "@/lib/bot/richtext";
+import { TELEGRAM_TOP_PRODUCTS_KEY, parseTopProductIds, selectTopProducts } from "@/lib/telegram-top-products";
 import {
   credentialItems,
   orderCode,
@@ -1696,6 +1697,23 @@ async function shopView(page: number, chatId?: number) {
       kb.push(row);
     }
 
+    // Read only this admin selection fresh, independently of the general settings cache.
+    const { data: topSetting, error: topError } = await db.from("bot_settings")
+      .select("value").eq("key", TELEGRAM_TOP_PRODUCTS_KEY).maybeSingle();
+    if (topError) throw new Error("Could not load top products");
+    const selected = selectTopProducts(products, parseTopProductIds(topSetting?.value));
+    const topPage = Math.max(0, Math.min(page, Math.max(0, Math.ceil(selected.length / PAGE) - 1)));
+    const topProducts = await applyUserPrices(chatId, selected.slice(topPage * PAGE, (topPage + 1) * PAGE));
+    const prodStyle = btnColor(settings, "product");
+    for (const p of topProducts) {
+      kb.push([styled(productIconButton(p,
+        `${p.name} | ${money(p.price)} | ${(p.delivery_type === "manual" && !p.manual_stock_limited) ? "manual" : `📦 ${p.stock}`}`,
+        `p:${p.id}`), prodRowStyle(p, prodStyle))]);
+    }
+    const topNav: Button[] = [];
+    if (topPage > 0) topNav.push(styled(uiBtn(settings, "shop_prev", `shop:${topPage - 1}`), btnColor(settings, "pagination")));
+    if (selected.length > (topPage + 1) * PAGE) topNav.push(styled(uiBtn(settings, "shop_next", `shop:${topPage + 1}`), btnColor(settings, "pagination")));
+    if (topNav.length) kb.push(topNav);
 
     const allIc = allProductsIcon(settings);
     kb.push([
@@ -1708,7 +1726,7 @@ async function shopView(page: number, chatId?: number) {
         navStyle,
       ),
     ]);
-    kb.push([styled(iconButton(settings, "refresh", "shop:0"), navStyle)]);
+    kb.push([styled(iconButton(settings, "refresh", `shop:${topPage}`), navStyle)]);
     kb.push([
       styled(iconButton(settings, "cart", "cart"), navStyle),
       styled(iconButton(settings, "back", "home"), "danger"),

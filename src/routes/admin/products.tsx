@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ImageUploadField } from "@/components/ImageUploadField";
 import { StockManagerCard } from "@/components/StockManagerCard";
+import { TelegramTopProducts } from "@/components/TelegramTopProducts";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -77,7 +78,7 @@ const EMPTY = {
   sort_order: 0,
 };
 
-type View = "hub" | "categories" | "products" | "form" | "pricing" | "stock";
+type View = "hub" | "categories" | "products" | "form" | "pricing" | "stock" | "top";
 
 function supplierChipStyle(key: string): CSSProperties {
   let h = 0;
@@ -364,6 +365,13 @@ function ProductsPage() {
   }
 
   const hubCards = [
+    {
+      id: "top" as View,
+      title: "Top Products",
+      desc: "Telegram Shop",
+      icon: Sparkles,
+      meta: "Selected products",
+    },
     {
       id: "categories" as View,
       title: "Categories",
@@ -1138,6 +1146,8 @@ function ProductsPage() {
             <span className="text-sm font-semibold">
               {view === "categories"
                 ? "Categories"
+                : view === "top"
+                  ? "Top Products — Telegram"
                 : view === "products"
                   ? "Products"
                   : view === "pricing"
@@ -1163,6 +1173,7 @@ function ProductsPage() {
           </div>
 
           {view === "categories" && categoriesSection}
+          {view === "top" && <TelegramTopProducts products={data?.products ?? []} />}
           {view === "products" && catalogueSection}
           {view === "form" && formSection}
           {view === "pricing" && pricingSection}
