@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Add admin-selected Telegram top products below the unchanged Shop category grid and verify selection/pricing rules without real orders.
+- [x] Add admin-selected Telegram top products below the unchanged Shop category grid; four focused tests pass, build OK, no real orders. Admin page remains sign-in gated.
 - [ ] Verify top-product saving with a signed-in admin and live Telegram display (requires external Supabase account access and deployment).
 
 - [x] Complete charged own-stock reseller order #1611 without another debit; verified one $1.30 debit and authenticated API returns completed with one delivery item.
