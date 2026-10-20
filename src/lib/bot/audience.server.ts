@@ -36,7 +36,7 @@ export async function loadAnnounceGroups(): Promise<string[]> {
 /** Sends in batches of 25 per second (inside Telegram's ~30 msg/s limit). */
 export async function sendPaced<T>(
   targets: T[],
-  send: (t: T) => Promise<{ ok: boolean; error?: string }>,
+  send: (t: T) => Promise<{ ok: boolean; error?: string | undefined }>,
 ): Promise<{ sent: number; failed: number; error: string }> {
   let sent = 0;
   let failed = 0;
