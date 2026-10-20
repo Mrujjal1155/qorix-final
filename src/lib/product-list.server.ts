@@ -23,18 +23,28 @@ export async function buildProductList() {
     loadSettings(),
     db
       .from("products")
-      .select("name,price,emoji,telegram_custom_emoji_id,featured_rank,sort_order")
+      .select("id,name,price,emoji,telegram_custom_emoji_id,featured_rank,sort_order,supplier_id,supplier_stock")
       .eq("is_active", true)
       .is("owner_reseller_id", null)
       .order("sort_order", { ascending: true })
       .limit(1000),
   ]);
-  const products: ListProduct[] = ((prods.data ?? []) as any[]).map((p) => ({
-    name: p.name,
-    price: Number(p.price ?? 0),
-    emoji: p.emoji,
-    custom_emoji_id: p.telegram_custom_emoji_id,
-  }));
+  const rows = (prods.data ?? []) as any[];
+  const inhouseIds = rows.filter((p) => !p.supplier_id).map((p) => p.id);
+  const inhouseStock = new Map<string, number>();
+  if (inhouseIds.length) {
+    const { data: counts } = await db.rpc("stock_counts", { _product_ids: inhouseIds });
+    for (const c of (counts ?? []) as any[]) inhouseStock.set(c.product_id, Number(c.available ?? 0));
+  }
+  // Only products that are actually in stock: supplier rows by supplier_stock, in-house by stock_counters.
+  const products: ListProduct[] = rows
+    .filter((p) => (p.supplier_id ? Number(p.supplier_stock ?? 0) > 0 : (inhouseStock.get(p.id) ?? 0) > 0))
+    .map((p) => ({
+      name: p.name,
+      price: Number(p.price ?? 0),
+      emoji: p.emoji,
+      custom_emoji_id: p.telegram_custom_emoji_id,
+    }));
   const emojis: Record<string, string> = {};
   for (const k of PRODUCT_LIST_EMOJI_KEYS) emojis[k.key] = s[productListSettingKey(k.key)] ?? "";
   const botUsername = s["bot_username"] ?? "";
