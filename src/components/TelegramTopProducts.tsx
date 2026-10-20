@@ -8,7 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { getTelegramTopProducts, saveTelegramTopProducts } from "@/lib/telegram-top-products.functions";
 
-type Product = { id: string; name: string; price: number; stock?: number; is_active: boolean; owner_reseller_id?: string | null };
+type Product = { id: string; name: string; price: number; stock?: number; is_active: boolean; owner_reseller_id?: string | null; supplier_name?: string | null };
 
 export function TelegramTopProducts({ products }: { products: Product[] }) {
   const qc = useQueryClient();
@@ -49,7 +49,10 @@ export function TelegramTopProducts({ products }: { products: Product[] }) {
           {visible.map((p) => (
             <label key={p.id} className="flex cursor-pointer items-center gap-3 py-3">
               <Checkbox aria-label={`Select ${p.name}`} checked={ids.includes(p.id)} disabled={mutation.isPending} onCheckedChange={(checked) => toggle(p.id, checked === true)} />
-              <span className="min-w-0 flex-1 break-words text-sm font-medium">{p.name}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block break-words text-sm font-medium">{p.name}</span>
+                <span className="text-xs text-muted-foreground">{p.supplier_name ?? "In-house"}</span>
+              </span>
               {!p.is_active && <span className="text-xs text-muted-foreground">Off</span>}
               <span className="shrink-0 text-sm text-muted-foreground">${Number(p.price).toFixed(2)} · {p.stock ?? 0} items</span>
             </label>
