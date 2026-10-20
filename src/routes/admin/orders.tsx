@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState, type CSSProperties } from "react";
+import { useMemo, useState } from "react";
 import {
   checkSupplierBalances,
   deliverOrder,
@@ -15,6 +15,7 @@ import {
 } from "@/lib/admin.functions";
 import { AdminShell, money } from "@/components/AdminShell";
 import { orderCode, normalizeOrderQuery } from "@/lib/order-code";
+import { resellerBadgeStyle, supplierBadgeStyle } from "@/lib/supplier-colors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,27 +46,6 @@ const STATUS_LABEL: Record<string, string> = {
   failed: "failed / unpaid",
   refunded: "refunded",
 };
-
-const SUPPLIER_HUES = [18, 145, 255, 320, 75, 195, 285, 45, 225, 350] as const;
-
-function supplierBadgeStyle(index: number): CSSProperties {
-  const h = SUPPLIER_HUES[index % SUPPLIER_HUES.length];
-  return {
-    color: `oklch(0.72 0.16 ${h})`,
-    borderColor: `oklch(0.72 0.16 ${h} / 0.55)`,
-    backgroundColor: `oklch(0.72 0.16 ${h} / 0.12)`,
-  };
-}
-
-/** Reseller chips are filled in more heavily so they catch the eye in a long list. */
-function resellerBadgeStyle(index: number): CSSProperties {
-  const h = SUPPLIER_HUES[(index + 3) % SUPPLIER_HUES.length];
-  return {
-    color: `oklch(0.85 0.13 ${h})`,
-    borderColor: `oklch(0.72 0.15 ${h} / 0.7)`,
-    backgroundColor: `oklch(0.58 0.17 ${h} / 0.28)`,
-  };
-}
 
 const SOURCES = [
   { id: "all", label: "All orders" },

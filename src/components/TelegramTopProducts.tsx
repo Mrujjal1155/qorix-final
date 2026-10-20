@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { Save, Search, X } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { colorIndexesFor, supplierBadgeStyle } from "@/lib/supplier-colors";
 import { getTelegramTopProducts, saveTelegramTopProducts } from "@/lib/telegram-top-products.functions";
 
 type Product = { id: string; name: string; price: number; stock?: number; is_active: boolean; owner_reseller_id?: string | null; supplier_name?: string | null };
@@ -20,6 +22,7 @@ export function TelegramTopProducts({ products }: { products: Product[] }) {
   const ids = draft ?? data?.product_ids ?? [];
   const catalogue = products.filter((p) => !p.owner_reseller_id);
   const visible = catalogue.filter((p) => p.name.toLowerCase().includes(search.trim().toLowerCase()));
+  const supplierColors = useMemo(() => colorIndexesFor(catalogue.map((p) => p.supplier_name)), [products]);
   const mutation = useMutation({
     mutationFn: () => save({ data: { product_ids: ids.filter((id) => catalogue.some((p) => p.id === id)) } }),
     onSuccess: (result) => {
@@ -30,6 +33,11 @@ export function TelegramTopProducts({ products }: { products: Product[] }) {
     onError: (e: Error) => toast.error(e.message),
   });
   const toggle = (id: string, checked: boolean) => setDraft(checked ? [...ids, id] : ids.filter((x) => x !== id));
+  const chip = (name: string | null | undefined) => {
+    const clean = String(name ?? "").trim();
+    if (!clean) return <Badge variant="outline" className="text-[11px] text-muted-foreground">In-house</Badge>;
+    return <Badge variant="outline" className="text-[11px]" style={supplierBadgeStyle(supplierColors.get(clean) ?? 0)}>{clean}</Badge>;
+  };
 
   return (
     <section className="space-y-4">
@@ -44,15 +52,24 @@ export function TelegramTopProducts({ products }: { products: Product[] }) {
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input aria-label="Search top products" className="pl-9" placeholder="Search products…" value={search} onChange={(e) => setSearch(e.target.value)} />
       </div>
+      {supplierColors.size > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted-foreground">Supplier colours:</span>
+          {Array.from(supplierColors.keys()).map((name, i) => (
+            <Badge key={name} variant="outline" className="text-[11px]" style={supplierBadgeStyle(i)}>{name}</Badge>
+          ))}
+          <Badge variant="outline" className="text-[11px] text-muted-foreground">In-house</Badge>
+        </div>
+      )}
       {error ? <p role="alert" className="text-sm text-destructive">Could not load top products. <Button variant="link" onClick={() => qc.invalidateQueries({ queryKey: ["telegram-top-products"] })}>Retry</Button></p> : isPending ? <p className="text-sm text-muted-foreground">Loading top products…</p> : (
         <div className="max-h-[60vh] overflow-y-auto divide-y divide-border border-y border-border">
           {visible.map((p) => (
             <label key={p.id} className="flex cursor-pointer items-center gap-3 py-3">
               <Checkbox aria-label={`Select ${p.name}`} checked={ids.includes(p.id)} disabled={mutation.isPending} onCheckedChange={(checked) => toggle(p.id, checked === true)} />
-              <span className="min-w-0 flex-1">
+              <div className="min-w-0 flex-1">
                 <span className="block break-words text-sm font-medium">{p.name}</span>
-                <span className="text-xs text-muted-foreground">{p.supplier_name ?? "In-house"}</span>
-              </span>
+                <span className="mt-1 block">{chip(p.supplier_name)}</span>
+              </div>
               {!p.is_active && <span className="text-xs text-muted-foreground">Off</span>}
               <span className="shrink-0 text-sm text-muted-foreground">${Number(p.price).toFixed(2)} · {p.stock ?? 0} items</span>
             </label>
