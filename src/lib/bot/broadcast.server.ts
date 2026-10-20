@@ -1,6 +1,6 @@
 // Shared broadcast engine used by both the Telegram admin panel and the website admin.
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { sendMessage, sendPhoto } from "@/lib/telegram.server";
+import { loadAllBotUserIds, loadAnnounceGroups, sendPaced } from "@/lib/bot/audience.server";
 
 const CAPTION_LIMIT = 1024;
 
@@ -8,6 +8,8 @@ export type BroadcastResult = {
   sent: number;
   failed: number;
   total: number;
+  groupsSent?: number;
+  groupsTotal?: number;
   error: string;
 };
 
@@ -49,7 +51,6 @@ export async function runBroadcast(input: {
   text?: string;
   photo?: string;
 }): Promise<BroadcastResult> {
-  const db = supabaseAdmin as any;
   const text = String(input.text ?? "");
   const photo = input.photo?.trim() || undefined;
 
