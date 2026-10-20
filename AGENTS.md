@@ -28,3 +28,4 @@
 - Reseller webhook saving and sending share HTTPS/public-DNS checks and never follow redirects; DNS preflight does not pin resolution and must not be represented as complete DNS-rebinding protection.
 - Public payment cron routes must fail closed and accept scheduler credentials only in headers, never URLs.
 - Fulfill charged reseller own-stock orders through the service-role-only atomic stock/order RPC in normal purchase and recovery; run bounded recovery on the existing notify tick so interruptions cannot cause repeat debits or orphaned stock claims.
+- Store Telegram Shop top-product IDs as one ordered bot_settings value, independent of website featured ranks; read that narrow setting fresh and render through the existing availability and user-price pipeline so admin picks cannot alter pricing or expose hidden products.
