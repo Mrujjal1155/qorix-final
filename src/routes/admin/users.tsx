@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { adjustBalance, broadcastMessage, listBotUsers, messageUser, setBanned } from "@/lib/admin.functions";
 import { AdminShell, money } from "@/components/AdminShell";
+import { ProductListPostCard } from "@/components/ProductListPostCard";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,6 +96,7 @@ function UsersPage() {
   const [bcImage, setBcImage] = useState("");
   const [bcBusy, setBcBusy] = useState(false);
   const [bcOpen, setBcOpen] = useState(false);
+  const [plOpen, setPlOpen] = useState(false);
 
   const [balanceUser, setBalanceUser] = useState<TargetUser | null>(null);
   const [balanceMode, setBalanceMode] = useState<"add" | "deduct">("add");
@@ -240,6 +242,9 @@ function UsersPage() {
           <Megaphone className="mr-2 size-4" />
           Broadcast
         </Button>
+        <Button variant={plOpen ? "secondary" : "outline"} onClick={() => setPlOpen((v) => !v)}>
+          Product list
+        </Button>
         </div>
         <div className="flex gap-1 rounded-lg border bg-muted/40 p-1">
           {([["all", "All"], ["with", "With balance"], ["without", "No balance"]] as const).map(([k, l]) => (
@@ -248,6 +253,8 @@ function UsersPage() {
             </Button>
           ))}
         </div>
+
+      {plOpen && <ProductListPostCard />}
 
       {bcOpen && (
         <Card className="mb-4 border-primary/30">
