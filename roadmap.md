@@ -1,5 +1,9 @@
 # Roadmap
 
+- [x] Re-audit reported supplier payload exposure; storefront responses contain no private supplier fields, reseller projection already excludes IDs, and raw reseller stock/debit diagnostics are now replaced by safe errors. Product content and payment/order rules are unchanged.
+- [x] Verify public response and database access regressions: 14 focused tests pass, both anonymous reseller product requests return 401, RLS remains enabled, database linter and build pass.
+- [ ] Verify this update with a signed-in reseller and on the deployed site (blocked by external unmanaged authentication and deployment; no real orders placed).
+
 - [x] Add admin-selected Telegram top products below the unchanged Shop category grid; four focused tests pass, build OK, no real orders. Admin page remains sign-in gated.
 - [ ] Verify top-product saving with a signed-in admin and live Telegram display (requires external Supabase account access and deployment).
 - [x] Show each product's supplier as its own colour chip in the Top Products list, with a colour legend; shared hue helpers plus three focused tests pass, build OK.

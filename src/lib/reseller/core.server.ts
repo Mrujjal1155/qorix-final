@@ -207,7 +207,7 @@ export async function catalogue(reseller: Reseller, channel: Channel) {
   const { data: stock, error: stockErr } = stockIds.length
     ? await db.rpc("stock_counts", { _product_ids: stockIds })
     : { data: [] as any[], error: null as any };
-  if (stockErr) throw new Error(`Stock lookup failed: ${stockErr.message}`);
+  if (stockErr) throw new Error("Product stock is temporarily unavailable");
   const counts: Record<string, number> = {};
   for (const s of (stock ?? []) as any[]) counts[String(s.product_id)] = Number(s.available ?? 0);
 
@@ -297,7 +297,7 @@ export async function singleProduct(reseller: Reseller, id: string) {
       : Promise.resolve({ data: null as any }),
     resellerCustomPrices(reseller.id, [id]),
   ]);
-  if (stockRes.error) throw new Error(`Stock lookup failed: ${stockRes.error.message}`);
+  if (stockRes.error) throw new Error("Product stock is temporarily unavailable");
   const count = Number(((stockRes.data ?? []) as any[])[0]?.available ?? 0);
   const cat = catRes.data;
   const out = publicProduct(p, reseller, { [id]: count }, cat ? { [p.category_id]: cat.name } : {}, customMap[id]);
@@ -446,7 +446,7 @@ export async function purchase(
   });
   if (debitError) {
     await db.from("orders").delete().eq("id", reserved.id);
-    return { ok: false as const, status: 402, error: debitError.message ?? "Insufficient balance" };
+    return { ok: false as const, status: 402, error: "Unable to process balance. Please check your balance and try again." };
   }
 
   // Warn the reseller in Telegram when this order pushed them under their limit.
