@@ -304,7 +304,7 @@ x-api-key: YOUR_API_KEY`}</Code>
               <li>
                 <code className="font-mono">status: "completed"</code> → credentials are inside{" "}
                 <code className="font-mono">items</code>. <code className="font-mono">"pending"</code> → delivery is
-                still in progress (manual product, supplier processing, or <code className="font-mono">"submitted": true</code>);
+                still in progress (manual product, processing, or <code className="font-mono">"submitted": true</code>);
                 poll the order until it completes.
               </li>
               <li>
@@ -334,7 +334,7 @@ curl -H "Authorization: Bearer YOUR_API_KEY" "${base}/orders?limit=50"`}</Code>
             </p>
             <p>
               <strong>Recommended:</strong> set an order webhook URL in your reseller panel. When a pending order is
-              delivered later (supplier retry or automatic recovery) we POST the completed order with its{" "}
+              delivered later (retry or automatic recovery) we POST the completed order with its{" "}
               <code className="font-mono">items</code> to that URL, so your site updates without polling. Keep polling as a
               fallback in case your server was down.
             </p>
@@ -595,7 +595,7 @@ bot.on("callback_query", async (q) => {
             </p>
             <p>
               <strong>What if delivery fails?</strong> If an in-stock item cannot be delivered, the order is voided and
-              your wallet is refunded automatically. Supplier-linked orders stay <code className="font-mono">pending</code>{" "}
+              your wallet is refunded automatically. Some products stay <code className="font-mono">pending</code>{" "}
               (paid) while we retry, then complete with items — or are cancelled and refunded.
             </p>
             <p>
@@ -658,7 +658,7 @@ bot.on("callback_query", async (q) => {
               </li>
               <li>
                 Automatic recovery: an order interrupted before charging is charged and delivered within about 1–2
-                minutes (own stock and supplier products). If balance or stock is missing it becomes{" "}
+                minutes. If balance or stock is missing it becomes{" "}
                 <code className="font-mono">cancelled</code> (nothing charged or a full refund).
               </li>
               <li>
@@ -675,11 +675,11 @@ bot.on("callback_query", async (q) => {
             </p>
             <ul className="list-disc space-y-1 pl-5">
               <li>
-                Supplier-linked orders that cannot be bought instantly return HTTP 201 with{" "}
+                Orders that cannot be delivered instantly return HTTP 201 with{" "}
                 <code className="font-mono">"submitted": true</code> and <code className="font-mono">status: "pending"</code>;
                 your balance is kept and items arrive once we deliver.
               </li>
-              <li>Supplier problems return <code className="font-mono">code: "supplier_unavailable"</code> instead of "Insufficient balance".</li>
+              <li>A temporarily unavailable product returns <code className="font-mono">code: "delivery_failed"</code> with a refund — never "Insufficient balance".</li>
             </ul>
           </Section>
         </div>
