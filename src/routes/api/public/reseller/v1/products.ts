@@ -12,6 +12,7 @@ export const Route = createFileRoute("/api/public/reseller/v1/products")({
         const auth = await core.authReseller(request, channel === "all" ? "all" : channel);
         if ("error" in auth) return auth.error;
 
+        try {
         const { categories, products } = await core.catalogue(auth.reseller, channel);
         const q = (url.searchParams.get("search") ?? "").trim().toLowerCase();
         const cat = url.searchParams.get("category_id");
@@ -19,6 +20,9 @@ export const Route = createFileRoute("/api/public/reseller/v1/products")({
         if (q) list = list.filter((p: any) => p.name.toLowerCase().includes(q));
         if (cat) list = list.filter((p: any) => p.category_id === cat);
         return core.json({ ok: true, channel, count: list.length, categories, products: list });
+        } catch {
+          return core.fail("Product catalogue is temporarily unavailable", 503);
+        }
       },
     },
   },
