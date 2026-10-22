@@ -1,5 +1,8 @@
 # Roadmap
 
+- [ ] Re-audit reported supplier payload exposure and fix verified private-data leaks without modifying product descriptions, details, images, prices or order rules.
+- [ ] Verify public response and database access regressions; report authenticated/deployed checks that remain blocked.
+
 - [x] Add admin-selected Telegram top products below the unchanged Shop category grid; four focused tests pass, build OK, no real orders. Admin page remains sign-in gated.
 - [ ] Verify top-product saving with a signed-in admin and live Telegram display (requires external Supabase account access and deployment).
 - [x] Show each product's supplier as its own colour chip in the Top Products list, with a colour legend; shared hue helpers plus three focused tests pass, build OK.
