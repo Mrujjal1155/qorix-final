@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ImageUploadField } from "@/components/ImageUploadField";
 import { StockManagerCard } from "@/components/StockManagerCard";
+import { StockExtractionDialog } from "@/components/StockExtractionDialog";
 import { TelegramTopProducts } from "@/components/TelegramTopProducts";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -162,6 +163,7 @@ function ProductsPage() {
   const saveMi = useServerFn(saveManualInput);
   const saveManualStock = useServerFn(setManualStock);
   const [stockFor, setStockFor] = useState<string>("");
+  const [extractFor, setExtractFor] = useState<{ id: string; name: string; stock: number } | null>(null);
   const [search, setSearch] = useState("");
   const [supplierFilter, setSupplierFilter] = useState("all");
   const [deliveryFilter, setDeliveryFilter] = useState("all");
@@ -1068,6 +1070,11 @@ function ProductsPage() {
                     </span>
                   </td>
                   <td className="space-x-1 text-right">
+                    {!p.supplier_id && !p.owner_reseller_id && (
+                      <Button size="sm" variant="outline" disabled={Number(p.stock) <= 0} onClick={() => setExtractFor({ id: p.id, name: p.name, stock: Number(p.stock) })}>
+                        Take accounts
+                      </Button>
+                    )}
                     <Button size="sm" variant="ghost" onClick={() => editProduct(p)}>
                       Edit
                     </Button>
@@ -1189,6 +1196,7 @@ function ProductsPage() {
           )}
         </div>
       )}
+      {extractFor && <StockExtractionDialog key={extractFor.id} productId={extractFor.id} productName={extractFor.name} available={extractFor.stock} onClose={() => setExtractFor(null)} />}
     </AdminShell>
   );
 }
