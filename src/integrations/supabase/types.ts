@@ -1851,11 +1851,11 @@ export type Database = {
     }
     Functions: {
       admin_delete_exported_stock: {
-        Args: { _export_id: string }
+        Args: { _admin_user_id: string; _export_id: string }
         Returns: Json
       }
       admin_export_unsold_stock: {
-        Args: { _product_id: string; _quantity: number }
+        Args: { _admin_user_id: string; _product_id: string; _quantity: number }
         Returns: Json
       }
       apply_supplier_snapshot: {
