@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_stock_exports: {
+        Row: {
+          admin_user_id: string
+          created_at: string
+          deleted_at: string | null
+          expires_at: string
+          id: string
+          product_id: string
+          stock_ids: string[]
+        }
+        Insert: {
+          admin_user_id: string
+          created_at?: string
+          deleted_at?: string | null
+          expires_at?: string
+          id?: string
+          product_id: string
+          stock_ids: string[]
+        }
+        Update: {
+          admin_user_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          expires_at?: string
+          id?: string
+          product_id?: string
+          stock_ids?: string[]
+        }
+        Relationships: []
+      }
       binance_credentials: {
         Row: {
           api_key: string
@@ -1820,6 +1850,14 @@ export type Database = {
       }
     }
     Functions: {
+      admin_delete_exported_stock: {
+        Args: { _admin_user_id: string; _export_id: string }
+        Returns: Json
+      }
+      admin_export_unsold_stock: {
+        Args: { _admin_user_id: string; _product_id: string; _quantity: number }
+        Returns: Json
+      }
       apply_supplier_snapshot: {
         Args: {
           _fetched_at: string
