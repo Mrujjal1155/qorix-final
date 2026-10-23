@@ -1,7 +1,7 @@
 # Roadmap
 
 - [x] Add in-house account extraction with quantity, original TXT export, two separate confirmation popups and atomic deletion of only the exported unsold accounts.
-- [ ] Verify extraction rules and database security; no real stock is to be exported or deleted during testing.
+- [x] Verify extraction rules and database security: nine focused tests pass; both atomic RPCs reject anon/authenticated direct execution; no real stock exported or deleted.
 - [ ] Verify the full export/delete flow with a signed-in admin (blocked by external unmanaged authentication).
 
 - [x] Re-audit reported supplier payload exposure; storefront responses contain no private supplier fields, reseller projection already excludes IDs, and raw reseller stock/debit diagnostics are now replaced by safe errors. Product content and payment/order rules are unchanged.
