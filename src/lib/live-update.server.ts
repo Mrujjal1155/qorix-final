@@ -12,18 +12,22 @@ async function adminDb() {
   return supabaseAdmin as any;
 }
 
-export async function loadLiveSettings(db: any) {
-  const { data } = await db.from("bot_settings").select("key,value").like("key", "live_%");
+async function loadLiveSettings(db: any) {
+  const { data } = await db
+    .from("bot_settings")
+    .select("key,value")
+    .or("key.like.live_%,key.eq.bot_username");
   const map: Record<string, string> = {};
   for (const r of (data ?? []) as any[]) map[r.key] = String(r.value ?? "");
   const emoji: Record<string, string> = {};
   for (const s of LIVE_EMOJI_SLOTS) emoji[s.slot] = map[`live_emoji_${s.slot}`] ?? "";
-  return { map, channel: (map["live_channel_id"] ?? "").trim(), emoji };
+  const bot = (map["bot_username"] ?? "").replace(/^@/, "").trim();
+  return { map, channel: (map["live_channel_id"] ?? "").trim(), emoji, bot };
 }
 
 export async function drainLiveUpdates(limit = 20) {
   const db = await adminDb();
-  const { map, channel, emoji } = await loadLiveSettings(db);
+  const { map, channel, emoji, bot } = await loadLiveSettings(db);
   const { data: rows } = await db
     .from("live_update_events")
     .select("id,kind,payload,created_at,attempts")
