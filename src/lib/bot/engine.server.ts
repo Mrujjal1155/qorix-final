@@ -4744,6 +4744,7 @@ async function admOrdersView() {
 async function admOrderView(id: string) {
   const { data: o } = await db.from("orders").select("*").eq("id", id).maybeSingle();
   if (!o) return { text: "Order not found.", kb: ADM_BACK };
+  const { data: retryProduct } = await db.from("products").select("supplier_id").eq("id", o.product_id).maybeSingle();
   const text =
     `🧾 <b>Order #${o.order_no}</b>\n\n` +
     `Product: ${escapeHtml(o.product_name)} x${o.quantity}\n` +
@@ -4753,7 +4754,7 @@ async function admOrderView(id: string) {
   return {
     text,
     kb: [
-      [{ text: "🔁 Retry API delivery", callback_data: `adm:ar:${o.id}` }],
+      [{ text: retryProduct?.supplier_id ? "🔁 Retry API delivery" : "🔁 Retry", callback_data: `adm:ar:${o.id}` }],
       [{ text: "🚚 Deliver now", callback_data: `adm:od:${o.id}` }],
       [{ text: "❌ Cancel & refund", callback_data: `adm:oc:${o.id}` }],
       [{ text: "⬅️ Back", callback_data: "adm:orders" }],
@@ -7296,7 +7297,7 @@ async function handleCallback(cq: any) {
       const v = await admOrderView(arg);
       await edit(v.text, v.kb);
     } else if (action.startsWith("ar:")) {
-      await say(chatId, "🔁 Retrying automatic delivery via the supplier API…");
+      await say(chatId, "🔁 Retrying automatic delivery…");
       const { retrySupplierDelivery } = await import("@/lib/suppliers/fulfil.server");
       const r = await retrySupplierDelivery(arg);
       await say(

@@ -36,3 +36,4 @@
 - Gateway bot checkouts settle wallet credit, original-order debit and paid status through the service-role-only atomic settlement RPC; expiry locks the same deposit first to prevent paid/unpaid races. Paid checkout pricing comes from reserved orders, and unavailable products retain payment in the wallet.
 - EPS IPNs dispatch to bot or website settlement by stored transaction IDs and always reverify remotely; wallet credit excludes payer fees and uses the requested USD amount. Existing payment sweeps recheck late EPS attempts before expiry.
 - Order timestamps retain stored UTC instants and use a shared explicit display timezone default instead of browser-local or Karachi fallback.
+- Admin in-house retry uses a service-role-only atomic stock/order RPC and reuses saved delivery on subsequent attempts; unpaid/refunded orders cannot claim stock and retry never debits a wallet.

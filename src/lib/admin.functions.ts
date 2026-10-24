@@ -1177,7 +1177,8 @@ export const markOrderPaid = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { data: order } = await sb.from("orders").select("*").eq("id", data.id).maybeSingle();
     if (!order) throw new Error("Order not found");
-    const meta = { ...(order.meta ?? {}), admin_paid_note: data.note || null, reopened_at: new Date().toISOString() };
+    if (order.status === "refunded" || (order.meta as any)?.refunded) throw new Error("Refunded orders cannot be reopened for delivery");
+    const meta = { ...(order.meta ?? {}), paid: true, paid_at: new Date().toISOString(), awaiting_payment: false, admin_paid_note: data.note || null, reopened_at: new Date().toISOString() };
     const { error } = await sb.from("orders").update({ status: "pending", meta }).eq("id", data.id);
     if (error) throw new Error(error.message);
     if (order.telegram_id) {

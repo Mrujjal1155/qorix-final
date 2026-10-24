@@ -112,13 +112,26 @@ export async function recordSupplierError(orderId: string, reason: string | null
 export async function retrySupplierDelivery(orderId: string): Promise<RetryResult> {
   const { data: order } = await db.from("orders").select("*").eq("id", orderId).maybeSingle();
   if (!order) return { ok: false, reason: "Order not found" };
-  if (order.status === "completed") return { ok: false, reason: "Order is already completed" };
 
   const { data: product } = await db
     .from("products")
     .select("id,name,supplier_id,supplier_external_id")
     .eq("id", String(order.product_id ?? ""))
     .maybeSingle();
+  if (product && !product.supplier_id) {
+    if (order.reseller_id) {
+      const { fulfillChargedResellerStock } = await import("@/lib/reseller/charged-stock.server");
+      const result = await fulfillChargedResellerStock(orderId);
+      if (result.status !== "completed") return { ok: false, reason: "Paid stock delivery is unavailable. Check payment and stock." };
+      const { data: done } = await db.from("orders").select("*").eq("id", orderId).maybeSingle();
+      const { pushResellerOrderEvent } = await import("@/lib/reseller/webhook.server");
+      await pushResellerOrderEvent(String(order.reseller_id), done);
+      return { ok: true };
+    }
+    const { retryInhouseDelivery } = await import("@/lib/inhouse-retry.server");
+    return retryInhouseDelivery(orderId);
+  }
+  if (order.status === "completed") return { ok: false, reason: "Order is already completed" };
   if (!product?.supplier_id || !product.supplier_external_id)
     return { ok: false, reason: "This product is not linked to a supplier API — deliver it manually." };
 

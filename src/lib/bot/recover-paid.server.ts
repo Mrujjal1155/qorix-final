@@ -30,48 +30,10 @@ export async function recoverPaidOrders(limit = 10): Promise<{ checked: number; 
         .maybeSingle();
       if (!p || p.delivery_type !== "auto" || p.supplier_id) continue;
 
-      const qty = Number(o.quantity ?? 1);
-      const buyer = Number(o.telegram_id) || 0;
-      const { data: items } = await db.rpc("claim_stock_items", { _product_id: p.id, _qty: qty, _sold_to: buyer });
-      const claimed = (items ?? []) as any[];
-      const release = async () => {
-        if (claimed.length)
-          await db.from("stock_items").update({ is_sold: false, sold_to: null, sold_at: null }).in("id", claimed.map((i) => i.id));
-      };
-      if (claimed.length < qty) {
-        await release();
-        continue;
-      }
-      const contents = claimed.map((i) => String(i.content));
-      const { data: done } = await db
-        .from("orders")
-        .update({
-          status: "completed",
-          delivered_content: contents.join("\n---\n"),
-          meta: { ...((o.meta as any) ?? {}), auto_recovered_at: new Date().toISOString() },
-        })
-        .eq("id", o.id)
-        .eq("status", "pending")
-        .select("id");
-      if (!done?.length) {
-        await release();
-        continue;
-      }
-      delivered++;
-      if (buyer) {
-        try {
-          const { sendMessage } = await import("@/lib/telegram.server");
-          const { deliverItemsToChat } = await import("@/lib/bot/deliver-items.server");
-          await sendMessage(buyer, `✅ <b>Order #${o.order_no}</b> delivered!\nSending <b>${contents.length}</b> item(s) below 👇`);
-          await deliverItemsToChat(buyer, String(o.product_name ?? ""), contents, { orderNo: o.order_no, orderId: o.id });
-        } catch (e) {
-          console.error(`[recover] telegram send failed for #${o.order_no}:`, e);
-        }
-      }
-      try {
-        const { announceOrderSale } = await import("@/lib/bot/engine.server");
-        await announceOrderSale(String(o.id));
-      } catch { /* announcement is best effort */ }
+      // Share the same order lock with admin Retry; never claim stock separately.
+      const { retryInhouseDelivery } = await import("@/lib/inhouse-retry.server");
+      const result = await retryInhouseDelivery(String(o.id));
+      if (result.ok) delivered++;
     } catch (e) {
       console.error(`[recover] order #${o.order_no} failed:`, e);
     }
