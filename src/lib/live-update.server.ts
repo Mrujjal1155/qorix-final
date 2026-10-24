@@ -54,7 +54,7 @@ export async function drainLiveUpdates(limit = 20) {
     if (!claimed?.length) continue;
     const text = buildLivePost(kind, r.payload ?? {}, new Date(r.created_at), emoji);
     // Purchase posts carry a tappable Buy Now button straight into the bot.
-    const keyboard = kind === "purchase" && bot ? [[{ text: "🛒 Buy Now", url: `https://t.me/${bot}` }]] : undefined;
+    const keyboard = livePostKeyboard(kind, bot);
     const res = await sendAlertMessage(channel, text, keyboard).catch((e: any) => ({ ok: false, description: String(e) }));
     const ok = !!res?.ok;
     const giveUp = !ok && (r.attempts ?? 0) + 1 >= 5;
@@ -83,7 +83,7 @@ export async function sendLiveTestPost(kind: LiveKind) {
     new Date(),
     emoji,
   );
-  const keyboard = kind === "purchase" && bot ? [[{ text: "🛒 Buy Now", url: `https://t.me/${bot}` }]] : undefined;
+  const keyboard = livePostKeyboard(kind, bot);
   const res = await sendAlertMessage(channel, text, keyboard);
   return res.ok ? { ok: true } : { ok: false, error: res.description ?? "Telegram rejected the post" };
 }
