@@ -4,8 +4,18 @@ import { buildLivePost, livePostKeyboard, maskId, maskName, paymentLabel } from 
 describe("live update channel posts", () => {
   test("purchase posts get a Buy Now button that opens the bot", () => {
     const kb = livePostKeyboard("purchase", "QORIX3_bot");
-    expect(kb).toEqual([[{ text: "🛒 Buy Now", url: "https://t.me/QORIX3_bot" }]]);
+    expect(kb?.[0]?.[0]?.url).toBe("https://t.me/QORIX3_bot");
+    expect(kb?.[0]?.[0]?.icon_custom_emoji_id).toBeUndefined();
     expect(livePostKeyboard("purchase", "@QORIX3_bot")).toEqual(kb);
+  });
+  test("purchase button uses the exact product premium emoji", () => {
+    expect(livePostKeyboard("purchase", "QORIX3_bot", "5204116184986844054")?.[0]?.[0]?.icon_custom_emoji_id).toBe("5204116184986844054");
+    expect(livePostKeyboard("purchase", "QORIX3_bot", "5304116184986844055")?.[0]?.[0]?.icon_custom_emoji_id).toBe("5304116184986844055");
+  });
+  test("missing or invalid product premium emoji produces no button icon", () => {
+    for (const icon of [undefined, null, "", "📦", "invalid", "123"]) {
+      expect(livePostKeyboard("purchase", "QORIX3_bot", icon)?.[0]?.[0]?.icon_custom_emoji_id).toBeUndefined();
+    }
   });
   test("top-up, member posts and missing username stay plain", () => {
     expect(livePostKeyboard("topup", "QORIX3_bot")).toBeUndefined();

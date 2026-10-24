@@ -1,5 +1,6 @@
 # Roadmap
 
+- [ ] Replace the live purchase Buy Now cart with the exact purchased product's premium icon, keeping a plain button when absent; verify the scheduled sender without real orders/messages.
 - [x] Supplier sync now writes stock-only patches for existing products: name, description, important note, quick guide, image and detail rows are never overwritten, so bot-admin text edits survive every sync; 3 focused tests pass, build pending live verify.
 - [ ] Verify a supplier product edited in the bot admin keeps its texts after the next scheduled supplier sync (requires live deployment and a real sync run).
 - [x] Reseller API sales (api_bot/api_website) now appear in the live update channel as masked "New Purchase!" posts with Reseller Balance label; trigger updated via migration, 8 live-update tests pass.
