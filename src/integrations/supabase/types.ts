@@ -146,6 +146,8 @@ export type Database = {
       bot_users: {
         Row: {
           balance: number
+          contact_status: string
+          contact_status_at: string | null
           created_at: string
           first_name: string | null
           is_banned: boolean
@@ -163,6 +165,8 @@ export type Database = {
         }
         Insert: {
           balance?: number
+          contact_status?: string
+          contact_status_at?: string | null
           created_at?: string
           first_name?: string | null
           is_banned?: boolean
@@ -180,6 +184,8 @@ export type Database = {
         }
         Update: {
           balance?: number
+          contact_status?: string
+          contact_status_at?: string | null
           created_at?: string
           first_name?: string | null
           is_banned?: boolean
@@ -1886,6 +1892,7 @@ export type Database = {
       }
     }
     Functions: {
+      admin_bot_user_stats: { Args: never; Returns: Json }
       admin_delete_exported_stock: {
         Args: { _admin_user_id: string; _export_id: string }
         Returns: Json
@@ -2065,6 +2072,10 @@ export type Database = {
           stock: number
           updated_at: string
         }[]
+      }
+      record_bot_contact: {
+        Args: { _observed_at: string; _status: string; _telegram_id: number }
+        Returns: undefined
       }
       redeem_code_claim: {
         Args: { _code: string; _telegram_id: number }
