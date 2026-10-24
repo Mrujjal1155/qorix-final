@@ -24,6 +24,7 @@ function productBrand(name: string): string {
   const clean = name.toLowerCase().replace(/^\s*(?:link\s*[-–—:]?\s*)/i, "").trim();
   if (/gemini/.test(clean)) return "gemini";
   if (/lovable/.test(clean)) return "lovable";
+  if (/^muse/.test(clean)) return "muse";
   if (/^nord\s*vpn/.test(clean)) return "nordvpn";
   return clean.match(/[a-z]+/)?.[0] ?? clean;
 }
@@ -38,7 +39,7 @@ function productQuantity(name: string): number {
 
 /** Stable brand groups retain every distinct product and its effective price/stock. */
 export function sortTelegramTopProducts<T extends { name?: string }>(products: T[]): T[] {
-  const brands = new Map<string, number>([["gemini", 0], ["lovable", 1]]);
+  const brands = new Map<string, number>([["gemini", 0], ["lovable", 1], ["muse", 2]]);
   for (const p of products) {
     const brand = productBrand(p.name ?? "");
     if (!brands.has(brand)) brands.set(brand, brands.size);
