@@ -1,6 +1,7 @@
 # Roadmap
 
-- [ ] Show all active Telegram categories even without stock; show active sold-out products in red only inside categories, keeping favorites and All Products available-only; verify focused rules and bot rendering without orders.
+- [x] Show all active Telegram categories even without stock; show active sold-out products in red only inside valid categories, keeping favorites and All Products available-only; 27 focused tests cover rules and mocked real bot callbacks, build OK; no real messages or orders sent.
+- [ ] Verify empty categories and red sold-out buttons in the deployed Telegram chat (requires deployment and live Telegram access).
 
 - [ ] Verify a new real EPS bot checkout: record starting wallet balance, match the verified EPS payment to its original order, confirm stock delivery and no net extra wallet charge (requires the user's real payment and Telegram receipt; do not simulate success or repair historical orders).
 

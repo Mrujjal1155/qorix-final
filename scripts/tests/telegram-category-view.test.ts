@@ -15,7 +15,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
     const result = () => ({ data: table === "categories" ? categories : table === "products" ? (noProducts ? [] : products.filter((p) => !activeOnly || p.is_active)) : table === "bot_users" ? user : [], error: null });
     const chain: any = {
       select: () => chain, order: () => chain, range: () => chain, is: () => chain,
-      neq: () => chain, gte: () => chain, lt: () => chain, lte: () => chain, limit: () => chain, in: () => chain,
+      neq: () => chain, gte: () => chain, lt: () => chain, lte: () => chain, limit: () => chain, in: () => chain, or: () => chain,
       eq: (key: string, value: unknown) => { if (key === "is_active" && value === true) activeOnly = true; return chain; },
       update: () => chain, maybeSingle: async () => result(),
       then: (resolve: (value: unknown) => unknown) => Promise.resolve(result()).then(resolve),
