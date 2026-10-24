@@ -53,7 +53,9 @@ export async function drainLiveUpdates(limit = 20) {
       .select("id");
     if (!claimed?.length) continue;
     const text = buildLivePost(kind, r.payload ?? {}, new Date(r.created_at), emoji);
-    const res = await sendAlertMessage(channel, text).catch((e: any) => ({ ok: false, description: String(e) }));
+    // Purchase posts carry a tappable Buy Now button straight into the bot.
+    const keyboard = kind === "purchase" && bot ? [[{ text: "🛒 Buy Now", url: `https://t.me/${bot}` }]] : undefined;
+    const res = await sendAlertMessage(channel, text, keyboard).catch((e: any) => ({ ok: false, description: String(e) }));
     const ok = !!res?.ok;
     const giveUp = !ok && (r.attempts ?? 0) + 1 >= 5;
     await db
@@ -72,7 +74,7 @@ export async function drainLiveUpdates(limit = 20) {
 
 export async function sendLiveTestPost(kind: LiveKind) {
   const db = await adminDb();
-  const { channel, emoji } = await loadLiveSettings(db);
+  const { channel, emoji, bot } = await loadLiveSettings(db);
   if (!channel) return { ok: false, error: "Channel ID is not set" };
   const { sendAlertMessage } = await import("@/lib/telegram.server");
   const text = buildLivePost(
@@ -81,6 +83,7 @@ export async function sendLiveTestPost(kind: LiveKind) {
     new Date(),
     emoji,
   );
-  const res = await sendAlertMessage(channel, text);
+  const keyboard = kind === "purchase" && bot ? [[{ text: "🛒 Buy Now", url: `https://t.me/${bot}` }]] : undefined;
+  const res = await sendAlertMessage(channel, text, keyboard);
   return res.ok ? { ok: true } : { ok: false, error: res.description ?? "Telegram rejected the post" };
 }
