@@ -10,8 +10,6 @@ import {
   supplierProducts,
   sellPrice,
   supplierFlash,
-  detailsFromRaw,
-  extraDetailsFromRaw,
   supplierDeliveryType,
   type SupplierRow,
 } from "./api.server";
@@ -1075,32 +1073,16 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
       // comes off our normal selling price, nothing more.
       const price = flash ? Math.max(0.01, Math.round((regularPrice - flash.discount) * 100) / 100) : regularPrice;
 
-      const d = detailsFromRaw(p.raw);
-      const productPatch: any = {
-        name: p.name,
-        // When a labelled block was moved into Quick Guide / Important, don't
-        // fall back to the supplier's raw text — that would print it twice.
-        description: d.description ?? (d.quick_guide || d.important_note ? null : p.description),
-
+      // Stock-only sync for an existing supplier product: the admin's texts
+      // (name, description, important note, quick guide, image, detail rows)
+      // are never overwritten by a sync, so edits made in the bot admin
+      // survive every supplier run. Only stock, price and flash state
+      // follow the supplier feed.
+      const productPatch = existingProductSyncPatch({
         price,
-        supplier_stock: p.stock,
-      };
-      // On/off is the admin's decision — a sync must never switch a product
-      // back on. Disabling the whole supplier still takes its products off sale.
-      if (!s["is_enabled"]) productPatch.is_active = false;
-      // Only overwrite the rich fields when the supplier actually sent them —
-      // otherwise a sparse sync response would wipe the banner/notes the admin
-      // (or an earlier, richer response) already stored.
-      // Admin-uploaded banner always wins: only take the supplier image when
-      // the product still has no image of its own.
-      const currentImage = productsById.get(String(prev.product_id))?.image_url ?? null;
-      if (d.image_url && !currentImage) productPatch.image_url = d.image_url;
-      if (d.delivery_time) productPatch.delivery_time = d.delivery_time;
-      if (d.important_note) productPatch.important_note = d.important_note;
-      if (d.quick_guide) productPatch.quick_guide = d.quick_guide;
-      // Always rewrite the detail rows so fields the supplier stopped sending
-      // (or fields we no longer publish) disappear on the next sync.
-      productPatch.details = extraDetailsFromRaw(p.raw);
+        stock: p.stock,
+        supplierEnabled: Boolean(s.is_enabled),
+      });
 
       productUpdates.push({ id: prev.product_id, patch: productPatch });
 
