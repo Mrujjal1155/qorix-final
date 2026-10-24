@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Supplier sync now writes stock-only patches for existing products: name, description, important note, quick guide, image and detail rows are never overwritten, so bot-admin text edits survive every sync; 3 focused tests pass, build pending live verify.
+- [ ] Verify a supplier product edited in the bot admin keeps its texts after the next scheduled supplier sync (requires live deployment and a real sync run).
 - [x] Add the approved English community invitation and group/channel links to the Telegram welcome message; mocked home callback renders both clickable links and preserves quick actions; 27 category/favorites regressions pass; no real messages sent.
 - [ ] Verify the English community invitation in the live Telegram chat (requires deployment and live Telegram access).
 
