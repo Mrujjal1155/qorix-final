@@ -1,7 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { buildLivePost, maskId, maskName, paymentLabel } from "../../src/lib/live-update";
+import { buildLivePost, livePostKeyboard, maskId, maskName, paymentLabel } from "../../src/lib/live-update";
 
 describe("live update channel posts", () => {
+  test("purchase posts get a Buy Now button that opens the bot", () => {
+    const kb = livePostKeyboard("purchase", "QORIX3_bot");
+    expect(kb).toEqual([[{ text: "🛒 Buy Now", url: "https://t.me/QORIX3_bot" }]]);
+    expect(livePostKeyboard("purchase", "@QORIX3_bot")).toEqual(kb);
+  });
+  test("top-up, member posts and missing username stay plain", () => {
+    expect(livePostKeyboard("topup", "QORIX3_bot")).toBeUndefined();
+    expect(livePostKeyboard("member", "QORIX3_bot")).toBeUndefined();
+    expect(livePostKeyboard("purchase", "")).toBeUndefined();
+    expect(livePostKeyboard("purchase", undefined)).toBeUndefined();
+  });
   test("ID is partly hidden like 2808***968", () => {
     expect(maskId("2808123968")).toBe("2808***968");
   });

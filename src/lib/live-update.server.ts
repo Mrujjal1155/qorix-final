@@ -1,5 +1,5 @@
 // Drains live_update_events into the configured public channel.
-import { buildLivePost, LIVE_EMOJI_SLOTS, type LiveKind } from "@/lib/live-update";
+import { buildLivePost, LIVE_EMOJI_SLOTS, livePostKeyboard, type LiveKind } from "@/lib/live-update";
 
 const KIND_KEY: Record<LiveKind, string> = {
   purchase: "live_purchase",
@@ -12,18 +12,22 @@ async function adminDb() {
   return supabaseAdmin as any;
 }
 
-export async function loadLiveSettings(db: any) {
-  const { data } = await db.from("bot_settings").select("key,value").like("key", "live_%");
+async function loadLiveSettings(db: any) {
+  const { data } = await db
+    .from("bot_settings")
+    .select("key,value")
+    .or("key.like.live_%,key.eq.bot_username");
   const map: Record<string, string> = {};
   for (const r of (data ?? []) as any[]) map[r.key] = String(r.value ?? "");
   const emoji: Record<string, string> = {};
   for (const s of LIVE_EMOJI_SLOTS) emoji[s.slot] = map[`live_emoji_${s.slot}`] ?? "";
-  return { map, channel: (map["live_channel_id"] ?? "").trim(), emoji };
+  const bot = (map["bot_username"] ?? "").replace(/^@/, "").trim();
+  return { map, channel: (map["live_channel_id"] ?? "").trim(), emoji, bot };
 }
 
 export async function drainLiveUpdates(limit = 20) {
   const db = await adminDb();
-  const { map, channel, emoji } = await loadLiveSettings(db);
+  const { map, channel, emoji, bot } = await loadLiveSettings(db);
   const { data: rows } = await db
     .from("live_update_events")
     .select("id,kind,payload,created_at,attempts")
@@ -49,7 +53,9 @@ export async function drainLiveUpdates(limit = 20) {
       .select("id");
     if (!claimed?.length) continue;
     const text = buildLivePost(kind, r.payload ?? {}, new Date(r.created_at), emoji);
-    const res = await sendAlertMessage(channel, text).catch((e: any) => ({ ok: false, description: String(e) }));
+    // Purchase posts carry a tappable Buy Now button straight into the bot.
+    const keyboard = livePostKeyboard(kind, bot);
+    const res = await sendAlertMessage(channel, text, keyboard).catch((e: any) => ({ ok: false, description: String(e) }));
     const ok = !!res?.ok;
     const giveUp = !ok && (r.attempts ?? 0) + 1 >= 5;
     await db
@@ -68,7 +74,7 @@ export async function drainLiveUpdates(limit = 20) {
 
 export async function sendLiveTestPost(kind: LiveKind) {
   const db = await adminDb();
-  const { channel, emoji } = await loadLiveSettings(db);
+  const { channel, emoji, bot } = await loadLiveSettings(db);
   if (!channel) return { ok: false, error: "Channel ID is not set" };
   const { sendAlertMessage } = await import("@/lib/telegram.server");
   const text = buildLivePost(
@@ -77,6 +83,7 @@ export async function sendLiveTestPost(kind: LiveKind) {
     new Date(),
     emoji,
   );
-  const res = await sendAlertMessage(channel, text);
+  const keyboard = livePostKeyboard(kind, bot);
+  const res = await sendAlertMessage(channel, text, keyboard);
   return res.ok ? { ok: true } : { ok: false, error: res.description ?? "Telegram rejected the post" };
 }
