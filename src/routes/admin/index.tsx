@@ -9,6 +9,7 @@ import {
   countUnreadTickets,
 } from "@/lib/admin.functions";
 import { AdminShell, AdminPanel, money } from "@/components/AdminShell";
+import { SupplierWalletCards } from "@/components/admin/SupplierWalletCards";
 import { Button } from "@/components/ui/button";
 import {
   Plus,
@@ -208,6 +209,7 @@ function OverviewPage() {
         ))}
       </div>
 
+      <SupplierWalletCards />
     </AdminShell>
   );
 }
