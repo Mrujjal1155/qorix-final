@@ -15,6 +15,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
     const result = () => ({ data: table === "categories" ? categories : table === "products" ? (noProducts ? [] : products.filter((p) => !activeOnly || p.is_active)) : table === "bot_users" ? user : [], error: null });
     const chain: any = {
       select: () => chain, order: () => chain, range: () => chain, is: () => chain,
+      neq: () => chain, gte: () => chain, lt: () => chain, lte: () => chain, limit: () => chain, in: () => chain,
       eq: (key: string, value: unknown) => { if (key === "is_active" && value === true) activeOnly = true; return chain; },
       update: () => chain, maybeSingle: async () => result(),
       then: (resolve: (value: unknown) => unknown) => Promise.resolve(result()).then(resolve),
@@ -28,7 +29,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
 } }));
 mock.module("@/lib/telegram.server", () => ({
   answerCallback: async () => ({ ok: true }),
-  editMessage: async (_chat: number, _message: number, text: string, kb: typeof view extends undefined ? never : any) => { view = { text, kb }; return { ok: true }; },
+  editMessage: async (_chat: number, _message: number, text: string, kb: Array<Array<{ callback_data?: string; style?: string }>>) => { view = { text, kb }; return { ok: true }; },
   styled: (button: object, style: string) => ({ ...button, style }),
   styleRows: (rows: object[][], style: string) => rows.map((row) => row.map((button) => ({ ...button, style }))),
   sendMessage: async () => { throw new Error("Unexpected Telegram send"); },
