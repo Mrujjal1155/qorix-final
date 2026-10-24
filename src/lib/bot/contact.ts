@@ -12,7 +12,7 @@ export function membershipContact(update: any): { id: number; status: ContactSta
 export function deliveryContact(method: string, body: Record<string, unknown>, result: { ok: boolean; description?: string }): { id: number; status: ContactStatus } | null {
   // Editing/deleting old messages does not establish current reachability.
   if (!/^send/.test(method) && method !== "copyMessage" && method !== "forwardMessage") return null;
-  const id = Number(body.chat_id);
+  const id = Number(body["chat_id"]);
   if (!Number.isSafeInteger(id) || id <= 0) return null;
   if (result.ok) return { id, status: "reachable" };
   const reason = (result.description ?? "").trim().toLowerCase();
