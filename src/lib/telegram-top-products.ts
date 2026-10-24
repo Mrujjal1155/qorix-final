@@ -14,7 +14,7 @@ export function parseTopProductIds(value: string | null | undefined): string[] {
 /** Only credit units count; durations such as 1M and 12 months are not quantities. */
 function lovableCredits(name: string): number {
   const match = name.match(/(\d[\d,]*(?:\.\d+)?)\s*([km])?\s*credits?\b/i);
-  if (!match) return Number.POSITIVE_INFINITY;
+  if (!match?.[1]) return Number.POSITIVE_INFINITY;
   const amount = Number(match[1].replaceAll(",", ""));
   const unit = match[2]?.toLowerCase();
   return amount * (unit === "k" ? 1000 : unit === "m" ? 1000000 : 1);
