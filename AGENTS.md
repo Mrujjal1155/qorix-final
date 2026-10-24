@@ -9,6 +9,8 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
+- Bot-user summary reads use an admin-authorized RLS aggregate independently of paginated lists; contact evidence uses a service-role-only timestamp-ordered RPC separate from admin bans, so partial pages and uncertain Telegram failures cannot mislabel members.
+
 - Deliver stock, supplier, price, and new-product alerts through `stock_notification_events` with per-destination checkpoints and a separate authenticated notify request in the existing 15-second schedule; this prevents supplier polling and slow Telegram replies from blocking each other.
 - Keep Telegram alert attempts short and retry interrupted events without a permanent attempt limit; a temporary outage must not silently discard an alert.
 - After website-admin stock uploads, attempt an immediate service-role queue drain without bypassing the durable event; scheduled delivery remains the retry fallback when it fails.

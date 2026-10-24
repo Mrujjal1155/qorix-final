@@ -45,8 +45,8 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
           if (skipTrack) return;
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const from =
-            update.message?.from ?? update.edited_message?.from ?? update.callback_query?.from;
-          const kind = update.callback_query
+            update.message?.from ?? update.edited_message?.from ?? update.callback_query?.from ?? update.my_chat_member?.from;
+          const kind = update.my_chat_member ? "my_chat_member" : update.callback_query
             ? "callback_query"
             : update.edited_message
               ? "edited_message"
