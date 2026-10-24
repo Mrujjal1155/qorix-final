@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { PRODUCT_LIST_EMOJI_KEYS, productListSettingKey } from "@/lib/product-list";
+import { z } from "zod";
+import { PRODUCT_LIST_EMOJI_KEYS, PRODUCT_LIST_BATCH_SIZE, productListSettingKey } from "@/lib/product-list";
 
 async function assertAdmin(context: any) {
   const { data } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
@@ -9,11 +10,12 @@ async function assertAdmin(context: any) {
 
 export const generateProductList = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d: { offset: number }) => z.object({ offset: z.number().int().min(0).max(1000) }).parse(d))
+  .handler(async ({ context, data }) => {
     await assertAdmin(context);
     const { buildProductList } = await import("@/lib/product-list.server");
-    const l = await buildProductList();
-    return { markdown: l.markdown, products: l.products, emojis: l.emojis, groups: l.groups.length, storeName: l.storeName, botUsername: l.botUsername };
+    const l = await buildProductList(data.offset);
+    return { markdown: l.markdown, products: l.products, emojis: l.emojis, groups: l.groups.length, storeName: l.storeName, botUsername: l.botUsername, offset: l.offset, nextOffset: l.nextOffset, totalProducts: l.totalProducts };
   });
 
 export const saveProductListEmojis = createServerFn({ method: "POST" })
@@ -33,8 +35,16 @@ export const saveProductListEmojis = createServerFn({ method: "POST" })
 
 export const sendProductListPost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((d: unknown) => z.object({
+    products: z.array(z.object({
+      name: z.string().min(1).max(1000), price: z.number().finite().nonnegative(),
+      emoji: z.string().max(100).nullish(), custom_emoji_id: z.string().regex(/^\d{8,25}$/).nullish(),
+    })).min(1).max(PRODUCT_LIST_BATCH_SIZE),
+    storeName: z.string().max(200), botUsername: z.string().max(100),
+    emojis: z.record(z.string(), z.string().max(80)),
+  }).parse(d))
+  .handler(async ({ context, data }) => {
     await assertAdmin(context);
     const { sendProductList } = await import("@/lib/product-list.server");
-    return sendProductList();
+    return sendProductList(data);
   });

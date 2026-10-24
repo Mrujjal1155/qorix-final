@@ -30,10 +30,10 @@ export function ProductListPostCard() {
   const [emojis, setEmojis] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<"" | "gen" | "save" | "send">("");
 
-  const run = async () => {
+  const run = async (offset = list?.nextOffset ?? 0) => {
     setBusy("gen");
     try {
-      const r = await gen();
+      const r = await gen({ data: { offset } });
       setList(r);
       setEmojis(r.emojis as Record<string, string>);
     } catch (e) {
@@ -52,8 +52,8 @@ export function ProductListPostCard() {
           <p className="flex items-center gap-2 text-sm font-semibold">
             <ListOrdered className="size-4 text-primary" /> Product list post
           </p>
-          <Button onClick={run} disabled={busy !== ""}>
-            {busy === "gen" ? "Generating..." : "Generate Product List"}
+          <Button onClick={() => run()} disabled={busy !== ""}>
+            {busy === "gen" ? "Generating..." : list && list.nextOffset > 0 ? "Generate Next 40" : "Generate Product List"}
           </Button>
         </div>
 
@@ -83,7 +83,7 @@ export function ProductListPostCard() {
               try {
                 await save({ data: { emojis } });
                 toast.success("Emoji saved");
-                if (list) await run();
+                if (list) await run(list.offset);
               } catch (e) {
                 toast.error(e instanceof Error ? e.message : "Failed");
               } finally {
@@ -101,7 +101,7 @@ export function ProductListPostCard() {
               <p className="font-semibold">
                 {glyph("title", "🛍")} {list.storeName} — PRICE LIST
               </p>
-              <p className="mb-2 text-xs italic text-muted-foreground">{list.products.length} products available</p>
+              <p className="mb-2 text-xs italic text-muted-foreground">{list.products.length ? list.offset + 1 : 0}–{list.offset + list.products.length} of {list.totalProducts} products</p>
               <div className="max-h-96 overflow-y-auto rounded-lg border border-border">
                 <table className="w-full text-sm">
                   <thead className="bg-muted">
@@ -141,7 +141,7 @@ export function ProductListPostCard() {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Send product list?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      This price list goes to every bot user and {list.groups} group(s). This cannot be undone.
+                      These {list.products.length} products ({list.offset + 1}–{list.offset + list.products.length}) go to every bot user and {list.groups} group(s). This cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
@@ -150,7 +150,7 @@ export function ProductListPostCard() {
                       onClick={async () => {
                         setBusy("send");
                         try {
-                          const r = await send();
+                          const r = await send({ data: { products: list.products, storeName: list.storeName, botUsername: list.botUsername, emojis: list.emojis } });
                           toast.success(`Sent to ${r.sent}/${r.total} users · ${r.groupsSent}/${r.groupsTotal} groups`);
                           if (r.failed || r.groupsSent < r.groupsTotal) toast.warning(r.error || "Some messages failed");
                         } catch (e) {

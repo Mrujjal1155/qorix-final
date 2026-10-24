@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Generate sequential product-list batches and send only the previewed batch; 8 focused tests pass (40 then 30 of 70, larger catalogues, group/user delivery, oversized rejection), build OK; no real messages sent.
+- [ ] Confirm sequential generation and premium emoji rendering in signed-in admin/live Telegram (blocked by external unmanaged authentication and an approved live broadcast).
+
 - [x] Replace the live purchase Buy Now cart with the exact purchased product's premium icon, keeping a plain button when absent; 12 focused tests pass, including the mocked scheduled sender for bot/website/reseller and retry after icon lookup failure; build OK, no real orders/messages sent.
 - [ ] Confirm the product premium emoji on a new live channel purchase post (requires deployment and an actual Telegram sale; existing posts are unchanged).
 - [x] Supplier sync now writes stock-only patches for existing products: name, description, important note, quick guide, image and detail rows are never overwritten, so bot-admin text edits survive every sync; 3 focused tests pass, build pending live verify.
