@@ -1,7 +1,8 @@
 # Roadmap
 
-- [ ] Add paid-only in-house Retry using atomic stock/order fulfillment, without another debit or duplicate stock claims.
-- [ ] Test unpaid/refunded blocking, stock shortage rollback and repeat retries; verify admin UI where authenticated access permits.
+- [x] Add paid-only in-house Retry using atomic stock/order fulfillment, without another debit or duplicate stock claims; scheduled bot recovery and EPS website delivery share its order lock.
+- [x] Run 20 focused retry/payment/delivery regressions; verify service-role-only execution and build OK. #2362 remains cancelled/unpaid; no real delivery attempted.
+- [ ] Verify signed-in admin Retry and real customer delivery (blocked by external unmanaged authentication and approved real delivery/deployment); transactional stock-shortage rollback not exercised against real inventory.
 
 - [x] Fix approved EPS bot IPN routing, fee-free credit, snapshot-based late checkout settlement and explicit order timezones; preserve historical balances and deliveries.
 - [x] Run 26 focused payment regressions and public endpoint checks; atomic settlement/expiry are service-role-only and RLS remains enabled.
