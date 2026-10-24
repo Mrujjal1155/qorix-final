@@ -11,13 +11,35 @@ export function parseTopProductIds(value: string | null | undefined): string[] {
   }
 }
 
+/** Only credit units count; durations such as 1M and 12 months are not quantities. */
+function lovableCredits(name: string): number {
+  const match = name.match(/(\d[\d,]*(?:\.\d+)?)\s*([km])?\s*credits?\b/i);
+  if (!match) return Number.POSITIVE_INFINITY;
+  const amount = Number(match[1].replaceAll(",", ""));
+  const unit = match[2]?.toLowerCase();
+  return amount * (unit === "k" ? 1000 : unit === "m" ? 1000000 : 1);
+}
+
+/** Stable presentation order without changing membership, stock or effective prices. */
+export function sortTelegramTopProducts<T extends { name?: string }>(products: T[]): T[] {
+  const group = (p: T) => /gemini/i.test(p.name ?? "") ? 0 : /lovable/i.test(p.name ?? "") ? 1 : 2;
+  return [...products].sort((a, b) => {
+    const difference = group(a) - group(b);
+    if (difference) return difference;
+    if (group(a) !== 1) return 0;
+    const left = lovableCredits(a.name ?? "");
+    const right = lovableCredits(b.name ?? "");
+    return left === right ? 0 : left < right ? -1 : 1;
+  });
+}
+
 /** Input is the bot's already visibility/availability-filtered, user-priced catalogue. */
-export function selectTopProducts<T extends { id: string }>(products: T[], ids: string[]): T[] {
+export function selectTopProducts<T extends { id: string; name?: string }>(products: T[], ids: string[]): T[] {
   const byId = new Map(products.map((p) => [p.id, p]));
-  return [...new Set(ids)].flatMap((id) => {
+  return sortTelegramTopProducts([...new Set(ids)].flatMap((id) => {
     const product = byId.get(id);
     return product ? [product] : [];
-  });
+  }));
 }
 
 /** Filter key for products with no supplier: the admin list shows them as "In-house". */
