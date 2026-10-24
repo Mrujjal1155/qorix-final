@@ -37,7 +37,7 @@ import {
 } from "@/lib/bot/ui.server";
 
 import { renderRich, plainRich } from "@/lib/bot/richtext";
-import { TELEGRAM_TOP_PRODUCTS_KEY, parseTopProductIds, selectTopProducts } from "@/lib/telegram-top-products";
+import { telegramFavoritesPage } from "@/lib/telegram-top-products";
 import {
   credentialItems,
   orderCode,
@@ -1533,10 +1533,17 @@ let menuStockCache: { at: number; counts: Record<string, number> } | null = null
 
 async function menuStockCounts(): Promise<Record<string, number>> {
   if (menuStockCache && Date.now() - menuStockCache.at < MENU_STOCK_TTL_MS) return menuStockCache.counts;
-  const { data: stock, error } = await db.rpc("stock_counts");
   const counts: Record<string, number> = {};
-  for (const s of ((stock ?? []) as any[])) counts[String(s.product_id)] = Number(s.available ?? 0);
-  if (!error) menuStockCache = { at: Date.now(), counts };
+  const batchSize = 500;
+  for (let from = 0; ; from += batchSize) {
+    const { data: stock, error } = await db.rpc("stock_counts")
+      .order("product_id", { ascending: true })
+      .range(from, from + batchSize - 1);
+    if (error) throw new Error("Could not load stock");
+    for (const s of ((stock ?? []) as any[])) counts[String(s.product_id)] = Number(s.available ?? 0);
+    if ((stock?.length ?? 0) < batchSize) break;
+  }
+  menuStockCache = { at: Date.now(), counts };
   return counts;
 }
 
@@ -1544,14 +1551,23 @@ async function menuStockCounts(): Promise<Record<string, number>> {
 let menuProductsCache: { at: number; rows: any[] } | null = null;
 async function menuProducts(): Promise<any[]> {
   if (menuProductsCache && Date.now() - menuProductsCache.at < MENU_STOCK_TTL_MS) return menuProductsCache.rows;
-  const { data, error } = await db
-    .from("products")
-    .select("*")
-    .eq("is_active", true)
-    .is("owner_reseller_id", null)
-    .order("sort_order", { ascending: true });
-  if (!error) menuProductsCache = { at: Date.now(), rows: data ?? [] };
-  return data ?? [];
+  const rows: any[] = [];
+  const batchSize = 500;
+  for (let from = 0; ; from += batchSize) {
+    const { data, error } = await db
+      .from("products")
+      .select("*")
+      .eq("is_active", true)
+      .is("owner_reseller_id", null)
+      .order("sort_order", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + batchSize - 1);
+    if (error) throw new Error("Could not load products");
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < batchSize) break;
+  }
+  menuProductsCache = { at: Date.now(), rows };
+  return rows;
 }
 
 async function productsWithStock() {
@@ -1675,7 +1691,7 @@ async function shopView(page: number, chatId?: number) {
     .map((c: any) => ({ ...c, items: productsOfCategory(products, c.id, byCat) }))
     .filter((c: any) => c.items.length > 0);
 
-  if (withProducts.length) {
+  if (products.length) {
     const kb: Button[][] = [];
     const catStyle = btnColor(settings, "category");
     const navStyle = btnColor(settings, "nav");
@@ -1700,13 +1716,10 @@ async function shopView(page: number, chatId?: number) {
       kb.push(row);
     }
 
-    // Read only this admin selection fresh, independently of the general settings cache.
-    const { data: topSetting, error: topError } = await db.from("bot_settings")
-      .select("value").eq("key", TELEGRAM_TOP_PRODUCTS_KEY).maybeSingle();
-    if (topError) throw new Error("Could not load top products");
-    const selected = selectTopProducts(products, parseTopProductIds(topSetting?.value));
-    const topPage = Math.max(0, Math.min(page, Math.max(0, Math.ceil(selected.length / PAGE) - 1)));
-    const topProducts = await applyUserPrices(chatId, selected.slice(topPage * PAGE, (topPage + 1) * PAGE));
+    // Every visible/available product appears, grouped before pagination.
+    const favorites = telegramFavoritesPage(products, page, PAGE);
+    const topPage = favorites.page;
+    const topProducts = await applyUserPrices(chatId, favorites.products);
     const prodStyle = btnColor(settings, "product");
     for (const p of topProducts) {
       kb.push([styled(productIconButton(p,
@@ -1714,8 +1727,8 @@ async function shopView(page: number, chatId?: number) {
         `p:${p.id}`), prodRowStyle(p, prodStyle))]);
     }
     const topNav: Button[] = [];
-    if (topPage > 0) topNav.push(styled(uiBtn(settings, "shop_prev", `shop:${topPage - 1}`), btnColor(settings, "pagination")));
-    if (selected.length > (topPage + 1) * PAGE) topNav.push(styled(uiBtn(settings, "shop_next", `shop:${topPage + 1}`), btnColor(settings, "pagination")));
+    if (favorites.hasPrevious) topNav.push(styled(uiBtn(settings, "shop_prev", `shop:${topPage - 1}`), btnColor(settings, "pagination")));
+    if (favorites.hasNext) topNav.push(styled(uiBtn(settings, "shop_next", `shop:${topPage + 1}`), btnColor(settings, "pagination")));
     if (topNav.length) kb.push(topNav);
 
     const allIc = allProductsIcon(settings);
