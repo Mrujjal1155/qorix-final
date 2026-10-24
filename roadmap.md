@@ -1,5 +1,8 @@
 # Roadmap
 
+- [ ] Correct global Telegram user statistics and paginate all users; track confirmed block/unblock separately from admin bans, with unknown historical states preserved.
+- [ ] Verify user counts, pagination and reachability rules without sending real messages; authenticated/live checks require external account access and deployment.
+
 - [x] Generate sequential product-list batches and send only the previewed batch; 8 focused tests pass (40 then 30 of 70, larger catalogues, group/user delivery, oversized rejection), build OK; no real messages sent.
 - [ ] Confirm sequential generation and premium emoji rendering in signed-in admin/live Telegram (blocked by external unmanaged authentication and an approved live broadcast).
 
