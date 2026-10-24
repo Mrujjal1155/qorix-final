@@ -19,9 +19,18 @@ describe("live update channel posts", () => {
   test("customer name is hidden like A****", () => {
     expect(maskName("ahmed")).toBe("A****");
   });
-  test("wallet purchases show Wallet, binance shows Binance Pay", () => {
+  test("wallet purchases show Wallet, binance shows Binance Pay, reseller shows Reseller Balance", () => {
     expect(paymentLabel("balance")).toBe("Wallet");
     expect(paymentLabel("binance_pay")).toBe("Binance Pay");
+    expect(paymentLabel("reseller_balance")).toBe("Reseller Balance");
+  });
+  test("reseller API sale renders like any other purchase, identity masked", () => {
+    const t = buildLivePost("purchase", { uid: "7f3c9d21-55ab-4c88-90e1-2b6f4a77c3d4", name: "Rahim", product: "Netflix 1M", qty: 2, method: "reseller_balance" }, new Date("2026-10-24T17:32:00Z"));
+    expect(t).not.toContain("7f3c9d21");
+    expect(t).not.toContain("Rahim");
+    expect(t).toContain("Product: <b>Netflix 1M</b>");
+    expect(t).toContain("Paid: Reseller Balance");
+    expect(t).toContain("Successfully delivered");
   });
   test("purchase post never contains the full id or name", () => {
     const t = buildLivePost("purchase", { uid: "2808123968", name: "Ahmed", product: "Gemini", qty: 3, method: "balance" }, new Date("2026-10-24T17:32:00Z"));
