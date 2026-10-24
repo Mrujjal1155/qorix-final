@@ -47,6 +47,7 @@ import {
   orderPlainText,
   signOrderToken,
 } from "@/lib/order-file.server";
+import { LIVE_EMOJI_SLOTS } from "@/lib/live-update";
 import { parseStock } from "@/lib/stock-format";
 import { MANUAL_INPUT_PREFIX, parseManualInput, validateManualReply, type ManualInputConfig } from "@/lib/manual-input";
 import { SITE_ORIGIN } from "@/lib/site-url";
@@ -3697,6 +3698,10 @@ async function handleMessage(msg: any) {
     await handleApiState(chatId, String(state.awaiting), text, state);
     return;
   }
+  if (state.awaiting === "adm_live_emoji") {
+    await handleLiveEmojiState(chatId, msg, text, state);
+    return;
+  }
   if (state.awaiting === "adm_api_icon") {
     await handleApiIconState(chatId, msg, text, state);
     return;
@@ -4611,6 +4616,7 @@ export function adminKeyboard(): Button[][] {
       { text: "🔌 API icons", callback_data: "adm:apiicons" },
       { text: "🗂 Category icons", callback_data: "adm:caticons" },
     ],
+    [{ text: "📡 Live Update Emojis", callback_data: "adm:liveemo" }],
     [{ text: "🎨 Button colors", callback_data: "adm:bcolors" }],
 
 
@@ -6552,6 +6558,11 @@ async function handleCallback(cq: any) {
     return;
   }
 
+  if (data === "adm:liveemo" || data.startsWith("adm:le:")) {
+    await handleLiveEmojiCallback(chatId, data, user.state ?? {}, edit);
+    return;
+  }
+
   if (data === "adm:apiicons" || data.startsWith("adm:qi:")) {
     await handleApiIconCallback(chatId, data, user.state ?? {}, edit);
     return;
@@ -8340,4 +8351,78 @@ export async function announceSupplierNotice(supplierName: string, title: string
 export async function notifyAdminNotice(source: string, title: string, body: string) {
   console.log(`[admin notice · dashboard only] ${source}: ${title}${body ? ` — ${body}` : ""}`);
   return { sent: false };
+}
+
+
+/** Admin view: premium emojis used in Live Update channel posts. */
+async function admLiveEmojiView() {
+  const { data } = await db.from("bot_settings").select("key,value").like("key", "live_emoji_%");
+  const map = new Map((data ?? []).map((r: any) => [String(r.key), String(r.value ?? "").trim()]));
+  const kb: Button[][] = LIVE_EMOJI_SLOTS.map((s) => {
+    const id = map.get(`live_emoji_${s.slot}`) ?? "";
+    return [{
+      text: `${id ? "" : s.glyph} ${s.label}${id ? " ✓" : ""}`.trim(),
+      callback_data: `adm:le:${s.slot}`,
+      ...(id ? { icon_custom_emoji_id: id } : {}),
+    }];
+  });
+  kb.push(ADM_BACK[0]!);
+  const list = LIVE_EMOJI_SLOTS.map((s) => {
+    const id = map.get(`live_emoji_${s.slot}`) ?? "";
+    return `${id ? `<tg-emoji emoji-id="${id}">${s.glyph}</tg-emoji>` : s.glyph} ${s.label}${id ? "" : " (default)"}`;
+  }).join("\n");
+  return {
+    text:
+      "📡 <b>Live Update Emojis</b>\n\nThese emojis appear in Live Update channel posts.\n" +
+      "Pick one, then send a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.\n\n" +
+      `<b>Current</b>\n${list}`,
+    kb,
+  };
+}
+
+export async function handleLiveEmojiCallback(
+  chatId: number,
+  data: string,
+  state: any,
+  edit: (text: string, kb?: Button[][]) => Promise<void>,
+): Promise<boolean> {
+  if (!(await isAdmin(chatId))) return true;
+  if (data === "adm:liveemo") {
+    const v = await admLiveEmojiView();
+    await edit(v.text, v.kb);
+    return true;
+  }
+  const slot = LIVE_EMOJI_SLOTS.find((s) => `adm:le:${s.slot}` === data);
+  if (!slot) return true;
+  await setState(chatId, { ...(state ?? {}), awaiting: "adm_live_emoji", adm_live_emoji: slot.slot });
+  await edit(
+    `📡 Send the new premium emoji for <b>${slot.label}</b> (default ${slot.glyph}).\n\nSend <code>-</code> to reset.`,
+    [[{ text: "⬅️ Live Update Emojis", callback_data: "adm:liveemo" }], ADM_BACK[0]!],
+  );
+  return true;
+}
+
+export async function handleLiveEmojiState(chatId: number, msg: any, text: string, state: any): Promise<boolean> {
+  if (state?.awaiting !== "adm_live_emoji") return false;
+  state.awaiting = null;
+  const slot = LIVE_EMOJI_SLOTS.find((s) => s.slot === String(state.adm_live_emoji ?? ""));
+  await setState(chatId, state);
+  if (!(await isAdmin(chatId)) || !slot) return true;
+  const reset = String(text ?? "").trim() === "-";
+  const id = reset ? "" : customEmojiIdFromMessage(msg);
+  if (!reset && !id) {
+    await say(chatId, "⚠️ Please send a <b>Telegram Premium custom emoji</b> (or <code>-</code> to reset).", [
+      [{ text: "⬅️ Live Update Emojis", callback_data: "adm:liveemo" }],
+    ]);
+    return true;
+  }
+  try {
+    await saveIconSetting(`live_emoji_${slot.slot}`, id);
+  } catch (e) {
+    await say(chatId, saveFailText(e), ADM_BACK);
+    return true;
+  }
+  const v = await admLiveEmojiView();
+  await say(chatId, `✅ ${slot.label} ${reset ? "reset" : "updated"}.\n\n${v.text}`, v.kb);
+  return true;
 }
