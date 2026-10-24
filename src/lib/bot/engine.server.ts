@@ -8447,7 +8447,7 @@ const PE_FIELDS = {
 } as const;
 type PeField = keyof typeof PE_FIELDS;
 const PE_PAGE = 10;
-const PE_BACK: Button[] = { text: "⬅️ Active Products", callback_data: "adm:pe:l:0" } as Button;
+const PE_BACK: Button = { text: "⬅️ Active Products", callback_data: "adm:pe:l:0" };
 
 async function admProductListView(page: number, query = "") {
   let q = db
