@@ -153,6 +153,7 @@ async function request(
     res = await fetch(`${cfg.base}${path}`, {
       method: init.method,
       headers,
+      signal: AbortSignal.timeout(8000),
       ...(init.body ? { body: JSON.stringify(init.body) } : {}),
     });
   } catch {
@@ -343,6 +344,9 @@ export async function verifyTransaction(
     financialEntity: pick(d, ["FinancialEntity", "financialEntity"]) ?? "",
     errorMessage: pick(d, ["ErrorMessage", "errorMessage"]) ?? "",
   };
+  if (mtid && info.merchantTransactionId !== mtid) {
+    return { ok: false as const, error: "This payment belongs to a different checkout." };
+  }
   return { ok: true as const, info };
 }
 
