@@ -29,8 +29,8 @@ async function loadLiveSettings(db: any) {
 // have different icons. Batch reads keep the notification tick bounded.
 async function loadPurchaseIcons(db: any, rows: any[]): Promise<Map<string, string>> {
   const orderIds = [...new Set(rows
-    .filter((r) => r.kind === "purchase" && /^order:\d+$/.test(String(r.event_key ?? "")))
-    .map((r) => String(r.event_key).slice(6)))];
+    .filter((r) => r.kind === "purchase" && /^order:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(r.ref ?? "")))
+    .map((r) => String(r.ref).slice(6)))];
   const icons = new Map<string, string>();
   if (!orderIds.length) return icons;
   const { data: orders, error: orderError } = await db.from("orders").select("id,product_id").in("id", orderIds);
@@ -50,7 +50,7 @@ export async function drainLiveUpdates(limit = 20) {
   const { map, channel, emoji, bot } = await loadLiveSettings(db);
   const { data: rows } = await db
     .from("live_update_events")
-    .select("id,event_key,kind,payload,created_at,attempts")
+    .select("id,ref,kind,payload,created_at,attempts")
     .eq("status", "pending")
     .order("created_at", { ascending: true })
     .limit(limit);
@@ -75,7 +75,7 @@ export async function drainLiveUpdates(limit = 20) {
     if (!claimed?.length) continue;
     const text = buildLivePost(kind, r.payload ?? {}, new Date(r.created_at), emoji);
     // Purchase posts carry a tappable Buy Now button straight into the bot.
-    const keyboard = livePostKeyboard(kind, bot, purchaseIcons.get(r.event_key));
+    const keyboard = livePostKeyboard(kind, bot, purchaseIcons.get(r.ref));
     const res = await sendAlertMessage(channel, text, keyboard).catch((e: any) => ({ ok: false, description: String(e) }));
     const ok = !!res?.ok;
     const giveUp = !ok && (r.attempts ?? 0) + 1 >= 5;
