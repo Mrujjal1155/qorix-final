@@ -25,16 +25,37 @@ async function loadLiveSettings(db: any) {
   return { map, channel: (map["live_channel_id"] ?? "").trim(), emoji, bot };
 }
 
+// Resolve by order/product IDs, never product name: same-name products can
+// have different icons. Batch reads keep the notification tick bounded.
+async function loadPurchaseIcons(db: any, rows: any[]): Promise<Map<string, string>> {
+  const orderIds = [...new Set(rows
+    .filter((r) => r.kind === "purchase" && /^order:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(r.ref ?? "")))
+    .map((r) => String(r.ref).slice(6)))];
+  const icons = new Map<string, string>();
+  if (!orderIds.length) return icons;
+  const { data: orders, error: orderError } = await db.from("orders").select("id,product_id").in("id", orderIds);
+  if (orderError) throw new Error("Could not load purchase icons");
+  const productIds = [...new Set((orders ?? []).map((o: any) => o.product_id).filter(Boolean))];
+  if (!productIds.length) return icons;
+  const { data: products, error: productError } = await db.from("products")
+    .select("id,telegram_custom_emoji_id").in("id", productIds);
+  if (productError) throw new Error("Could not load purchase icons");
+  const byProduct = new Map<string, string>((products ?? []).map((p: any) => [String(p.id), String(p.telegram_custom_emoji_id ?? "")]));
+  for (const order of orders ?? []) icons.set(`order:${order.id}`, byProduct.get(String(order.product_id)) ?? "");
+  return icons;
+}
+
 export async function drainLiveUpdates(limit = 20) {
   const db = await adminDb();
   const { map, channel, emoji, bot } = await loadLiveSettings(db);
   const { data: rows } = await db
     .from("live_update_events")
-    .select("id,kind,payload,created_at,attempts")
+    .select("id,ref,kind,payload,created_at,attempts")
     .eq("status", "pending")
     .order("created_at", { ascending: true })
     .limit(limit);
   if (!rows?.length) return { sent: 0 };
+  const purchaseIcons = await loadPurchaseIcons(db, rows.filter((r: any) => channel && (map[KIND_KEY[r.kind as LiveKind]] ?? "on").toLowerCase() === "on"));
   const { sendAlertMessage } = await import("@/lib/telegram.server");
   let sent = 0;
   for (const r of rows as any[]) {
@@ -54,7 +75,7 @@ export async function drainLiveUpdates(limit = 20) {
     if (!claimed?.length) continue;
     const text = buildLivePost(kind, r.payload ?? {}, new Date(r.created_at), emoji);
     // Purchase posts carry a tappable Buy Now button straight into the bot.
-    const keyboard = livePostKeyboard(kind, bot);
+    const keyboard = livePostKeyboard(kind, bot, purchaseIcons.get(r.ref));
     const res = await sendAlertMessage(channel, text, keyboard).catch((e: any) => ({ ok: false, description: String(e) }));
     const ok = !!res?.ok;
     const giveUp = !ok && (r.attempts ?? 0) + 1 >= 5;
