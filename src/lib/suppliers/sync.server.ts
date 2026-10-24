@@ -13,6 +13,7 @@ import {
   supplierDeliveryType,
   type SupplierRow,
 } from "./api.server";
+import { existingProductSyncPatch } from "./sync-patch";
 import type { ReviewInput } from "./review.server";
 
 export type SupplierAlert = {
