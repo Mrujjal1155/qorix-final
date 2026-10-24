@@ -1,8 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
-import { adjustBalance, broadcastMessage, listBotUsers, messageUser, setBanned } from "@/lib/admin.functions";
+import { useState } from "react";
+import { adjustBalance, broadcastMessage, getBotUserStats, listBotUsers, messageUser, setBanned } from "@/lib/admin.functions";
+import type { BotUserStats } from "@/lib/bot-users";
+import type { ContactStatus } from "@/lib/bot/contact";
 import { AdminShell, money } from "@/components/AdminShell";
 import { ProductListPostCard } from "@/components/ProductListPostCard";
 import { Card, CardContent } from "@/components/ui/card";
@@ -31,6 +33,8 @@ import {
   Users,
   Wallet,
   History,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { toast } from "sonner";
 import { UserHistoryDialog } from "@/components/admin/UserHistoryDialog";
@@ -58,6 +62,8 @@ type BotUser = {
   membership?: string | null;
   referral_count?: number | null;
   is_banned?: boolean | null;
+  contact_status?: ContactStatus;
+  contact_status_at?: string | null;
 };
 
 type TargetUser = { telegram_id: number; label: string; balance: number };
@@ -83,10 +89,19 @@ function Avatar({ user }: { user: BotUser }) {
   );
 }
 
+const CONTACT_LABELS: Record<ContactStatus, string> = { unknown: "Unknown", reachable: "Reachable", blocked: "Blocked bot", deactivated: "Deactivated", stopped: "Stopped / left" };
+function ContactBadge({ user }: { user: BotUser }) {
+  const status = user.contact_status ?? "unknown";
+  return <Badge variant={status === "blocked" || status === "deactivated" ? "destructive" : "secondary"} title={user.contact_status_at ? `Last evidence: ${user.contact_status_at}` : undefined}>{CONTACT_LABELS[status]}</Badge>;
+}
+
 function UsersPage() {
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [balFilter, setBalFilter] = useState<"all" | "with" | "without">("all");
+  const [contactFilter, setContactFilter] = useState<ContactStatus | "all">("all");
+  const [page, setPage] = useState(0);
+  const fetchStats = useServerFn(getBotUserStats);
   const fetchUsers = useServerFn(listBotUsers);
   const adjust = useServerFn(adjustBalance);
   const ban = useServerFn(setBanned);
@@ -145,11 +160,13 @@ function UsersPage() {
     setMsgBusy(true);
     try {
       await dm({ data: { telegram_id: msgUser.telegram_id, text: msgText.trim() } });
+      refresh();
       toast.success(`Message sent to ${msgUser.label}`);
       setMsgUser(null);
       setMsgText("");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to send message");
+      refresh();
     } finally {
       setMsgBusy(false);
     }
@@ -187,25 +204,22 @@ function UsersPage() {
   }
 
   const { data, isLoading } = useQuery({
-    queryKey: ["botUsers", search, balFilter],
-    queryFn: () => fetchUsers({ data: { search, balance: balFilter } }) as Promise<BotUser[]>,
+    queryKey: ["botUsers", search, balFilter, contactFilter, page],
+    queryFn: () => fetchUsers({ data: { search, balance: balFilter, contact: contactFilter, page } }),
   });
-  const users = data ?? [];
-  const refresh = () => qc.invalidateQueries({ queryKey: ["botUsers"] });
-
-  const stats = useMemo(() => {
-    const total = users.length;
-    const banned = users.filter((u) => u.is_banned).length;
-    const balance = users.reduce((s, u) => s + Number(u.balance || 0), 0);
-    const spent = users.reduce((s, u) => s + Number(u.total_spent || 0), 0);
-    return { total, banned, active: total - banned, balance, spent };
-  }, [users]);
+  const users: BotUser[] = data?.rows ?? [];
+  const { data: statsData, error: statsError } = useQuery({ queryKey: ["botUserStats"], queryFn: () => fetchStats(), refetchInterval: 30000 });
+  const stats = statsData as BotUserStats | undefined;
+  const refresh = () => { void qc.invalidateQueries({ queryKey: ["botUsers"] }); void qc.invalidateQueries({ queryKey: ["botUserStats"] }); };
+  const count = data?.count ?? 0;
+  const pageSize = data?.pageSize ?? 50;
+  const number = (value: number | undefined) => value === undefined ? "—" : value.toLocaleString("en-US");
 
   const statCards = [
-    { label: "Total users", value: String(stats.total), icon: Users, tone: "bg-primary/10 text-primary" },
-    { label: "Active", value: String(stats.active), icon: ShieldCheck, tone: "bg-success/15 text-success" },
-    { label: "Banned", value: String(stats.banned), icon: ShieldOff, tone: "bg-destructive/10 text-destructive" },
-    { label: "Wallet balance", value: money(stats.balance), icon: Wallet, tone: "bg-brand/15 text-brand" },
+    { label: "Total users", value: number(stats?.total), icon: Users, tone: "bg-primary/10 text-primary" },
+    { label: "Not admin-banned", value: number(stats?.not_banned), icon: ShieldCheck, tone: "bg-success/15 text-success" },
+    { label: "Admin banned", value: number(stats?.banned), icon: ShieldOff, tone: "bg-destructive/10 text-destructive" },
+    { label: "Wallet balance", value: stats ? money(stats.balance) : "—", icon: Wallet, tone: "bg-brand/15 text-brand" },
   ];
 
   return (
@@ -227,6 +241,15 @@ function UsersPage() {
         ))}
       </div>
 
+      {statsError && <p className="mb-4 text-sm text-destructive">Could not load member totals.</p>}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {(["all", "reachable", "blocked", "stopped", "deactivated", "unknown"] as const).map((status) => (
+          <Button key={status} size="sm" variant={contactFilter === status ? "default" : "outline"} onClick={() => { setContactFilter(status); setPage(0); }}>
+            {status === "all" ? "All contact states" : CONTACT_LABELS[status]} · {number(status === "all" ? stats?.total : stats?.[status])}
+          </Button>
+        ))}
+      </div>
+
       {/* Search + broadcast toggle */}
       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
         <div className="relative flex-1 sm:max-w-sm">
@@ -235,7 +258,7 @@ function UsersPage() {
             className="pl-9"
             placeholder="Search username or telegram id"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
           />
         </div>
         <Button variant={bcOpen ? "secondary" : "outline"} onClick={() => setBcOpen((v) => !v)}>
@@ -248,7 +271,7 @@ function UsersPage() {
         </div>
         <div className="flex gap-1 rounded-lg border bg-muted/40 p-1">
           {([["all", "All"], ["with", "With balance"], ["without", "No balance"]] as const).map(([k, l]) => (
-            <Button key={k} size="sm" variant={balFilter === k ? "default" : "ghost"} onClick={() => setBalFilter(k)}>
+            <Button key={k} size="sm" variant={balFilter === k ? "default" : "ghost"} onClick={() => { setBalFilter(k); setPage(0); }}>
               {l}
             </Button>
           ))}
@@ -299,11 +322,12 @@ function UsersPage() {
               <div className="flex items-start gap-3">
                 <Avatar user={u} />
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <p className="truncate text-sm font-semibold">{userLabel(u)}</p>
                     <Badge variant={u.is_banned ? "destructive" : "secondary"} className="shrink-0">
-                      {u.is_banned ? "banned" : "active"}
+                      {u.is_banned ? "admin banned" : "not banned"}
                     </Badge>
+                    <ContactBadge user={u} />
                   </div>
                   <p className="truncate text-xs text-muted-foreground">ID: {u.telegram_id}</p>
                 </div>
@@ -385,10 +409,11 @@ function UsersPage() {
                   <td className="pr-4">{money(u.total_spent)}</td>
                   <td className="pr-4">{u.membership ?? "—"}</td>
                   <td className="pr-4">{u.referral_count ?? 0}</td>
-                  <td className="pr-4">
+                  <td className="pr-4 space-y-1">
                     <Badge variant={u.is_banned ? "destructive" : "secondary"}>
-                      {u.is_banned ? "banned" : "active"}
+                      {u.is_banned ? "admin banned" : "not banned"}
                     </Badge>
+                    <div><ContactBadge user={u} /></div>
                   </td>
                   <td className="space-x-1 whitespace-nowrap text-right">
                     <Button size="sm" variant="secondary" onClick={() => setHistUser(toTarget(u))}>
@@ -430,6 +455,15 @@ function UsersPage() {
       </Card>
 
       <UserHistoryDialog user={histUser} onClose={() => setHistUser(null)} />
+
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">{count ? `${page * pageSize + 1}–${Math.min((page + 1) * pageSize, count)} of ${number(count)}` : "0 users"}</p>
+        <div className="flex items-center gap-2">
+          <Button size="icon" variant="outline" aria-label="Previous user page" title="Previous page" disabled={page === 0 || isLoading} onClick={() => setPage((p) => p - 1)}><ChevronLeft className="size-4" /></Button>
+          <span className="min-w-16 text-center text-sm">{page + 1} / {Math.max(1, Math.ceil(count / pageSize))}</span>
+          <Button size="icon" variant="outline" aria-label="Next user page" title="Next page" disabled={(page + 1) * pageSize >= count || isLoading} onClick={() => setPage((p) => p + 1)}><ChevronRight className="size-4" /></Button>
+        </div>
+      </div>
 
       {/* Balance dialog */}
       <Dialog open={!!balanceUser} onOpenChange={(o) => !o && setBalanceUser(null)}>
