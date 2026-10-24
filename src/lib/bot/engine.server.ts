@@ -8357,7 +8357,7 @@ export async function notifyAdminNotice(source: string, title: string, body: str
 /** Admin view: premium emojis used in Live Update channel posts. */
 async function admLiveEmojiView() {
   const { data } = await db.from("bot_settings").select("key,value").like("key", "live_emoji_%");
-  const map = new Map((data ?? []).map((r: any) => [String(r.key), String(r.value ?? "").trim()]));
+  const map = new Map<string, string>((data ?? []).map((r: any) => [String(r.key), String(r.value ?? "").trim()] as [string, string]));
   const kb: Button[][] = LIVE_EMOJI_SLOTS.map((s) => {
     const id = map.get(`live_emoji_${s.slot}`) ?? "";
     return [{
