@@ -365,6 +365,42 @@ export type Database = {
         }
         Relationships: []
       }
+      live_update_events: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: string
+          kind: string
+          last_error: string | null
+          payload: Json
+          ref: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          kind: string
+          last_error?: string | null
+          payload?: Json
+          ref: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          kind?: string
+          last_error?: string | null
+          payload?: Json
+          ref?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           coupon_code: string | null
@@ -1971,6 +2007,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      live_update_enqueue: {
+        Args: { _kind: string; _payload: Json; _ref: string }
+        Returns: undefined
       }
       profile_wallet_credit: {
         Args: {
