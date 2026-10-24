@@ -159,7 +159,7 @@ function OrdersPage() {
     setRetrying(id);
     try {
       const r: any = await retryAuto({ data: { id } });
-      if (r?.ok) toast.success("Supplier API delivered the order");
+      if (r?.ok) toast.success("Order delivered successfully");
       else toast.error(r?.reason ?? "Auto delivery failed");
       refresh();
     } catch (e) {
@@ -262,10 +262,16 @@ function OrdersPage() {
             >
               Deliver now
             </Button>
-            <Button size="sm" variant="ghost" disabled={retrying === o.id} onClick={() => runRetry(o.id)}>
-              {retrying === o.id ? "Retrying…" : "Retry API"}
+            <Button size="sm" variant="ghost" disabled={retrying === o.id || (!o.supplier_name && (!paymentInfo(o).paid || paymentInfo(o).refunded))} onClick={() => runRetry(o.id)}>
+              {retrying === o.id ? "Retrying…" : o.supplier_name ? "Retry API" : "Retry"}
             </Button>
           </>
+        )}
+
+        {o.status === "completed" && !o.supplier_name && o.delivery_type === "auto" && !paymentInfo(o).refunded && (
+          <Button size="sm" variant="ghost" disabled={retrying === o.id} onClick={() => runRetry(o.id)}>
+            {retrying === o.id ? "Retrying…" : "Retry"}
+          </Button>
         )}
 
         {(o.status === "awaiting_payment" || o.status === "failed" || o.status === "cancelled") && (
