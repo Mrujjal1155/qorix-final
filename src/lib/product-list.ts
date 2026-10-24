@@ -11,7 +11,7 @@ export const PRODUCT_LIST_EMOJI_KEYS = [
 export type ProductListEmojiKey = (typeof PRODUCT_LIST_EMOJI_KEYS)[number]["key"];
 export const productListSettingKey = (k: string) => `ui_icon_plist_${k}`;
 
-export type ListProduct = { name: string; price: number; emoji?: string | null; custom_emoji_id?: string | null };
+export type ListProduct = { name: string; price: number; emoji?: string | null | undefined; custom_emoji_id?: string | null | undefined };
 
 export const PRODUCT_LIST_BATCH_SIZE = 40;
 export type ProductListSnapshot = {
