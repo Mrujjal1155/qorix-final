@@ -22,7 +22,8 @@ import { SupplierKeysCard } from "@/components/SupplierKeysCard";
 import { EmailTemplatesCard } from "@/components/EmailTemplatesCard";
 import { StockAlertSettingsCard } from "@/components/StockAlertSettingsCard";
 import { MaintenanceCard } from "@/components/MaintenanceCard";
-import { Wrench } from "lucide-react";
+import { Wrench, Radio } from "lucide-react";
+import { LiveUpdateCard } from "@/components/LiveUpdateCard";
 import { PRODUCTION_SITE_URL } from "@/lib/site-url";
 
 
@@ -927,6 +928,13 @@ function SettingsPage() {
       description: "Low stock threshold, restock alerts and recipients per supplier.",
       icon: BellRing,
       render: () => <StockAlertSettingsCard values={values} setValues={setValues} onSave={onSave} />,
+    },
+    {
+      id: "live-updates",
+      title: "Live update channel",
+      description: "Public posts for new purchases, wallet top-ups and new members.",
+      icon: Radio,
+      render: () => <LiveUpdateCard values={values} setValues={setValues} onSave={onSave} />,
     },
     {
       id: "announce",
