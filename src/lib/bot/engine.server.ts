@@ -858,6 +858,9 @@ async function homeText(user: any) {
     `${sectionHead(s, "home", `<b>${botName}</b>`)}\n\n` +
     `${uiIconHtml(s, "home_greet")} ${uiText(s, "home_greet")}, <b>${escapeHtml(user.first_name ?? "friend")}</b>!\n` +
     `<i>${s["welcome_text"] ?? ""}</i>\n` +
+    `\n🔔 <b>Stay connected with the QORIX community!</b>\n` +
+    `Join us for new stock alerts and important updates.\n` +
+    `👥 <a href="https://t.me/QORIXCHAT">Community Group</a>  •  📢 <a href="https://t.me/qorixlab">Official Channel</a>\n\n` +
     `──────────────\n` +
     `${uiTag(s, "prof_username")}: ${user.username ? "@" + escapeHtml(user.username) : "—"}\n` +
     `${uiTag(s, "prof_userid")}: <code>${user.telegram_id}</code>\n` +

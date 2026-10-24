@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Add the approved English community invitation and group/channel links to the Telegram welcome message; mocked home callback renders both clickable links and preserves quick actions; 27 category/favorites regressions pass; no real messages sent.
+- [ ] Verify the English community invitation in the live Telegram chat (requires deployment and live Telegram access).
+
 - [x] Show all active Telegram categories even without stock; show active sold-out products in red only inside valid categories, keeping favorites and All Products available-only; 27 focused tests cover rules and mocked real bot callbacks, build OK; no real messages or orders sent.
 - [ ] Verify empty categories and red sold-out buttons in the deployed Telegram chat (requires deployment and live Telegram access).
 
