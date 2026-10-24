@@ -7,7 +7,10 @@ import {
   formatUsd,
   parseEmoji,
   productListSettingKey,
+  productListBatch,
+  PRODUCT_LIST_BATCH_SIZE,
   type ListProduct,
+  type ProductListSnapshot,
 } from "@/lib/product-list";
 
 async function loadSettings() {
@@ -17,7 +20,7 @@ async function loadSettings() {
   return s;
 }
 
-export async function buildProductList() {
+export async function buildProductList(requestedOffset = 0) {
   const db = supabaseAdmin as any;
   const [s, prods] = await Promise.all([
     loadSettings(),
@@ -27,6 +30,7 @@ export async function buildProductList() {
       .eq("is_active", true)
       .is("owner_reseller_id", null)
       .order("sort_order", { ascending: true })
+      .order("id", { ascending: true })
       .limit(1000),
   ]);
   const rows = (prods.data ?? []) as any[];
@@ -49,8 +53,14 @@ export async function buildProductList() {
   for (const k of PRODUCT_LIST_EMOJI_KEYS) emojis[k.key] = s[productListSettingKey(k.key)] ?? "";
   const botUsername = s["bot_username"] ?? "";
   const storeName = s["store_name"] || s["shop_name"] || "QORIX";
-  const markdown = buildProductListMarkdown({ storeName, botUsername, products, emojis });
-  const groups = [
+  const batch = productListBatch(products, requestedOffset);
+  const markdown = buildProductListMarkdown({ storeName, botUsername, products: batch.products, emojis });
+  const groups = productListGroups(s);
+  return { markdown, ...batch, botUsername, storeName, emojis, groups };
+}
+
+function productListGroups(s: Record<string, string>) {
+  return [
     ...new Set(
       Object.entries(s)
         .filter(([k]) => k === "announce_chat_id" || k === "announce_chat_inhouse" || k.startsWith("announce_chat_supplier:"))
@@ -58,10 +68,9 @@ export async function buildProductList() {
         .filter(Boolean),
     ),
   ];
-  return { markdown, products, botUsername, storeName, emojis, groups };
 }
 
-function fallbackHtml(list: Awaited<ReturnType<typeof buildProductList>>) {
+function fallbackHtml(list: ProductListSnapshot) {
   const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const lines = list.products.map((p) => {
     const e = parseEmoji(p.custom_emoji_id ? `${p.custom_emoji_id}|${p.emoji || "📦"}` : p.emoji, "📦");
@@ -71,7 +80,7 @@ function fallbackHtml(list: Awaited<ReturnType<typeof buildProductList>>) {
   return `<b>${esc(list.storeName)} — PRICE LIST</b>\n\n${lines.join("\n")}`;
 }
 
-async function sendTo(chatId: number | string, list: Awaited<ReturnType<typeof buildProductList>>, kb: any) {
+async function sendTo(chatId: number | string, list: ProductListSnapshot & { markdown: string }, kb: any) {
   const rich = await tg("sendRichMessage", { chat_id: chatId, rich_message: { markdown: list.markdown }, ...(kb ? { reply_markup: kb } : {}) });
   if (rich.ok) return { ok: true };
   // Older clients/API: still deliver a readable list.
@@ -80,8 +89,9 @@ async function sendTo(chatId: number | string, list: Awaited<ReturnType<typeof b
   return { ok: res.ok, error: rich.description ?? res.description };
 }
 
-export async function sendProductList() {
-  const list = await buildProductList();
+export async function sendProductList(snapshot: ProductListSnapshot) {
+  if (snapshot.products.length > PRODUCT_LIST_BATCH_SIZE) throw new Error("Product list batch is too large");
+  const list = { ...snapshot, markdown: buildProductListMarkdown(snapshot), groups: productListGroups(await loadSettings()) };
   if (!list.products.length) throw new Error("No active products to list");
   const kb = list.botUsername
     ? { inline_keyboard: [[{ text: "🛒 Open the shop", url: `https://t.me/${list.botUsername.replace(/^@/, "")}`, style: "success" }]] }

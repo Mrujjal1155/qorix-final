@@ -13,6 +13,25 @@ export const productListSettingKey = (k: string) => `ui_icon_plist_${k}`;
 
 export type ListProduct = { name: string; price: number; emoji?: string | null; custom_emoji_id?: string | null };
 
+export const PRODUCT_LIST_BATCH_SIZE = 40;
+export type ProductListSnapshot = {
+  products: ListProduct[];
+  storeName: string;
+  botUsername: string;
+  emojis: Record<string, string | undefined>;
+};
+
+export function productListBatch<T>(products: T[], requestedOffset = 0) {
+  const offset = requestedOffset < products.length ? requestedOffset : 0;
+  const batch = products.slice(offset, offset + PRODUCT_LIST_BATCH_SIZE);
+  return {
+    products: batch,
+    offset,
+    totalProducts: products.length,
+    nextOffset: offset + batch.length < products.length ? offset + batch.length : 0,
+  };
+}
+
 /** Same stored shapes as bot UI icons: "🔥", "<id>", or "<id>|🔥". */
 export function parseEmoji(value: string | null | undefined, fallback: string) {
   const v = String(value ?? "").trim();
@@ -44,8 +63,8 @@ export function buildProductListMarkdown(input: {
   emojis: Record<string, string | undefined>;
 }) {
   const e = (k: ProductListEmojiKey) => {
-    const def = PRODUCT_LIST_EMOJI_KEYS.find((x) => x.key === k)!;
-    return emojiMd(parseEmoji(input.emojis[k], def.fallback));
+    const def = PRODUCT_LIST_EMOJI_KEYS.find((x) => x.key === k);
+    return emojiMd(parseEmoji(input.emojis[k], def?.fallback ?? "📦"));
   };
   const price = e("price");
   const rows = input.products.map((p) => {
