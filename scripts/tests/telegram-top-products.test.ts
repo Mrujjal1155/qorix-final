@@ -84,6 +84,18 @@ describe("All-products Telegram favorites", () => {
     expect(page.products[1]?.price).toBe(5.8);
     expect(page.products[1]?.stock).toBe(23);
   });
+  test("favorites pagination imposes no 1000-product total limit", () => {
+    const products = Array.from({ length: 1205 }, (_, i) => ({ id: String(i), name: "Gemini Pro" }));
+    const visited: string[] = [];
+    for (let index = 0; ; index++) {
+      const page = telegramFavoritesPage(products, index, 30);
+      visited.push(...page.products.map((p) => p.id));
+      if (!page.hasNext) break;
+    }
+    expect(visited).toHaveLength(1205);
+    expect(new Set(visited).size).toBe(1205);
+    expect(visited.at(-1)).toBe("1204");
+  });
 });
 
 describe("Top Products admin supplier filter", () => {

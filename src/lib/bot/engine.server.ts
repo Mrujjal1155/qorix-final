@@ -1544,14 +1544,23 @@ async function menuStockCounts(): Promise<Record<string, number>> {
 let menuProductsCache: { at: number; rows: any[] } | null = null;
 async function menuProducts(): Promise<any[]> {
   if (menuProductsCache && Date.now() - menuProductsCache.at < MENU_STOCK_TTL_MS) return menuProductsCache.rows;
-  const { data, error } = await db
-    .from("products")
-    .select("*")
-    .eq("is_active", true)
-    .is("owner_reseller_id", null)
-    .order("sort_order", { ascending: true });
-  if (!error) menuProductsCache = { at: Date.now(), rows: data ?? [] };
-  return data ?? [];
+  const rows: any[] = [];
+  const batchSize = 500;
+  for (let from = 0; ; from += batchSize) {
+    const { data, error } = await db
+      .from("products")
+      .select("*")
+      .eq("is_active", true)
+      .is("owner_reseller_id", null)
+      .order("sort_order", { ascending: true })
+      .order("id", { ascending: true })
+      .range(from, from + batchSize - 1);
+    if (error) throw new Error("Could not load products");
+    rows.push(...(data ?? []));
+    if ((data?.length ?? 0) < batchSize) break;
+  }
+  menuProductsCache = { at: Date.now(), rows };
+  return rows;
 }
 
 async function productsWithStock() {
