@@ -1082,7 +1082,7 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
       const productPatch = existingProductSyncPatch({
         price,
         stock: p.stock,
-        supplierEnabled: Boolean(s.is_enabled),
+        supplierEnabled: Boolean(s["is_enabled"]),
       });
 
       productUpdates.push({ id: prev.product_id, patch: productPatch });

@@ -122,3 +122,6 @@
 - [x] Add a persistent blue Telegram bottom menu for Products, Deposit, and My Orders with configurable Premium Emoji icons
 
 
+
+- [x] Move supplier API balances to the very top of the dashboard as a compact strip (2 columns on phones, 5 on wide screens), keeping each supplier's shared colour and red text for empty/failed balances; build OK and the phone/desktop strip layout verified in an isolated render.
+- [ ] Confirm the compact supplier balance strip in the signed-in dashboard (blocked by external unmanaged authentication — no session can be minted here).

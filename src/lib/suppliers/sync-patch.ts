@@ -17,6 +17,6 @@ export function existingProductSyncPatch(input: {
   };
   // On/off is the admin's decision — a sync must never switch a product
   // back on. Disabling the whole supplier still takes its products off sale.
-  if (!input.supplierEnabled) patch.is_active = false;
+  if (!input.supplierEnabled) patch["is_active"] = false;
   return patch;
 }

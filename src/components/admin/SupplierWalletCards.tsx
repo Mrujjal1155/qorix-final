@@ -4,7 +4,11 @@ import { Wallet } from "lucide-react";
 import { checkSupplierBalances } from "@/lib/admin.functions";
 import { colorIndexesFor, supplierBadgeStyle } from "@/lib/supplier-colors";
 
-/** Dashboard supplier wallet cards — each supplier keeps its shared admin colour. */
+/**
+ * Compact supplier wallet strip shown at the very top of the dashboard.
+ * Each supplier keeps its shared admin colour; layout stays tight on phones
+ * (2 columns) and spreads out on tablets and desktops.
+ */
 export function SupplierWalletCards() {
   const fetchBalances = useServerFn(checkSupplierBalances);
   const { data } = useQuery({
@@ -17,35 +21,39 @@ export function SupplierWalletCards() {
   const colors = colorIndexesFor(balances.map((b) => b.name));
 
   return (
-    <div className="mt-4">
-      <h2 className="mb-3 text-base font-bold tracking-tight">Supplier API wallets</h2>
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+    <div className="mt-1">
+      <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        Supplier API balances
+      </h2>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {balances.map((b) => {
           const style = supplierBadgeStyle(colors.get(String(b.name ?? "").trim()) ?? 0);
           const low = b.balance != null && b.balance <= 0;
           return (
             <div
               key={b.id}
-              className="rounded-2xl border p-4 lg:p-5"
+              className="min-w-0 rounded-xl border px-3 py-2"
               style={{ borderColor: style.borderColor, backgroundColor: style.backgroundColor }}
             >
-              <div className="flex items-start justify-between gap-2">
-                <p className="min-w-0 truncate text-sm font-semibold" style={{ color: style.color }}>
+              <div className="flex min-w-0 items-center gap-1.5">
+                <Wallet className="size-3 shrink-0" style={{ color: style.color }} />
+                <p className="min-w-0 truncate text-xs font-semibold" style={{ color: style.color }}>
                   {b.name}
                 </p>
-                <Wallet className="size-4 shrink-0" style={{ color: style.color }} />
               </div>
               {b.balance == null ? (
-                <p className="mt-3 line-clamp-2 text-xs text-destructive">{b.error || "Balance unavailable"}</p>
+                <p className="mt-1 truncate text-[11px] text-destructive" title={b.error || "Balance unavailable"}>
+                  {b.error || "Balance unavailable"}
+                </p>
               ) : (
-                <>
-                  <p
-                    className={`mt-3 text-2xl font-extrabold tracking-tight tabular-nums lg:text-3xl ${low ? "text-destructive" : ""}`}
-                  >
-                    {b.balance} <span className="text-sm font-semibold text-muted-foreground">{b.currency}</span>
-                  </p>
-                  {low && <p className="mt-1 text-xs text-destructive">Top up to enable auto delivery</p>}
-                </>
+                <p
+                  className={`mt-0.5 truncate text-base font-extrabold leading-tight tracking-tight tabular-nums ${
+                    low ? "text-destructive" : ""
+                  }`}
+                  title={low ? "Top up to enable auto delivery" : undefined}
+                >
+                  {b.balance} <span className="text-[11px] font-semibold text-muted-foreground">{b.currency}</span>
+                </p>
               )}
             </div>
           );
