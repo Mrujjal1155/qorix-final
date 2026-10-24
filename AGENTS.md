@@ -38,3 +38,4 @@
 - EPS IPNs dispatch to bot or website settlement by stored transaction IDs and always reverify remotely; wallet credit excludes payer fees and uses the requested USD amount. Existing payment sweeps recheck late EPS attempts before expiry.
 - Order timestamps retain stored UTC instants and use a shared explicit display timezone default instead of browser-local or Karachi fallback.
 - Admin in-house retry uses a service-role-only atomic stock/order RPC and reuses saved delivery on subsequent attempts; unpaid/refunded orders cannot claim stock and retry never debits a wallet.
+- Telegram live update channel uses DB triggers into , drained on the existing notify tick; triggers swallow errors so a channel problem never blocks purchases or top-ups.
