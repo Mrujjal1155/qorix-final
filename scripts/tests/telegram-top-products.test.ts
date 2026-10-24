@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { IN_HOUSE_FILTER, countBySupplier, filterCatalogue, parseTopProductIds, selectTopProducts, sortTelegramTopProducts } from "../../src/lib/telegram-top-products";
+import { IN_HOUSE_FILTER, countBySupplier, filterCatalogue, parseTopProductIds, selectTopProducts, sortTelegramTopProducts, telegramFavoritesPage } from "../../src/lib/telegram-top-products";
 
 describe("Admin-selected Telegram top products", () => {
   const products = [{ id: "a", price: 1.2, stock: 4, featured_rank: 0 }, { id: "b", price: 2, stock: 5, featured_rank: 1 }];
@@ -50,6 +50,39 @@ describe("Telegram favorite brand and credit order", () => {
     expect(input.map((p) => p.id)).toEqual(["a", "b"]);
     expect(output[0]?.price).toBe(0.65);
     expect(output[1]?.stock).toBe(1);
+  });
+});
+
+describe("All-products Telegram favorites", () => {
+  test("every available input product appears without requiring saved selections", () => {
+    const products = [{ id: "a", name: "Notion" }, { id: "b", name: "Gemini Pro" }, { id: "c", name: "Lovable 100 Credit" }];
+    expect(telegramFavoritesPage(products, 0, 30).products.map((p) => p.id)).toEqual(["b", "c", "a"]);
+    expect(telegramFavoritesPage(products, 0, 30).total).toBe(3);
+  });
+  test("same-name distinct products stay adjacent without deduplication", () => {
+    const products = [{ id: "a", name: "Supabase Pro 12m FW" }, { id: "b", name: "Notion" }, { id: "c", name: "Supabase Pro 12m FW" }];
+    expect(telegramFavoritesPage(products, 0, 30).products.map((p) => p.id)).toEqual(["a", "c", "b"]);
+  });
+  test("other brands stay together and token amounts ascend within their brand", () => {
+    const names = ["Muse AI 20B Token", "Nord VPN 3M", "Notion Business", "Muse AI Account — 1 Billion Tokens", "NordVpn 3 Months Basic", "Muse AI 5B Token"];
+    expect(sortTelegramTopProducts(names.map((name) => ({ name }))).map((p) => p.name)).toEqual([names[3], names[5], names[0], names[1], names[4], names[2]]);
+  });
+  test("Next and Previous reach all 65 products in 30-row pages without missing or repeating rows", () => {
+    const products = Array.from({ length: 65 }, (_, i) => ({ id: String(i), name: "Gemini Pro" }));
+    const pages = [0, 1, 2].map((page) => telegramFavoritesPage(products, page, 30));
+    expect(pages.map((p) => p.products.length)).toEqual([30, 30, 5]);
+    expect(pages.map((p) => [p.hasPrevious, p.hasNext])).toEqual([[false, true], [true, true], [true, false]]);
+    expect(pages.flatMap((p) => p.products.map((item) => item.id))).toEqual(products.map((p) => p.id));
+    expect(telegramFavoritesPage(products, 1, 30).products[0]?.id).toBe("30");
+    expect(telegramFavoritesPage(products, 99, 30).page).toBe(2);
+  });
+  test("empty favorites have no next page and sorting retains effective prices and stock", () => {
+    expect(telegramFavoritesPage([], 1, 30)).toEqual({ products: [], page: 0, hasPrevious: false, hasNext: false, total: 0 });
+    const input = [{ name: "Lovable 305 Credit", price: 5.8, stock: 23 }, { name: "Gemini Pro", price: 0.65, stock: 75 }];
+    const page = telegramFavoritesPage(input, 0, 30);
+    expect(page.products[0]).toBe(input[1]);
+    expect(page.products[1]?.price).toBe(5.8);
+    expect(page.products[1]?.stock).toBe(23);
   });
 });
 

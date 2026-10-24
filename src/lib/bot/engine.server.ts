@@ -37,7 +37,7 @@ import {
 } from "@/lib/bot/ui.server";
 
 import { renderRich, plainRich } from "@/lib/bot/richtext";
-import { TELEGRAM_TOP_PRODUCTS_KEY, parseTopProductIds, selectTopProducts } from "@/lib/telegram-top-products";
+import { telegramFavoritesPage } from "@/lib/telegram-top-products";
 import {
   credentialItems,
   orderCode,
@@ -1675,7 +1675,7 @@ async function shopView(page: number, chatId?: number) {
     .map((c: any) => ({ ...c, items: productsOfCategory(products, c.id, byCat) }))
     .filter((c: any) => c.items.length > 0);
 
-  if (withProducts.length) {
+  if (products.length) {
     const kb: Button[][] = [];
     const catStyle = btnColor(settings, "category");
     const navStyle = btnColor(settings, "nav");
@@ -1700,13 +1700,10 @@ async function shopView(page: number, chatId?: number) {
       kb.push(row);
     }
 
-    // Read only this admin selection fresh, independently of the general settings cache.
-    const { data: topSetting, error: topError } = await db.from("bot_settings")
-      .select("value").eq("key", TELEGRAM_TOP_PRODUCTS_KEY).maybeSingle();
-    if (topError) throw new Error("Could not load top products");
-    const selected = selectTopProducts(products, parseTopProductIds(topSetting?.value));
-    const topPage = Math.max(0, Math.min(page, Math.max(0, Math.ceil(selected.length / PAGE) - 1)));
-    const topProducts = await applyUserPrices(chatId, selected.slice(topPage * PAGE, (topPage + 1) * PAGE));
+    // Every visible/available product appears, grouped before pagination.
+    const favorites = telegramFavoritesPage(products, page, PAGE);
+    const topPage = favorites.page;
+    const topProducts = await applyUserPrices(chatId, favorites.products);
     const prodStyle = btnColor(settings, "product");
     for (const p of topProducts) {
       kb.push([styled(productIconButton(p,
@@ -1714,8 +1711,8 @@ async function shopView(page: number, chatId?: number) {
         `p:${p.id}`), prodRowStyle(p, prodStyle))]);
     }
     const topNav: Button[] = [];
-    if (topPage > 0) topNav.push(styled(uiBtn(settings, "shop_prev", `shop:${topPage - 1}`), btnColor(settings, "pagination")));
-    if (selected.length > (topPage + 1) * PAGE) topNav.push(styled(uiBtn(settings, "shop_next", `shop:${topPage + 1}`), btnColor(settings, "pagination")));
+    if (favorites.hasPrevious) topNav.push(styled(uiBtn(settings, "shop_prev", `shop:${topPage - 1}`), btnColor(settings, "pagination")));
+    if (favorites.hasNext) topNav.push(styled(uiBtn(settings, "shop_next", `shop:${topPage + 1}`), btnColor(settings, "pagination")));
     if (topNav.length) kb.push(topNav);
 
     const allIc = allProductsIcon(settings);

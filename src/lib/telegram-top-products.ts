@@ -1,4 +1,4 @@
-/** Separate from website featured ranks: only explicit Telegram admin picks appear. */
+/** Legacy admin picks remain stored separately from website featured ranks. */
 export const TELEGRAM_TOP_PRODUCTS_KEY = "telegram_top_product_ids";
 
 export function parseTopProductIds(value: string | null | undefined): string[] {
@@ -20,17 +20,46 @@ function lovableCredits(name: string): number {
   return amount * (unit === "k" ? 1000 : unit === "m" ? 1000000 : 1);
 }
 
-/** Stable presentation order without changing membership, stock or effective prices. */
+function productBrand(name: string): string {
+  const clean = name.toLowerCase().replace(/^\s*(?:link\s*[-–—:]?\s*)/i, "").trim();
+  if (/gemini/.test(clean)) return "gemini";
+  if (/lovable/.test(clean)) return "lovable";
+  if (/^nord\s*vpn/.test(clean)) return "nordvpn";
+  return clean.match(/[a-z]+/)?.[0] ?? clean;
+}
+
+function productQuantity(name: string): number {
+  const credits = lovableCredits(name);
+  if (Number.isFinite(credits)) return credits;
+  const tokens = name.match(/(\d[\d,]*(?:\.\d+)?)\s*(billion|million|[bm])\s*tokens?\b/i);
+  if (!tokens?.[1]) return Number.POSITIVE_INFINITY;
+  return Number(tokens[1].replaceAll(",", "")) * (/^(b|billion)$/i.test(tokens[2] ?? "") ? 1e9 : 1e6);
+}
+
+/** Stable brand groups retain every distinct product and its effective price/stock. */
 export function sortTelegramTopProducts<T extends { name?: string }>(products: T[]): T[] {
-  const group = (p: T) => /gemini/i.test(p.name ?? "") ? 0 : /lovable/i.test(p.name ?? "") ? 1 : 2;
+  const brands = new Map<string, number>([["gemini", 0], ["lovable", 1]]);
+  for (const p of products) {
+    const brand = productBrand(p.name ?? "");
+    if (!brands.has(brand)) brands.set(brand, brands.size);
+  }
+  const group = (p: T) => brands.get(productBrand(p.name ?? "")) ?? brands.size;
   return [...products].sort((a, b) => {
     const difference = group(a) - group(b);
     if (difference) return difference;
-    if (group(a) !== 1) return 0;
-    const left = lovableCredits(a.name ?? "");
-    const right = lovableCredits(b.name ?? "");
+    const left = productQuantity(a.name ?? "");
+    const right = productQuantity(b.name ?? "");
     return left === right ? 0 : left < right ? -1 : 1;
   });
+}
+
+/** All input rows have already passed the bot's visibility and availability checks. */
+export function telegramFavoritesPage<T extends { name?: string }>(products: T[], requestedPage: number, pageSize: number) {
+  const ordered = sortTelegramTopProducts(products);
+  const size = Math.max(1, Math.floor(pageSize));
+  const lastPage = Math.max(0, Math.ceil(ordered.length / size) - 1);
+  const page = Math.max(0, Math.min(Number.isFinite(requestedPage) ? Math.floor(requestedPage) : 0, lastPage));
+  return { products: ordered.slice(page * size, (page + 1) * size), page, hasPrevious: page > 0, hasNext: page < lastPage, total: ordered.length };
 }
 
 /** Input is the bot's already visibility/availability-filtered, user-priced catalogue. */
