@@ -1,6 +1,7 @@
 # Roadmap
 
 - [x] Show every bot-visible available product in paginated favorites, with Gemini first, Lovable ascending credits next, and other brands grouped; retain distinct same-name products and existing prices/categories. Catalogue and stock reads are paginated; 25 focused tests pass and build OK.
+- [x] Give Muse AI its own favorites group right after Lovable and before all other brands, so newly added Gemini Pro stays with the Gemini group first; 20 focused tests pass in the file.
 - [ ] Verify all-products favorites and Next/Previous in the deployed Telegram chat (requires deployment and live Telegram access; no messages or orders sent).
 
 - [x] Reorder all 55 existing Telegram favorites with Gemini first, Lovable next in ascending credit quantity, and other products afterward; database readback and 13 focused tests verify membership, prices and stock are unchanged. Shared sorting keeps future selections grouped on save and display.
