@@ -51,6 +51,9 @@ import { MANUAL_INPUT_PREFIX, parseManualInput, validateManualReply, type Manual
 import { SITE_ORIGIN } from "@/lib/site-url";
 import { backgroundWaitUntil } from "@/lib/bg.server";
 import { binancePaymentAmount, exactBinanceAmount } from "@/lib/binance-payment";
+import { epsWalletCredit } from "@/lib/eps-payment";
+import { orderTimezone } from "@/lib/order-time";
+import { reservedCheckout } from "@/lib/bot/paid-checkout";
 
 
 const db = supabaseAdmin as any;
@@ -2424,6 +2427,11 @@ async function settlePayment(chatId: number, row: any, amount: number, txid: str
 
   const meta = (row.meta ?? {}) as any;
 
+  if (!meta.reseller_id && Array.isArray(meta.items) && meta.items.length) {
+    const res = await fulfillCheckout(chatId, meta, methodKey, txid, row.id, amount);
+    return { message: res.text, keyboard: res.kb };
+  }
+
   await db.from("binance_deposits").update({ status: "credited", tx_id: txid }).eq("id", row.id);
 
   // Reseller wallet top-up — same gateways, different wallet.
@@ -2601,7 +2609,7 @@ function epsView(row: any, settings: Record<string, string>) {
 
 async function creditEpsRow(row: any) {
   const { cfg } = await epsCfg();
-  const { verifyTransaction, isPaid, bdtToUsd } = await import("@/lib/eps.server");
+  const { verifyTransaction, isPaid } = await import("@/lib/eps.server");
   const meta = (row.meta ?? {}) as any;
   const mtid = String(meta.mtid || row.tx_id || "");
   const v = await verifyTransaction(cfg, { merchantTransactionId: mtid, epsTransactionId: meta.eps_tid ?? null });
@@ -2614,7 +2622,7 @@ async function creditEpsRow(row: any) {
     };
   }
   const expectedBdt = Number(meta.bdt ?? 0);
-  if (expectedBdt > 0 && info.amount + 1 < expectedBdt) {
+  if (expectedBdt <= 0 || info.amount < expectedBdt) {
     await notifyAdmins(
       `⚠️ <b>EPS underpayment</b>\nDeposit <code>${row.id}</code>\nExpected ৳${expectedBdt} · paid ৳${info.amount}`,
     );
@@ -2628,8 +2636,7 @@ async function creditEpsRow(row: any) {
   const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: txKey });
   if (usedErr) return { credited: false as const, message: "✅ This payment was already processed." };
 
-  const rate = Number(meta.rate ?? cfg.rate) || cfg.rate;
-  const usd = Math.max(Number(row.amount_usdt), bdtToUsd(info.amount, rate));
+  const usd = epsWalletCredit(Number(row.amount_usdt), info.amount, expectedBdt);
   const r = await settlePayment(
     Number(row.telegram_id),
     row,
@@ -2813,6 +2820,11 @@ export async function settleEpsBotPayment(depId: string | null, mtid?: string | 
       .maybeSingle();
     row = data;
   }
+  if (!row && gatewayTid) {
+    const { data } = await db.from("binance_deposits").select("*").eq("kind", "eps")
+      .eq("meta->>eps_tid", gatewayTid).maybeSingle();
+    row = data;
+  }
   if (!row) return { ok: false as const, reason: "payment not found" };
   if (row.status === "credited") return { ok: true as const, already: true };
   if (gatewayTid && !(row.meta as any)?.eps_tid) {
@@ -2915,6 +2927,8 @@ export async function sweepBinanceDeposits(force = false) {
   if (!force && Date.now() - lastSweep < 45_000) return { skipped: true, settled: 0 };
   lastSweep = Date.now();
 
+  // Verify hosted payments before the expiry pass; also recover late callbacks.
+  await sweepEpsDeposits();
   // Unpaid / underpaid checkouts stop hanging forever.
   await expireAwaitingOrders().catch((e) => console.error("Awaiting order expiry failed:", e));
 
@@ -2923,7 +2937,7 @@ export async function sweepBinanceDeposits(force = false) {
     .from("binance_deposits")
     .select("*")
     .neq("status", "credited")
-    .neq("status", "expired")
+    .in("kind", ["payid", "crypto"])
     .not("tx_id", "is", null)
     .gt("expires_at", nowIso)
     .order("created_at", { ascending: true })
@@ -5761,6 +5775,21 @@ async function coPayView(chatId: number) {
 /** Minutes an unpaid gateway checkout stays open before it is failed automatically. */
 const AWAITING_PAYMENT_MINUTES = 30;
 
+export async function sweepEpsDeposits() {
+  const now = new Date().toISOString();
+  const since = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
+  const { data: rows } = await db.from("binance_deposits").select("*").eq("kind", "eps")
+    .neq("status", "credited").gte("created_at", since)
+    .or(`meta->>next_check_at.is.null,meta->>next_check_at.lt.${now}`)
+    .order("created_at", { ascending: true }).limit(5);
+  for (const row of rows ?? []) {
+    await db.from("binance_deposits").update({ meta: { ...row.meta,
+      next_check_at: new Date(Date.now() + 60_000).toISOString() } }).eq("id", row.id).neq("status", "credited");
+    try { await settleEpsBotPayment(row.id); }
+    catch (error) { console.error("EPS payment recheck interrupted", error); }
+  }
+}
+
 /**
  * Create one "awaiting payment" order per line the moment a gateway link is
  * made, so the buyer always has an order id to quote in support — even when
@@ -5800,28 +5829,9 @@ function awaitingOrderNote(rows: any[]) {
 /** Fail every checkout that stayed unpaid for 30 minutes (admin can still revive it). */
 export async function expireAwaitingOrders() {
   const cutoff = new Date(Date.now() - AWAITING_PAYMENT_MINUTES * 60_000).toISOString();
-  const { data: rows } = await db
-    .from("orders")
-    .select("id,meta")
-    .eq("status", "awaiting_payment")
-    .lt("created_at", cutoff)
-    .limit(200);
-  // Never expire an order whose money was already taken.
-  const data = (rows ?? []).filter((o: any) => !(o.meta ?? {}).paid);
-  if (!data?.length) return 0;
-  await db
-    .from("orders")
-    .update({ status: "cancelled" })
-    .in("id", data.map((o: any) => o.id));
-  const deposits = [...new Set(data.map((o: any) => (o.meta ?? {}).deposit_id).filter(Boolean))];
-  if (deposits.length) {
-    await db
-      .from("binance_deposits")
-      .update({ status: "expired" })
-      .in("id", deposits as string[])
-      .neq("status", "credited");
-  }
-  return data.length;
+  const { data, error } = await db.rpc("expire_bot_checkouts", { _cutoff: cutoff });
+  if (error) throw new Error("Checkout expiry will retry.");
+  return Number(data ?? 0);
 }
 
 /** Create the paid orders, deliver instantly or notify the admin for manual delivery. */
@@ -5831,24 +5841,52 @@ async function fulfillCheckout(
   methodKey: string,
   reference: string,
   depositId?: string | null,
+  verifiedAmount?: number,
 ) {
-  const { lines, discount, total } = await coTotals(meta, chatId);
+  let { lines, discount, total } = await coTotals(meta, chatId);
   let user = await getUser(chatId);
   const awaitingRows: any[] = depositId
     ? ((
         await db
           .from("orders")
-          .select("id,product_id,quantity,total,meta")
+          .select("id,product_id,product_name,quantity,unit_price,total,discount,status,meta")
           .eq("telegram_id", chatId)
-          .eq("status", "awaiting_payment")
+          .in("status", ["awaiting_payment", "cancelled"])
           .contains("meta", { deposit_id: depositId })
       ).data ?? [])
     : [];
 
+  let snapshotBlocked = false;
+  if (depositId && verifiedAmount !== undefined) {
+    const { data: products, error } = await db.from("products").select("*")
+      .in("id", meta.items.map((item) => item.product_id));
+    if (error) throw new Error("Checkout verification will retry.");
+    const snapshot = reservedCheckout(awaitingRows, products ?? [], meta.items);
+    lines = snapshot.lines;
+    total = snapshot.total;
+    discount = snapshot.discount;
+    snapshotBlocked = snapshot.blocked;
+  }
+
   // Final availability check. If anything cannot be delivered we stop before
   // the debit: for gateway payments the money stays in the wallet (usable for
   // any other order), so a buyer can never pay for something undeliverable.
-  const blocked = await checkoutStockIssues(lines);
+  const blocked = snapshotBlocked ? ["• This checkout is currently unavailable."] : await checkoutStockIssues(lines);
+  let prepaid = false;
+  if (depositId && verifiedAmount !== undefined) {
+    const { data: settled, error } = await db.rpc("settle_bot_checkout", {
+      _deposit_id: depositId, _txid: reference, _amount: verifiedAmount,
+      _method: methodKey, _deliverable: !blocked.length,
+    });
+    if (error) throw new Error("Payment settlement will retry.");
+    if (!settled?.changed) return { text: "✅ This payment was already processed. Check My Orders or your wallet.", kb: [] as Button[][] };
+    if (settled.status !== "ready") {
+      user = await getUser(chatId);
+      return { text: `⚠️ This checkout is unavailable.\n✅ Your payment is in your wallet.\nBalance: <b>${money(user?.balance)}</b>`,
+        kb: [[uiBtn(await getSettings(), "com_wallet", "wallet")]] as Button[][] };
+    }
+    prepaid = true;
+  }
   if (blocked.length) {
     if (awaitingRows.length) {
       const now = new Date().toISOString();
@@ -5898,7 +5936,9 @@ async function fulfillCheckout(
   // Charge the order total atomically. The DB refuses the debit when the
   // balance is too low, so double-tapping / racing callbacks can never get
   // two deliveries out of one payment.
-  const { data: charged, error: chargeError } = await db.rpc("bot_user_debit", {
+  const { data: charged, error: chargeError } = prepaid
+    ? { data: await getUser(chatId), error: null }
+    : await db.rpc("bot_user_debit", {
     _telegram_id: chatId,
     _amount: Math.round(total * 100) / 100,
     _method: methodKey,
@@ -5915,7 +5955,7 @@ async function fulfillCheckout(
   await writeCo(chatId, null);
   // The money is now taken. Mark every reserved row as paid straight away so a
   // delivery problem later can never let the 30-minute expiry call it "unpaid".
-  if (awaitingRows.length) {
+  if (awaitingRows.length && !prepaid) {
     for (const row of awaitingRows) {
       const { data: cur } = await db.from("orders").select("meta").eq("id", row.id).maybeSingle();
       await db
@@ -6159,7 +6199,7 @@ const ORDER_TEXT_LIMIT = 3200;
 
 function orderTimeText(iso: string | null | undefined, settings: Record<string, string>) {
   if (!iso) return "-";
-  const tz = (settings["order_timezone"] || "Asia/Karachi").trim();
+  const tz = orderTimezone(settings["order_timezone"]);
   try {
     return new Intl.DateTimeFormat("en-US", {
       timeZone: tz,
