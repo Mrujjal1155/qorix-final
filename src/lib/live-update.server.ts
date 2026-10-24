@@ -1,5 +1,5 @@
 // Drains live_update_events into the configured public channel.
-import { buildLivePost, LIVE_EMOJI_SLOTS, type LiveKind } from "@/lib/live-update";
+import { buildLivePost, LIVE_EMOJI_SLOTS, livePostKeyboard, type LiveKind } from "@/lib/live-update";
 
 const KIND_KEY: Record<LiveKind, string> = {
   purchase: "live_purchase",

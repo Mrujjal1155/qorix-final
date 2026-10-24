@@ -83,3 +83,19 @@ export function buildLivePost(
   );
   return lines.join("\n");
 }
+
+/** Minimal inline button shape shared with the Telegram keyboard type. */
+export type LiveButton = { text: string; url: string };
+
+/**
+ * Purchase posts get one tappable Buy Now button that opens the bot;
+ * top-up and member posts stay plain. No username → no button.
+ */
+export function livePostKeyboard(
+  kind: LiveKind,
+  botUsername: string | undefined | null,
+): LiveButton[][] | undefined {
+  const bot = String(botUsername ?? "").replace(/^@/, "").trim();
+  if (kind !== "purchase" || !bot) return undefined;
+  return [[{ text: "🛒 Buy Now", url: `https://t.me/${bot}` }]];
+}
