@@ -129,29 +129,10 @@ export async function autoDeliver(order: any) {
     }
 
     if (product.delivery_type === "auto") {
-      const { data: items } = await db.rpc("claim_stock_items", {
-        _product_id: product.id,
-        _qty: Number(order.quantity ?? 1),
-        _sold_to: 0,
-      });
-      const claimed = (items ?? []) as any[];
-      if (claimed.length >= Number(order.quantity ?? 1)) {
-        const { data: done } = await db
-          .from("orders")
-          .update({ status: "completed", delivered_content: claimed.map((i) => String(i.content)).join("\n---\n") })
-          .eq("id", order.id)
-          .neq("status", "completed")
-          .select("id");
-        if (done?.length) {
-          const { announceOrderSale } = await import("@/lib/bot/engine.server");
-          await announceOrderSale(order.id);
-        }
-      } else if (claimed.length) {
-        await db
-          .from("stock_items")
-          .update({ is_sold: false, sold_to: null, sold_at: null })
-          .in("id", claimed.map((i: any) => i.id));
-      }
+      // Gateway delivery and admin Retry must lock the same order atomically.
+      const { retryInhouseDelivery } = await import("@/lib/inhouse-retry.server");
+      const result = await retryInhouseDelivery(String(order.id));
+      if (!result.ok) console.error(`[eps] in-house delivery pending for #${order.order_no}`);
     }
   } catch (e) {
     console.error("[eps] auto delivery failed:", e);
