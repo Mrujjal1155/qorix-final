@@ -50,3 +50,26 @@ export function hasCustomEmojiToken(value: string | null | undefined) {
   CE_TOKEN.lastIndex = 0;
   return CE_TOKEN.test(String(value ?? ""));
 }
+
+/**
+ * Admin Telegram message → stored rich text. Premium custom emoji entities
+ * become `{ce:<id>:<glyph>}` tokens so renderRich/plainRich show them everywhere.
+ */
+export function messageToRich(text: string, entities: Array<{ type?: string; offset?: number; length?: number; custom_emoji_id?: string }> = []): string {
+  const raw = String(text ?? "");
+  const list = entities
+    .filter((e) => e?.type === "custom_emoji" && /^\d{5,25}$/.test(String(e.custom_emoji_id ?? "")))
+    .sort((a, b) => Number(a.offset) - Number(b.offset));
+  let out = "";
+  let pos = 0;
+  for (const e of list) {
+    const offset = Number(e.offset ?? 0);
+    const length = Number(e.length ?? 0);
+    if (offset < pos) continue;
+    out += raw.slice(pos, offset);
+    const glyph = raw.slice(offset, offset + length).replace(/[{}:]/g, "");
+    out += `{ce:${e.custom_emoji_id}:${glyph}}`;
+    pos = offset + length;
+  }
+  return (out + raw.slice(pos)).trim();
+}

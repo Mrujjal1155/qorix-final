@@ -36,7 +36,7 @@ import {
   type UiKey,
 } from "@/lib/bot/ui.server";
 
-import { renderRich, plainRich } from "@/lib/bot/richtext";
+import { renderRich, plainRich, messageToRich } from "@/lib/bot/richtext";
 import { telegramFavoritesPage } from "@/lib/telegram-top-products";
 import { availableCatalogue, categoryCatalogue, isOutOfStock, stockRowStyle, telegramCategories } from "@/lib/bot/catalogue";
 import {
@@ -3698,6 +3698,10 @@ async function handleMessage(msg: any) {
     await handleApiState(chatId, String(state.awaiting), text, state);
     return;
   }
+  if (state.awaiting === "adm_pe_search" || state.awaiting === "adm_pe_field") {
+    await handleProductEditState(chatId, msg, text, state);
+    return;
+  }
   if (state.awaiting === "adm_live_emoji") {
     await handleLiveEmojiState(chatId, msg, text, state);
     return;
@@ -4617,6 +4621,7 @@ export function adminKeyboard(): Button[][] {
       { text: "🗂 Category icons", callback_data: "adm:caticons" },
     ],
     [{ text: "📡 Live Update Emojis", callback_data: "adm:liveemo" }],
+    [{ text: "📝 Active Products", callback_data: "adm:pe:l:0" }],
     [{ text: "🎨 Button colors", callback_data: "adm:bcolors" }],
 
 
@@ -6558,6 +6563,11 @@ async function handleCallback(cq: any) {
     return;
   }
 
+  if (data.startsWith("adm:pe:")) {
+    await handleProductEditCallback(chatId, data, user.state ?? {}, edit);
+    return;
+  }
+
   if (data === "adm:liveemo" || data.startsWith("adm:le:")) {
     await handleLiveEmojiCallback(chatId, data, user.state ?? {}, edit);
     return;
@@ -8424,5 +8434,127 @@ export async function handleLiveEmojiState(chatId: number, msg: any, text: strin
   }
   const v = await admLiveEmojiView();
   await say(chatId, `✅ ${slot.label} ${reset ? "reset" : "updated"}.\n\n${v.text}`, v.kb);
+  return true;
+}
+
+
+/* ---------- Admin: edit product texts (description / note / guide) with Premium emoji ---------- */
+
+const PE_FIELDS = {
+  d: { col: "description", label: "Description" },
+  i: { col: "important_note", label: "Important Note" },
+  g: { col: "quick_guide", label: "Quick Guide" },
+} as const;
+type PeField = keyof typeof PE_FIELDS;
+const PE_PAGE = 10;
+const PE_BACK: Button = { text: "⬅️ Active Products", callback_data: "adm:pe:l:0" };
+
+async function admProductListView(page: number, query = "") {
+  let q = db
+    .from("products")
+    .select("id,name", { count: "exact" })
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("name", { ascending: true });
+  if (query) q = q.ilike("name", `%${query.replace(/[%_\\]/g, (c: string) => `\\${c}`)}%`);
+  const { data, count } = await q.range(page * PE_PAGE, page * PE_PAGE + PE_PAGE - 1);
+  const rows = (data ?? []) as Array<{ id: string; name: string }>;
+  const total = Number(count ?? 0);
+  const kb: Button[][] = rows.map((r) => [{ text: String(r.name).slice(0, 60), callback_data: `adm:pe:p:${r.id}` }]);
+  const nav: Button[] = [];
+  if (!query && page > 0) nav.push({ text: "⬅️ Prev", callback_data: `adm:pe:l:${page - 1}` });
+  if (!query && (page + 1) * PE_PAGE < total) nav.push({ text: "Next ➡️", callback_data: `adm:pe:l:${page + 1}` });
+  if (nav.length) kb.push(nav);
+  kb.push([{ text: "🔍 Search", callback_data: "adm:pe:s" }]);
+  if (query) kb.push([PE_BACK]);
+  kb.push(ADM_BACK[0]!);
+  const pages = Math.max(1, Math.ceil(total / PE_PAGE));
+  const head = query
+    ? `🔍 <b>Search:</b> ${escapeHtml(query)} — ${total} found`
+    : `📝 <b>Active Products</b> — ${total} total (page ${page + 1}/${pages})`;
+  return { text: `${head}\n\nPick a product to edit its description, note or guide.${rows.length ? "" : "\n\nNo products found."}`, kb };
+}
+
+async function admProductDetailView(id: string) {
+  const { data: p } = await db
+    .from("products")
+    .select("id,name,description,important_note,quick_guide,manual_note")
+    .eq("id", id)
+    .maybeSingle();
+  if (!p) return { text: "Product not found.", kb: [[PE_BACK], ADM_BACK[0]!] as Button[][] };
+  const sec = (label: string, v: string | null) => `<b>${label}</b>\n${renderRich(v) || "<i>(empty)</i>"}`;
+  let text = `📦 <b>${escapeHtml(String(p.name))}</b>\n\n${sec("📝 Description", p.description)}\n\n${sec(
+    "⚠️ Important Note",
+    p.important_note,
+  )}\n\n${sec("📘 Quick Guide", p.quick_guide)}`;
+  if (text.length > 3800) text = text.slice(0, 3800) + "…";
+  const kb: Button[][] = [
+    [{ text: "✏️ Edit Description", callback_data: `adm:pe:f:d:${id}` }],
+    [{ text: "✏️ Edit Important Note", callback_data: `adm:pe:f:i:${id}` }],
+    [{ text: "✏️ Edit Quick Guide", callback_data: `adm:pe:f:g:${id}` }],
+    [PE_BACK],
+    ADM_BACK[0]!,
+  ];
+  return { text, kb };
+}
+
+export async function handleProductEditCallback(
+  chatId: number,
+  data: string,
+  state: any,
+  edit: (text: string, kb?: Button[][]) => Promise<void>,
+): Promise<boolean> {
+  if (!(await isAdmin(chatId))) return true;
+  const parts = data.split(":");
+  const op = parts[2];
+  if (op === "l") {
+    const v = await admProductListView(Math.max(0, Number(parts[3]) || 0));
+    await edit(v.text, v.kb);
+  } else if (op === "s") {
+    await setState(chatId, { ...(state ?? {}), awaiting: "adm_pe_search" });
+    await edit("🔍 Send part of the product name to search.", [[PE_BACK], ADM_BACK[0]!]);
+  } else if (op === "p") {
+    const v = await admProductDetailView(String(parts[3] ?? ""));
+    await edit(v.text, v.kb);
+  } else if (op === "f") {
+    const field = parts[3] as PeField;
+    const id = String(parts[4] ?? "");
+    if (!(field in PE_FIELDS) || !id) return true;
+    await setState(chatId, { ...(state ?? {}), awaiting: "adm_pe_field", adm_pe_field: field, adm_pe_id: id });
+    await edit(
+      `✏️ Send the new <b>${PE_FIELDS[field].label}</b>.\n\nNormal text and Telegram Premium emoji both work. Send <code>-</code> to clear it.`,
+      [[{ text: "⬅️ Back to product", callback_data: `adm:pe:p:${id}` }], ADM_BACK[0]!],
+    );
+  }
+  return true;
+}
+
+export async function handleProductEditState(chatId: number, msg: any, text: string, state: any): Promise<boolean> {
+  const mode = state?.awaiting;
+  if (mode !== "adm_pe_search" && mode !== "adm_pe_field") return false;
+  state.awaiting = null;
+  await setState(chatId, state);
+  if (!(await isAdmin(chatId))) return true;
+  if (mode === "adm_pe_search") {
+    const v = await admProductListView(0, String(text ?? "").trim().slice(0, 60));
+    await say(chatId, v.text, v.kb);
+    return true;
+  }
+  const field = String(state.adm_pe_field ?? "") as PeField;
+  const id = String(state.adm_pe_id ?? "");
+  if (!(field in PE_FIELDS) || !id) return true;
+  const rawText = String(msg?.text ?? msg?.caption ?? text ?? "");
+  const value = rawText.trim() === "-" ? null : messageToRich(rawText, [...(msg?.entities ?? []), ...(msg?.caption_entities ?? [])]);
+  if (value !== null && !value) {
+    await say(chatId, "⚠️ Please send some text (or <code>-</code> to clear).", [[{ text: "⬅️ Back to product", callback_data: `adm:pe:p:${id}` }]]);
+    return true;
+  }
+  const { error } = await db.from("products").update({ [PE_FIELDS[field].col]: value }).eq("id", id);
+  if (error) {
+    await say(chatId, saveFailText(error), [[{ text: "⬅️ Back to product", callback_data: `adm:pe:p:${id}` }]]);
+    return true;
+  }
+  const v = await admProductDetailView(id);
+  await say(chatId, `✅ ${PE_FIELDS[field].label} saved.\n\n${v.text}`.slice(0, 4000), v.kb);
   return true;
 }
