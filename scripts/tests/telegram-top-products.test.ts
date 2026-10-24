@@ -67,6 +67,10 @@ describe("All-products Telegram favorites", () => {
     const names = ["Muse AI 20B Token", "Nord VPN 3M", "Notion Business", "Muse AI Account — 1 Billion Tokens", "NordVpn 3 Months Basic", "Muse AI 5B Token"];
     expect(sortTelegramTopProducts(names.map((name) => ({ name }))).map((p) => p.name)).toEqual([names[3], names[5], names[0], names[1], names[4], names[2]]);
   });
+  test("Muse AI stays its own group right after Lovable and before all other brands", () => {
+    const names = ["YouTube Premium 3M", "Muse AI 5B Token", "Lovable 100 Credit", "Notion", "Muse AI 2B Token"];
+    expect(sortTelegramTopProducts(names.map((name) => ({ name }))).map((p) => p.name)).toEqual(["Lovable 100 Credit", "Muse AI 2B Token", "Muse AI 5B Token", "Notion", "YouTube Premium 3M"]);
+  });
   test("Next and Previous reach all 65 products in 30-row pages without missing or repeating rows", () => {
     const products = Array.from({ length: 65 }, (_, i) => ({ id: String(i), name: "Gemini Pro" }));
     const pages = [0, 1, 2].map((page) => telegramFavoritesPage(products, page, 30));
