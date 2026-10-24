@@ -9,6 +9,7 @@
 import { createHash } from "crypto";
 import { getMe, getWebhookInfo, setWebhook, setMyCommands } from "@/lib/telegram.server";
 import { PRODUCTION_SITE_URL, canonicalOrigin } from "@/lib/site-url";
+import { TELEGRAM_UPDATES } from "@/lib/bot/contact";
 
 function botKey() {
   return process.env["TELEGRAM_BOT_TOKEN"] || process.env["TELEGRAM_API_KEY"];
@@ -52,7 +53,9 @@ export async function ensureWebhook(origin?: string, force = false): Promise<Ens
     pendingUpdates: Number(info.result?.pending_update_count ?? 0),
     lastError: (info.result?.last_error_message as string | undefined) ?? null,
   };
-  if (!force && current === url && !info.result?.last_error_message) {
+  const allowed = info.result?.allowed_updates;
+  const subscribed = Array.isArray(allowed) && TELEGRAM_UPDATES.every((kind) => allowed.includes(kind));
+  if (!force && current === url && !info.result?.last_error_message && subscribed) {
     return { ok: true, registered: false, url, current, ...diagnostic };
   }
 

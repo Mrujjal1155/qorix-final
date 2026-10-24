@@ -2,7 +2,9 @@
 // Uses the Lovable connector gateway when TELEGRAM_API_KEY is configured,
 // otherwise falls back to a direct bot token (TELEGRAM_BOT_TOKEN).
 
-export type TgResult = { ok: boolean; result?: any; description?: string };
+import { deliveryContact, TELEGRAM_UPDATES } from "@/lib/bot/contact";
+
+export type TgResult = { ok: boolean; result?: any; description?: string; error_code?: number };
 
 /**
  * True when Telegram rejected a message that contained a Premium custom emoji
@@ -17,6 +19,7 @@ export function isCustomEmojiBlocked() {
 
 
 export async function tg(method: string, body: Record<string, unknown> = {}, options: { alert?: boolean } = {}): Promise<TgResult> {
+  const attemptedAt = new Date().toISOString();
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const connKey = process.env["TELEGRAM_API_KEY"];
   const lovableKey = process.env["LOVABLE_API_KEY"];
@@ -116,6 +119,16 @@ export async function tg(method: string, body: Record<string, unknown> = {}, opt
 
   if (!res.ok || json.ok === false) {
     console.error(`Telegram ${method} failed [${res.status}]:`, JSON.stringify(json));
+  }
+  const evidence = deliveryContact(method, body, json);
+  if (evidence) {
+    try {
+      const { recordContact } = await import("@/lib/bot/contact.server");
+      await recordContact(evidence.id, evidence.status, attemptedAt);
+    } catch {
+      // Tracking must never fail an actual delivery or change its retry result.
+      console.error("Telegram contact tracking failed");
+    }
   }
   return json;
 }
@@ -412,7 +425,7 @@ export function setWebhook(url: string, secret_token: string) {
   return tg("setWebhook", {
     url,
     secret_token,
-    allowed_updates: ["message", "edited_message", "callback_query"],
+    allowed_updates: TELEGRAM_UPDATES,
   });
 }
 

@@ -1,5 +1,9 @@
 # Roadmap
 
+- [x] Correct global Telegram user statistics and paginate all users; track confirmed block/unblock, stopped and deactivated states separately from admin bans, with unknown historical states preserved. Database confirms 1,708 members and $248.67 total wallet; RLS stays enabled and contact writes are service-role-only.
+- [x] Verify all 1,708 rows across pages, conservative evidence classification, actual mocked sender persistence and existing delivery/catalogue/live/product-list paths: 16 tests pass; build OK, no real messages sent.
+- [ ] Verify signed-in Users totals/status display and live Telegram transitions after deployment (blocked by external unmanaged account access and live bot interaction; current browser shows sign-in).
+
 - [x] Generate sequential product-list batches and send only the previewed batch; 8 focused tests pass (40 then 30 of 70, larger catalogues, group/user delivery, oversized rejection), build OK; no real messages sent.
 - [ ] Confirm sequential generation and premium emoji rendering in signed-in admin/live Telegram (blocked by external unmanaged authentication and an approved live broadcast).
 

@@ -1,5 +1,7 @@
 // Server-only Telegram shop bot engine.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { membershipContact } from "@/lib/bot/contact";
+import { recordContact } from "@/lib/bot/contact.server";
 import {
   answerCallback,
   deleteMessage,
@@ -3515,6 +3517,11 @@ export async function announceProductRemoved(product: any) {
 /* ------------------------------------------------------------- dispatchers */
 
 export async function handleUpdate(update: any) {
+  if (update.my_chat_member) {
+    const evidence = membershipContact(update);
+    if (evidence) await recordContact(evidence.id, evidence.status, evidence.at);
+    return;
+  }
   // Warm the settings cache while the rest of the handler starts.
   void getSettings();
   // Payment sweep + all bookkeeping run after the user already got a reply.
@@ -3556,6 +3563,7 @@ async function handleMessage(msg: any) {
   // Load the user and settings together so the first reply is not delayed.
   const [user] = await Promise.all([upsertUser(msg.from, payload), getSettings()]);
   if (!user) return;
+  defer(() => recordContact(chatId, "reachable", new Date(Number(msg.date ?? Date.now() / 1000) * 1000).toISOString()).catch(() => {}));
   if (user.is_banned) {
     await sendMessage(chatId, "🚫 Your account has been banned.");
     return;

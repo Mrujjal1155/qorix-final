@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { MANUAL_NOTE_PREFIX, parseStock, type StockFormat } from "@/lib/stock-format";
+import { botUserRequest } from "@/lib/bot-users";
 
 async function assertAdmin(context: any) {
   const { data } = await context.supabase.rpc("has_role", {
@@ -1316,22 +1317,21 @@ export const decidePayment = createServerFn({ method: "POST" })
 
 export const listBotUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { search?: string; balance?: string }) => d ?? {})
+  .inputValidator((d: unknown) => botUserRequest.parse(d ?? {}))
   .handler(async ({ data, context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
-    let q = sb.from("bot_users").select("*");
-    if (data?.balance === "with") q = q.gt("balance", 0).order("balance", { ascending: false });
-    else if (data?.balance === "without") q = q.lte("balance", 0).order("created_at", { ascending: false });
-    else q = q.order("created_at", { ascending: false });
-    q = q.limit(data?.balance === "with" ? 1000 : 200);
-    if (data?.search) {
-      const s = data.search.replace(/[%,]/g, "");
-      q = /^\d+$/.test(s) ? q.eq("telegram_id", Number(s)) : q.ilike("username", `%${s}%`);
-    }
-    const { data: rows, error } = await q;
-    if (error) throw new Error(error.message);
-    return rows ?? [];
+    const { readBotUserPage } = await import("@/lib/bot-users.server");
+    return readBotUserPage(sb, data);
+  });
+
+export const getBotUserStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { data, error } = await context.supabase.rpc("admin_bot_user_stats");
+    if (error) throw new Error("Could not load bot user statistics");
+    return data;
   });
 
 export const getBotUserHistory = createServerFn({ method: "GET" })
@@ -1412,6 +1412,7 @@ export const messageUser = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { sendMessage } = await import("@/lib/telegram.server");
     const res = await sendMessage(data.telegram_id, data.text);
+    if (!res.ok) throw new Error(res.description ?? "Telegram could not deliver the message");
     return { ok: res.ok };
   });
 
