@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { IN_HOUSE_FILTER, countBySupplier, filterCatalogue, parseTopProductIds, selectTopProducts } from "../../src/lib/telegram-top-products";
+import { IN_HOUSE_FILTER, countBySupplier, filterCatalogue, parseTopProductIds, selectTopProducts, sortTelegramTopProducts } from "../../src/lib/telegram-top-products";
 
 describe("Admin-selected Telegram top products", () => {
   const products = [{ id: "a", price: 1.2, stock: 4, featured_rank: 0 }, { id: "b", price: 2, stock: 5, featured_rank: 1 }];
@@ -21,6 +21,35 @@ describe("Admin-selected Telegram top products", () => {
     expect(parseTopProductIds("[]")).toEqual([]);
     expect(parseTopProductIds("invalid")).toEqual([]);
     expect(parseTopProductIds('["a","a",7]')).toEqual(["a"]);
+  });
+});
+
+describe("Telegram favorite brand and credit order", () => {
+  test("all selected Gemini including new additions precede Lovable and other products", () => {
+    const products = [{ id: "other", name: "Notion" }, { id: "lovable", name: "Lovable 100 Credit" }, { id: "gemini", name: "Gemini Pro 3 Months" }, { id: "new", name: " Gemini AI Pro 18m NEW" }];
+    expect(selectTopProducts(products, ["other", "lovable", "gemini", "new"]).map((p) => p.id)).toEqual(["gemini", "new", "lovable", "other"]);
+    expect(selectTopProducts(products, ["other", "lovable"]).map((p) => p.id)).toEqual(["lovable", "other"]);
+  });
+  test("Lovable credits are ordered 100, 300, 305, 2k, 5k, 10k, 20k, not by duration or price", () => {
+    const names = ["Lovable 20k Credits 7 DW", "Lovable Pro 10k Credits(NW)", "Lovable 5k Credits 7DW", "Lovable 2k Credits 7 DW", "Lovable PRO Lite 305 Credit 12M", "Lovable Pro Lite 12 months + 300 credits", "Lovable PRO 1M 100 Credit NW"];
+    expect(sortTelegramTopProducts(names.map((name, i) => ({ name, price: i }))).map((p) => p.name)).toEqual([...names].reverse());
+  });
+  test("comma-separated and attached credit quantities sort numerically", () => {
+    expect(sortTelegramTopProducts([{ name: "Lovable10k Credits" }, { name: "Lovable 1,000 Credits" }, { name: "Lovable 500 Credits" }]).map((p) => p.name)).toEqual(["Lovable 500 Credits", "Lovable 1,000 Credits", "Lovable10k Credits"]);
+  });
+  test("unknown quantities stay together after known Lovable credits, with stable equal ordering", () => {
+    const names = ["Lovable Lite 12m(LINK)", "Notion", "Lovable 100 Credit NW", "Lovable PRO 1M 100 Credit", "Lovable Pro 30 Days", "Outlook"];
+    expect(sortTelegramTopProducts(names.map((name) => ({ name }))).map((p) => p.name)).toEqual([names[2], names[3], names[0], names[4], names[1], names[5]]);
+  });
+  test("sorting preserves objects, selections, prices, stock and original input order", () => {
+    const input = [{ id: "a", name: "Lovable 20k Credits", price: 80, stock: 1 }, { id: "b", name: "Gemini Pro", price: 0.65, stock: 75 }];
+    const output = selectTopProducts(input, ["a", "b", "a", "missing"]);
+    expect(output).toHaveLength(2);
+    expect(output[0]).toBe(input[1]);
+    expect(output[1]).toBe(input[0]);
+    expect(input.map((p) => p.id)).toEqual(["a", "b"]);
+    expect(output[0]?.price).toBe(0.65);
+    expect(output[1]?.stock).toBe(1);
   });
 });
 
