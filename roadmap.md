@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Hide completed in-house Retry and allow it only for paid pending or blocked/failed automatic deliveries; verify focused eligibility tests and existing retry regressions.
+- [x] Hide completed in-house Retry and allow it only for paid pending or blocked/failed automatic deliveries; 10 focused eligibility/retry tests pass and build OK. Signed-in order UI verification is blocked by external unmanaged account access (browser shows Sign in).
 
 - [x] Correct global Telegram user statistics and paginate all users; track confirmed block/unblock, stopped and deactivated states separately from admin bans, with unknown historical states preserved. Database confirms 1,708 members and $248.67 total wallet; RLS stays enabled and contact writes are service-role-only.
 - [x] Verify all 1,708 rows across pages, conservative evidence classification, actual mocked sender persistence and existing delivery/catalogue/live/product-list paths: 16 tests pass; build OK, no real messages sent.
