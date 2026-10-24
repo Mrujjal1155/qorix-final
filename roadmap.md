@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Show all active Telegram categories even without stock; show active sold-out products in red only inside categories, keeping favorites and All Products available-only; verify focused rules and bot rendering without orders.
+
 - [ ] Verify a new real EPS bot checkout: record starting wallet balance, match the verified EPS payment to its original order, confirm stock delivery and no net extra wallet charge (requires the user's real payment and Telegram receipt; do not simulate success or repair historical orders).
 
 - [x] Show every bot-visible available product in paginated favorites, with Gemini first, Lovable ascending credits next, and other brands grouped; retain distinct same-name products and existing prices/categories. Catalogue and stock reads are paginated; 25 focused tests pass and build OK.

@@ -38,6 +38,7 @@ import {
 
 import { renderRich, plainRich } from "@/lib/bot/richtext";
 import { telegramFavoritesPage } from "@/lib/telegram-top-products";
+import { availableCatalogue, categoryCatalogue, isOutOfStock, stockRowStyle, telegramCategories } from "@/lib/bot/catalogue";
 import {
   credentialItems,
   orderCode,
@@ -365,13 +366,8 @@ function productIconButton(product: any, text: string, callback_data: string): B
   };
 }
 
-/** A product with zero stock (auto delivery) renders as a red row until restocked. */
-function isOutOfStock(p: any): boolean {
-  return !(p.delivery_type === "manual" && !p.manual_stock_limited) && Number(p.stock ?? 0) <= 0;
-}
-
 function prodRowStyle(p: any, base: ButtonStyle): ButtonStyle {
-  return isOutOfStock(p) ? "danger" : base;
+  return stockRowStyle(p, base);
 }
 
 
@@ -1570,7 +1566,7 @@ async function menuProducts(): Promise<any[]> {
   return rows;
 }
 
-async function productsWithStock() {
+async function productsWithStock(includeOutOfStock = false) {
   const [products, counts] = await Promise.all([menuProducts(), menuStockCounts()]);
   // Safety net: a switched-off product must never reach the bot menu.
   const { guardVisibleProducts } = await import("@/lib/suppliers/visibility-guard.server");
@@ -1581,7 +1577,7 @@ async function productsWithStock() {
     }))
     // Out-of-stock products stay hidden until restocked (unlimited manual items
     // always show); pre-order products stay visible so buyers can queue.
-    .filter((p: any) => !isOutOfStock(p) || p.preorder_enabled === true);
+    .filter((p: any) => includeOutOfStock || !isOutOfStock(p) || p.preorder_enabled === true);
   // Admin-pinned products (featured_rank 1,2,3…) always come first, in that
   // exact serial; everything else keeps the normal sort_order.
   return rows.sort((a: any, b: any) => {
@@ -1608,14 +1604,13 @@ async function categoryLinks() {
   ]);
   const byCat: Record<string, Set<string>> = {};
   for (const l of links ?? []) (byCat[l.category_id] ??= new Set()).add(l.product_id);
-  const categories = (cats ?? []).filter((c: any) => (c.channel ?? "both") !== "website");
+  const categories = telegramCategories(cats ?? []);
   if (cats) categoryLinksCache = { at: Date.now(), value: { categories, byCat } };
   return { categories, byCat };
 }
 
 function productsOfCategory(products: any[], catId: string, byCat: Record<string, Set<string>>) {
-  const set = byCat[catId];
-  return products.filter((p: any) => (set && set.has(p.id)) || p.category_id === catId);
+  return categoryCatalogue(products, catId, byCat);
 }
 
 /** Category icon (Premium custom emoji id lives in bot_settings, glyph on the row). */
@@ -1683,23 +1678,20 @@ function categoryButton(settings: Record<string, string>, cat: any, text: string
 /** Category picker — blue category buttons, green navigation buttons. */
 async function shopView(page: number, chatId?: number) {
   const settings = await getSettings();
-  const products = await productsWithStock();
+  const products = availableCatalogue(await productsWithStock());
   const inStock = products.length;
   const flash = products.filter(isFlash);
-  const { categories, byCat } = await categoryLinks();
-  const withProducts = categories
-    .map((c: any) => ({ ...c, items: productsOfCategory(products, c.id, byCat) }))
-    .filter((c: any) => c.items.length > 0);
+  const { categories } = await categoryLinks();
 
-  if (products.length) {
+  if (categories.length || products.length) {
     const kb: Button[][] = [];
     const catStyle = btnColor(settings, "category");
     const navStyle = btnColor(settings, "nav");
     if (flash.length)
       kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), btnColor(settings, "product"))]);
-    for (let i = 0; i < withProducts.length; i += 3) {
+    for (let i = 0; i < categories.length; i += 3) {
       const row: Button[] = [];
-      for (const c of withProducts.slice(i, i + 3)) {
+      for (const c of categories.slice(i, i + 3)) {
         const ic = catIcon(settings, c);
         row.push(
           styled(
@@ -1772,7 +1764,8 @@ async function applyUserPrices<T extends any>(chatId: number | undefined, produc
 
 async function allProductsView(page: number, catId: "all" | string = "all", chatId?: number) {
   const settings = await getSettings();
-  const all = await applyUserPrices(chatId, await productsWithStock());
+  const catalogue = await productsWithStock(catId !== "all");
+  const all = await applyUserPrices(chatId, catId === "all" ? availableCatalogue(catalogue) : catalogue);
   let title = "P R O D U C T S";
   let products = all;
   let hasCategories = false;
@@ -1780,7 +1773,7 @@ async function allProductsView(page: number, catId: "all" | string = "all", chat
   if (catId !== "all") {
     const { categories, byCat } = await categoryLinks();
     const cat = categories.find((c: any) => c.id === catId);
-    products = productsOfCategory(all, catId, byCat);
+    products = cat ? productsOfCategory(all, catId, byCat) : [];
     if (cat) {
       const ic = catIcon(settings, cat);
       const iconHtml = ic.customId
@@ -1792,11 +1785,11 @@ async function allProductsView(page: number, catId: "all" | string = "all", chat
 
     hasCategories = true;
   } else {
-    const { categories, byCat } = await categoryLinks();
-    hasCategories = categories.some((c: any) => productsOfCategory(all, c.id, byCat).length > 0);
+    const { categories } = await categoryLinks();
+    hasCategories = categories.length > 0;
   }
   const back = catId === "all" ? "cat:all" : `cat:${catId}`;
-  const inStock = products.length;
+  const inStock = availableCatalogue(products).length;
   const flash = products.filter(isFlash);
   const slice = products.slice(page * PAGE, page * PAGE + PAGE);
   const kb: Button[][] = [];
