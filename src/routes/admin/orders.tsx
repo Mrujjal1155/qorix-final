@@ -16,6 +16,7 @@ import {
 import { AdminShell, money } from "@/components/AdminShell";
 import { orderCode, normalizeOrderQuery } from "@/lib/order-code";
 import { DEFAULT_ORDER_TIMEZONE } from "@/lib/order-time";
+import { canRetryInhouseOrder } from "@/lib/order-retry";
 import { resellerBadgeStyle, supplierBadgeStyle } from "@/lib/supplier-colors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -262,16 +263,12 @@ function OrdersPage() {
             >
               Deliver now
             </Button>
-            <Button size="sm" variant="ghost" disabled={retrying === o.id || (!o.supplier_name && (!paymentInfo(o).paid || paymentInfo(o).refunded))} onClick={() => runRetry(o.id)}>
-              {retrying === o.id ? "Retrying…" : o.supplier_name ? "Retry API" : "Retry"}
-            </Button>
+            {(o.supplier_name || canRetryInhouseOrder(o, paymentInfo(o))) && (
+              <Button size="sm" variant="ghost" disabled={retrying === o.id} onClick={() => runRetry(o.id)}>
+                {retrying === o.id ? "Retrying…" : o.supplier_name ? "Retry API" : "Retry"}
+              </Button>
+            )}
           </>
-        )}
-
-        {o.status === "completed" && !o.supplier_name && o.delivery_type === "auto" && !paymentInfo(o).refunded && (
-          <Button size="sm" variant="ghost" disabled={retrying === o.id} onClick={() => runRetry(o.id)}>
-            {retrying === o.id ? "Retrying…" : "Retry"}
-          </Button>
         )}
 
         {(o.status === "awaiting_payment" || o.status === "failed" || o.status === "cancelled") && (
