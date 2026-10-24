@@ -2407,3 +2407,14 @@ function unitCostOf(o: any, costMap: Record<string, number>): number {
   if (saved != null && Number.isFinite(Number(saved))) return Number(saved);
   return o?.product_id ? (costMap[o.product_id] ?? 0) : 0;
 }
+
+/* ------------------------------------------------------- live update channel */
+
+export const sendLiveUpdateTest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { kind: "purchase" | "topup" | "member" }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { sendLiveTestPost } = await import("@/lib/live-update.server");
+    return sendLiveTestPost(data.kind);
+  });
