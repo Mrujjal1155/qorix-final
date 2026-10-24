@@ -1533,10 +1533,17 @@ let menuStockCache: { at: number; counts: Record<string, number> } | null = null
 
 async function menuStockCounts(): Promise<Record<string, number>> {
   if (menuStockCache && Date.now() - menuStockCache.at < MENU_STOCK_TTL_MS) return menuStockCache.counts;
-  const { data: stock, error } = await db.rpc("stock_counts");
   const counts: Record<string, number> = {};
-  for (const s of ((stock ?? []) as any[])) counts[String(s.product_id)] = Number(s.available ?? 0);
-  if (!error) menuStockCache = { at: Date.now(), counts };
+  const batchSize = 500;
+  for (let from = 0; ; from += batchSize) {
+    const { data: stock, error } = await db.rpc("stock_counts")
+      .order("product_id", { ascending: true })
+      .range(from, from + batchSize - 1);
+    if (error) throw new Error("Could not load stock");
+    for (const s of ((stock ?? []) as any[])) counts[String(s.product_id)] = Number(s.available ?? 0);
+    if ((stock?.length ?? 0) < batchSize) break;
+  }
+  menuStockCache = { at: Date.now(), counts };
   return counts;
 }
 
