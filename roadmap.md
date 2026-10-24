@@ -1,6 +1,7 @@
 # Roadmap
 
-- [ ] Show every bot-visible available product in paginated favorites, with Gemini first, Lovable ascending credits next, and other brands grouped; retain distinct same-name products and existing prices/categories.
+- [x] Show every bot-visible available product in paginated favorites, with Gemini first, Lovable ascending credits next, and other brands grouped; retain distinct same-name products and existing prices/categories. Catalogue and stock reads are paginated; 25 focused tests pass and build OK.
+- [ ] Verify all-products favorites and Next/Previous in the deployed Telegram chat (requires deployment and live Telegram access; no messages or orders sent).
 
 - [x] Reorder all 55 existing Telegram favorites with Gemini first, Lovable next in ascending credit quantity, and other products afterward; database readback and 13 focused tests verify membership, prices and stock are unchanged. Shared sorting keeps future selections grouped on save and display.
 
