@@ -91,6 +91,7 @@ export default {
           await Promise.allSettled([
             drainAllNotifications(),
             maybeAutoSyncSuppliers(),
+            import("./lib/bot/engine.server").then(({ sweepEpsDeposits }) => sweepEpsDeposits()),
             import("./lib/reseller/charged-stock.server").then(({ recoverChargedResellerStock }) => recoverChargedResellerStock()),
           ]);
           // After supplier stock refresh: deliver queued pre-orders in serial.

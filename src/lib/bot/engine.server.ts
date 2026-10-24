@@ -2367,8 +2367,10 @@ async function confirmByTxId(
   if (!exactBinanceAmount(expected, m.amount)) {
     return { ok: false, message: `❌ Amount mismatch. Expected <b>${expected} USDT</b>, received <b>${m.amount} USDT</b>. Contact support.` };
   }
-  const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: txId });
-  if (usedErr) return { ok: false, message: "❌ This Order ID / Transaction ID was already used." };
+  if (!Array.isArray(row.meta?.items) || !row.meta.items.length || row.meta.reseller_id) {
+    const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: txId });
+    if (usedErr) return { ok: false, message: "❌ This Order ID / Transaction ID was already used." };
+  }
   return { ok: true, amount: m.amount, txId };
 }
 
@@ -2633,8 +2635,10 @@ async function creditEpsRow(row: any) {
   }
 
   const txKey = `eps:${info.epsTransactionId || info.merchantTransactionId || mtid}`;
-  const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: txKey });
-  if (usedErr) return { credited: false as const, message: "✅ This payment was already processed." };
+  if (!Array.isArray(meta.items) || !meta.items.length || meta.reseller_id) {
+    const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: txKey });
+    if (usedErr) return { credited: false as const, message: "✅ This payment was already processed." };
+  }
 
   const usd = epsWalletCredit(Number(row.amount_usdt), info.amount, expectedBdt);
   const r = await settlePayment(
@@ -2754,8 +2758,10 @@ async function creditOxapayRow(row: any, info: import("@/lib/oxapay.server").Oxa
     await notifyAdmins(`⚠️ <b>OxaPay amount mismatch</b>\nDeposit <code>${row.id}</code>\nExpected ${money(row.amount_usdt)} · invoice ${info.amount} ${escapeHtml(info.currency)}`);
     return { credited: false as const, message: "❌ The paid amount does not match. Please contact support." };
   }
-  const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: `oxapay:${info.trackId}` });
-  if (usedErr) return { credited: false as const, message: "✅ This payment was already processed." };
+  if (!Array.isArray(meta.items) || !meta.items.length || meta.reseller_id) {
+    const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: `oxapay:${info.trackId}` });
+    if (usedErr) return { credited: false as const, message: "✅ This payment was already processed." };
+  }
   const r = await settlePayment(
     Number(row.telegram_id),
     row,
@@ -2928,7 +2934,7 @@ export async function sweepBinanceDeposits(force = false) {
   lastSweep = Date.now();
 
   // Verify hosted payments before the expiry pass; also recover late callbacks.
-  await sweepEpsDeposits();
+  await sweepEpsDeposits().catch((error) => console.error("EPS recheck will retry", error));
   // Unpaid / underpaid checkouts stop hanging forever.
   await expireAwaitingOrders().catch((e) => console.error("Awaiting order expiry failed:", e));
 
@@ -6084,16 +6090,18 @@ async function fulfillCheckout(
       product_name: p.name,
       quantity: l.qty,
       unit_price: l.unit ?? p.price,
-      total: Math.max(0, Math.round((l.subtotal - share) * 100) / 100),
+      total: prepaid ? Number(l.order.total) : Math.max(0, Math.round((l.subtotal - share) * 100) / 100),
       status,
       delivery_type: p.delivery_type,
       delivered_content: delivered,
       coupon_code: meta.coupon?.code ?? null,
-      discount: Math.round(share * 100) / 100,
+      discount: prepaid ? Number(l.order.discount || 0) : Math.round(share * 100) / 100,
+      ...(prepaid ? { meta: { ...claimRow?.meta, paid: true, awaiting_payment: false, paid_at: new Date().toISOString() } } : {}),
       ...(miLines?.length || p.delivery_type === "manual" || (status !== "completed" && autoFailReason)
         ? {
             meta: {
               ...((claimRow?.meta as any) ?? {}),
+              ...(prepaid ? { paid: true, awaiting_payment: false, paid_at: new Date().toISOString() } : {}),
               ...(miLines?.length || p.delivery_type === "manual" ? { manual: true } : {}),
               ...(miLines?.length ? { manual_input: miLines } : {}),
               ...(status !== "completed" && autoFailReason

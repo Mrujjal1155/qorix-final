@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 /** Incoming IDs are only hints; both settlement paths verify with EPS. */
-export async function dispatchEpsPayment(mtid: string, etid: string | null) {
+export async function dispatchEpsPayment(mtid: string, etid: string | null): Promise<{ ok: boolean; reason?: string; orderNo?: number }> {
   const db = supabaseAdmin as any;
   let query = db.from("binance_deposits").select("id").eq("kind", "eps");
   if (mtid) query = query.eq("meta->>mtid", mtid);

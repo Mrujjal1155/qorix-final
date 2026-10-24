@@ -12,7 +12,8 @@ export function reservedCheckout(orders: ReservedOrder[], products: any[], items
   });
   const complete = orders.length > 0 && items.length === orders.length && items.every((item) =>
     orders.filter((o) => o.product_id === item.product_id && Number(o.quantity) === Number(item.qty)).length === 1);
-  const blocked = !complete || lines.some((l) => !l.product || !l.product.is_active || l.qty < 1);
+  const blocked = !complete || lines.some((l) => !l.product || !l.product.is_active || l.qty < 1 ||
+    !Number.isFinite(l.subtotal) || l.subtotal <= 0);
   return { lines, blocked, total: Math.round(orders.reduce((sum, o) => sum + Number(o.total), 0) * 100) / 100,
     discount: orders.reduce((sum, o) => sum + Number(o.discount || 0), 0) };
 }
