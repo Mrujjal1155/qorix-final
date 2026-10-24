@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Verify a new real EPS bot checkout: record starting wallet balance, match the verified EPS payment to its original order, confirm stock delivery and no net extra wallet charge (requires the user's real payment and Telegram receipt; do not simulate success or repair historical orders).
+
 - [x] Show every bot-visible available product in paginated favorites, with Gemini first, Lovable ascending credits next, and other brands grouped; retain distinct same-name products and existing prices/categories. Catalogue and stock reads are paginated; 25 focused tests pass and build OK.
 - [x] Give Muse AI its own favorites group right after Lovable and before all other brands, so newly added Gemini Pro stays with the Gemini group first; 20 focused tests pass in the file.
 - [ ] Verify all-products favorites and Next/Previous in the deployed Telegram chat (requires deployment and live Telegram access; no messages or orders sent).
