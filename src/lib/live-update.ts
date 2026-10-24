@@ -41,6 +41,7 @@ export function maskName(value: string | undefined | null): string {
 export function paymentLabel(method: string | undefined | null): string {
   const m = String(method ?? "").toLowerCase();
   if (!m || m === "balance" || m === "wallet") return "Wallet";
+  if (m.includes("reseller")) return "Reseller Balance";
   if (m.includes("binance")) return "Binance Pay";
   if (m.includes("oxapay") || m.includes("usdt") || m.includes("crypto")) return "Crypto Pay";
   if (m.includes("eps")) return "EPS";
