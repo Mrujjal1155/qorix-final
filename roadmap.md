@@ -1,5 +1,8 @@
 # Roadmap
 
+- [ ] Fix approved EPS bot IPN routing, fee-free credit, snapshot-based late checkout settlement and explicit order timezones; preserve historical balances and deliveries.
+- [ ] Run focused payment regressions and public endpoint checks; live paid delivery requires deployment and an approved real payment.
+
 - [x] Add in-house account extraction with quantity, original TXT export, two separate confirmation popups and atomic deletion of only the exported unsold accounts.
 - [x] Verify extraction rules and database security: nine focused tests pass; both atomic RPCs reject anon/authenticated direct execution; no real stock exported or deleted.
 - [ ] Verify the full export/delete flow with a signed-in admin (blocked by external unmanaged authentication).
