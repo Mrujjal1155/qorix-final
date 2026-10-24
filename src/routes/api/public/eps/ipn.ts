@@ -58,7 +58,7 @@ async function readIds(request: Request) {
 
   return {
     mtid: get("mtid", "merchantTransactionId", "merchantTransactonId", "MerchantTransactionId"),
-    etid: get("EPSTransactionId", "epsTransactionId", "TransactionId", "transactionId"),
+    etid: get("etid", "EpsTransactionId", "EPSTransactionId", "epsTransactionId", "TransactionId", "transactionId"),
   };
 }
 
@@ -68,8 +68,8 @@ async function run(request: Request) {
     return Response.json({ ok: false, message: "Missing transaction id" }, { status: 400 });
   }
 
-  const { settleEpsPayment } = await import("@/lib/eps-settle.server");
-  const result = await settleEpsPayment(mtid, etid || null);
+  const { dispatchEpsPayment } = await import("@/lib/eps-dispatch.server");
+  const result = await dispatchEpsPayment(mtid, etid || null);
 
   // Always 200 so EPS does not hammer us; the body says what happened.
   return Response.json(

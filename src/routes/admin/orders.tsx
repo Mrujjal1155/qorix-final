@@ -15,6 +15,7 @@ import {
 } from "@/lib/admin.functions";
 import { AdminShell, money } from "@/components/AdminShell";
 import { orderCode, normalizeOrderQuery } from "@/lib/order-code";
+import { DEFAULT_ORDER_TIMEZONE } from "@/lib/order-time";
 import { resellerBadgeStyle, supplierBadgeStyle } from "@/lib/supplier-colors";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -75,6 +76,8 @@ const SOURCE_LABEL: Record<string, string> = {
 function fmtOrderTime(v: string | null | undefined) {
   if (!v) return "";
   return new Date(v).toLocaleString("en-GB", {
+    timeZone: DEFAULT_ORDER_TIMEZONE,
+    timeZoneName: "short",
     day: "2-digit",
     month: "short",
     year: "numeric",

@@ -1955,6 +1955,7 @@ export type Database = {
         }
         Returns: string
       }
+      expire_bot_checkouts: { Args: { _cutoff: string }; Returns: number }
       finish_stock_notification: {
         Args: { _delivered: boolean; _error?: string; _id: string }
         Returns: undefined
@@ -2069,6 +2070,16 @@ export type Database = {
       set_manual_stock: {
         Args: { _pid: string; _qty: number }
         Returns: undefined
+      }
+      settle_bot_checkout: {
+        Args: {
+          _amount: number
+          _deliverable: boolean
+          _deposit_id: string
+          _method: string
+          _txid: string
+        }
+        Returns: Json
       }
       stock_counter_bump: {
         Args: { _d: number; _pid: string }

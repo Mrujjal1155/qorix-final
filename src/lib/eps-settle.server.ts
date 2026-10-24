@@ -20,6 +20,7 @@ export async function epsSettings(): Promise<Record<string, string>> {
       "eps_username",
       "eps_password",
       "eps_hash_key",
+      "eps_secret_key",
       "eps_merchant_id",
       "eps_store_id",
       "paykori_enabled",

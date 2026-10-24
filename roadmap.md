@@ -1,5 +1,9 @@
 # Roadmap
 
+- [x] Fix approved EPS bot IPN routing, fee-free credit, snapshot-based late checkout settlement and explicit order timezones; preserve historical balances and deliveries.
+- [x] Run 26 focused payment regressions and public endpoint checks; atomic settlement/expiry are service-role-only and RLS remains enabled.
+- [ ] Verify the corrected full paid delivery on the deployed bot (requires deployment and an approved real payment); existing #2360/#2362 statuses and wallet balance are not repaired by this change.
+
 - [x] Add in-house account extraction with quantity, original TXT export, two separate confirmation popups and atomic deletion of only the exported unsold accounts.
 - [x] Verify extraction rules and database security: nine focused tests pass; both atomic RPCs reject anon/authenticated direct execution; no real stock exported or deleted.
 - [ ] Verify the full export/delete flow with a signed-in admin (blocked by external unmanaged authentication).

@@ -12,6 +12,7 @@
 //   covers what we asked for.
 
 import { createDecipheriv, createHmac } from "crypto";
+import { epsMerchantAmount } from "@/lib/eps-payment";
 
 const DEFAULT_BASE = "https://pgapi.eps.com.bd";
 
@@ -152,6 +153,7 @@ async function request(
     res = await fetch(`${cfg.base}${path}`, {
       method: init.method,
       headers,
+      signal: AbortSignal.timeout(8000),
       ...(init.body ? { body: JSON.stringify(init.body) } : {}),
     });
   } catch {
@@ -336,12 +338,15 @@ export async function verifyTransaction(
   const d = r.data ?? {};
   const info: EpsVerify = {
     status: (pick(d, ["Status", "status"]) ?? "").toLowerCase(),
-    amount: Number(pick(d, ["TotalAmount", "totalAmount"]) ?? 0) || 0,
+    amount: epsMerchantAmount(d),
     merchantTransactionId: pick(d, ["MerchantTransactionId", "merchantTransactionId"]) ?? mtid,
     epsTransactionId: pick(d, ["EpsTransactionId", "EPSTransactionId", "epsTransactionId"]) ?? (etid || null),
     financialEntity: pick(d, ["FinancialEntity", "financialEntity"]) ?? "",
     errorMessage: pick(d, ["ErrorMessage", "errorMessage"]) ?? "",
   };
+  if (mtid && info.merchantTransactionId !== mtid) {
+    return { ok: false as const, error: "This payment belongs to a different checkout." };
+  }
   return { ok: true as const, info };
 }
 
