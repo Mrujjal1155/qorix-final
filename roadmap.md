@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Keep selected Telegram favorites grouped with Gemini first, Lovable next in ascending credit quantity, and other products afterward; verify ordering without changing prices or selections.
+- [x] Reorder all 55 existing Telegram favorites with Gemini first, Lovable next in ascending credit quantity, and other products afterward; database readback and 13 focused tests verify membership, prices and stock are unchanged. Shared sorting keeps future selections grouped on save and display.
 
 - [x] Add paid-only in-house Retry using atomic stock/order fulfillment, without another debit or duplicate stock claims; scheduled bot recovery and EPS website delivery share its order lock.
 - [x] Run 20 focused retry/payment/delivery regressions; verify service-role-only execution and build OK. #2362 remains cancelled/unpaid; no real delivery attempted.
