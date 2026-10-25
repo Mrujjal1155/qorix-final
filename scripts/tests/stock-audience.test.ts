@@ -11,7 +11,7 @@ const { drainStockAudience } = await import("../../src/lib/bot/stock-audience.se
 test("all claimed customers are sent independently; only successful customers complete subscriptions", async () => {
   const updates: any[] = [];
   const db = {
-    rpc: async () => ({ data: [1, 2, 3, 4].map(telegram_id => ({ event_id: "event", telegram_id, message: { text: "Stock available", product_id: "product" } })), error: null }),
+    rpc: async () => ({ data: [1, 2, 3, 4].map(telegram_id => ({ event_id: "event", telegram_id, message: { text: "Stock available", product_id: "product", kind: "restock" } })), error: null }),
     from: (table: string) => ({ update: (value: any) => {
       const entry = { table, value, filters: {} as Record<string, unknown> }; updates.push(entry);
       const chain: any = { eq: (k: string, v: unknown) => { entry.filters[k] = v; return chain; }, is: () => chain,

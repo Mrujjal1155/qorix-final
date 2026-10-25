@@ -23,8 +23,10 @@ export async function drainStockAudience(db: any) {
     if (saveError) throw new Error(`Customer delivery checkpoint failed: ${saveError.message}`);
     if (result.ok) {
       sent += 1;
-      await db.from("stock_alerts").update({ notified_at: new Date().toISOString() })
-        .eq("telegram_id", row.telegram_id).eq("product_id", row.message.product_id).is("notified_at", null);
+      if (row.message.kind === "restock") {
+        await db.from("stock_alerts").update({ notified_at: new Date().toISOString() })
+          .eq("telegram_id", row.telegram_id).eq("product_id", row.message.product_id).is("notified_at", null);
+      }
     } else if (!terminal) retry += 1;
   }));
   return { sent, retry };

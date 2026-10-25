@@ -1,6 +1,7 @@
 # Roadmap
 
-- [ ] Repair customer Telegram product/stock notifications after approval: current durable sender targets group plus one admin only and marks restock subscriptions notified without sending to subscribers; product OFF has no Telegram removal event and delete uses a non-durable send. Live schedule returns HTTP 200 and latest restock is marked delivered at 2026-10-25 07:03 UTC. Confirm customer destinations and approval before code/business-flow changes.
+- [x] Repair approved all-customer stock/product notifications: independent service-only recipient ledger, bounded fan-out and transient retry; subscriptions complete only after actual restock delivery; database snapshots retain removed products and counter triggers cover stock depletion/delete. Ten focused tests pass independently; RLS and claim grants checked.
+- [ ] Verify all-customer notices on the deployed Telegram bot after the new sender is deployed; existing qorixlab.com schedule still runs the old sender (HTTP 200/group-admin only). Requires deployment and a real product/stock transition; no fake inventory or historical mass broadcast created.
 
 - [x] Hide completed in-house Retry and allow it only for paid pending or blocked/failed automatic deliveries; 10 focused eligibility/retry tests pass and build OK. Signed-in order UI verification is blocked by external unmanaged account access (browser shows Sign in).
 

@@ -358,7 +358,7 @@ async function drainNotificationEvents(sb: any, budget: { cards: number; until?:
       const progress = {
         prepareMessage: async (text: string, keyboard: any) => {
           const { error } = await sb.from("stock_notification_events").update({
-            audience_message: { text, keyboard, product_id: item.product_id },
+            audience_message: { text, keyboard, product_id: item.product_id, kind: item.kind },
           }).eq("id", item.id).is("audience_message", null);
           if (error) throw new Error(`Could not save customer notification: ${error.message}`);
         },
