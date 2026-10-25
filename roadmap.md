@@ -1,6 +1,7 @@
 # Roadmap
 
-- [ ] Add reseller forgot-password email request and public recovery page; verify form, invalid-link handling and password update rules without changing profile data.
+- [x] Add reseller forgot-password request and public recovery page without profile changes; 4 focused tests pass, browser verifies request with mocked email API and real missing-link rejection, build OK. Login/recovery stay open during maintenance.
+- [ ] Verify real reseller recovery email and password update after deployment; blocked by external unmanaged authentication and unverified Supabase sender/redirect settings. Allow https://qorixlab.com/reset-password (and each preview origin's /reset-password) in Supabase Auth Redirect URLs; no real recovery email or password change attempted.
 
 - [x] Target free 30-recipient/second pacing using six starts every 200 ms; fast claims expanded to 300 while preserving the shared lease. Seven focused tests pass and build OK. Paid broadcasts remain disabled; external deployment and measured live throughput remain blocked as listed below.
 
