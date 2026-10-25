@@ -1,0 +1,6 @@
+CREATE OR REPLACE FUNCTION public.claim_stock_notification_recipients() RETURNS TABLE(event_id uuid,telegram_id bigint,message jsonb) LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ BEGIN
+ IF auth.role() IS DISTINCT FROM 'service_role' THEN RAISE EXCEPTION 'Forbidden'; END IF;
+ RETURN QUERY WITH picked AS (SELECT r.event_id,r.telegram_id FROM public.stock_notification_recipients r JOIN public.stock_notification_events e ON e.id=r.event_id WHERE e.audience_message IS NOT NULL AND ((r.status IN ('pending','retry') AND r.next_attempt_at<=now()) OR (r.status='sending' AND r.claimed_at<now()-interval '60 seconds')) ORDER BY r.next_attempt_at,r.created_at,r.telegram_id LIMIT 10 FOR UPDATE OF r SKIP LOCKED), updated AS (UPDATE public.stock_notification_recipients r SET status='sending',claimed_at=now() FROM picked p WHERE r.event_id=p.event_id AND r.telegram_id=p.telegram_id RETURNING r.event_id,r.telegram_id) SELECT u.event_id,u.telegram_id,e.audience_message FROM updated u JOIN public.stock_notification_events e ON e.id=u.event_id;
+ END $$;
+REVOKE ALL ON FUNCTION public.claim_stock_notification_recipients() FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_stock_notification_recipients() TO service_role;
