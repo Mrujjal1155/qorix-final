@@ -1311,6 +1311,7 @@ export type Database = {
         Row: {
           added_qty: number
           attempts: number
+          audience_message: Json | null
           channel_sent: boolean
           claimed_at: string | null
           created_at: string
@@ -1323,7 +1324,8 @@ export type Database = {
           new_price: number | null
           next_attempt_at: string
           old_price: number | null
-          product_id: string
+          product_id: string | null
+          product_snapshot: Json | null
           source: string
           status: string
           stock: number
@@ -1332,6 +1334,7 @@ export type Database = {
         Insert: {
           added_qty?: number
           attempts?: number
+          audience_message?: Json | null
           channel_sent?: boolean
           claimed_at?: string | null
           created_at?: string
@@ -1344,7 +1347,8 @@ export type Database = {
           new_price?: number | null
           next_attempt_at?: string
           old_price?: number | null
-          product_id: string
+          product_id?: string | null
+          product_snapshot?: Json | null
           source: string
           status?: string
           stock?: number
@@ -1353,6 +1357,7 @@ export type Database = {
         Update: {
           added_qty?: number
           attempts?: number
+          audience_message?: Json | null
           channel_sent?: boolean
           claimed_at?: string | null
           created_at?: string
@@ -1365,7 +1370,8 @@ export type Database = {
           new_price?: number | null
           next_attempt_at?: string
           old_price?: number | null
-          product_id?: string
+          product_id?: string | null
+          product_snapshot?: Json | null
           source?: string
           status?: string
           stock?: number
@@ -1377,6 +1383,50 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_notification_recipients: {
+        Row: {
+          attempts: number
+          claimed_at: string | null
+          created_at: string
+          event_id: string
+          last_error: string | null
+          next_attempt_at: string
+          status: string
+          telegram_id: number
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          claimed_at?: string | null
+          created_at?: string
+          event_id: string
+          last_error?: string | null
+          next_attempt_at?: string
+          status?: string
+          telegram_id: number
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          claimed_at?: string | null
+          created_at?: string
+          event_id?: string
+          last_error?: string | null
+          next_attempt_at?: string
+          status?: string
+          telegram_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_notification_recipients_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "stock_notification_events"
             referencedColumns: ["id"]
           },
         ]
@@ -1959,6 +2009,7 @@ export type Database = {
         Returns: {
           added_qty: number
           attempts: number
+          audience_message: Json | null
           channel_sent: boolean
           claimed_at: string | null
           created_at: string
@@ -1971,7 +2022,8 @@ export type Database = {
           new_price: number | null
           next_attempt_at: string
           old_price: number | null
-          product_id: string
+          product_id: string | null
+          product_snapshot: Json | null
           source: string
           status: string
           stock: number
@@ -1983,6 +2035,14 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      claim_stock_notification_recipients: {
+        Args: never
+        Returns: {
+          event_id: string
+          message: Json
+          telegram_id: number
+        }[]
       }
       cleanup_old_logs: { Args: never; Returns: Json }
       enqueue_stock_notification: {

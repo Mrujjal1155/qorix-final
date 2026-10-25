@@ -90,6 +90,10 @@ export default {
           // Independent work: slow supplier catalogues cannot delay alerts.
           await Promise.allSettled([
             drainAllNotifications(),
+            import("./lib/bot/stock-audience.server").then(async ({ drainStockAudience }) => {
+              const { supabaseAdmin } = await import("./integrations/supabase/client.server");
+              return drainStockAudience(supabaseAdmin);
+            }),
             maybeAutoSyncSuppliers(),
             import("./lib/bot/engine.server").then(({ sweepEpsDeposits }) => sweepEpsDeposits()),
             import("./lib/reseller/charged-stock.server").then(({ recoverChargedResellerStock }) => recoverChargedResellerStock()),
