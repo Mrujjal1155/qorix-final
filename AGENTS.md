@@ -12,7 +12,7 @@
 - Bot-user summary reads use an admin-authorized RLS aggregate independently of paginated lists; contact evidence uses a service-role-only timestamp-ordered RPC separate from admin bans, so partial pages and uncertain Telegram failures cannot mislabel members.
 
 - Use `stock_notification_events` plus service-only `stock_notification_recipients` on the authenticated notify tick; save rendered cards before fan-out and mark subscriptions only after customer delivery. Removal snapshots and counter-depletion triggers cover delete paths.
-- Customer alerts use a service-only fast claim with shared dispatch lease, paced six-send waves and a time budget; release unattempted claims, honor retry_after, retry outages indefinitely and never enable paid broadcasts without approval.
+- Customer alerts use service-only claims, a shared lease and six-send pacing; release untouched claims, honor retry_after and retry outages. Latency and scheduled gaps reduce throughput; paid broadcasts require approval.
 - After website-admin stock uploads, attempt an immediate service-role queue drain without bypassing the durable event; scheduled delivery remains the retry fallback when it fails.
 
 - In-house stock counts come from `stock_counters`, kept exact by a trigger on `stock_items` (+1 add / -1 sold or deleted); `stock_counts()` reads it so bot clicks never scan thousands of items.
