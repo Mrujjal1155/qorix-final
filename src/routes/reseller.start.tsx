@@ -33,11 +33,12 @@ export const Route = createFileRoute("/reseller/start")({
 
 function ResellerStartPage() {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"up" | "in">("up");
+  const [mode, setMode] = useState<"up" | "in" | "forgot">("up");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -52,6 +53,14 @@ function ResellerStartPage() {
     e.preventDefault();
     setLoading(true);
     try {
+      if (mode === "forgot") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) throw error;
+        setResetSent(true);
+        return;
+      }
       if (mode === "up") {
         await signUpWithBrandedEmail({
           data: { email, password, fullName: name.trim(), reseller: true },
@@ -76,14 +85,17 @@ function ResellerStartPage() {
       <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-12">
         <Card className="border-border/70 bg-card/80">
           <CardHeader>
-            <CardTitle>{mode === "up" ? "Create your reseller login" : "Reseller sign in"}</CardTitle>
+            <CardTitle>{mode === "forgot" ? "Reset reseller password" : mode === "up" ? "Create your reseller login" : "Reseller sign in"}</CardTitle>
             <CardDescription>
-              Use the same email address you applied with — your reseller panel unlocks automatically once your
-              application is approved. The same login also works as a normal customer account.
+              {mode === "forgot"
+                ? "Enter your registered email address to receive a password reset link."
+                : "Use the same email address you applied with — your reseller panel unlocks automatically once your application is approved. The same login also works as a normal customer account."}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={submit} className="space-y-4">
+            {resetSent && mode === "forgot" ? (
+              <p role="status" className="text-sm text-muted-foreground">If an account exists for this email, a reset link will arrive shortly. Check your inbox and spam folder.</p>
+            ) : <form onSubmit={submit} className="space-y-4">
               {mode === "up" && (
                 <div className="space-y-1.5">
                   <Label htmlFor="rs-name">Full name / business name</Label>
@@ -100,7 +112,7 @@ function ResellerStartPage() {
                   required
                 />
               </div>
-              <div className="space-y-1.5">
+              {mode !== "forgot" && <div className="space-y-1.5">
                 <Label htmlFor="rs-pass">Password</Label>
                 <Input
                   id="rs-pass"
@@ -110,19 +122,24 @@ function ResellerStartPage() {
                   minLength={6}
                   required
                 />
-              </div>
+              </div>}
               <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? "Please wait…" : mode === "up" ? "Create account" : "Sign in"}
+                {loading ? "Please wait…" : mode === "forgot" ? "Send reset link" : mode === "up" ? "Create account" : "Sign in"}
               </Button>
-            </form>
+            </form>}
 
-            <button
+            {mode === "in" && <Button type="button" variant="link" className="mt-2 w-full" disabled={loading} onClick={() => { setMode("forgot"); setResetSent(false); }}>
+              Forgot password?
+            </Button>}
+            <Button
               type="button"
-              onClick={() => setMode(mode === "up" ? "in" : "up")}
-              className="mt-4 w-full text-sm text-muted-foreground hover:text-foreground"
+              variant="link"
+              disabled={loading}
+              onClick={() => { setMode(mode === "up" || mode === "forgot" ? "in" : "up"); setResetSent(false); }}
+              className="mt-4 w-full text-sm text-muted-foreground"
             >
-              {mode === "up" ? "Already registered? Sign in" : "New here? Create an account"}
-            </button>
+              {mode === "forgot" ? "Back to sign in" : mode === "up" ? "Already registered? Sign in" : "New here? Create an account"}
+            </Button>
 
             <p className="mt-4 text-center text-xs text-muted-foreground">
               Not approved yet?{" "}

@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Add reseller forgot-password email request and public recovery page; verify form, invalid-link handling and password update rules without changing profile data.
+
 - [x] Target free 30-recipient/second pacing using six starts every 200 ms; fast claims expanded to 300 while preserving the shared lease. Seven focused tests pass and build OK. Paid broadcasts remain disabled; external deployment and measured live throughput remain blocked as listed below.
 
 - [x] Clear unsent stock/product requests accumulated before 2026-10-25 09:41 UTC; readback confirms zero old waiting recipients. Preserve orders, balances, inventory and delivered history. Add service-only fast claim, shared lease, six-send paced waves, runtime-budget release and Telegram retry_after; six focused tests pass, build OK.
