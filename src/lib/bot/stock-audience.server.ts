@@ -1,7 +1,9 @@
 import { sendAlertMessage } from "@/lib/telegram.server";
 
 export const STOCK_AUDIENCE_CONCURRENCY = 6;
-export const STOCK_AUDIENCE_WAVE_MS = 600;
+// Six starts per 200 ms targets Telegram's free ceiling of 30 starts/second.
+// Slow responses, other bot traffic and flood control can reduce actual delivery.
+export const STOCK_AUDIENCE_WAVE_MS = 200;
 export const STOCK_AUDIENCE_BUDGET_MS = 10_000;
 
 /** A shared database lease prevents overlapping ticks from multiplying broadcasts. */

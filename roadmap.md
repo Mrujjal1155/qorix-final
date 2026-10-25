@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Target the approved free 30-recipient/second alert pacing; expand fast claims, test concrete timing and explain paid Telegram pricing without enabling it.
+
 - [x] Clear unsent stock/product requests accumulated before 2026-10-25 09:41 UTC; readback confirms zero old waiting recipients. Preserve orders, balances, inventory and delivered history. Add service-only fast claim, shared lease, six-send paced waves, runtime-budget release and Telegram retry_after; six focused tests pass, build OK.
 - [ ] Deploy and verify accelerated customer notices on qorixlab.com: at 09:44 UTC the external schedule still returns exactly ten sends using its previous sender. Deployment to the user's external host is required; no real stock/order created for testing.
 

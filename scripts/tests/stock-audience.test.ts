@@ -25,8 +25,31 @@ test("fast dispatch sends more than ten recipients in paced waves without losing
   };
   const result = await drainStockAudience(db, { now: () => clock, wait: async ms => { waits.push(ms); clock += ms; } });
   expect(result.sent).toBe(24);
-  expect(waits).toEqual([600, 600, 600]);
+  expect(waits).toEqual([200, 200, 200]);
   expect(ids.every(id => sentTo.includes(id))).toBe(true);
+  sentTo.length = 0;
+});
+
+test("free broadcasts start thirty distinct recipients per second without a larger burst", async () => {
+  let clock = 0;
+  const waves: { at: number; count: number }[] = [];
+  let count = 0;
+  const db = {
+    rpc: async () => ({ data: Array.from({ length: 60 }, (_, i) => ({ event_id: "pace", telegram_id: 300 + i, message: { text: "notice", kind: "new" } })) }),
+    from: () => ({ update: () => {
+      count += 1;
+      const chain: any = { eq: () => chain, then: (resolve: any) => resolve({ error: null }) };
+      return chain;
+    } }),
+  };
+  const result = await drainStockAudience(db, { now: () => clock, wait: async ms => {
+    waves.push({ at: clock, count }); count = 0; clock += ms;
+  } });
+  waves.push({ at: clock, count });
+  expect(result.sent).toBe(60);
+  expect(waves.every(w => w.count === 6)).toBe(true);
+  expect(waves.filter(w => w.at < 1_000).reduce((n, w) => n + w.count, 0)).toBe(30);
+  expect(waves.map(w => w.at)).toEqual([0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800]);
   sentTo.length = 0;
 });
 
