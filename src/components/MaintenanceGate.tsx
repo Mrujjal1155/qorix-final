@@ -5,7 +5,7 @@ import { useSiteContent } from "@/lib/use-site-content";
 import maintenanceImg from "@/assets/maintenance.jpg";
 
 /** Paths that always stay open so the admin can switch maintenance off. */
-const OPEN_PREFIXES = ["/admin", "/auth", "/api"];
+const OPEN_PREFIXES = ["/admin", "/auth", "/api", "/reset-password", "/reseller/start"];
 
 /**
  * Website maintenance screen. Independent from the bot maintenance switch.
