@@ -1307,6 +1307,27 @@ export type Database = {
           },
         ]
       }
+      stock_notification_dispatch: {
+        Row: {
+          created_at: string
+          id: boolean
+          next_claim_at: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: boolean
+          next_claim_at?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: boolean
+          next_claim_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       stock_notification_events: {
         Row: {
           added_qty: number
@@ -2037,6 +2058,14 @@ export type Database = {
         }
       }
       claim_stock_notification_recipients: {
+        Args: never
+        Returns: {
+          event_id: string
+          message: Json
+          telegram_id: number
+        }[]
+      }
+      claim_stock_notification_recipients_fast: {
         Args: never
         Returns: {
           event_id: string

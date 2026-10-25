@@ -4,7 +4,7 @@
 
 import { deliveryContact, TELEGRAM_UPDATES } from "@/lib/bot/contact";
 
-export type TgResult = { ok: boolean; result?: any; description?: string; error_code?: number };
+export type TgResult = { ok: boolean; result?: any; description?: string; error_code?: number; parameters?: { retry_after?: number } };
 
 /**
  * True when Telegram rejected a message that contained a Premium custom emoji
