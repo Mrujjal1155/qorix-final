@@ -8,6 +8,27 @@ mock.module("@/lib/telegram.server", () => ({ sendAlertMessage: async (id: numbe
 } }));
 const { drainStockAudience } = await import("../../src/lib/bot/stock-audience.server");
 
+test("fast dispatch sends more than ten recipients in paced waves without losing anyone", async () => {
+  let clock = 0;
+  const waits: number[] = [];
+  const ids = Array.from({ length: 24 }, (_, i) => i + 100);
+  const db = {
+    rpc: async (name: string) => {
+      expect(name).toBe("claim_stock_notification_recipients_fast");
+      return { data: ids.map(telegram_id => ({ event_id: "fast", telegram_id, message: { text: "notice", kind: "new" } })), error: null };
+    },
+    from: () => ({ update: () => {
+      const chain: any = { eq: () => chain, then: (resolve: any) => resolve({ error: null }) };
+      return chain;
+    } }),
+  };
+  const result = await drainStockAudience(db, { now: () => clock, wait: async ms => { waits.push(ms); clock += ms; } });
+  expect(result.sent).toBe(24);
+  expect(waits).toEqual([600, 600, 600]);
+  expect(ids.every(id => sentTo.includes(id))).toBe(true);
+  sentTo.length = 0;
+});
+
 test("all claimed customers are sent independently; only successful customers complete subscriptions", async () => {
   const updates: any[] = [];
   const db = {
