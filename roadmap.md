@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Repair customer Telegram product/stock notifications after approval: current durable sender targets group plus one admin only and marks restock subscriptions notified without sending to subscribers; product OFF has no Telegram removal event and delete uses a non-durable send. Live schedule returns HTTP 200 and latest restock is marked delivered at 2026-10-25 07:03 UTC. Confirm customer destinations and approval before code/business-flow changes.
+
 - [x] Hide completed in-house Retry and allow it only for paid pending or blocked/failed automatic deliveries; 10 focused eligibility/retry tests pass and build OK. Signed-in order UI verification is blocked by external unmanaged account access (browser shows Sign in).
 
 - [x] Correct global Telegram user statistics and paginate all users; track confirmed block/unblock, stopped and deactivated states separately from admin bans, with unknown historical states preserved. Database confirms 1,708 members and $248.67 total wallet; RLS stays enabled and contact writes are service-role-only.
