@@ -1,9 +1,10 @@
 # Roadmap
 
-- [ ] Clear only stock/product notification requests accumulated before the user's 2026-10-25 09:41 UTC reset; accelerate new customer notices with bounded paced delivery and Telegram flood-control retry. Preserve orders, balances, inventory and delivered history; verify deployed throughput separately.
+- [x] Clear unsent stock/product requests accumulated before 2026-10-25 09:41 UTC; readback confirms zero old waiting recipients. Preserve orders, balances, inventory and delivered history. Add service-only fast claim, shared lease, six-send paced waves, runtime-budget release and Telegram retry_after; six focused tests pass, build OK.
+- [ ] Deploy and verify accelerated customer notices on qorixlab.com: at 09:44 UTC the external schedule still returns exactly ten sends using its previous sender. Deployment to the user's external host is required; no real stock/order created for testing.
 
 - [x] Repair approved all-customer stock/product notifications: independent service-only recipient ledger, bounded fan-out and transient retry; subscriptions complete only after actual restock delivery; database snapshots retain removed products and counter triggers cover stock depletion/delete. Ten focused tests pass independently; RLS and claim grants checked.
-- [ ] Verify all-customer notices on the deployed Telegram bot after the new sender is deployed; existing qorixlab.com schedule still runs the old sender (HTTP 200/group-admin only). Requires deployment and a real product/stock transition; no fake inventory or historical mass broadcast created.
+- [ ] Verify all-customer notices on the deployed Telegram bot after the accelerated sender is deployed; qorixlab.com now sends customer notices but its previous ten-per-tick cap still causes delay. Requires external deployment and a real product/stock transition; no fake inventory or historical mass broadcast created.
 
 - [x] Hide completed in-house Retry and allow it only for paid pending or blocked/failed automatic deliveries; 10 focused eligibility/retry tests pass and build OK. Signed-in order UI verification is blocked by external unmanaged account access (browser shows Sign in).
 
