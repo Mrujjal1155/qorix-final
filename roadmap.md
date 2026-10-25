@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Clear only stock/product notification requests accumulated before the user's 2026-10-25 09:41 UTC reset; accelerate new customer notices with bounded paced delivery and Telegram flood-control retry. Preserve orders, balances, inventory and delivered history; verify deployed throughput separately.
+
 - [x] Repair approved all-customer stock/product notifications: independent service-only recipient ledger, bounded fan-out and transient retry; subscriptions complete only after actual restock delivery; database snapshots retain removed products and counter triggers cover stock depletion/delete. Ten focused tests pass independently; RLS and claim grants checked.
 - [ ] Verify all-customer notices on the deployed Telegram bot after the new sender is deployed; existing qorixlab.com schedule still runs the old sender (HTTP 200/group-admin only). Requires deployment and a real product/stock transition; no fake inventory or historical mass broadcast created.
 
