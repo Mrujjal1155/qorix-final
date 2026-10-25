@@ -641,14 +641,7 @@ export const deleteProduct = createServerFn({ method: "POST" })
     const { data: existing } = await sb.from("products").select("*").eq("id", data.id).maybeSingle();
     const { error } = await sb.from("products").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
-    if (existing && (existing as any).is_active !== false) {
-      try {
-        const { announceProductRemoved } = await import("@/lib/bot/engine.server");
-        await announceProductRemoved(existing);
-      } catch (e) {
-        console.error("removed-product announce failed:", e);
-      }
-    }
+    // The database preserves a removal snapshot and queues durable delivery.
     if (existing) {
       const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
       await pushResellerEvent("removed", existing);

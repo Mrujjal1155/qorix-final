@@ -3084,6 +3084,7 @@ async function postToChannel(
  * No per-user DM fan-out — that was the source of timeouts and duplicates.
  */
 export type CardDelivery = {
+  prepareMessage?: (text: string, keyboard: Button[][] | undefined) => Promise<void>;
   channelSent?: boolean;
   botSent?: boolean;
   markChannelSent?: () => Promise<void>;
@@ -3116,6 +3117,7 @@ async function deliverCard(
   // Alerts are text-only: sending banners made every card wait on Telegram
   // fetching the image, which blocked the queue. Images stay on product view.
   banner = null;
+  if (delivery?.prepareMessage) await delivery.prepareMessage(text, kb);
   let channelSent = Boolean(delivery?.channelSent);
   let botSent = Boolean(delivery?.botSent);
   const problems: string[] = [];
@@ -3491,7 +3493,7 @@ export async function notifyApiUsersPriceChange(before: any, after: any) {
  * "REMOVED" card — posted when an admin deletes a product that was live.
  * Uses the same channel + bot DM fan-out as the other stock cards.
  */
-export async function announceProductRemoved(product: any) {
+export async function announceProductRemoved(product: any, delivery?: CardDelivery) {
   const s = await getSettings();
   if ((s["announce_removed"] ?? "on").toLowerCase() === "off") return;
   const title = s["announce_removed_title"] || "REMOVED";
@@ -3501,9 +3503,7 @@ export async function announceProductRemoved(product: any) {
     `${alertIcon(s, "removed")} <b>${escapeHtml(title)}</b>\n${line}\n\n` +
     `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
     `<i>${escapeHtml(footer)}</i>`;
-  await deliverCard(s, text, undefined, null, product).catch((error) => {
-    console.error("Removed-product delivery failed:", error);
-  });
+  return await deliverCard(s, text, undefined, null, product, delivery);
 }
 
 
@@ -6479,12 +6479,7 @@ export async function notifyRestock(
     const broadcast = await announceRestock(p, addedQty, available, skipDm, delivery);
 
     if (delivery) {
-      if (broadcast?.complete && subs?.length) {
-        await db
-          .from("stock_alerts")
-          .update({ notified_at: new Date().toISOString() })
-          .in("id", subs.map((s: any) => s.id));
-      }
+      // The per-customer sender marks subscriptions only after actual delivery.
       return broadcast;
     }
 

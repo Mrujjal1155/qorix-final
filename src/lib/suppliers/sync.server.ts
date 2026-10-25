@@ -334,7 +334,7 @@ export async function enqueuePriceChange(sb: any, productId: string, oldPrice: n
 
 
 async function drainNotificationEvents(sb: any, budget: { cards: number; until?: number }) {
-  const { notifyRestock, announceLowStock, announceNewProduct, announcePriceChange } = await import(
+  const { notifyRestock, announceLowStock, announceNewProduct, announcePriceChange, announceProductRemoved } = await import(
     "@/lib/bot/engine.server"
   );
   const log: any[] = [];
@@ -356,6 +356,12 @@ async function drainNotificationEvents(sb: any, budget: { cards: number; until?:
       let botSent = Number(item.dm_cursor ?? 0) > 0;
       let channelDone = channelSent;
       const progress = {
+        prepareMessage: async (text: string, keyboard: any) => {
+          const { error } = await sb.from("stock_notification_events").update({
+            audience_message: { text, keyboard, product_id: item.product_id },
+          }).eq("id", item.id).is("audience_message", null);
+          if (error) throw new Error(`Could not save customer notification: ${error.message}`);
+        },
         channelSent,
         botSent,
         markChannelSent: async () => {
@@ -395,13 +401,17 @@ async function drainNotificationEvents(sb: any, budget: { cards: number; until?:
           });
         },
       };
-      const { data: prod } = await sb.from("products").select("*").eq("id", item.product_id).maybeSingle();
-      if (!prod || (prod as any).is_active === false) {
+      const { data: currentProduct } = item.product_id
+        ? await sb.from("products").select("*").eq("id", item.product_id).maybeSingle()
+        : { data: null };
+      const prod = item.kind === "removed" ? item.product_snapshot : currentProduct;
+      if (!prod || (item.kind !== "removed" && (prod as any).is_active === false)) {
         await sb.rpc("finish_stock_notification", { _id: item.id, _delivered: true, _error: null });
         continue;
       }
       const isFlashKind = item.kind === "flash" || item.kind === "flash_end";
       const send = async () => {
+        if (item.kind === "removed") return await announceProductRemoved(prod, progress);
         if (item.kind === "restock") return await notifyRestock(item.product_id, item.added_qty, progress);
         if (item.kind === "low" || item.kind === "out") return await announceLowStock(prod, item.stock, progress);
         if (item.kind === "price") return await announcePriceChange(prod, item.old_price, item.new_price, progress);
@@ -426,7 +436,7 @@ async function drainNotificationEvents(sb: any, budget: { cards: number; until?:
         } catch (e) {
           console.error("API user flash notice failed:", e);
         }
-      } else if (prod && (prod as any).is_active !== false) {
+      } else if (item.kind !== "removed" && prod && (prod as any).is_active !== false) {
         const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
         await pushResellerEvent(
           item.kind === "out" ? "out" : (item.kind as any),

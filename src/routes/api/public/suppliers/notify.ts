@@ -14,15 +14,18 @@ async function run({ request }: { request: Request }) {
   const { recoverChargedResellerStock } = await import("@/lib/reseller/charged-stock.server");
   const { sweepEpsDeposits } = await import("@/lib/bot/engine.server");
   const { drainLiveUpdates } = await import("@/lib/live-update.server");
+  const { drainStockAudience } = await import("@/lib/bot/stock-audience.server");
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   try {
-    const [res, recovered, resellerRecovered] = await Promise.all([
+    const [res, recovered, resellerRecovered, , , customerNotifications] = await Promise.all([
       drainAllNotifications(),
       recoverPaidOrders().catch((e) => ({ error: String(e) })),
       recoverChargedResellerStock().catch(() => ({ error: "Stock recovery will retry" })),
       sweepEpsDeposits().catch(() => ({ error: "Payment verification will retry" })),
       drainLiveUpdates().catch(() => ({ error: "Live updates will retry" })),
+      drainStockAudience(supabaseAdmin),
     ]);
-    return Response.json({ ok: true, ...res, recovered, resellerRecovered });
+    return Response.json({ ok: true, ...res, recovered, resellerRecovered, customerNotifications });
   } catch (e) {
     return Response.json({ ok: false, error: e instanceof Error ? e.message : "failed" }, { status: 500 });
   }
