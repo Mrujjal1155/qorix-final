@@ -4,7 +4,8 @@ import type { Database } from "@/integrations/supabase/types";
 
 const UPLOAD_BUCKET = "public-images";
 const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
-const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+const ALLOWED_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif", "video/mp4"]);
+const MAX_ANIMATION_BYTES = 10 * 1024 * 1024;
 
 export const Route = createFileRoute("/api/admin/image-upload")({
   server: {
@@ -38,10 +39,11 @@ export const Route = createFileRoute("/api/admin/image-upload")({
         const file = form.get("image");
         if (!(file instanceof File)) return Response.json({ error: "Choose an image first" }, { status: 400 });
         if (!ALLOWED_TYPES.has(file.type)) {
-          return Response.json({ error: "Only PNG, JPG, WEBP or GIF images are allowed" }, { status: 400 });
+          return Response.json({ error: "Only PNG, JPG, WEBP, GIF or MP4 files are allowed" }, { status: 400 });
         }
-        if (file.size > MAX_UPLOAD_BYTES) {
-          return Response.json({ error: "Image size must not exceed 3MB" }, { status: 400 });
+        const isAnimation = file.type === "video/mp4" || file.type === "image/gif";
+        if (file.size > (isAnimation ? MAX_ANIMATION_BYTES : MAX_UPLOAD_BYTES)) {
+          return Response.json({ error: isAnimation ? "GIF/MP4 must not exceed 10MB" : "Image size must not exceed 3MB" }, { status: 400 });
         }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

@@ -402,6 +402,7 @@ export const saveProduct = createServerFn({ method: "POST" })
       quick_guide?: string | null;
       details?: { label: string; value: string }[] | null;
       image_url?: string | null;
+      bot_media_url?: string | null;
       delivery_time?: string | null;
       badge?: string | null;
       is_active?: boolean;
@@ -426,6 +427,7 @@ export const saveProduct = createServerFn({ method: "POST" })
       category_id: rest.category_id || null,
       old_price: rest.old_price ?? null,
       image_url: rest.image_url || null,
+      ...(rest.bot_media_url !== undefined ? { bot_media_url: rest.bot_media_url?.trim() || null } : {}),
       delivery_time: rest.delivery_time || null,
       badge: rest.badge || null,
       important_note: rest.important_note || null,
