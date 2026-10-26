@@ -781,3 +781,188 @@ function BinanceCheckBadge({ o, onRecheck }: { o: any; onRecheck?: () => void })
     </div>
   );
 }
+
+/* ─── One order = one clearly separated card, on every screen size ─── */
+const STATUS_TONE: Record<string, { bar: string; badge: "default" | "secondary" | "destructive" }> = {
+  completed: { bar: "bg-success", badge: "default" },
+  processing: { bar: "bg-warning", badge: "secondary" },
+  pending: { bar: "bg-warning", badge: "secondary" },
+  awaiting_payment: { bar: "bg-warning", badge: "secondary" },
+  failed: { bar: "bg-destructive", badge: "destructive" },
+  refunded: { bar: "bg-destructive", badge: "secondary" },
+  cancelled: { bar: "bg-muted-foreground/40", badge: "secondary" },
+};
+
+function OrderField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="admin-order-field">
+      <div className="admin-order-label">{label}</div>
+      <div className="mt-1 min-w-0 break-words text-xs">{children}</div>
+    </div>
+  );
+}
+
+function OrderCard({
+  o,
+  actions,
+  onCopy,
+  onRecheck,
+  supplierStyle,
+  resellerStyle,
+}: {
+  o: any;
+  actions: ReactNode;
+  onCopy: (id: string) => void;
+  onRecheck: (id: string) => void;
+  supplierStyle: (name: string) => CSSProperties;
+  resellerStyle: (name: string) => CSSProperties;
+}) {
+  const pay = paymentInfo(o);
+  const tone = STATUS_TONE[String(o.status)] ?? { bar: "bg-primary", badge: "secondary" as const };
+  const showActions = o.status !== "completed" && o.status !== "refunded";
+
+  return (
+    <article className="admin-order-card">
+      <span className={cn("absolute inset-y-0 left-0 w-1", tone.bar)} aria-hidden="true" />
+
+      <header className="admin-order-head">
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="shrink-0 text-sm font-extrabold tracking-tight">#{o.order_no}</span>
+            <button
+              type="button"
+              title="Copy order ID"
+              onClick={() => onCopy(o.id)}
+              className="min-w-0 max-w-full truncate rounded-md bg-muted px-2 py-1 font-mono text-xs transition-colors hover:bg-muted/70"
+            >
+              {orderCode(o.id)}
+            </button>
+            {o.delivery_type === "manual" && (
+              <Badge variant="destructive" className="shrink-0 text-[10px]">
+                MANUAL
+              </Badge>
+            )}
+          </div>
+          <div className="mt-1.5 truncate text-xs text-muted-foreground">{fmtOrderTime(o.created_at)}</div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <Badge variant={tone.badge}>{STATUS_LABEL[o.status] ?? o.status}</Badge>
+          <span className="text-sm font-bold text-gold">{money(o.total)}</span>
+          {o.status === "completed" && (
+            <span
+              className={cn(
+                "text-xs font-semibold",
+                Number(o.profit ?? 0) >= 0 ? "text-success" : "text-destructive",
+              )}
+            >
+              profit {money(o.profit ?? 0)}
+            </span>
+          )}
+        </div>
+      </header>
+
+      <div className="admin-order-body">
+        <div className="min-w-0 break-words text-sm font-semibold">
+          {o.quantity}× {o.product_name}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={o.source === "website" ? "default" : "secondary"}>
+            {SOURCE_LABEL[o.source] ?? o.source ?? "telegram"}
+          </Badge>
+          {(o.source === "api_website" || o.source === "api_bot") && (
+            <Badge
+              variant="outline"
+              title="Ordered through this reseller's API"
+              className="gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+              style={resellerStyle(String(o.reseller_name ?? ""))}
+            >
+              <Store className="size-3" />
+              {o.reseller_name ?? "Unknown reseller"}
+            </Badge>
+          )}
+          <span className="rounded-full border border-border/70 px-2 py-0.5 text-[11px] text-muted-foreground">
+            {o.delivery_type}
+          </span>
+        </div>
+
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          <OrderField label="Payment">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="font-semibold">{pay.label}</span>
+              <Badge variant={pay.paid ? "default" : "secondary"} className="text-[10px]">
+                {pay.paid ? "paid" : "not paid"}
+              </Badge>
+              {pay.refunded && (
+                <Badge variant="outline" className="text-[10px]">
+                  refunded
+                </Badge>
+              )}
+            </div>
+            {pay.detail && <div className="mt-1 break-all text-muted-foreground">{pay.detail}</div>}
+          </OrderField>
+
+          <OrderField label="Customer">
+            {o.source === "website" ? (
+              <>
+                <div className="break-all">{o.customer_name}</div>
+                <div className="break-all text-muted-foreground">{o.customer_email}</div>
+                <BinanceCheckBadge o={o} onRecheck={() => onRecheck(o.id)} />
+              </>
+            ) : (
+              <>
+                <div className="break-all">Telegram: {o.telegram_id}</div>
+                {o.buyer_username && (
+                  <a
+                    className="text-primary underline"
+                    href={`https://t.me/${o.buyer_username}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    @{o.buyer_username}
+                  </a>
+                )}
+                {o.buyer_name && <div className="break-all text-muted-foreground">{o.buyer_name}</div>}
+              </>
+            )}
+          </OrderField>
+
+          <OrderField label="Supply">
+            {o.supplier_name ? (
+              <>
+                <Badge
+                  variant="outline"
+                  className="max-w-full truncate"
+                  style={supplierStyle(String(o.supplier_name))}
+                >
+                  API · {o.supplier_name}
+                </Badge>
+                {o.supplier_external_id && (
+                  <div className="mt-1 break-all text-muted-foreground">ID: {o.supplier_external_id}</div>
+                )}
+              </>
+            ) : (
+              <span className="text-muted-foreground">Own stock</span>
+            )}
+          </OrderField>
+        </div>
+
+        {Array.isArray(o.meta?.manual_input) && o.meta.manual_input.length > 0 && (
+          <pre className="max-w-full overflow-x-auto rounded-lg border border-border bg-background p-2 text-xs">
+            {o.meta.manual_input.join("\n")}
+          </pre>
+        )}
+
+        {o.status !== "completed" && o.meta?.supplier_error && (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-destructive">
+            <span className="font-semibold">Supplier failed:</span> {String(o.meta.supplier_error)}
+          </div>
+        )}
+
+        {o.delivered_content && <DeliveryToggle content={o.delivered_content} />}
+      </div>
+
+      {showActions && <footer className="admin-order-foot">{actions}</footer>}
+    </article>
+  );
+}
