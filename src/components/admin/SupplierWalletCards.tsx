@@ -5,7 +5,7 @@ import { checkSupplierBalances } from "@/lib/admin.functions";
 import { colorIndexesFor, supplierBadgeStyle } from "@/lib/supplier-colors";
 
 /**
- * Compact supplier wallet strip shown at the very top of the dashboard.
+ * Compact supplier wallet strip shown at the very end of the dashboard scroll.
  * Each supplier keeps its shared admin colour; layout stays tight on phones
  * (2 columns) and spreads out on tablets and desktops.
  */
@@ -21,7 +21,7 @@ export function SupplierWalletCards() {
   const colors = colorIndexesFor(balances.map((b) => b.name));
 
   return (
-    <div className="mt-1">
+    <div className="mt-8 border-t border-border/70 pt-6">
       <h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
         Supplier API balances
       </h2>
