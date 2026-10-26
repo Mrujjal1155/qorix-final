@@ -3,7 +3,6 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tansta
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import {
-  checkSupplierBalances,
   deliverOrder,
   recheckOrderBinance,
   completeManualOrder,
@@ -18,7 +17,7 @@ import { orderCode, normalizeOrderQuery } from "@/lib/order-code";
 import { DEFAULT_ORDER_TIMEZONE } from "@/lib/order-time";
 import { canRetryInhouseOrder } from "@/lib/order-retry";
 import { resellerBadgeStyle, supplierBadgeStyle } from "@/lib/supplier-colors";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -145,16 +144,10 @@ function OrdersPage() {
   const [manualOnly, setManualOnly] = useState(false);
   const changeStatus = useServerFn(setOrderStatus);
   const retryAuto = useServerFn(retryAutoDelivery);
-  const fetchBalances = useServerFn(checkSupplierBalances);
   const markPaid = useServerFn(markOrderPaid);
   const refund = useServerFn(refundOrderToWallet);
   const [retrying, setRetrying] = useState<string>("");
 
-  const { data: balances } = useQuery({
-    queryKey: ["supplier-balances"],
-    queryFn: () => fetchBalances({}),
-    refetchInterval: 120000,
-  });
 
   const runRetry = async (id: string) => {
     setRetrying(id);
@@ -346,28 +339,6 @@ function OrdersPage() {
         </Button>
       </div>
 
-      {!!balances?.length && (
-        <Card className="mb-4">
-          <CardHeader>
-            <CardTitle className="text-base">Supplier API wallets</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-3 text-sm">
-            {balances.map((b: any) => (
-              <div key={b.id} className="rounded-lg border border-border px-3 py-2">
-                <div className="font-medium">{b.name}</div>
-                {b.balance == null ? (
-                  <div className="text-xs text-destructive">{b.error}</div>
-                ) : (
-                  <div className={b.balance <= 0 ? "text-xs text-destructive" : "text-xs text-muted-foreground"}>
-                    {b.balance} {b.currency}
-                    {b.balance <= 0 ? " — top up to enable auto delivery" : ""}
-                  </div>
-                )}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
 
       <div className="mb-4 max-w-md">
         <Input
