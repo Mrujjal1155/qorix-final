@@ -582,6 +582,7 @@ export type Database = {
         Row: {
           api_price: number | null
           badge: string | null
+          bot_media_url: string | null
           category_id: string | null
           cost_price: number | null
           created_at: string
@@ -618,6 +619,7 @@ export type Database = {
         Insert: {
           api_price?: number | null
           badge?: string | null
+          bot_media_url?: string | null
           category_id?: string | null
           cost_price?: number | null
           created_at?: string
@@ -654,6 +656,7 @@ export type Database = {
         Update: {
           api_price?: number | null
           badge?: string | null
+          bot_media_url?: string | null
           category_id?: string | null
           cost_price?: number | null
           created_at?: string
