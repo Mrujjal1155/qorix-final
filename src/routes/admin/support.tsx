@@ -31,16 +31,6 @@ export const Route = createFileRoute("/admin/support")({
   component: SupportPage,
 });
 
-function ThreadBody({
-  thread,
-  onRefreshed,
-}: {
-  thread: ReturnType<typeof useServerFn<typeof getSupportThread>>;
-  onRefreshed: () => void;
-}) {
-  return null;
-}
-
 function SupportPage() {
   const qc = useQueryClient();
   const isMobile = useIsMobile();
