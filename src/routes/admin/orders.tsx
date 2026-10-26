@@ -455,8 +455,9 @@ function OrdersPage() {
         {!rows.length && <p className="text-sm text-muted-foreground">No orders found.</p>}
       </div>
 
-      {/* Desktop table */}
-      <Card className="hidden md:block">
+      {/* Table view — the same data as a dense grid */}
+      {view === "table" && (
+        <Card>
         <CardContent className="overflow-x-auto pt-6">
           <table className="w-full min-w-[60rem] text-sm">
             <thead className="text-left text-muted-foreground">
@@ -598,7 +599,8 @@ function OrdersPage() {
             </tbody>
           </table>
         </CardContent>
-      </Card>
+        </Card>
+      )}
 
       <Dialog open={!!deliverFor} onOpenChange={(open) => !open && setDeliverFor("")}>
         <DialogContent className="max-w-lg">
