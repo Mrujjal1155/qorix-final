@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { countPendingOrders, countUnreadTickets } from "@/lib/admin.functions";
@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme";
 import { SupplierBell } from "@/components/admin/SupplierBell";
 import {
+  ArrowLeft,
   Boxes,
   Tag,
   CreditCard,
@@ -101,6 +102,10 @@ export function AdminShell({
   const badgeFor = (to: string) =>
     to === "/admin/orders" ? pendingCount : to === "/admin/support" ? ticketCount : 0;
 
+  // Any page other than the dashboard hides the menu entirely; a back arrow returns to it.
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isDashboard = pathname === "/admin" || pathname === "/admin/";
+
   useEffect(() => {
     setCollapsed(localStorage.getItem("qorix-admin-rail") === "collapsed");
   }, []);
@@ -142,6 +147,7 @@ export function AdminShell({
           "fixed inset-y-0 left-0 z-50 flex w-[15.5rem] shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar transition-transform duration-200 lg:static lg:translate-x-0 lg:transition-[width]",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
           collapsed ? "lg:w-[4.25rem]" : "lg:w-[15.5rem]",
+          !isDashboard && "hidden",
         )}
       >
         <div className={cn("flex items-center px-5 py-5", collapsed && "lg:justify-center lg:px-3")}>
@@ -224,14 +230,25 @@ export function AdminShell({
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-border/70 bg-sidebar px-4 py-3 lg:px-6">
-          <button
-            onClick={toggleRail}
-            aria-label={collapsed ? "Expand menu" : "Collapse menu"}
-            title={collapsed ? "Expand menu" : "Collapse menu"}
-            className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-          >
-            {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
-          </button>
+          {isDashboard ? (
+            <button
+              onClick={toggleRail}
+              aria-label={collapsed ? "Expand menu" : "Collapse menu"}
+              title={collapsed ? "Expand menu" : "Collapse menu"}
+              className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+            </button>
+          ) : (
+            <Link
+              to="/admin"
+              aria-label="Back to menu"
+              title="Back to menu"
+              className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+            >
+              <ArrowLeft className="size-4" />
+            </Link>
+          )}
           <label className="mx-auto hidden w-full min-w-0 max-w-md items-center gap-2 rounded-full border border-border bg-background/70 px-4 py-2 sm:flex">
             <Search className="size-4 shrink-0 text-muted-foreground" />
             <input
