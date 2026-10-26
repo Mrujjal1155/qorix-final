@@ -166,6 +166,7 @@ function ProductsPage() {
   const saveManualStock = useServerFn(setManualStock);
   const [stockFor, setStockFor] = useState<string>("");
   const [extractFor, setExtractFor] = useState<{ id: string; name: string; stock: number } | null>(null);
+  const [salesFor, setSalesFor] = useState<{ id: string; name: string } | null>(null);
   const [search, setSearch] = useState("");
   const [supplierFilter, setSupplierFilter] = useState("all");
   const [deliveryFilter, setDeliveryFilter] = useState("all");
