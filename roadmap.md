@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Show every order as its own clearly separated card on phone and computer, with a Cards/Table toggle remembered between visits; card styles come from shared admin-order utilities and the dark theme keeps its deep blue/gold accent. Build and served CSS verified; signed-in UI check still blocked by external unmanaged authentication.
+
 - [x] Add reseller forgot-password request and public recovery page without profile changes; 4 focused tests pass, browser verifies request with mocked email API and real missing-link rejection, build OK. Login/recovery stay open during maintenance.
 - [ ] Verify real reseller recovery email and password update after deployment; blocked by external unmanaged authentication and unverified Supabase sender/redirect settings. Allow https://qorixlab.com/reset-password (and each preview origin's /reset-password) in Supabase Auth Redirect URLs; no real recovery email or password change attempted.
 
