@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import {
   deliverOrder,
   recheckOrderBinance,
@@ -17,13 +17,14 @@ import { orderCode, normalizeOrderQuery } from "@/lib/order-code";
 import { DEFAULT_ORDER_TIMEZONE } from "@/lib/order-time";
 import { canRetryInhouseOrder } from "@/lib/order-retry";
 import { resellerBadgeStyle, supplierBadgeStyle } from "@/lib/supplier-colors";
+import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Store } from "lucide-react";
+import { LayoutGrid, Store, Table2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/orders")({
@@ -147,6 +148,18 @@ function OrdersPage() {
   const markPaid = useServerFn(markOrderPaid);
   const refund = useServerFn(refundOrderToWallet);
   const [retrying, setRetrying] = useState<string>("");
+  const [view, setView] = useState<"cards" | "table">("cards");
+
+  // The chosen view is browser state, so it is restored after hydration.
+  useEffect(() => {
+    const saved = localStorage.getItem("qorix-orders-view");
+    if (saved === "cards" || saved === "table") setView(saved);
+  }, []);
+
+  function changeView(v: "cards" | "table") {
+    setView(v);
+    localStorage.setItem("qorix-orders-view", v);
+  }
 
 
   const runRetry = async (id: string) => {
@@ -340,123 +353,62 @@ function OrdersPage() {
       </div>
 
 
-      <div className="mb-4 max-w-md">
-        <Input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search order ID (ORD-XXXXXXXX), #order no, email, telegram id or TX"
-        />
-        {search && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            {rows.length} order(s) matched “{search}”.
-          </p>
-        )}
+      <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+        <div className="min-w-0">
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search order ID (ORD-XXXXXXXX), #order no, email, telegram id or TX"
+          />
+          {search && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {rows.length} order(s) matched “{search}”.
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-1 rounded-xl border border-border/70 bg-muted/40 p-1">
+          <Button
+            size="sm"
+            variant={view === "cards" ? "default" : "ghost"}
+            className="gap-1.5"
+            onClick={() => changeView("cards")}
+          >
+            <LayoutGrid className="size-4" />
+            Cards
+          </Button>
+          <Button
+            size="sm"
+            variant={view === "table" ? "default" : "ghost"}
+            className="gap-1.5"
+            onClick={() => changeView("table")}
+          >
+            <Table2 className="size-4" />
+            Table
+          </Button>
+        </div>
       </div>
 
-      {/* Mobile: one card per order */}
-      <div className="space-y-3 md:hidden">
-        {rows.map((o: any) => {
-          const pay = paymentInfo(o);
-          return (
-            <Card key={o.id}>
-              <CardContent className="space-y-3 pt-5 text-sm">
-                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
-                  <div className="min-w-0">
-                    <div className="font-semibold">#{o.order_no}</div>
-                    <button
-                      type="button"
-                      className="mt-1 rounded bg-muted px-2 py-1 font-mono text-xs"
-                      onClick={() => copyCode(o.id)}
-                    >
-                      {orderCode(o.id)}
-                    </button>
-                    <div className="mt-1 text-xs text-muted-foreground">{fmtOrderTime(o.created_at)}</div>
-                  </div>
-                  <Badge
-                    className="shrink-0"
-                    variant={o.status === "completed" ? "default" : o.status === "failed" ? "destructive" : "secondary"}
-                  >
-                    {STATUS_LABEL[o.status] ?? o.status}
-                  </Badge>
-                </div>
+      {/* Cards view — one order, one clearly separated card */}
+      {view === "cards" && (
+        <div className="space-y-3.5">
+          {rows.map((o: any) => (
+            <OrderCard
+              key={o.id}
+              o={o}
+              actions={rowActions(o)}
+              onCopy={copyCode}
+              onRecheck={recheckBinance}
+              supplierStyle={supplierStyle}
+              resellerStyle={resellerStyle}
+            />
+          ))}
+          {!rows.length && <p className="text-sm text-muted-foreground">No orders found.</p>}
+        </div>
+      )}
 
-                <div className="min-w-0 break-words">
-                  {o.quantity}× {o.product_name} {o.delivery_type === "manual" && <Badge variant="destructive" className="ml-1 align-middle text-[10px]">MANUAL</Badge>}
-                </div>
-
-                <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <Badge variant={o.source === "website" ? "default" : "secondary"}>{SOURCE_LABEL[o.source] ?? o.source ?? "telegram"}</Badge>
-                  {(o.source === "api_website" || o.source === "api_bot") && (
-                    <Badge
-                      variant="outline"
-                      title="Ordered through this reseller's API"
-                      className="gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
-                      style={resellerStyle(String(o.reseller_name ?? ""))}
-                    >
-                      <Store className="size-3" />
-                      {o.reseller_name ?? "Unknown reseller"}
-                    </Badge>
-                  )}
-                  <span>{money(o.total)}</span>
-                  {o.status === "completed" && (
-                    <span className={Number(o.profit ?? 0) >= 0 ? "font-semibold text-success" : "font-semibold text-destructive"}>
-                      profit {money(o.profit ?? 0)}
-                    </span>
-                  )}
-                  <span>{o.delivery_type}</span>
-                </div>
-
-                <div className="rounded-lg border border-border/70 bg-muted/40 p-2 text-xs">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold">{pay.label}</span>
-                    <Badge variant={pay.paid ? "default" : "secondary"}>{pay.paid ? "paid" : "not paid"}</Badge>
-                    {pay.refunded && <Badge variant="outline">refunded</Badge>}
-                  </div>
-                  {pay.detail && <div className="mt-1 break-all text-muted-foreground">{pay.detail}</div>}
-                </div>
-
-                <div className="text-xs text-muted-foreground">
-                  {o.source === "website" ? (
-                    <>
-                      <div className="break-all">{o.customer_name}</div>
-                      <div className="break-all">{o.customer_email}</div>
-                      <BinanceCheckBadge o={o} onRecheck={() => recheckBinance(o.id)} />
-                    </>
-                  ) : (
-                    <>
-                      <div className="break-all">
-                        Telegram: {o.telegram_id}
-                        {o.buyer_username && (
-                          <a className="ml-1 text-primary underline" href={`https://t.me/${o.buyer_username}`} target="_blank" rel="noreferrer">
-                            @{o.buyer_username}
-                          </a>
-                        )}
-                      </div>
-                      {o.buyer_name && <div className="break-all">{o.buyer_name}</div>}
-                    </>
-                  )}
-                  {o.supplier_name ? (
-                    <div className="mt-1">
-                      API · {o.supplier_name}
-                      {o.supplier_external_id ? ` · ${o.supplier_external_id}` : ""}
-                    </div>
-                  ) : (
-                    <div className="mt-1">Own stock</div>
-                  )}
-                </div>
-
-                {o.delivered_content && <DeliveryToggle content={o.delivered_content} />}
-
-                <div className="flex flex-wrap gap-2">{rowActions(o)}</div>
-              </CardContent>
-            </Card>
-          );
-        })}
-        {!rows.length && <p className="text-sm text-muted-foreground">No orders found.</p>}
-      </div>
-
-      {/* Desktop table */}
-      <Card className="hidden md:block">
+      {/* Table view — the same data as a dense grid */}
+      {view === "table" && (
+        <Card>
         <CardContent className="overflow-x-auto pt-6">
           <table className="w-full min-w-[60rem] text-sm">
             <thead className="text-left text-muted-foreground">
@@ -598,7 +550,8 @@ function OrdersPage() {
             </tbody>
           </table>
         </CardContent>
-      </Card>
+        </Card>
+      )}
 
       <Dialog open={!!deliverFor} onOpenChange={(open) => !open && setDeliverFor("")}>
         <DialogContent className="max-w-lg">
@@ -826,5 +779,190 @@ function BinanceCheckBadge({ o, onRecheck }: { o: any; onRecheck?: () => void })
         </button>
       )}
     </div>
+  );
+}
+
+/* ─── One order = one clearly separated card, on every screen size ─── */
+const STATUS_TONE: Record<string, { bar: string; badge: "default" | "secondary" | "destructive" }> = {
+  completed: { bar: "bg-success", badge: "default" },
+  processing: { bar: "bg-warning", badge: "secondary" },
+  pending: { bar: "bg-warning", badge: "secondary" },
+  awaiting_payment: { bar: "bg-warning", badge: "secondary" },
+  failed: { bar: "bg-destructive", badge: "destructive" },
+  refunded: { bar: "bg-destructive", badge: "secondary" },
+  cancelled: { bar: "bg-muted-foreground/40", badge: "secondary" },
+};
+
+function OrderField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="admin-order-field">
+      <div className="admin-order-label">{label}</div>
+      <div className="mt-1 min-w-0 break-words text-xs">{children}</div>
+    </div>
+  );
+}
+
+function OrderCard({
+  o,
+  actions,
+  onCopy,
+  onRecheck,
+  supplierStyle,
+  resellerStyle,
+}: {
+  o: any;
+  actions: ReactNode;
+  onCopy: (id: string) => void;
+  onRecheck: (id: string) => void;
+  supplierStyle: (name: string) => CSSProperties;
+  resellerStyle: (name: string) => CSSProperties;
+}) {
+  const pay = paymentInfo(o);
+  const tone = STATUS_TONE[String(o.status)] ?? { bar: "bg-primary", badge: "secondary" as const };
+  const showActions = o.status !== "completed" && o.status !== "refunded";
+
+  return (
+    <article className="admin-order-card">
+      <span className={cn("absolute inset-y-0 left-0 w-1", tone.bar)} aria-hidden="true" />
+
+      <header className="admin-order-head">
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="shrink-0 text-sm font-extrabold tracking-tight">#{o.order_no}</span>
+            <button
+              type="button"
+              title="Copy order ID"
+              onClick={() => onCopy(o.id)}
+              className="min-w-0 max-w-full truncate rounded-md bg-muted px-2 py-1 font-mono text-xs transition-colors hover:bg-muted/70"
+            >
+              {orderCode(o.id)}
+            </button>
+            {o.delivery_type === "manual" && (
+              <Badge variant="destructive" className="shrink-0 text-[10px]">
+                MANUAL
+              </Badge>
+            )}
+          </div>
+          <div className="mt-1.5 truncate text-xs text-muted-foreground">{fmtOrderTime(o.created_at)}</div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-1">
+          <Badge variant={tone.badge}>{STATUS_LABEL[o.status] ?? o.status}</Badge>
+          <span className="text-sm font-bold text-gold">{money(o.total)}</span>
+          {o.status === "completed" && (
+            <span
+              className={cn(
+                "text-xs font-semibold",
+                Number(o.profit ?? 0) >= 0 ? "text-success" : "text-destructive",
+              )}
+            >
+              profit {money(o.profit ?? 0)}
+            </span>
+          )}
+        </div>
+      </header>
+
+      <div className="admin-order-body">
+        <div className="min-w-0 break-words text-sm font-semibold">
+          {o.quantity}× {o.product_name}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={o.source === "website" ? "default" : "secondary"}>
+            {SOURCE_LABEL[o.source] ?? o.source ?? "telegram"}
+          </Badge>
+          {(o.source === "api_website" || o.source === "api_bot") && (
+            <Badge
+              variant="outline"
+              title="Ordered through this reseller's API"
+              className="gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold"
+              style={resellerStyle(String(o.reseller_name ?? ""))}
+            >
+              <Store className="size-3" />
+              {o.reseller_name ?? "Unknown reseller"}
+            </Badge>
+          )}
+          <span className="rounded-full border border-border/70 px-2 py-0.5 text-[11px] text-muted-foreground">
+            {o.delivery_type}
+          </span>
+        </div>
+
+        <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3">
+          <OrderField label="Payment">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="font-semibold">{pay.label}</span>
+              <Badge variant={pay.paid ? "default" : "secondary"} className="text-[10px]">
+                {pay.paid ? "paid" : "not paid"}
+              </Badge>
+              {pay.refunded && (
+                <Badge variant="outline" className="text-[10px]">
+                  refunded
+                </Badge>
+              )}
+            </div>
+            {pay.detail && <div className="mt-1 break-all text-muted-foreground">{pay.detail}</div>}
+          </OrderField>
+
+          <OrderField label="Customer">
+            {o.source === "website" ? (
+              <>
+                <div className="break-all">{o.customer_name}</div>
+                <div className="break-all text-muted-foreground">{o.customer_email}</div>
+                <BinanceCheckBadge o={o} onRecheck={() => onRecheck(o.id)} />
+              </>
+            ) : (
+              <>
+                <div className="break-all">Telegram: {o.telegram_id}</div>
+                {o.buyer_username && (
+                  <a
+                    className="text-primary underline"
+                    href={`https://t.me/${o.buyer_username}`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    @{o.buyer_username}
+                  </a>
+                )}
+                {o.buyer_name && <div className="break-all text-muted-foreground">{o.buyer_name}</div>}
+              </>
+            )}
+          </OrderField>
+
+          <OrderField label="Supply">
+            {o.supplier_name ? (
+              <>
+                <Badge
+                  variant="outline"
+                  className="max-w-full truncate"
+                  style={supplierStyle(String(o.supplier_name))}
+                >
+                  API · {o.supplier_name}
+                </Badge>
+                {o.supplier_external_id && (
+                  <div className="mt-1 break-all text-muted-foreground">ID: {o.supplier_external_id}</div>
+                )}
+              </>
+            ) : (
+              <span className="text-muted-foreground">Own stock</span>
+            )}
+          </OrderField>
+        </div>
+
+        {Array.isArray(o.meta?.manual_input) && o.meta.manual_input.length > 0 && (
+          <pre className="max-w-full overflow-x-auto rounded-lg border border-border bg-background p-2 text-xs">
+            {o.meta.manual_input.join("\n")}
+          </pre>
+        )}
+
+        {o.status !== "completed" && o.meta?.supplier_error && (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-destructive">
+            <span className="font-semibold">Supplier failed:</span> {String(o.meta.supplier_error)}
+          </div>
+        )}
+
+        {o.delivered_content && <DeliveryToggle content={o.delivered_content} />}
+      </div>
+
+      {showActions && <footer className="admin-order-foot">{actions}</footer>}
+    </article>
   );
 }
