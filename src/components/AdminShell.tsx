@@ -102,6 +102,10 @@ export function AdminShell({
   const badgeFor = (to: string) =>
     to === "/admin/orders" ? pendingCount : to === "/admin/support" ? ticketCount : 0;
 
+  // Any page other than the dashboard hides the menu entirely; a back arrow returns to it.
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isDashboard = pathname === "/admin" || pathname === "/admin/";
+
   useEffect(() => {
     setCollapsed(localStorage.getItem("qorix-admin-rail") === "collapsed");
   }, []);
