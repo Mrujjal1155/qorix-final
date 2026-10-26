@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { ImageUploadField } from "@/components/ImageUploadField";
 import { StockManagerCard } from "@/components/StockManagerCard";
 import { StockExtractionDialog } from "@/components/StockExtractionDialog";
+import { ProductSalesDialog } from "@/components/ProductSalesDialog";
 import { TelegramTopProducts } from "@/components/TelegramTopProducts";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -1087,6 +1088,9 @@ function ProductsPage() {
                         Take accounts
                       </Button>
                     )}
+                    <Button size="sm" variant="outline" onClick={() => setSalesFor({ id: p.id, name: p.name })}>
+                      Sales
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => editProduct(p)}>
                       Edit
                     </Button>
@@ -1209,6 +1213,7 @@ function ProductsPage() {
         </div>
       )}
       {extractFor && <StockExtractionDialog key={extractFor.id} productId={extractFor.id} productName={extractFor.name} available={extractFor.stock} onClose={() => setExtractFor(null)} />}
+      {salesFor && <ProductSalesDialog key={salesFor.id} productId={salesFor.id} productName={salesFor.name} onClose={() => setSalesFor(null)} />}
     </AdminShell>
   );
 }
