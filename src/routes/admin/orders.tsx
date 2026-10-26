@@ -327,7 +327,7 @@ function OrdersPage() {
 
   return (
     <AdminShell title="Orders">
-      <div className="mb-3 flex gap-2">
+      <div className="mb-3 flex flex-wrap gap-2">
         {SOURCES.map((s) => (
           <Button key={s.id} size="sm" variant={source === s.id ? "default" : "outline"} onClick={() => setSource(s.id)}>
             {s.label}
@@ -335,7 +335,7 @@ function OrdersPage() {
         ))}
       </div>
 
-      <div className="mb-4 flex gap-2">
+      <div className="mb-4 flex flex-wrap gap-2">
         {FILTERS.map((f) => (
           <Button key={f} size="sm" variant={status === f ? "default" : "outline"} onClick={() => setStatus(f)}>
             {f}
