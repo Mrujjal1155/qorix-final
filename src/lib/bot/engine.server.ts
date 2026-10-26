@@ -15,6 +15,7 @@ import {
   sendMessage,
   sendAlertMessage,
   sendPhoto,
+  sendAnimation,
   COMMAND_LIST,
   styleRows,
   styled,
@@ -673,12 +674,12 @@ function siteUrl(settings: Record<string, string>) {
  * Telegram accepts an https URL or a file_id, never a data: URL. Inline images
  * are served through our own public endpoint instead.
  */
-function bannerFor(product: any, settings: Record<string, string>): string | null {
-  const raw = String(product?.image_url ?? "").trim();
-  if (!raw) return null;
-  if (/^https?:\/\//i.test(raw)) return raw;
-  if (raw.startsWith("data:")) return `${siteUrl(settings)}/api/public/product-image/${product.id}`;
-  return /\s/.test(raw) ? null : raw; // Telegram file_id
+function bannerFor(product: any, _settings: Record<string, string>): string | null {
+  // Bot shows ONLY the admin-uploaded GIF/MP4. Website images and supplier
+  // images are never sent to Telegram.
+  const raw = String(product?.bot_media_url ?? "").trim();
+  if (!raw || /\s/.test(raw)) return null;
+  return raw;
 }
 
 /**
@@ -721,7 +722,7 @@ async function showView(
   }
 
   const short = view.text.length <= CAPTION_LIMIT;
-  const res = await sendPhoto(
+  const res = await sendAnimation(
     chatId,
     view.photo,
     short ? view.text : undefined,
@@ -3067,7 +3068,7 @@ async function postToChannel(
   if (!chat) return { sent: false, reason: "No announcement channel/group ID configured" };
   if (photo) {
     // A slow/broken banner must never block the alert — fall back to text.
-    const photoResult = await sendPhoto(chat, photo, text, kb).catch(() => ({ ok: false }) as any);
+    const photoResult = await sendAnimation(chat, photo, text, kb).catch(() => ({ ok: false }) as any);
     if (photoResult.ok) return { sent: true };
   }
   const messageResult = await sendAlertMessage(chat, text, kb);
@@ -3116,7 +3117,7 @@ async function deliverCard(
 ) {
   // Alerts are text-only: sending banners made every card wait on Telegram
   // fetching the image, which blocked the queue. Images stay on product view.
-  banner = null;
+  if (text.length > CAPTION_LIMIT) banner = null;
   if (delivery?.prepareMessage) await delivery.prepareMessage(text, kb);
   let channelSent = Boolean(delivery?.channelSent);
   let botSent = Boolean(delivery?.botSent);
@@ -3141,7 +3142,7 @@ async function deliverCard(
     } else {
       if (delivery?.markBotAttempt) await delivery.markBotAttempt();
       let ok = false;
-      if (banner) ok = (await sendPhoto(target, banner, text, kb).catch(() => ({ ok: false }) as any)).ok;
+      if (banner) ok = (await sendAnimation(target, banner, text, kb).catch(() => ({ ok: false }) as any)).ok;
       if (!ok) ok = (await sendAlertMessage(target, text, kb)).ok;
       if (ok) {
         botSent = true;

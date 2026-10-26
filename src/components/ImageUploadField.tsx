@@ -63,21 +63,27 @@ type Props = {
   onChange: (url: string) => void;
   placeholder?: string;
   compact?: boolean;
+  /** Bot GIF mode: accepts GIF/MP4 up to 10MB, uploaded as-is. */
+  animation?: boolean;
 };
 
-export function ImageUploadField({ value, onChange, placeholder = "Image URL", compact }: Props) {
+export function ImageUploadField({ value, onChange, placeholder = "Image URL", compact, animation }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
   async function onPick(raw: File | undefined) {
     if (!raw) return;
-    if (raw.size > MAX_BYTES) {
-      toast.error("Image size must not exceed 3MB");
+    if (animation && !["image/gif", "video/mp4"].includes(raw.type)) {
+      toast.error("Choose a GIF or MP4 file");
+      return;
+    }
+    if (raw.size > (animation ? 10 * 1024 * 1024 : MAX_BYTES)) {
+      toast.error(animation ? "GIF/MP4 must not exceed 10MB" : "Image size must not exceed 3MB");
       return;
     }
     setBusy(true);
     try {
-      const { file, compressed } = await compressImage(raw);
+      const { file, compressed } = animation ? { file: raw, compressed: false } : await compressImage(raw);
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
       if (!token) throw new Error("Please sign in again");
@@ -93,7 +99,7 @@ export function ImageUploadField({ value, onChange, placeholder = "Image URL", c
       if (!response.ok) throw new Error(result?.error || "Upload failed");
       if (!result?.url) throw new Error("Upload completed but no image URL was returned");
       onChange(result.url);
-      toast.success(compressed ? "Image compressed to ~300KB and uploaded" : "Image uploaded");
+      toast.success(animation ? "GIF uploaded" : compressed ? "Image compressed to ~300KB and uploaded" : "Image uploaded");
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -109,7 +115,7 @@ export function ImageUploadField({ value, onChange, placeholder = "Image URL", c
         <input
           ref={inputRef}
           type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif"
+          accept={animation ? "image/gif,video/mp4" : "image/png,image/jpeg,image/webp,image/gif"}
           className="hidden"
           onChange={(e) => onPick(e.target.files?.[0])}
         />
@@ -125,7 +131,12 @@ export function ImageUploadField({ value, onChange, placeholder = "Image URL", c
           {!compact && <span className="ml-1">Upload</span>}
         </Button>
       </div>
-      {!compact && (
+      {animation && (
+        <p className="text-xs text-muted-foreground">
+          GIF or MP4 (short, silent), max <strong>10MB</strong>. Best size <strong>640×360</strong>. Shown only in the Telegram bot.
+        </p>
+      )}
+      {!compact && !animation && (
         <p className="text-xs text-muted-foreground">
           Best size: for hero/icon cards <strong>512×512 px (1:1)</strong>, for product banners{" "}
           <strong>1200×900 px (4:3)</strong>. Formats PNG / JPG / WEBP, max file size <strong>3MB</strong> —

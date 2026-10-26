@@ -70,6 +70,7 @@ const EMPTY = {
   preorder_percent: 5 as string | number,
   supplier_id: "" as string,
   image_url: "",
+  bot_media_url: "",
   delivery_time: "",
   badge: "",
   delivery_type: "auto" as "auto" | "manual",
@@ -292,6 +293,7 @@ function ProductsPage() {
           preorder_enabled: Boolean(form.preorder_enabled),
           preorder_percent: form.preorder_percent === "" ? 5 : Number(form.preorder_percent),
           image_url: form.image_url,
+          bot_media_url: form.bot_media_url,
           delivery_time: form.delivery_time,
           badge: form.badge,
           manual_note: form.manual_note,
@@ -353,6 +355,7 @@ function ProductsPage() {
       supplier_id: p.supplier_id ?? "",
       delivery_type: p.delivery_type,
       image_url: p.image_url ?? "",
+      bot_media_url: (p as any).bot_media_url ?? "",
       delivery_time: p.delivery_time ?? "",
       badge: p.badge ?? "",
       manual_note: p.manual_note ?? "",
@@ -801,11 +804,20 @@ function ProductsPage() {
           </div>
         )}
         <div className="space-y-1 sm:col-span-2">
-          <Label>Website image — upload or URL (Telegram keeps using the emoji)</Label>
+          <Label>Website image — upload or URL (website only, never sent to the bot)</Label>
           <ImageUploadField
             value={form.image_url}
             onChange={(url) => setForm({ ...form, image_url: url })}
             placeholder="https://…/product.jpg"
+          />
+        </div>
+        <div className="space-y-1 sm:col-span-2">
+          <Label>Telegram bot GIF — the only media shown in the bot</Label>
+          <ImageUploadField
+            animation
+            value={form.bot_media_url}
+            onChange={(url) => setForm({ ...form, bot_media_url: url })}
+            placeholder="https://…/product.mp4"
           />
         </div>
         <div className="space-y-1">
