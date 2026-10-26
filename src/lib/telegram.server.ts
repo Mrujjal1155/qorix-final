@@ -322,6 +322,21 @@ export function sendPhoto(
   });
 }
 
+/** GIF / silent MP4 shown as an auto-playing "GIF" card in Telegram. */
+export function sendAnimation(
+  chat_id: number | string,
+  animation: string,
+  caption?: string,
+  keyboard?: Button[][],
+) {
+  return tg("sendAnimation", {
+    chat_id,
+    animation,
+    ...(caption ? { caption, parse_mode: "HTML" } : {}),
+    ...(keyboard ? { reply_markup: { inline_keyboard: withDefaultStyle(keyboard) } } : {}),
+  });
+}
+
 export function sendDocument(
   chat_id: number | string,
   document: string,
