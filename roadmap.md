@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Move the supplier API wallet cards to the very end of the dashboard scroll, keeping their card look, shared supplier colours and phone/desktop grid; a top rule separates them from the product counters. Build OK; signed-in visual check still blocked by external unmanaged authentication (browser shows Sign in).
+
+
 - [x] Show every order as its own clearly separated card on phone and computer, with a Cards/Table toggle remembered between visits; card styles come from shared admin-order utilities and the dark theme keeps its deep blue/gold accent. Build and served CSS verified; signed-in UI check still blocked by external unmanaged authentication.
 
 - [x] Add reseller forgot-password request and public recovery page without profile changes; 4 focused tests pass, browser verifies request with mocked email API and real missing-link rejection, build OK. Login/recovery stay open during maintenance.
