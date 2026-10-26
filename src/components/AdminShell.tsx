@@ -147,6 +147,7 @@ export function AdminShell({
           "fixed inset-y-0 left-0 z-50 flex w-[15.5rem] shrink-0 flex-col overflow-y-auto border-r border-sidebar-border bg-sidebar transition-transform duration-200 lg:static lg:translate-x-0 lg:transition-[width]",
           mobileOpen ? "translate-x-0" : "-translate-x-full",
           collapsed ? "lg:w-[4.25rem]" : "lg:w-[15.5rem]",
+          !isDashboard && "hidden",
         )}
       >
         <div className={cn("flex items-center px-5 py-5", collapsed && "lg:justify-center lg:px-3")}>
