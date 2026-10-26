@@ -244,9 +244,10 @@ export function AdminShell({
               to="/admin"
               aria-label="Back to menu"
               title="Back to menu"
-              className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+              className="flex max-w-[13rem] shrink-0 items-center gap-2 rounded-xl border border-gold/40 bg-card px-3.5 py-2 text-sm font-semibold text-gold shadow-sm transition-colors hover:border-gold/70 hover:bg-secondary"
             >
-              <ArrowLeft className="size-4" />
+              <ArrowLeft className="size-4 shrink-0" />
+              <span className="truncate">Back · {title}</span>
             </Link>
           )}
           <label className="mx-auto hidden w-full min-w-0 max-w-md items-center gap-2 rounded-full border border-border bg-background/70 px-4 py-2 sm:flex">
