@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "bun:test";
 import { inTopCategory, standaloneProducts, type TopCategory } from "../../src/lib/telegram-top-categories";
 const gem: TopCategory = { id: "gemini", name: "G", keywords: ["gemini"], is_active: true };
 describe("top category selection", () => {
