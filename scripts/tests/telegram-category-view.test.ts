@@ -55,13 +55,7 @@ test("home → shop navigation keeps the real bot's existing quick actions", asy
 test("shop → category → All Products respects stock visibility in actual bot callbacks", async () => {
   const shop = await click("shop:0");
   expect(shop.kb.flat().filter((b) => b.callback_data?.startsWith("cat:c"))).toHaveLength(24);
-  expect(shop.kb.flat().filter((b) => b.callback_data?.startsWith("p:"))).toEqual([]);
-  expect(shop.kb.flat().filter((b) => b.callback_data?.startsWith("topcat:")).map((b) => b.callback_data)).toEqual(["topcat:gemini:0", "topcat:lovable:0", "topcat:muse-ai:0"]);
-  const top = await click("topcat:gemini:0");
-  expect(top.kb.flat().filter((b) => b.callback_data?.startsWith("p:")).map((b) => b.callback_data)).toEqual(["p:ready"]);
-  expect(top.kb.flat().some((b) => b.callback_data === "shop:0")).toBe(true);
-  const unavailableTop = await click("topcat:removed:0");
-  expect(unavailableTop.kb.flat().filter((b) => b.callback_data?.startsWith("p:"))).toEqual([]);
+  expect(shop.kb.flat().filter((b) => b.callback_data?.startsWith("p:")).map((b) => b.callback_data)).toEqual(["p:ready"]);
   const category = await click("cat:c0:0");
   expect(category.kb.flat().filter((b) => b.callback_data?.startsWith("p:")).map((b) => [b.callback_data, b.style])).toEqual([["p:ready", "primary"], ["p:out", "danger"]]);
   const all = await click("cat:all:0");
@@ -78,22 +72,4 @@ test("empty shop still renders all 24 categories", async () => {
     expect(shop.kb.flat().filter((b) => b.callback_data?.startsWith("cat:c"))).toHaveLength(24);
     expect(shop.kb.flat().filter((b) => b.callback_data?.startsWith("p:"))).toEqual([]);
   } finally { Date.now = originalNow; noProducts = false; }
-});
-
-test("top brand callbacks paginate 65 products, refresh and return to categories", async () => {
-  const originalLength = products.length;
-  const originalNow = Date.now;
-  products.push(...Array.from({ length: 65 }, (_, index) => ({ id: `lovable-${index}`, name: `Lovable ${index + 1} Credits`, category_id: "c1", is_active: true, delivery_type: "auto", price: 2, stock: 1 })));
-  Date.now = () => originalNow() + 40_000;
-  try {
-    const first = await click("topcat:lovable:0");
-    expect(first.kb.flat().filter((button) => button.callback_data?.startsWith("p:"))).toHaveLength(30);
-    expect(first.kb.flat().some((button) => button.callback_data === "topcat:lovable:1")).toBe(true);
-    const second = await click("topcat:lovable:1");
-    expect(second.kb.flat().filter((button) => button.callback_data?.startsWith("p:"))).toHaveLength(30);
-    const last = await click("topcat:lovable:2");
-    expect(last.kb.flat().filter((button) => button.callback_data?.startsWith("p:")).map((button) => button.callback_data)).toEqual(["p:lovable-60", "p:lovable-61", "p:lovable-62", "p:lovable-63", "p:lovable-64"]);
-    expect(last.kb.flat().some((button) => button.callback_data === "topcat:lovable:2")).toBe(true);
-    expect(last.kb.flat().some((button) => button.callback_data === "shop:0")).toBe(true);
-  } finally { products.splice(originalLength); Date.now = originalNow; }
 });
