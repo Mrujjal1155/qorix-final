@@ -132,7 +132,7 @@ export function AdminShell({
   const labelCls = collapsed ? "lg:hidden" : "";
 
   return (
-    <div className="admin-theme flex min-h-screen">
+    <div className="admin-theme darkpan flex min-h-screen">
       {mobileOpen && (
         <button
           type="button"

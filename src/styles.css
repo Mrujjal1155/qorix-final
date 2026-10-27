@@ -471,3 +471,73 @@
 }
 
 
+
+/* ─── DarkPan admin skin (admin panel only, always dark) ─── */
+.admin-theme.darkpan,
+.dark .admin-theme.darkpan {
+  color-scheme: dark;
+  --radius: 0.3125rem;
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #191c24;
+  --card-foreground: #ffffff;
+  --popover: #191c24;
+  --popover-foreground: #ffffff;
+  --primary: #eb1616;
+  --primary-foreground: #ffffff;
+  --secondary: #000000;
+  --secondary-foreground: #ffffff;
+  --muted: #000000;
+  --muted-foreground: #6c7293;
+  --accent: #000000;
+  --accent-foreground: #eb1616;
+  --destructive: #eb1616;
+  --destructive-foreground: #ffffff;
+  --success: #198754;
+  --success-foreground: #ffffff;
+  --warning: #ffc107;
+  --warning-foreground: #000000;
+  --brand: #eb1616;
+  --gold: #eb1616;
+  --border: #000000;
+  --input: #000000;
+  --ring: #eb1616;
+  --chart-1: #eb1616;
+  --chart-2: #6c7293;
+  --chart-3: #ffc107;
+  --chart-4: #198754;
+  --chart-5: #0dcaf0;
+  --sidebar: #191c24;
+  --sidebar-foreground: #6c7293;
+  --sidebar-primary: #eb1616;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #000000;
+  --sidebar-accent-foreground: #eb1616;
+  --sidebar-border: #000000;
+  --sidebar-ring: #eb1616;
+  font-family: "Open Sans", sans-serif;
+  color: var(--muted-foreground);
+  background: var(--background) !important;
+  background-image: none !important;
+}
+.darkpan :is(h1, h2, h3, h4, h5, h6) {
+  font-family: "Roboto", sans-serif;
+  font-weight: 700;
+  color: #ffffff;
+}
+.darkpan :is(.admin-panel, .admin-order-card) {
+  background: var(--card);
+  border-color: var(--card);
+  box-shadow: none;
+}
+.darkpan .admin-order-card:hover { border-color: var(--primary); }
+.darkpan :is(.admin-order-field) { background: #000000; border-color: #000000; }
+.darkpan .admin-rail-active {
+  background: #000000;
+  color: var(--primary);
+  box-shadow: inset 3px 0 0 0 var(--primary);
+  border-radius: 0 30px 30px 0;
+}
+.darkpan :is(input, select, textarea) { background-color: #000000; color: #ffffff; }
+.darkpan table thead th { color: #ffffff; }
+.darkpan table :is(td, th) { border-color: #6c729340; }
