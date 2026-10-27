@@ -3,6 +3,7 @@
 // otherwise falls back to a direct bot token (TELEGRAM_BOT_TOKEN).
 
 import { deliveryContact, TELEGRAM_UPDATES } from "@/lib/bot/contact";
+import { homeMessageFallback } from "@/lib/bot/home-message";
 
 export type TgResult = { ok: boolean; result?: any; description?: string; error_code?: number; parameters?: { retry_after?: number } };
 
@@ -146,6 +147,8 @@ function isReplyKeyboard(body: Record<string, unknown>): boolean {
 }
 
 function hasCustomEmoji(body: Record<string, unknown>): boolean {
+  const rich = body["rich_message"] as { html?: string } | undefined;
+  if (typeof rich?.html === "string" && /<tg-emoji/i.test(rich.html)) return true;
   if (
     ["text", "caption"].some((k) => typeof body[k] === "string" && /<tg-emoji/i.test(body[k] as string))
   ) {
@@ -162,6 +165,8 @@ function isCustomEmojiError(json: TgResult): boolean {
 
 function stripCustomEmoji(body: Record<string, unknown>): Record<string, unknown> {
   const out = { ...body };
+  const rich = out["rich_message"] as { html?: string } | undefined;
+  if (typeof rich?.html === "string") out["rich_message"] = { ...rich, html: rich.html.replace(TG_EMOJI_RE, "$1") };
   for (const k of ["text", "caption"]) {
     if (typeof out[k] === "string") out[k] = (out[k] as string).replace(TG_EMOJI_RE, "$1");
   }
@@ -290,6 +295,7 @@ export function sendMessage(
   keyboard?: Button[][],
   extra: Record<string, unknown> = {},
 ) {
+  if (/<table\b/i.test(text)) return richTableMessage("sendRichMessage", chat_id, undefined, text, keyboard, extra);
   return tg("sendMessage", {
     chat_id,
     text,
@@ -297,6 +303,31 @@ export function sendMessage(
     disable_web_page_preview: true,
     ...(keyboard ? { reply_markup: { inline_keyboard: withDefaultStyle(keyboard) } } : {}),
     ...extra,
+  });
+}
+
+/** Native rich HTML for welcome tables; preserve ordinary senders and keyboards. */
+async function richTableMessage(
+  method: "sendRichMessage" | "editMessageText",
+  chat_id: number | string,
+  message_id: number | undefined,
+  html: string,
+  keyboard?: Button[][],
+  extra: Record<string, unknown> = {},
+): Promise<TgResult> {
+  const base = {
+    chat_id,
+    ...(message_id === undefined ? {} : { message_id }),
+    ...(keyboard ? { reply_markup: { inline_keyboard: withDefaultStyle(keyboard) } } : {}),
+    ...extra,
+  };
+  const result = await tg(method, { ...base, rich_message: { html } });
+  if (result.ok || /not modified/i.test(result.description ?? "")) return result;
+  // Only a definitive format/method rejection may fall back. A timeout can
+  // mean Telegram accepted the send; retrying it as plain text risks duplicates.
+  if (![400, 404].includes(Number(result.error_code)) || /chat not found|message to edit not found/i.test(result.description ?? "")) return result;
+  return tg(method === "sendRichMessage" ? "sendMessage" : "editMessageText", {
+    ...base, text: homeMessageFallback(html), parse_mode: "HTML", disable_web_page_preview: true,
   });
 }
 
@@ -418,6 +449,7 @@ export function editMessage(
   text: string,
   keyboard?: Button[][],
 ) {
+  if (/<table\b/i.test(text)) return richTableMessage("editMessageText", chat_id, message_id, text, keyboard);
   return tg("editMessageText", {
     chat_id,
     message_id,
