@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Render the approved Telegram welcome as native ACCOUNT/WALLET/REFERRALS tables with premium emojis, existing buttons and a brief Join Community footer; test sending/editing and safe fallback without real messages.
+
 - [x] Add the shared previous/DarkPan admin selector in the header and login with browser persistence and route-scoped root tokens. Seven focused tests pass; live login switch, reload, 1122/390 layouts and storefront isolation pass with no runtime errors; latest build OK. Signed-in management pages remain unverified because external unmanaged authentication is unavailable.
 
 - [x] Unify admin cards, typography, controls and body-mounted popups through one router-scoped DarkPan token set; storefront/reseller themes and business rules unchanged. Latest build OK; login at 390/1122/1280 widths has no overflow, isolated real Dialog/Select controls open/select/close with matching fonts/colors and no runtime errors; 2 sales and 5 retry tests pass.
