@@ -1708,7 +1708,12 @@ async function shopView(page: number, chatId?: number) {
         ic.customId ? `${c.name} — Top Products` : `${ic.glyph} ${c.name} — Top Products`,
         `cat:${c.id}:0`), "primary")]);
     }
-    const gridCats = categories.filter((c: any) => !featured.includes(c));
+    // Telegram allows at most 100 buttons per keyboard — paginate the category grid (24 per page).
+    const CAT_PAGE = 24;
+    const allGridCats = categories.filter((c: any) => !featured.includes(c));
+    const catPages = Math.max(1, Math.ceil(allGridCats.length / CAT_PAGE));
+    const catPage = Math.min(Math.max(0, page), catPages - 1);
+    const gridCats = allGridCats.slice(catPage * CAT_PAGE, catPage * CAT_PAGE + CAT_PAGE);
     for (let i = 0; i < gridCats.length; i += 3) {
       const row: Button[] = [];
       for (const c of gridCats.slice(i, i + 3)) {
@@ -1739,8 +1744,9 @@ async function shopView(page: number, chatId?: number) {
         `p:${p.id}`), prodRowStyle(p, prodStyle))]);
     }
     const topNav: Button[] = [];
-    if (favorites.hasPrevious) topNav.push(styled(uiBtn(settings, "shop_prev", `shop:${topPage - 1}`), btnColor(settings, "pagination")));
-    if (favorites.hasNext) topNav.push(styled(uiBtn(settings, "shop_next", `shop:${topPage + 1}`), btnColor(settings, "pagination")));
+    const curPage = Math.max(topPage, catPage);
+    if (favorites.hasPrevious || catPage > 0) topNav.push(styled(uiBtn(settings, "shop_prev", `shop:${curPage - 1}`), btnColor(settings, "pagination")));
+    if (favorites.hasNext || catPage + 1 < catPages) topNav.push(styled(uiBtn(settings, "shop_next", `shop:${curPage + 1}`), btnColor(settings, "pagination")));
     if (topNav.length) kb.push(topNav);
 
     const allIc = allProductsIcon(settings);
@@ -1754,7 +1760,7 @@ async function shopView(page: number, chatId?: number) {
         navStyle,
       ),
     ]);
-    kb.push([styled(iconButton(settings, "refresh", `shop:${topPage}`), navStyle)]);
+    kb.push([styled(iconButton(settings, "refresh", `shop:${curPage}`), navStyle)]);
     kb.push([
       styled(iconButton(settings, "cart", "cart"), navStyle),
       styled(iconButton(settings, "back", "home"), "danger"),
