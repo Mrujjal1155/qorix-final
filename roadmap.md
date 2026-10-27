@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Add an admin selector for previous/DarkPan themes with browser persistence, scoped login/portal styling and no storefront/reseller changes; verify switch and reload behavior.
+
 - [x] Unify admin cards, typography, controls and body-mounted popups through one router-scoped DarkPan token set; storefront/reseller themes and business rules unchanged. Latest build OK; login at 390/1122/1280 widths has no overflow, isolated real Dialog/Select controls open/select/close with matching fonts/colors and no runtime errors; 2 sales and 5 retry tests pass.
 - [ ] Verify every signed-in admin page and real product/order/ticket popup with live data; blocked by external unmanaged authentication. Current checks cover login and isolated UI controls, not authenticated management flows.
 
