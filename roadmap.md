@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Export a clean standalone ZIP with admin login/panel and the complete Telegram bot/server dependencies, excluding customer/reseller website pages, secrets, Git metadata, dependencies and generated output; validate staged contents and package setup without changing the live shop.
+
 - [x] Move the supplier API wallet cards to the very end of the dashboard scroll, keeping their card look, shared supplier colours and phone/desktop grid; a top rule separates them from the product counters. Build OK; signed-in visual check still blocked by external unmanaged authentication (browser shows Sign in).
 
 
