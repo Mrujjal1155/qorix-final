@@ -40,7 +40,7 @@ import {
 } from "@/lib/bot/ui.server";
 
 import { renderRich, plainRich, messageToRich } from "@/lib/bot/richtext";
-import { TELEGRAM_TOP_CATEGORIES_KEY, parseTopCategories, topCategoryPage } from "@/lib/telegram-top-categories";
+import { TELEGRAM_TOP_CATEGORIES_KEY, parseTopCategories, standaloneProducts, topCategoryPage } from "@/lib/telegram-top-categories";
 import { availableCatalogue, categoryCatalogue, isOutOfStock, stockRowStyle, telegramCategories } from "@/lib/bot/catalogue";
 import {
   credentialItems,
@@ -1720,7 +1720,17 @@ async function shopView(page: number, chatId?: number) {
 
     // Brand shortcuts replace the long product list below ordinary categories.
     for (const category of topCategories) {
-      kb.push([styled({ text: category.name, callback_data: `topcat:${category.id}:0` }, btnColor(settings, "product"))]);
+      kb.push([styled({ text: category.name, callback_data: `topcat:${category.id}:0`, ...(category.emoji_id ? { icon_custom_emoji_id: category.emoji_id } : {}) }, btnColor(settings, "product"))]);
+    }
+    // Single products outside top categories: in-house first, then supplier.
+    if (topCategories.length) {
+      const singles = standaloneProducts(products as any[], topCategories).slice(0, 40);
+      for (let i = 0; i < singles.length; i += 2) {
+        kb.push(singles.slice(i, i + 2).map((p: any) => styled({
+          text: String(p.name).slice(0, 40), callback_data: `p:${p.id}`,
+          ...(p.telegram_custom_emoji_id ? { icon_custom_emoji_id: String(p.telegram_custom_emoji_id) } : {}),
+        }, btnColor(settings, "product"))));
+      }
     }
 
     const allIc = allProductsIcon(settings);
