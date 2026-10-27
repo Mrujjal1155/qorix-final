@@ -21,6 +21,7 @@ import { ReferralCapture } from "@/components/ReferralCapture";
 import { BrandHead } from "@/components/BrandHead";
 import { siteJsonLd } from "@/lib/seo";
 import { MaintenanceGate } from "@/components/MaintenanceGate";
+import { AdminThemeProvider, useAdminTheme } from "@/components/admin/AdminThemeProvider";
 
 /** Storage origin that serves product images — warm the connection early. */
 const IMG_ORIGIN: string =
@@ -158,11 +159,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  return <AdminThemeProvider><RootDocument>{children}</RootDocument></AdminThemeProvider>;
+}
+
+function RootDocument({ children }: { children: ReactNode }) {
+  const { theme } = useAdminTheme();
   const isAdmin = useRouterState({
     select: (state) => state.location.pathname === "/admin" || state.location.pathname.startsWith("/admin/"),
   });
   return (
-    <html lang="en" className={isAdmin ? "dark admin-theme darkpan" : "dark"}>
+    <html lang="en" className={isAdmin ? `dark admin-theme ${theme === "darkpan" ? "darkpan" : "admin-legacy"}` : "dark"}>
       <head>
         <HeadContent />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />

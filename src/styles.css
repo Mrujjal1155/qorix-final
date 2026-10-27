@@ -382,6 +382,54 @@
 
 
 
+/* Restored previous admin dark tokens; only html carries the selected skin. */
+.admin-theme.admin-legacy {
+  color-scheme: dark;
+  --radius: 0.5rem;
+  --background: oklch(0.19 0.03 265);
+  --foreground: oklch(0.97 0.005 265);
+  --card: oklch(0.23 0.032 265);
+  --card-foreground: oklch(0.97 0.005 265);
+  --popover: oklch(0.22 0.032 265);
+  --popover-foreground: oklch(0.97 0.005 265);
+  --primary: oklch(0.62 0.17 258);
+  --primary-foreground: oklch(0.99 0.004 265);
+  --secondary: oklch(0.28 0.032 265);
+  --secondary-foreground: oklch(0.96 0.005 265);
+  --muted: oklch(0.27 0.03 265);
+  --muted-foreground: oklch(0.75 0.02 265);
+  --accent: oklch(0.32 0.05 258);
+  --accent-foreground: oklch(0.98 0.004 265);
+  --destructive: oklch(0.62 0.2 22);
+  --destructive-foreground: oklch(0.99 0.004 265);
+  --success: oklch(0.68 0.15 155);
+  --success-foreground: oklch(0.18 0.02 265);
+  --warning: oklch(0.75 0.16 55);
+  --warning-foreground: oklch(0.18 0.02 265);
+  --brand: oklch(0.7 0.18 45);
+  --gold: oklch(0.82 0.13 82);
+  --border: oklch(0.32 0.03 265);
+  --input: oklch(0.32 0.03 265);
+  --ring: var(--primary);
+  --chart-1: var(--primary);
+  --chart-2: oklch(0.72 0.13 200);
+  --chart-3: var(--brand);
+  --chart-4: var(--success);
+  --chart-5: oklch(0.55 0.13 285);
+  --sidebar: oklch(0.16 0.028 265);
+  --sidebar-foreground: oklch(0.94 0.006 265);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: oklch(0.26 0.035 265);
+  --sidebar-accent-foreground: oklch(0.98 0.004 265);
+  --sidebar-border: oklch(0.27 0.03 265);
+  --sidebar-ring: var(--ring);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  color: var(--foreground);
+  background-color: var(--background);
+}
+.admin-legacy * { letter-spacing: 0; }
+
 /* DarkPan: one token scope for admin pages AND body-mounted portals.
    The router applies these classes to html only while visiting /admin. */
 .admin-theme.darkpan,

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { AdminThemeSelector } from "@/components/admin/AdminThemeSelector";
 
 export const Route = createFileRoute("/admin")({
   ssr: false,
@@ -51,7 +52,7 @@ function AdminGate() {
   if (state === "ok") return <Outlet />;
   if (state === "loading")
     return (
-      <div className="admin-theme darkpan flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+      <div className="admin-theme flex min-h-screen items-center justify-center text-sm text-muted-foreground">
         Checking access…
       </div>
     );
@@ -77,9 +78,10 @@ function AdminLogin({ denied }: { denied: boolean }) {
   }
 
   return (
-    <div className="admin-theme darkpan admin-grid-bg flex min-h-screen items-center justify-center px-4">
+    <div className="admin-theme admin-grid-bg flex min-h-screen items-center justify-center px-4">
       <Card className="admin-panel w-full max-w-sm border-0">
         <CardHeader>
+          <div className="mb-2 flex justify-end"><AdminThemeSelector /></div>
           <CardTitle>Admin console</CardTitle>
           <CardDescription>
             {denied
