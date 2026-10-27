@@ -1724,7 +1724,9 @@ async function shopView(page: number, chatId?: number) {
     }
     // Single products outside top categories: in-house first, then supplier.
     if (topCategories.length) {
-      const singles = standaloneProducts(products as any[], topCategories).slice(0, 40);
+      // Telegram rejects keyboards above 100 buttons; keep room for nav rows.
+      const used = kb.reduce((n, r) => n + r.length, 0) + 5;
+      const singles = standaloneProducts(products as any[], topCategories).slice(0, Math.max(0, Math.min(40, 100 - used)));
       for (let i = 0; i < singles.length; i += 2) {
         kb.push(singles.slice(i, i + 2).map((p: any) => styled({
           text: String(p.name).slice(0, 40), callback_data: `p:${p.id}`,
