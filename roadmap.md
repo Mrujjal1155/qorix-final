@@ -1,6 +1,7 @@
 # Roadmap
 
-- [ ] Render the approved Telegram welcome as native ACCOUNT/WALLET/REFERRALS tables with premium emojis, existing buttons and a brief Join Community footer; test sending/editing and safe fallback without real messages.
+- [x] Render the approved Telegram welcome as native ACCOUNT/WALLET/REFERRALS tables with configured premium emojis, existing inline/persistent buttons and a brief Join Community footer. Eleven focused sender/emoji/contact/navigation tests pass; latest build OK. No real customer messages sent.
+- [ ] Verify native welcome table appearance in the deployed Telegram bot; requires deployment and an actual /start interaction, which cannot be visually verified through the web preview.
 
 - [x] Add the shared previous/DarkPan admin selector in the header and login with browser persistence and route-scoped root tokens. Seven focused tests pass; live login switch, reload, 1122/390 layouts and storefront isolation pass with no runtime errors; latest build OK. Signed-in management pages remain unverified because external unmanaged authentication is unavailable.
 
