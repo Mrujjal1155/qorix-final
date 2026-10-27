@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SupplierBell } from "@/components/admin/SupplierBell";
+import { AdminThemeSelector } from "@/components/admin/AdminThemeSelector";
 import {
   ArrowLeft,
   Boxes,
@@ -131,7 +132,7 @@ export function AdminShell({
   const labelCls = collapsed ? "lg:hidden" : "";
 
   return (
-    <div className="admin-theme darkpan flex min-h-screen">
+    <div className="admin-theme flex min-h-screen">
       {mobileOpen && (
         <Button
           variant="ghost"
@@ -261,6 +262,7 @@ export function AdminShell({
             />
           </label>
           <div className="ml-auto flex min-w-0 flex-wrap items-center gap-2">
+            <AdminThemeSelector />
             <SupplierBell />
             {actions}
           </div>
