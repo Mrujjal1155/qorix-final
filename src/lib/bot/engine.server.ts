@@ -1699,7 +1699,7 @@ async function shopView(page: number, chatId?: number) {
     if (flash.length)
       kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), btnColor(settings, "product"))]);
     // Featured top categories (Gemini, then Lovable): full-width blue rows under Flash Deals.
-    const featured = [/gemini/i, /lovable/i]
+    const featured = [/gemini/i, /lovable/i, /muse/i]
       .map((re) => categories.find((c: any) => re.test(String(c.name ?? ""))))
       .filter((c: any, i: number, a: any[]) => c && a.indexOf(c) === i);
     for (const c of featured) {
@@ -1761,7 +1761,7 @@ async function shopView(page: number, chatId?: number) {
     const text =
       `${sectionHead(settings, "shop", `${pageIconHtml(settings, "shop")} <b>C A T E G O R I E S</b>`)}\n\n` +
       `${uiIconHtml(settings, "shop_instock")} <b>${inStock}</b> ${uiText(settings, "shop_instock")}\n` +
-      `<i>Pick a category to see its products.</i>`;
+      `<i>Every product is neatly organised by category — just tap a category below to browse and buy instantly.</i>\n\n🛍 <b>Happy shopping with QORIX!</b>`;
     return { text, kb };
   }
 
