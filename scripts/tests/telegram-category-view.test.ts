@@ -35,7 +35,7 @@ mock.module("@/lib/telegram.server", () => ({
   sendMessage: async () => { throw new Error("Unexpected Telegram send"); },
   deleteMessage: async () => ({ ok: true }), getMe: async () => ({}), tg: async () => ({}),
   isCustomEmojiBlocked: () => false, sendDocument: async () => ({}), sendDocumentUpload: async () => ({}),
-  sendAlertMessage: async () => ({}), sendPhoto: async () => ({}), COMMAND_LIST: [],
+  sendAlertMessage: async () => ({}), sendPhoto: async () => ({}), sendAnimation: async () => ({}), COMMAND_LIST: [],
 }));
 mock.module("@/lib/bg.server", () => ({ backgroundWaitUntil: () => false }));
 const { handleUpdate } = await import("../../src/lib/bot/engine.server");
@@ -45,6 +45,13 @@ async function click(data: string) {
   if (!view) throw new Error("No bot view rendered");
   return view;
 }
+test("home → shop navigation keeps the real bot's existing quick actions", async () => {
+  const home = await click("home");
+  expect(home.kb.flat().some((button) => button.callback_data === "shop:0")).toBe(true);
+  expect(home.kb.flat().some((button) => button.callback_data === "wallet")).toBe(true);
+  const shop = await click("shop:0");
+  expect(shop.kb.flat().filter((button) => button.callback_data?.startsWith("cat:c"))).toHaveLength(24);
+});
 test("shop → category → All Products respects stock visibility in actual bot callbacks", async () => {
   const shop = await click("shop:0");
   expect(shop.kb.flat().filter((b) => b.callback_data?.startsWith("cat:c"))).toHaveLength(24);
