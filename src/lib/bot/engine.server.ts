@@ -1708,8 +1708,8 @@ async function shopView(page: number, chatId?: number) {
         ic.customId ? `${c.name} — Top Products` : `${ic.glyph} ${c.name} — Top Products`,
         `cat:${c.id}:0`), "primary")]);
     }
-    // Telegram allows at most 100 buttons per keyboard — paginate the category grid (24 per page).
-    const CAT_PAGE = 24;
+    // Telegram allows at most 100 buttons per keyboard. Other buttons use ≤9, so show 84 categories (28 rows of 3) per page.
+    const CAT_PAGE = 84;
     const allGridCats = categories.filter((c: any) => !featured.includes(c));
     const catPages = Math.max(1, Math.ceil(allGridCats.length / CAT_PAGE));
     const catPage = Math.min(Math.max(0, page), catPages - 1);
@@ -1733,21 +1733,14 @@ async function shopView(page: number, chatId?: number) {
       kb.push(row);
     }
 
-    // Every visible/available product appears, grouped before pagination.
-    const favorites = telegramFavoritesPage(products, page, PAGE);
-    const topPage = favorites.page;
-    const topProducts = await applyUserPrices(chatId, favorites.products);
-    const prodStyle = btnColor(settings, "product");
-    for (const p of topProducts) {
-      kb.push([styled(productIconButton(p,
-        `${p.name} | ${money(p.price)} | ${(p.delivery_type === "manual" && !p.manual_stock_limited) ? "manual" : `📦 ${p.stock}`}`,
-        `p:${p.id}`), prodRowStyle(p, prodStyle))]);
-    }
-    const topNav: Button[] = [];
-    const curPage = Math.max(topPage, catPage);
-    if (favorites.hasPrevious || catPage > 0) topNav.push(styled(uiBtn(settings, "shop_prev", `shop:${curPage - 1}`), btnColor(settings, "pagination")));
-    if (favorites.hasNext || catPage + 1 < catPages) topNav.push(styled(uiBtn(settings, "shop_next", `shop:${curPage + 1}`), btnColor(settings, "pagination")));
-    if (topNav.length) kb.push(topNav);
+    // Categories only — no individual product rows on this page.
+    // Next/Previous each get their own full-width row so they are large and easy to tap.
+    const curPage = catPage;
+    const pagStyle = btnColor(settings, "pagination");
+    if (catPage + 1 < catPages)
+      kb.push([styled({ text: `Next Categories ➡️ (${catPage + 2}/${catPages})`, callback_data: `shop:${catPage + 1}` }, pagStyle)]);
+    if (catPage > 0)
+      kb.push([styled({ text: `⬅️ Previous (${catPage}/${catPages})`, callback_data: `shop:${catPage - 1}` }, pagStyle)]);
 
     const allIc = allProductsIcon(settings);
     kb.push([
