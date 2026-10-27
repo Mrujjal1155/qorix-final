@@ -40,7 +40,7 @@ import {
 } from "@/lib/bot/ui.server";
 
 import { renderRich, plainRich, messageToRich } from "@/lib/bot/richtext";
-import { telegramFavoritesPage } from "@/lib/telegram-top-products";
+import { TELEGRAM_TOP_CATEGORIES_KEY, parseTopCategories, topCategoryPage } from "@/lib/telegram-top-categories";
 import { availableCatalogue, categoryCatalogue, isOutOfStock, stockRowStyle, telegramCategories } from "@/lib/bot/catalogue";
 import {
   credentialItems,
@@ -1692,7 +1692,8 @@ async function shopView(page: number, chatId?: number) {
   const flash = products.filter(isFlash);
   const { categories } = await categoryLinks();
 
-  if (categories.length || products.length) {
+  const topCategories = parseTopCategories(settings[TELEGRAM_TOP_CATEGORIES_KEY]).filter((category) => category.is_active);
+  if (categories.length || products.length || topCategories.length) {
     const kb: Button[][] = [];
     const catStyle = btnColor(settings, "category");
     const navStyle = btnColor(settings, "nav");
@@ -1717,20 +1718,10 @@ async function shopView(page: number, chatId?: number) {
       kb.push(row);
     }
 
-    // Every visible/available product appears, grouped before pagination.
-    const favorites = telegramFavoritesPage(products, page, PAGE);
-    const topPage = favorites.page;
-    const topProducts = await applyUserPrices(chatId, favorites.products);
-    const prodStyle = btnColor(settings, "product");
-    for (const p of topProducts) {
-      kb.push([styled(productIconButton(p,
-        `${p.name} | ${money(p.price)} | ${(p.delivery_type === "manual" && !p.manual_stock_limited) ? "manual" : `📦 ${p.stock}`}`,
-        `p:${p.id}`), prodRowStyle(p, prodStyle))]);
+    // Brand shortcuts replace the long product list below ordinary categories.
+    for (const category of topCategories) {
+      kb.push([styled({ text: category.name, callback_data: `topcat:${category.id}:0` }, btnColor(settings, "product"))]);
     }
-    const topNav: Button[] = [];
-    if (favorites.hasPrevious) topNav.push(styled(uiBtn(settings, "shop_prev", `shop:${topPage - 1}`), btnColor(settings, "pagination")));
-    if (favorites.hasNext) topNav.push(styled(uiBtn(settings, "shop_next", `shop:${topPage + 1}`), btnColor(settings, "pagination")));
-    if (topNav.length) kb.push(topNav);
 
     const allIc = allProductsIcon(settings);
     kb.push([
@@ -1743,7 +1734,7 @@ async function shopView(page: number, chatId?: number) {
         navStyle,
       ),
     ]);
-    kb.push([styled(iconButton(settings, "refresh", `shop:${topPage}`), navStyle)]);
+    kb.push([styled(iconButton(settings, "refresh", "shop:0"), navStyle)]);
     kb.push([
       styled(iconButton(settings, "cart", "cart"), navStyle),
       styled(iconButton(settings, "back", "home"), "danger"),
@@ -1773,13 +1764,21 @@ async function applyUserPrices<T extends any>(chatId: number | undefined, produc
 
 async function allProductsView(page: number, catId: "all" | string = "all", chatId?: number) {
   const settings = await getSettings();
-  const catalogue = await productsWithStock(catId !== "all");
+  const isTopCategory = catId.startsWith("topcat:");
+  const catalogue = await productsWithStock(catId !== "all" && !isTopCategory);
   const all = await applyUserPrices(chatId, catId === "all" ? availableCatalogue(catalogue) : catalogue);
   let title = "P R O D U C T S";
   let products = all;
   let hasCategories = false;
   let subtitle = "";
-  if (catId !== "all") {
+  if (isTopCategory) {
+    const category = parseTopCategories(settings[TELEGRAM_TOP_CATEGORIES_KEY]).find((row) => row.id === catId.slice(7) && row.is_active);
+    const result = category ? topCategoryPage(all, category, page, PAGE) : null;
+    products = category ? topCategoryPage(all, category, 0, Math.max(1, all.length)).products : [];
+    page = result?.page ?? 0;
+    title = escapeHtml(category?.name ?? "Top category unavailable");
+    hasCategories = true;
+  } else if (catId !== "all") {
     const { categories, byCat } = await categoryLinks();
     const cat = categories.find((c: any) => c.id === catId);
     products = cat ? productsOfCategory(all, catId, byCat) : [];
@@ -1797,7 +1796,7 @@ async function allProductsView(page: number, catId: "all" | string = "all", chat
     const { categories } = await categoryLinks();
     hasCategories = categories.length > 0;
   }
-  const back = catId === "all" ? "cat:all" : `cat:${catId}`;
+  const back = isTopCategory ? catId : catId === "all" ? "cat:all" : `cat:${catId}`;
   const inStock = availableCatalogue(products).length;
   const flash = products.filter(isFlash);
   const slice = products.slice(page * PAGE, page * PAGE + PAGE);
@@ -6606,6 +6605,13 @@ async function handleCallback(cq: any) {
   if (data.startsWith("cat:")) {
     const [, id, pg] = data.split(":");
     const view = await allProductsView(Number(pg || 0), id || "all", chatId);
+    await edit(view.text, view.kb);
+    return;
+  }
+
+  if (data.startsWith("topcat:")) {
+    const [, id, pg] = data.split(":");
+    const view = await allProductsView(Number(pg || 0), `topcat:${id ?? ""}`, chatId);
     await edit(view.text, view.kb);
     return;
   }

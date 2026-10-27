@@ -30,7 +30,7 @@ import { ImageUploadField } from "@/components/ImageUploadField";
 import { StockManagerCard } from "@/components/StockManagerCard";
 import { StockExtractionDialog } from "@/components/StockExtractionDialog";
 import { ProductSalesDialog } from "@/components/ProductSalesDialog";
-import { TelegramTopProducts } from "@/components/TelegramTopProducts";
+import { TelegramTopCategories } from "@/components/TelegramTopCategories";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -374,10 +374,10 @@ function ProductsPage() {
   const hubCards = [
     {
       id: "top" as View,
-      title: "Top Products",
+      title: "Top Categories",
       desc: "Telegram Shop",
       icon: Sparkles,
-      meta: "Selected products",
+      meta: "Brand groups",
     },
     {
       id: "categories" as View,
@@ -1171,7 +1171,7 @@ function ProductsPage() {
               {view === "categories"
                 ? "Categories"
                 : view === "top"
-                  ? "Top Products — Telegram"
+                  ? "Top Categories — Telegram"
                 : view === "products"
                   ? "Products"
                   : view === "pricing"
@@ -1197,7 +1197,7 @@ function ProductsPage() {
           </div>
 
           {view === "categories" && categoriesSection}
-          {view === "top" && <TelegramTopProducts products={data?.products ?? []} />}
+          {view === "top" && <TelegramTopCategories products={data?.products ?? []} />}
           {view === "products" && catalogueSection}
           {view === "form" && formSection}
           {view === "pricing" && pricingSection}

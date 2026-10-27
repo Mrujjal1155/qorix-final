@@ -55,7 +55,13 @@ test("home → shop navigation keeps the real bot's existing quick actions", asy
 test("shop → category → All Products respects stock visibility in actual bot callbacks", async () => {
   const shop = await click("shop:0");
   expect(shop.kb.flat().filter((b) => b.callback_data?.startsWith("cat:c"))).toHaveLength(24);
-  expect(shop.kb.flat().filter((b) => b.callback_data?.startsWith("p:")).map((b) => b.callback_data)).toEqual(["p:ready"]);
+  expect(shop.kb.flat().filter((b) => b.callback_data?.startsWith("p:"))).toEqual([]);
+  expect(shop.kb.flat().filter((b) => b.callback_data?.startsWith("topcat:")).map((b) => b.callback_data)).toEqual(["topcat:gemini:0", "topcat:lovable:0", "topcat:muse-ai:0"]);
+  const top = await click("topcat:gemini:0");
+  expect(top.kb.flat().filter((b) => b.callback_data?.startsWith("p:")).map((b) => b.callback_data)).toEqual(["p:ready"]);
+  expect(top.kb.flat().some((b) => b.callback_data === "shop:0")).toBe(true);
+  const unavailableTop = await click("topcat:removed:0");
+  expect(unavailableTop.kb.flat().filter((b) => b.callback_data?.startsWith("p:"))).toEqual([]);
   const category = await click("cat:c0:0");
   expect(category.kb.flat().filter((b) => b.callback_data?.startsWith("p:")).map((b) => [b.callback_data, b.style])).toEqual([["p:ready", "primary"], ["p:out", "danger"]]);
   const all = await click("cat:all:0");
