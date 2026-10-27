@@ -30,7 +30,7 @@ export function parseTopCategories(value?: string | null): TopCategory[] {
 
 /** Match full brand words, independently of the admin's display label. */
 export function matchesTopCategory(name: string, category: TopCategory): boolean {
-  const normalized = name.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const normalized = name.toLocaleLowerCase().replace(/(\p{L})(\p{N})/gu, "$1 $2").replace(/[^\p{L}\p{N}]+/gu, " ").trim();
   return category.keywords.some((keyword) => {
     const words = keyword.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
     return words.length > 0 && ` ${normalized} `.includes(` ${words} `);

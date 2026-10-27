@@ -12,6 +12,7 @@ test("admin labels, keywords and order survive storage", () => {
 });
 test("match brand words rather than unrelated substrings", () => {
   expect(matchesTopCategory("Lovable PRO 100 Credit NW", lovable)).toBe(true);
+  expect(matchesTopCategory("Lovable10k Credits 7 DW", lovable)).toBe(true);
   expect(matchesTopCategory("Unlovable tool", lovable)).toBe(false);
   expect(matchesTopCategory("Google AI Pro 12m", DEFAULT_TOP_CATEGORIES[0] ?? lovable)).toBe(true);
 });
