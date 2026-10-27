@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inTopCategory, standaloneProducts, type TopCategory } from "./telegram-top-categories";
+import { inTopCategory, standaloneProducts, type TopCategory } from "../../src/lib/telegram-top-categories";
 const gem: TopCategory = { id: "gemini", name: "G", keywords: ["gemini"], is_active: true };
 describe("top category selection", () => {
   it("selected products override keywords", () => {
