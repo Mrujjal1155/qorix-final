@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Export a clean standalone ZIP with admin login/panel and the complete Telegram bot/server dependencies, excluding customer/reseller website pages, secrets, Git metadata, dependencies and generated output; validate staged contents and package setup without changing the live shop.
+- [x] Prepare standalone admin-login/panel + complete Telegram bot source export under /tmp without modifying the live shop; explicit portable Vite/Nitro config builds, TypeScript passes and regression tests pass. Include safe manual admin bootstrap, fresh-project environment template, migrations/prerequisite DDL and separate authenticated scheduler setup. Fresh database replay and live admin/bot/payment checks require the new project's credentials/deployment and are documented in the ZIP.
 
 - [x] Move the supplier API wallet cards to the very end of the dashboard scroll, keeping their card look, shared supplier colours and phone/desktop grid; a top rule separates them from the product counters. Build OK; signed-in visual check still blocked by external unmanaged authentication (browser shows Sign in).
 
