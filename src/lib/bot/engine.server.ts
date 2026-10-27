@@ -1760,7 +1760,7 @@ async function shopView(page: number, chatId?: number) {
         navStyle,
       ),
     ]);
-    kb.push([styled(iconButton(settings, "refresh", `shop:${topPage}`), navStyle)]);
+    kb.push([styled(iconButton(settings, "refresh", `shop:${curPage}`), navStyle)]);
     kb.push([
       styled(iconButton(settings, "cart", "cart"), navStyle),
       styled(iconButton(settings, "back", "home"), "danger"),
