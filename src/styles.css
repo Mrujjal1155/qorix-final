@@ -291,96 +291,6 @@
   border: 1px solid color-mix(in oklab, var(--foreground) 10%, transparent);
 }
 
-/* ─── Admin console theme (scoped): light default + dark variant ─── */
-.admin-theme {
-  color-scheme: light;
-  --radius: 0.5rem;
-  --background: oklch(0.975 0.005 265);
-  --foreground: oklch(0.22 0.03 265);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.22 0.03 265);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.22 0.03 265);
-  --primary: oklch(0.55 0.18 258);
-  --primary-foreground: oklch(0.99 0.004 265);
-  --secondary: oklch(0.95 0.012 265);
-  --secondary-foreground: oklch(0.26 0.03 265);
-  --muted: oklch(0.955 0.01 265);
-  --muted-foreground: oklch(0.5 0.025 265);
-  --accent: oklch(0.93 0.03 258);
-  --accent-foreground: oklch(0.24 0.03 265);
-  --destructive: oklch(0.56 0.2 22);
-  --destructive-foreground: oklch(0.99 0.004 265);
-  --success: oklch(0.58 0.14 155);
-  --success-foreground: oklch(0.99 0.004 265);
-  --warning: oklch(0.72 0.16 55);
-  --warning-foreground: oklch(0.2 0.02 265);
-  --brand: oklch(0.63 0.19 45);
-  --gold: oklch(0.6 0.14 72);
-  --border: oklch(0.9 0.012 265);
-  --input: oklch(0.9 0.012 265);
-  --ring: oklch(0.55 0.18 258);
-  --chart-1: oklch(0.55 0.18 258);
-  --chart-2: oklch(0.6 0.13 200);
-  --chart-3: oklch(0.63 0.19 45);
-  --chart-4: oklch(0.58 0.14 155);
-  --chart-5: oklch(0.5 0.13 285);
-  --sidebar: oklch(1 0 0);
-  --sidebar-foreground: oklch(0.22 0.03 265);
-  --sidebar-primary: oklch(0.55 0.18 258);
-  --sidebar-primary-foreground: oklch(0.99 0.004 265);
-  --sidebar-accent: oklch(0.945 0.014 265);
-  --sidebar-accent-foreground: oklch(0.22 0.03 265);
-  --sidebar-border: oklch(0.9 0.012 265);
-  --sidebar-ring: oklch(0.55 0.18 258);
-  background-color: var(--background);
-  color: var(--foreground);
-}
-
-.dark .admin-theme,
-.admin-theme.dark {
-  color-scheme: dark;
-  --background: oklch(0.19 0.03 265);
-  --foreground: oklch(0.97 0.005 265);
-  --card: oklch(0.23 0.032 265);
-  --card-foreground: oklch(0.97 0.005 265);
-  --popover: oklch(0.22 0.032 265);
-  --popover-foreground: oklch(0.97 0.005 265);
-  --primary: oklch(0.62 0.17 258);
-  --primary-foreground: oklch(0.99 0.004 265);
-  --secondary: oklch(0.28 0.032 265);
-  --secondary-foreground: oklch(0.96 0.005 265);
-  --muted: oklch(0.27 0.03 265);
-  --muted-foreground: oklch(0.75 0.02 265);
-  --accent: oklch(0.32 0.05 258);
-  --accent-foreground: oklch(0.98 0.004 265);
-  --destructive: oklch(0.62 0.2 22);
-  --destructive-foreground: oklch(0.99 0.004 265);
-  --success: oklch(0.68 0.15 155);
-  --success-foreground: oklch(0.18 0.02 265);
-  --warning: oklch(0.75 0.16 55);
-  --warning-foreground: oklch(0.18 0.02 265);
-  --brand: oklch(0.7 0.18 45);
-  --gold: oklch(0.82 0.13 82);
-  --border: oklch(0.32 0.03 265);
-  --input: oklch(0.32 0.03 265);
-  --ring: oklch(0.62 0.17 258);
-  --chart-1: oklch(0.62 0.17 258);
-  --chart-2: oklch(0.72 0.13 200);
-  --chart-3: oklch(0.7 0.18 45);
-  --chart-4: oklch(0.68 0.15 155);
-  --chart-5: oklch(0.55 0.13 285);
-  --sidebar: oklch(0.16 0.028 265);
-  --sidebar-foreground: oklch(0.94 0.006 265);
-  --sidebar-primary: oklch(0.62 0.17 258);
-  --sidebar-primary-foreground: oklch(0.99 0.004 265);
-  --sidebar-accent: oklch(0.26 0.035 265);
-  --sidebar-accent-foreground: oklch(0.98 0.004 265);
-  --sidebar-border: oklch(0.27 0.03 265);
-  --sidebar-ring: oklch(0.62 0.17 258);
-}
-
-
 @theme inline {
   --color-brand: var(--brand);
   --color-gold: var(--gold);
@@ -472,7 +382,8 @@
 
 
 
-/* ─── DarkPan admin skin (admin panel only, always dark) ─── */
+/* DarkPan: one token scope for admin pages AND body-mounted portals.
+   The router applies these classes to html only while visiting /admin. */
 .admin-theme.darkpan,
 .dark .admin-theme.darkpan {
   color-scheme: dark;
@@ -497,47 +408,109 @@
   --success-foreground: #ffffff;
   --warning: #ffc107;
   --warning-foreground: #000000;
-  --brand: #eb1616;
-  --gold: #eb1616;
+  --brand: var(--primary);
+  --gold: var(--primary);
   --border: #000000;
   --input: #000000;
-  --ring: #eb1616;
-  --chart-1: #eb1616;
-  --chart-2: #6c7293;
-  --chart-3: #ffc107;
-  --chart-4: #198754;
+  --ring: var(--primary);
+  --chart-1: var(--primary);
+  --chart-2: var(--muted-foreground);
+  --chart-3: var(--warning);
+  --chart-4: var(--success);
   --chart-5: #0dcaf0;
-  --sidebar: #191c24;
-  --sidebar-foreground: #6c7293;
-  --sidebar-primary: #eb1616;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #000000;
-  --sidebar-accent-foreground: #eb1616;
-  --sidebar-border: #000000;
-  --sidebar-ring: #eb1616;
-  font-family: "Open Sans", sans-serif;
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--muted-foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--background);
+  --sidebar-accent-foreground: var(--primary);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+  --admin-divider: color-mix(in srgb, var(--muted-foreground) 25%, transparent);
+  --admin-overlay: color-mix(in srgb, var(--background) 80%, transparent);
+  --admin-shadow: 0 12px 40px color-mix(in srgb, var(--background) 60%, transparent);
+  --admin-body-font: "Open Sans", sans-serif;
+  --admin-heading-font: "Roboto", sans-serif;
+  font-family: var(--admin-body-font);
+  font-size: 1rem;
+  line-height: 1.5;
   color: var(--muted-foreground);
-  background: var(--background) !important;
-  background-image: none !important;
+  background-color: var(--background);
+}
+.darkpan body {
+  font-family: var(--admin-body-font);
+  color: var(--muted-foreground);
+}
+.darkpan :is(h1, h2, h3, h4, h5, h6, [role="dialog"] h2, .font-bold, .font-extrabold, .font-semibold.leading-none) {
+  font-family: var(--admin-heading-font);
 }
 .darkpan :is(h1, h2, h3, h4, h5, h6) {
-  font-family: "Roboto", sans-serif;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--foreground);
 }
-.darkpan :is(.admin-panel, .admin-order-card) {
-  background: var(--card);
-  border-color: var(--card);
+.darkpan * { letter-spacing: 0; }
+.darkpan :is(.admin-panel, .admin-order-card, .bg-card) {
+  border-radius: var(--radius);
+  background-color: var(--card);
+  background-image: none;
   box-shadow: none;
 }
+.darkpan :is(.admin-panel, .admin-order-card) { border-color: var(--card); }
 .darkpan .admin-order-card:hover { border-color: var(--primary); }
-.darkpan :is(.admin-order-field) { background: #000000; border-color: #000000; }
+.darkpan .admin-order-field {
+  background: var(--background);
+  border-color: var(--background);
+  border-radius: var(--radius);
+}
+.darkpan .admin-order-foot { background: var(--background); }
+.darkpan .admin-order-label { color: var(--muted-foreground); }
 .darkpan .admin-rail-active {
-  background: #000000;
+  background: var(--background);
   color: var(--primary);
   box-shadow: inset 3px 0 0 0 var(--primary);
   border-radius: 0 30px 30px 0;
 }
-.darkpan :is(input, select, textarea) { background-color: #000000; color: #ffffff; }
-.darkpan table thead th { color: #ffffff; }
-.darkpan table :is(td, th) { border-color: #6c729340; }
+.darkpan :is(input:not([type="checkbox"]):not([type="radio"]), select, textarea, [role="combobox"]) {
+  background-color: var(--background);
+  color: var(--foreground);
+  border-radius: var(--radius);
+}
+.darkpan :is(input, textarea)::placeholder { color: var(--muted-foreground); opacity: 1; }
+.darkpan :is(input, select, textarea, button, a):focus-visible { outline-color: var(--ring); }
+.darkpan :is(button, [role="button"]):not(.rounded-full) { border-radius: var(--radius); }
+.darkpan table { color: var(--muted-foreground); }
+.darkpan table thead th { color: var(--foreground); font-weight: 700; }
+.darkpan table :is(td, th) { border-color: var(--admin-divider); }
+.darkpan [data-slot="dialog-content"] {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--admin-divider);
+  border-radius: var(--radius);
+  box-shadow: var(--admin-shadow);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  overflow-wrap: anywhere;
+}
+.darkpan :is([data-slot="dialog-overlay"], .admin-menu-overlay) { background: var(--admin-overlay); }
+.darkpan .admin-grid-bg { background-image: none; }
+.darkpan [data-sonner-toast] {
+  font-family: var(--admin-body-font);
+  border-radius: var(--radius);
+  background: var(--popover);
+  color: var(--popover-foreground);
+  box-shadow: var(--admin-shadow);
+}
+.darkpan [data-sonner-toast] [data-description] { color: var(--muted-foreground); }
+.darkpan :is([data-radix-popper-content-wrapper], [role="dialog"]) { font-family: var(--admin-body-font); }
+@media (max-width: 639px) {
+  .darkpan [data-slot="dialog-content"] { max-width: calc(100vw - 1.5rem); }
+  /* Native mobile focus must not zoom the page. */
+  .darkpan :is(input, select, textarea, [role="combobox"]) { font-size: 1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .darkpan *, .darkpan *::before, .darkpan *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

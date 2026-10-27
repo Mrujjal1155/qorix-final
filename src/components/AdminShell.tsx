@@ -5,7 +5,6 @@ import { countPendingOrders, countUnreadTickets } from "@/lib/admin.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "@/components/theme";
 import { SupplierBell } from "@/components/admin/SupplierBell";
 import {
   ArrowLeft,
@@ -134,11 +133,12 @@ export function AdminShell({
   return (
     <div className="admin-theme darkpan flex min-h-screen">
       {mobileOpen && (
-        <button
+        <Button
+          variant="ghost"
           type="button"
           aria-label="Close menu"
           onClick={() => setMobileOpen(false)}
-          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+          className="admin-menu-overlay fixed inset-0 z-40 h-auto w-auto rounded-none lg:hidden"
         />
       )}
       {/* Vertical sidebar — drawer on mobile, collapsible rail on desktop */}
@@ -213,7 +213,8 @@ export function AdminShell({
         </nav>
 
         <div className={cn("mt-auto border-t border-sidebar-border px-3 py-3", collapsed && "lg:px-2")}>
-          <button
+          <Button
+            variant="ghost"
             onClick={signOut}
             className={cn(
               "flex w-full items-center justify-start gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
@@ -222,29 +223,31 @@ export function AdminShell({
           >
             <LogOut className="size-[1.15rem] shrink-0" />
             <span className={labelCls}>Sign out</span>
-          </button>
+          </Button>
         </div>
       </aside>
 
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b border-border/70 bg-sidebar px-4 py-3 lg:px-6">
+        <header className="flex flex-wrap items-center gap-3 border-b border-border/70 bg-sidebar px-4 py-3 lg:px-6">
           {isDashboard ? (
-            <button
+            <Button
+              variant="ghost"
+              size="icon"
               onClick={toggleRail}
               aria-label={collapsed ? "Expand menu" : "Collapse menu"}
               title={collapsed ? "Expand menu" : "Collapse menu"}
               className="grid size-9 shrink-0 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
             >
               {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
-            </button>
+            </Button>
           ) : (
             <Link
               to="/admin"
               aria-label="Back to menu"
               title="Back to menu"
-              className="flex max-w-[13rem] shrink-0 items-center gap-2 rounded-xl border border-gold/40 bg-card px-3.5 py-2 text-sm font-semibold text-gold shadow-sm transition-colors hover:border-gold/70 hover:bg-secondary"
+              className="flex max-w-[13rem] shrink-0 items-center gap-2 rounded-md border border-primary/40 bg-card px-3.5 py-2 text-sm font-semibold text-primary transition-colors hover:border-primary/70 hover:bg-secondary"
             >
               <ArrowLeft className="size-4 shrink-0" />
               <span className="truncate">Back · {title}</span>
@@ -257,8 +260,7 @@ export function AdminShell({
               className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
           </label>
-          <div className="flex shrink-0 items-center gap-2">
-            <ThemeToggle />
+          <div className="ml-auto flex min-w-0 flex-wrap items-center gap-2">
             <SupplierBell />
             {actions}
           </div>
@@ -267,9 +269,9 @@ export function AdminShell({
 
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 px-4 pt-6 sm:pt-8 lg:px-8">
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-extrabold tracking-tight sm:text-3xl lg:text-4xl">{title}</h1>
+             <h1 className="break-words text-2xl font-bold sm:text-3xl">{title}</h1>
 
-            <p className="truncate text-sm text-muted-foreground lg:text-base">
+            <p className="break-words text-sm text-muted-foreground lg:text-base">
               {subtitle ?? "Here's what's going on at your business right now"}
             </p>
           </div>
@@ -300,7 +302,7 @@ export function AdminPanel({
   children: ReactNode;
 }) {
   return (
-    <section className={cn("admin-panel rounded-2xl", className)}>
+    <section className={cn("admin-panel rounded-md", className)}>
       {(title || action) && (
         <div className="flex flex-wrap items-center gap-3 border-b border-border/70 px-4 py-3.5 sm:px-5">
           {title && <h2 className="text-base font-bold tracking-tight">{title}</h2>}

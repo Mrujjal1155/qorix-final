@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Unify admin cards, typography, controls and body-mounted popups through one router-scoped DarkPan token set; storefront/reseller themes and business rules unchanged. Latest build OK; login at 390/1122/1280 widths has no overflow, isolated real Dialog/Select controls open/select/close with matching fonts/colors and no runtime errors; 2 sales and 5 retry tests pass.
+- [ ] Verify every signed-in admin page and real product/order/ticket popup with live data; blocked by external unmanaged authentication. Current checks cover login and isolated UI controls, not authenticated management flows.
+
 - [x] Prepare standalone admin-login/panel + complete Telegram bot source export under /tmp without modifying the live shop; explicit portable Vite/Nitro config builds, TypeScript passes and regression tests pass. Include safe manual admin bootstrap, fresh-project environment template, migrations/prerequisite DDL and separate authenticated scheduler setup. Fresh database replay and live admin/bot/payment checks require the new project's credentials/deployment and are documented in the ZIP.
 
 - [x] Move the supplier API wallet cards to the very end of the dashboard scroll, keeping their card look, shared supplier colours and phone/desktop grid; a top rule separates them from the product counters. Build OK; signed-in visual check still blocked by external unmanaged authentication (browser shows Sign in).

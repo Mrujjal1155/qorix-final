@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
   type ErrorComponentProps,
@@ -118,8 +119,6 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { property: "og:site_name", content: "QORIX STORE" },
       { property: "og:locale", content: "en_US" },
-      { property: "og:image", content: "https://qorixlab.com/og-image.png" },
-      { name: "twitter:image", content: "https://qorixlab.com/og-image.png" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "theme-color", content: "#050a19" },
       { name: "application-name", content: "QORIX STORE" },
@@ -159,8 +158,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 function RootShell({ children }: { children: ReactNode }) {
+  const isAdmin = useRouterState({
+    select: (state) => state.location.pathname === "/admin" || state.location.pathname.startsWith("/admin/"),
+  });
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className={isAdmin ? "dark admin-theme darkpan" : "dark"}>
       <head>
         <HeadContent />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />

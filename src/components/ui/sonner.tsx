@@ -1,10 +1,15 @@
 import { Toaster as Sonner } from "sonner";
+import { useRouterState } from "@tanstack/react-router";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 const Toaster = ({ ...props }: ToasterProps) => {
+  const isAdmin = useRouterState({
+    select: (state) => state.location.pathname === "/admin" || state.location.pathname.startsWith("/admin/"),
+  });
   return (
     <Sonner
+      theme={isAdmin ? "dark" : "system"}
       className="toaster group"
       position="top-center"
       duration={2200}
