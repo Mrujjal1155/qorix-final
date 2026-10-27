@@ -1,5 +1,8 @@
 # Roadmap
 
+- [ ] Add approved admin-managed Top Categories (default Gemini, Lovable, Muse AI), replacing the Shop home long top-product list with brand buttons and paginated available products; preserve checkout and category rules.
+- [ ] Verify focused top-category rules and callback navigation; signed-in admin/live Telegram verification requires external authentication and deployment.
+
 - [x] Render the approved Telegram welcome as native ACCOUNT/WALLET/REFERRALS tables with configured premium emojis, existing inline/persistent buttons and a brief Join Community footer. Eleven focused sender/emoji/contact/navigation tests pass; latest build OK. No real customer messages sent.
 - [ ] Verify native welcome table appearance in the deployed Telegram bot; requires deployment and an actual /start interaction, which cannot be visually verified through the web preview.
 
