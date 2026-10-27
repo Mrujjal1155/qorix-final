@@ -1744,8 +1744,9 @@ async function shopView(page: number, chatId?: number) {
         `p:${p.id}`), prodRowStyle(p, prodStyle))]);
     }
     const topNav: Button[] = [];
-    if (favorites.hasPrevious) topNav.push(styled(uiBtn(settings, "shop_prev", `shop:${topPage - 1}`), btnColor(settings, "pagination")));
-    if (favorites.hasNext) topNav.push(styled(uiBtn(settings, "shop_next", `shop:${topPage + 1}`), btnColor(settings, "pagination")));
+    const curPage = Math.max(topPage, catPage);
+    if (favorites.hasPrevious || catPage > 0) topNav.push(styled(uiBtn(settings, "shop_prev", `shop:${curPage - 1}`), btnColor(settings, "pagination")));
+    if (favorites.hasNext || catPage + 1 < catPages) topNav.push(styled(uiBtn(settings, "shop_next", `shop:${curPage + 1}`), btnColor(settings, "pagination")));
     if (topNav.length) kb.push(topNav);
 
     const allIc = allProductsIcon(settings);
