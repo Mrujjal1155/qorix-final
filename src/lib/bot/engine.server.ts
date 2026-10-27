@@ -1726,11 +1726,10 @@ async function shopView(page: number, chatId?: number) {
     if (topCategories.length) {
       // Telegram rejects keyboards above 100 buttons; keep room for nav rows.
       const used = kb.reduce((n, r) => n + r.length, 0) + 5;
-      const singles = standaloneProducts(products as any[], topCategories).slice(0, Math.max(0, Math.min(40, 100 - used)));
+      const singles = standaloneProducts(products as any[], topCategories).slice(0, Math.max(0, Math.min(30, 80 - used)));
       for (let i = 0; i < singles.length; i += 2) {
         kb.push(singles.slice(i, i + 2).map((p: any) => styled({
           text: String(p.name).slice(0, 40), callback_data: `p:${p.id}`,
-          ...(p.telegram_custom_emoji_id ? { icon_custom_emoji_id: String(p.telegram_custom_emoji_id) } : {}),
         }, btnColor(settings, "product"))));
       }
     }
