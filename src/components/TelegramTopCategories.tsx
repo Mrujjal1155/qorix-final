@@ -72,7 +72,7 @@ export function TelegramTopCategories({ products }: { products: Product[] }) {
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" size="icon" title="Move up" aria-label={`Move ${row.name} up`} disabled={disabled || index === 0} onClick={() => move(index, -1)}><ArrowUp className="size-4" /></Button>
                 <Button variant="outline" size="icon" title="Move down" aria-label={`Move ${row.name} down`} disabled={disabled || index === rows.length - 1} onClick={() => move(index, 1)}><ArrowDown className="size-4" /></Button>
-                <Button variant="outline" size="sm" disabled={disabled} onClick={() => setEdit({ ...row, keywords: row.keywords.join(", ") })}><Pencil className="size-4" /> Edit</Button>
+                <Button variant="outline" size="sm" disabled={disabled} onClick={() => setEdit({ id: row.id, name: row.name, is_active: row.is_active, keywords: row.keywords.join(", "), emoji_id: row.emoji_id ?? "", product_ids: row.product_ids ?? [] })}><Pencil className="size-4" /> Edit</Button>
                 <Button variant="ghost" size="icon" className="ml-auto text-destructive" title="Delete category" aria-label={`Delete ${row.name}`} disabled={disabled} onClick={() => setRemove(row)}><Trash2 className="size-4" /></Button>
               </div>
             </CardContent>
