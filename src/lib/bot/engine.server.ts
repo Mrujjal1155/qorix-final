@@ -59,6 +59,7 @@ import { binancePaymentAmount, exactBinanceAmount } from "@/lib/binance-payment"
 import { epsWalletCredit } from "@/lib/eps-payment";
 import { orderTimezone } from "@/lib/order-time";
 import { reservedCheckout } from "@/lib/bot/paid-checkout";
+import { buildHomeMessage } from "@/lib/bot/home-message";
 
 
 const db = supabaseAdmin as any;
@@ -858,25 +859,26 @@ async function homeText(user: any) {
   const s = await getSettings();
   const botName = (s["bot_name"] || "SHOP").toUpperCase().split("").join(" ");
   const link = `https://t.me/${s["bot_username"] || "your_bot"}?start=ref_${user.ref_code}`;
-  return (
-    `${sectionHead(s, "home", `<b>${botName}</b>`)}\n\n` +
-    `${uiIconHtml(s, "home_greet")} ${uiText(s, "home_greet")}, <b>${escapeHtml(user.first_name ?? "friend")}</b>!\n` +
-    `<i>${s["welcome_text"] ?? ""}</i>\n` +
-    `\n🔔 <b>Stay connected with the QORIX community!</b>\n` +
-    `Join us for new stock alerts and important updates.\n` +
-    `👥 <a href="https://t.me/QORIXCHAT">Community Group</a>  •  📢 <a href="https://t.me/qorixlab">Official Channel</a>\n\n` +
-    `──────────────\n` +
-    `${uiTag(s, "prof_username")}: ${user.username ? "@" + escapeHtml(user.username) : "—"}\n` +
-    `${uiTag(s, "prof_userid")}: <code>${user.telegram_id}</code>\n` +
-    `${uiTag(s, "prof_member")}: ${escapeHtml(String(user.membership ?? ""))}\n` +
-    `${uiTag(s, "prof_balance")}: ${money(user.balance)}\n` +
-    `${uiTag(s, "prof_spent")}: ${money(user.total_spent)}\n` +
-    `${uiTag(s, "prof_refs")}: ${user.referral_count}\n` +
-    `${uiTag(s, "prof_earning")}: ${money(user.referral_earnings)}\n` +
-    `${uiTag(s, "prof_link")}: ${link}\n` +
-    `──────────────\n\n` +
-    `${uiText(s, "home_choose")}`
-  );
+  return buildHomeMessage({
+    header: sectionHead(s, "home", `<b>${escapeHtml(botName)}</b>`),
+    greeting: `${uiIconHtml(s, "home_greet")} ${escapeHtml(uiText(s, "home_greet"))}, <b>${escapeHtml(user.first_name ?? "friend")}</b>!`,
+    welcome: renderRich(s["welcome_text"] ?? ""),
+    choose: escapeHtml(uiText(s, "home_choose")),
+    account: [
+      [uiTag(s, "prof_member"), `<b>${escapeHtml(String(user.membership ?? ""))}</b>`],
+      [uiTag(s, "prof_userid"), `<code>${user.telegram_id}</code>`],
+      [uiTag(s, "prof_username"), user.username ? "@" + escapeHtml(user.username) : "—"],
+    ],
+    wallet: [
+      [uiTag(s, "prof_balance"), `<b>${money(user.balance)}</b>`],
+      [uiTag(s, "prof_spent"), money(user.total_spent)],
+    ],
+    referrals: [
+      [uiTag(s, "prof_refs"), String(user.referral_count ?? 0)],
+      [uiTag(s, "prof_earning"), money(user.referral_earnings)],
+      [uiTag(s, "prof_link"), `<a href="${escapeHtml(link).replace(/"/g, "&quot;")}">Invite &amp; earn</a>`],
+    ],
+  });
 }
 
 /* --------------------------------------------------- profile & referrals */
