@@ -1,0 +1,1 @@
+INSERT INTO public.bot_settings (key, value) VALUES ('telegram_top_categories', '[{"id":"gemini","name":"All Gemini Product","keywords":["gemini","google ai"],"is_active":true},{"id":"lovable","name":"All Lovable Product","keywords":["lovable"],"is_active":true},{"id":"muse-ai","name":"All Muse AI Product","keywords":["muse"],"is_active":true}]') ON CONFLICT (key) DO NOTHING;
