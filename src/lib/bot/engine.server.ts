@@ -1708,7 +1708,12 @@ async function shopView(page: number, chatId?: number) {
         ic.customId ? `${c.name} — Top Products` : `${ic.glyph} ${c.name} — Top Products`,
         `cat:${c.id}:0`), "primary")]);
     }
-    const gridCats = categories.filter((c: any) => !featured.includes(c));
+    // Telegram allows at most 100 buttons per keyboard — paginate the category grid (24 per page).
+    const CAT_PAGE = 24;
+    const allGridCats = categories.filter((c: any) => !featured.includes(c));
+    const catPages = Math.max(1, Math.ceil(allGridCats.length / CAT_PAGE));
+    const catPage = Math.min(Math.max(0, page), catPages - 1);
+    const gridCats = allGridCats.slice(catPage * CAT_PAGE, catPage * CAT_PAGE + CAT_PAGE);
     for (let i = 0; i < gridCats.length; i += 3) {
       const row: Button[] = [];
       for (const c of gridCats.slice(i, i + 3)) {
