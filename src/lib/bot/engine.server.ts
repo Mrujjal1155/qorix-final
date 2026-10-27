@@ -1698,9 +1698,20 @@ async function shopView(page: number, chatId?: number) {
     const navStyle = btnColor(settings, "nav");
     if (flash.length)
       kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), btnColor(settings, "product"))]);
-    for (let i = 0; i < categories.length; i += 3) {
+    // Featured top categories (Gemini, then Lovable): full-width blue rows under Flash Deals.
+    const featured = [/gemini/i, /lovable/i]
+      .map((re) => categories.find((c: any) => re.test(String(c.name ?? ""))))
+      .filter((c: any, i: number, a: any[]) => c && a.indexOf(c) === i);
+    for (const c of featured) {
+      const ic = catIcon(settings, c);
+      kb.push([styled(categoryButton(settings, c,
+        ic.customId ? `${c.name} — Top Products` : `${ic.glyph} ${c.name} — Top Products`,
+        `cat:${c.id}:0`), "primary")]);
+    }
+    const gridCats = categories.filter((c: any) => !featured.includes(c));
+    for (let i = 0; i < gridCats.length; i += 3) {
       const row: Button[] = [];
-      for (const c of categories.slice(i, i + 3)) {
+      for (const c of gridCats.slice(i, i + 3)) {
         const ic = catIcon(settings, c);
         row.push(
           styled(
