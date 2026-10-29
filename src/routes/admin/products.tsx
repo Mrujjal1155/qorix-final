@@ -31,6 +31,7 @@ import { StockManagerCard } from "@/components/StockManagerCard";
 import { StockExtractionDialog } from "@/components/StockExtractionDialog";
 import { ProductSalesDialog } from "@/components/ProductSalesDialog";
 import { TelegramTopProducts } from "@/components/TelegramTopProducts";
+import { TelegramTopCategories } from "@/components/TelegramTopCategories";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
@@ -81,7 +82,7 @@ const EMPTY = {
   sort_order: 0,
 };
 
-type View = "hub" | "categories" | "products" | "form" | "pricing" | "stock" | "top";
+type View = "hub" | "categories" | "products" | "form" | "pricing" | "stock" | "top" | "topcats";
 
 function supplierChipStyle(key: string): CSSProperties {
   let h = 0;
@@ -374,10 +375,17 @@ function ProductsPage() {
   const hubCards = [
     {
       id: "top" as View,
-      title: "Top Products",
-      desc: "Telegram Shop",
+      title: "Bot Top Products",
+      desc: "Telegram Shop — shown below categories",
       icon: Sparkles,
       meta: "Selected products",
+    },
+    {
+      id: "topcats" as View,
+      title: "Bot Top Categories",
+      desc: "Telegram Shop — big buttons, two per row",
+      icon: Sparkles,
+      meta: "Selected categories",
     },
     {
       id: "categories" as View,
@@ -1171,7 +1179,9 @@ function ProductsPage() {
               {view === "categories"
                 ? "Categories"
                 : view === "top"
-                  ? "Top Products — Telegram"
+                  ? "Bot Top Products — Telegram"
+                : view === "topcats"
+                  ? "Bot Top Categories — Telegram"
                 : view === "products"
                   ? "Products"
                   : view === "pricing"
@@ -1197,6 +1207,7 @@ function ProductsPage() {
           </div>
 
           {view === "categories" && categoriesSection}
+          {view === "topcats" && <TelegramTopCategories categories={(data?.categories ?? []) as any[]} />}
           {view === "top" && <TelegramTopProducts products={data?.products ?? []} />}
           {view === "products" && catalogueSection}
           {view === "form" && formSection}
