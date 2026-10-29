@@ -59,7 +59,7 @@ import { binancePaymentAmount, exactBinanceAmount } from "@/lib/binance-payment"
 import { epsWalletCredit } from "@/lib/eps-payment";
 import { orderTimezone } from "@/lib/order-time";
 import { reservedCheckout } from "@/lib/bot/paid-checkout";
-import { buildHomeMessage } from "@/lib/bot/home-message";
+import { buildHomeMessage, referralCopyButton, referralShareAnchor } from "@/lib/bot/home-message";
 
 
 const db = supabaseAdmin as any;
@@ -824,7 +824,7 @@ async function getUser(telegramId: number) {
 
 /* ------------------------------------------------------------------ views */
 
-function homeKeyboard(settings: Record<string, string>): Button[][] {
+function homeKeyboard(settings: Record<string, string>, copyLink?: string): Button[][] {
   const mBtn = (b: Button) => styled(b, btnColor(settings, "menu"));
   return [
     [
@@ -852,7 +852,13 @@ function homeKeyboard(settings: Record<string, string>): Button[][] {
       iconButton(settings, "api", "api"),
       iconButton(settings, "clear", "clear"),
     ],
+    ...(copyLink ? [[referralCopyButton(copyLink)]] : []),
   ];
+}
+
+/** Referral copy link for the home screen; absent when the user has no ref code. */
+function homeCopyLink(settings: Record<string, string>, user: any): string | undefined {
+  return user?.ref_code ? refLink(settings, user) : undefined;
 }
 
 async function homeText(user: any) {
@@ -876,7 +882,11 @@ async function homeText(user: any) {
     referrals: [
       [uiTag(s, "prof_refs"), String(user.referral_count ?? 0)],
       [uiTag(s, "prof_earning"), money(user.referral_earnings)],
-      [uiTag(s, "prof_link"), `<a href="${escapeHtml(link).replace(/"/g, "&quot;")}">Invite &amp; earn</a>`],
+      [uiTag(s, "prof_link"), referralShareAnchor(
+        link,
+        s["referral_share_text"] || `Join ${s["bot_name"] || "our shop"} — AI & SaaS products with wallet checkout.`,
+        "Invite & earn",
+      )],
     ],
   });
 }
@@ -3610,7 +3620,7 @@ async function handleMessage(msg: any) {
       }
     }
     const settings = await getSettings();
-    await sayWithBottomMenu(chatId, await homeText(user), settings, homeKeyboard(settings));
+    await sayWithBottomMenu(chatId, await homeText(user), settings, homeKeyboard(settings, homeCopyLink(settings, user)));
     return;
   }
 
@@ -3640,7 +3650,7 @@ async function handleMessage(msg: any) {
       await say(chatId, v.text, v.kb);
     } else if (cmd === "menu") {
       const settings = await getSettings();
-      await sayWithBottomMenu(chatId, await homeText(fresh), settings, homeKeyboard(settings));
+      await sayWithBottomMenu(chatId, await homeText(fresh), settings, homeKeyboard(settings, homeCopyLink(settings, fresh)));
     } else if (cmd === "products") {
       const v = await shopView(0, chatId);
       await say(chatId, v.text, v.kb);
@@ -6550,7 +6560,7 @@ async function handleCallback(cq: any) {
       return;
     }
     const okUser = await getUser(chatId);
-    await edit(`${joinSuccessText(s)}\n\n${await homeText(okUser)}`, homeKeyboard(s));
+    await edit(`${joinSuccessText(s)}\n\n${await homeText(okUser)}`, homeKeyboard(s, homeCopyLink(s, okUser)));
     return;
   }
 
@@ -6570,7 +6580,8 @@ async function handleCallback(cq: any) {
 
   if (data === "home") {
     // `user` was just loaded by upsertUser — no second read needed.
-    await edit(await homeText(user), homeKeyboard(await getSettings()));
+    const s = await getSettings();
+    await edit(await homeText(user), homeKeyboard(s, homeCopyLink(s, user)));
     return;
   }
 
@@ -7288,7 +7299,7 @@ async function handleCallback(cq: any) {
     msgsCache.set(chatId, []);
     await setState(chatId, { ...state, msgs: [] });
     const fresh = await getUser(chatId);
-    await say(chatId, await homeText(fresh), homeKeyboard(await getSettings()));
+    await say(chatId, await homeText(fresh), homeKeyboard(await getSettings(), homeCopyLink(await getSettings(), fresh)));
     return;
   }
 

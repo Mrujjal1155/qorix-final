@@ -29,3 +29,14 @@ export function homeMessageFallback(html: string): string {
     .replace(/<p>/gi, "").replace(/<\/p>/gi, "\n")
     .trim();
 }
+
+/** Referral row link: opens Telegram's share sheet, never the bot's own /start. */
+export function referralShareAnchor(link: string, shareText: string, label: string): string {
+  const href = `https://t.me/share/url?url=${encodeURIComponent(link)}&text=${encodeURIComponent(shareText)}`;
+  return `<a href="${href}">${label}</a>`;
+}
+
+/** One-tap copy button for the home screen — copies the user's referral link. */
+export function referralCopyButton(link: string): { text: string; copy_text: string; style: "primary" } {
+  return { text: "🔗 Copy Referral Link", copy_text: link, style: "primary" };
+}
