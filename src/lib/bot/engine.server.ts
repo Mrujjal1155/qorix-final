@@ -882,7 +882,11 @@ async function homeText(user: any) {
     referrals: [
       [uiTag(s, "prof_refs"), String(user.referral_count ?? 0)],
       [uiTag(s, "prof_earning"), money(user.referral_earnings)],
-      [uiTag(s, "prof_link"), `<a href="${escapeHtml(link).replace(/"/g, "&quot;")}">Invite &amp; earn</a>`],
+      [uiTag(s, "prof_link"), referralShareAnchor(
+        link,
+        s["referral_share_text"] || `Join ${s["bot_name"] || "our shop"} — AI & SaaS products with wallet checkout.`,
+        "Invite & earn",
+      )],
     ],
   });
 }
