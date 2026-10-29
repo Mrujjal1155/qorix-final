@@ -1657,6 +1657,8 @@ type ColorSlot =
   | "wallet"
   | "api"
   | "nav"
+  | "flash"
+  | "top_category"
   | "menu";
 
 const COLOR_SLOTS: { key: ColorSlot; label: string; def: ButtonStyle }[] = [
@@ -1667,6 +1669,8 @@ const COLOR_SLOTS: { key: ColorSlot; label: string; def: ButtonStyle }[] = [
   { key: "pagination", label: "Pagination (Prev/Next)", def: "primary" },
   { key: "wallet", label: "Wallet & payment buttons", def: "primary" },
   { key: "api", label: "Reseller API buttons", def: "primary" },
+  { key: "flash", label: "Flash Deals button", def: "danger" },
+  { key: "top_category", label: "Top category cards", def: "success" },
   { key: "nav", label: "Navigation & actions", def: "default" },
   { key: "menu", label: "Main menu", def: "primary" },
 ];
@@ -1711,7 +1715,7 @@ async function shopView(page: number, chatId?: number) {
     const catStyle = btnColor(settings, "category");
     const navStyle = btnColor(settings, "nav");
     if (flash.length)
-      kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), btnColor(settings, "product"))]);
+      kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), btnColor(settings, "flash"))]);
     // Admin-chosen top categories: two big buttons per row. Unset → legacy Gemini/Lovable/Muse.
     const savedTop = settings[TELEGRAM_TOP_CATEGORIES_KEY];
     const featured: any[] = savedTop != null
@@ -1723,7 +1727,7 @@ async function shopView(page: number, chatId?: number) {
     for (const pair of chunk(featured, 2)) {
       rows.push(pair.map((c: any) => {
         const ic = catIcon(settings, c);
-        return styled(categoryButton(settings, c, ic.customId ? c.name : `${ic.glyph} ${c.name}`, `cat:${c.id}:0`), "primary");
+        return styled(categoryButton(settings, c, ic.customId ? c.name : `${ic.glyph} ${c.name}`, `cat:${c.id}:0`), btnColor(settings, "top_category"));
       }));
     }
     const gridCats = categories.filter((c: any) => !featured.includes(c));
