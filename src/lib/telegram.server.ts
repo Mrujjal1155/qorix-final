@@ -256,7 +256,7 @@ export type Button = {
   callback_data?: string;
   url?: string;
   /** Bot API 9+: one-tap clipboard copy. */
-  copy_text?: string;
+  copy_text?: { text: string };
   icon_custom_emoji_id?: string;
   /** Bot API 10+: "primary" (blue), "success" (green), "danger" (red), "default" (no highlight — Telegram's normal button colour). */
   style?: ButtonStyle;

@@ -37,6 +37,6 @@ export function referralShareAnchor(link: string, shareText: string, label: stri
 }
 
 /** One-tap copy button for the home screen — copies the user's referral link. */
-export function referralCopyButton(link: string): { text: string; copy_text: string; style: "primary" } {
-  return { text: "🔗 Copy Referral Link", copy_text: link, style: "primary" };
+export function referralCopyButton(link: string): { text: string; copy_text: { text: string }; style: "primary" } {
+  return { text: "🔗 Copy Referral Link", copy_text: { text: link.slice(0, 256) }, style: "primary" };
 }
