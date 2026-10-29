@@ -704,7 +704,10 @@ export async function renderText(
   // Send first, delete after: if the new message fails the user keeps the old
   // view instead of an empty chat.
   const sent = await say(chatId, text, kb);
-  if (sent?.ok === false) return;
+  if (sent?.ok === false) {
+    console.error("[bot] view rejected by Telegram:", sent.error_code, sent.description);
+    return;
+  }
   if (messageId) await deleteMessage(chatId, messageId).catch(() => undefined);
 }
 
@@ -1696,7 +1699,7 @@ function categoryButton(settings: Record<string, string>, cat: any, text: string
 
 
 /** Category picker — blue category buttons, green navigation buttons. */
-export async function shopView(page: number, chatId?: number) {
+async function shopView(page: number, chatId?: number) {
   const settings = await getSettings();
   const products = availableCatalogue(await productsWithStock());
   const inStock = products.length;
