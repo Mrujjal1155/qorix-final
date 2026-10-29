@@ -60,3 +60,27 @@ export const saveTelegramTopCategories = createServerFn({ method: "POST" })
     if (error) throw new Error("Could not save top categories");
     return { saved: true, category_ids: ids };
   });
+
+const HIDDEN_CATEGORIES_KEY = "telegram_hidden_category_ids";
+
+export const getTelegramHiddenCategories = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: admin, error: roleError } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (roleError || !admin) throw new Error("Forbidden");
+    const { data, error } = await context.supabase.from("bot_settings").select("value").eq("key", HIDDEN_CATEGORIES_KEY).maybeSingle();
+    if (error) throw new Error("Could not load hidden categories");
+    return { saved: data != null, category_ids: parseTopProductIds(data?.value) };
+  });
+
+export const saveTelegramHiddenCategories = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { category_ids: string[] }) => z.object({ category_ids: z.array(z.string().uuid()).max(500) }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: admin, error: roleError } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
+    if (roleError || !admin) throw new Error("Forbidden");
+    const ids = [...new Set(data.category_ids)];
+    const { error } = await context.supabase.from("bot_settings").upsert({ key: HIDDEN_CATEGORIES_KEY, value: JSON.stringify(ids) }, { onConflict: "key" });
+    if (error) throw new Error("Could not save hidden categories");
+    return { saved: true, category_ids: ids };
+  });
