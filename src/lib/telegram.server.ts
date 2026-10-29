@@ -278,7 +278,11 @@ export function styled(button: Button, style: ButtonStyle): Button {
  */
 function withDefaultStyle(rows: Button[][]): Button[][] {
   return rows.map((row) =>
-    row.map((b) => {
+    row.map((raw) => {
+      // Telegram rejects the whole keyboard when copy_text is a bare string.
+      const b: Button = typeof (raw as any).copy_text === "string"
+        ? { ...raw, copy_text: { text: String((raw as any).copy_text).slice(0, 256) } }
+        : raw;
       if (b.style === "default") {
         const { style: _plain, ...rest } = b;
         return rest;
