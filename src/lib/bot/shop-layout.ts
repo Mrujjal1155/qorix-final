@@ -8,17 +8,28 @@ export const TELEGRAM_MAX_BUTTONS = 100;
  * Split keyboard rows into pages so each page (plus `reserved` fixed buttons)
  * stays within Telegram's 100-button limit. Rows are never split.
  */
-export function paginateRows<T>(rows: T[][], reserved: number, requestedPage: number) {
+/**
+ * Telegram also rejects keyboards whose serialized markup is too large
+ * (long product names + emoji ids), dropping the whole message. Keep each
+ * page's rows well under that size.
+ */
+export const TELEGRAM_KEYBOARD_BYTE_BUDGET = 6000;
+
+export function paginateRows<T>(rows: T[][], reserved: number, requestedPage: number, byteBudget = TELEGRAM_KEYBOARD_BYTE_BUDGET) {
   const budget = Math.max(1, TELEGRAM_MAX_BUTTONS - reserved);
   const pages: T[][][] = [[]];
   let used = 0;
+  let bytes = 0;
   for (const row of rows) {
-    if (used + row.length > budget && pages[pages.length - 1]!.length) {
+    const rowBytes = new TextEncoder().encode(JSON.stringify(row)).length;
+    if ((used + row.length > budget || bytes + rowBytes > byteBudget) && pages[pages.length - 1]!.length) {
       pages.push([]);
       used = 0;
+      bytes = 0;
     }
     pages[pages.length - 1]!.push(row);
     used += row.length;
+    bytes += rowBytes;
   }
   const last = pages.length - 1;
   const page = Math.max(0, Math.min(Number.isFinite(requestedPage) ? Math.floor(requestedPage) : 0, last));
