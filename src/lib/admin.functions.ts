@@ -902,6 +902,16 @@ export const listOrders = createServerFn({ method: "GET" })
     const productIds = [...new Set(orders.map((o: any) => o.product_id).filter(Boolean))];
     const resellerIds = [...new Set(orders.map((o: any) => o.reseller_id).filter(Boolean))];
     const empty = Promise.resolve({ data: [] as any[] });
+    // Lifetime order counts per buyer (Telegram ID or website email), resellers excluded.
+    const custTg = [...new Set(orders.filter((o: any) => !o.reseller_id && o.source !== "website" && Number(o.telegram_id) > 0).map((o: any) => o.telegram_id))];
+    const custEmails = [...new Set(orders.filter((o: any) => !o.reseller_id && o.source === "website" && o.customer_email).map((o: any) => String(o.customer_email)))];
+    const [{ data: tgCountRows }, { data: emailCountRows }] = await Promise.all([
+      custTg.length ? sb.from("orders").select("telegram_id").is("reseller_id", null).neq("source", "website").in("telegram_id", custTg).range(0, 19999) : empty,
+      custEmails.length ? sb.from("orders").select("customer_email").is("reseller_id", null).eq("source", "website").in("customer_email", custEmails).range(0, 19999) : empty,
+    ]);
+    const buyerCount = new Map<string, number>();
+    for (const r of (tgCountRows ?? []) as any[]) buyerCount.set(`t:${r.telegram_id}`, (buyerCount.get(`t:${r.telegram_id}`) ?? 0) + 1);
+    for (const r of (emailCountRows ?? []) as any[]) buyerCount.set(`e:${r.customer_email}`, (buyerCount.get(`e:${r.customer_email}`) ?? 0) + 1);
     // Independent lookups run in parallel so the Orders page loads faster.
     const [{ data: bots }, { data: prods }, { data: supProds }, { data: rsellers }] = await Promise.all([
       tgIds.length ? sb.from("bot_users").select("telegram_id,username,first_name,last_name").in("telegram_id", tgIds) : empty,
@@ -937,6 +947,9 @@ export const listOrders = createServerFn({ method: "GET" })
         profit: Math.round((Number(o.total ?? 0) - cost) * 100) / 100,
         fulfilment: s ? "api" : "manual",
         buyer_username: b?.username ?? null,
+        buyer_order_count: o.reseller_id
+          ? null
+          : buyerCount.get(o.source === "website" ? `e:${o.customer_email}` : `t:${o.telegram_id}`) ?? null,
         buyer_name: [b?.first_name, b?.last_name].filter(Boolean).join(" ") || null,
       };
     });

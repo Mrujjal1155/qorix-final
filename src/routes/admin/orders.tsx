@@ -489,13 +489,13 @@ function OrdersPage() {
                       {o.source === "website" ? (
                         <div className="text-xs">
                           <div>{o.customer_name}</div>
-                          <div className="text-muted-foreground">{o.customer_email}</div>
+                          <div className="text-muted-foreground">{o.customer_email}{o.buyer_order_count ? <Badge variant="outline" className="ml-1 px-1.5 py-0 text-[10px]" title="Total orders by this buyer">{o.buyer_order_count}x</Badge> : null}</div>
                           {o.txid && <div className="text-muted-foreground">TX: {String(o.txid).slice(0, 18)}…</div>}
                           <BinanceCheckBadge o={o} onRecheck={() => recheckBinance(o.id)} />
                         </div>
                        ) : (
                          <div className="text-xs">
-                           <div>{o.telegram_id}</div>
+                           <div>{o.telegram_id}{o.buyer_order_count ? <Badge variant="outline" className="ml-1 px-1.5 py-0 text-[10px]" title="Total orders by this buyer">{o.buyer_order_count}x</Badge> : null}</div>
                            {o.buyer_username && (
                              <a
                                className="text-primary underline"
@@ -906,12 +906,12 @@ function OrderCard({
             {o.source === "website" ? (
               <>
                 <div className="break-all">{o.customer_name}</div>
-                <div className="break-all text-muted-foreground">{o.customer_email}</div>
+                <div className="break-all text-muted-foreground">{o.customer_email}{o.buyer_order_count ? <Badge variant="outline" className="ml-1 px-1.5 py-0 text-[10px]" title="Total orders by this buyer">{o.buyer_order_count}x</Badge> : null}</div>
                 <BinanceCheckBadge o={o} onRecheck={() => onRecheck(o.id)} />
               </>
             ) : (
               <>
-                <div className="break-all">Telegram: {o.telegram_id}</div>
+                <div className="break-all">Telegram: {o.telegram_id}{o.buyer_order_count ? <Badge variant="outline" className="ml-1 px-1.5 py-0 text-[10px]" title="Total orders by this buyer">{o.buyer_order_count}x</Badge> : null}</div>
                 {o.buyer_username && (
                   <a
                     className="text-primary underline"
