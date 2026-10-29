@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { EMPTY_MANUAL_INPUT, type ManualInputConfig } from "@/lib/manual-input";
-import { ArrowDown, ArrowLeft, ArrowUp, Boxes, Filter, FolderTree, PlusCircle, Search, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Boxes, EyeOff, Filter, FolderTree, PlusCircle, Search, Sparkles } from "lucide-react";
 import {
   applyProductIcon,
   deleteCategory,
@@ -82,7 +82,7 @@ const EMPTY = {
   sort_order: 0,
 };
 
-type View = "hub" | "categories" | "products" | "form" | "pricing" | "stock" | "top" | "topcats";
+type View = "hub" | "categories" | "products" | "form" | "pricing" | "stock" | "top" | "topcats" | "hidecats";
 
 function supplierChipStyle(key: string): CSSProperties {
   let h = 0;
@@ -438,6 +438,9 @@ function ProductsPage() {
         <CardTitle>Categories</CardTitle>
         <Button variant="outline" size="sm" onClick={() => setView("topcats")}>
           <Sparkles className="mr-1 h-4 w-4" /> Bot Top Categories
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => setView("hidecats")}>
+          <EyeOff className="mr-1 h-4 w-4" /> Hide from Bot
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -1185,6 +1188,8 @@ function ProductsPage() {
                   ? "Bot Top Products — Telegram"
                 : view === "topcats"
                   ? "Bot Top Categories — Telegram"
+                : view === "hidecats"
+                  ? "Hide from Bot — Telegram"
                 : view === "products"
                   ? "Products"
                   : view === "pricing"
@@ -1211,6 +1216,7 @@ function ProductsPage() {
 
           {view === "categories" && categoriesSection}
           {view === "topcats" && <TelegramTopCategories categories={(data?.categories ?? []) as any[]} />}
+          {view === "hidecats" && <TelegramTopCategories mode="hidden" categories={(data?.categories ?? []) as any[]} />}
           {view === "top" && <TelegramTopProducts products={data?.products ?? []} />}
           {view === "products" && catalogueSection}
           {view === "form" && formSection}
