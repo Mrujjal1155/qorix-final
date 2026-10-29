@@ -1696,7 +1696,7 @@ function categoryButton(settings: Record<string, string>, cat: any, text: string
 
 
 /** Category picker — blue category buttons, green navigation buttons. */
-async function shopView(page: number, chatId?: number) {
+export async function shopView(page: number, chatId?: number) {
   const settings = await getSettings();
   const products = availableCatalogue(await productsWithStock());
   const inStock = products.length;
