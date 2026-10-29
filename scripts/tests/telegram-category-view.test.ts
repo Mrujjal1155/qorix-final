@@ -2,9 +2,9 @@ import { expect, mock, test } from "bun:test";
 
 let noProducts = false;
 let view: { text: string; kb: Array<Array<{ callback_data?: string; style?: string }>> } | undefined;
-const categories = Array.from({ length: 24 }, (_, i) => ({ id: `c${i}`, name: `Category ${i}`, is_active: true, channel: "both" }));
+const categories = Array.from({ length: 24 }, (_, i) => ({ id: `c${i}`, name: i === 1 ? "Gemini AI" : `Category ${i}`, is_active: true, channel: "both" }));
 const products = [
-  { id: "ready", name: "Gemini Pro", category_id: "c0", is_active: true, delivery_type: "auto", price: 2, stock: 3 },
+  { id: "ready", name: "Gemini Pro", category_id: "c0", is_active: true, delivery_type: "auto", price: 2, old_price: 3, stock: 3 },
   { id: "out", name: "Canva Pro", category_id: "c0", is_active: true, delivery_type: "auto", price: 1, stock: 0 },
   { id: "off", name: "Disabled", category_id: "c0", is_active: false, delivery_type: "auto", price: 1, stock: 3 },
 ];
@@ -63,6 +63,12 @@ test("shop → category → All Products respects stock visibility in actual bot
   expect(all.kb.flat().filter((b) => b.callback_data?.startsWith("p:")).map((b) => b.callback_data)).toEqual(["p:ready"]);
   const hidden = await click("cat:unavailable:0");
   expect(hidden.kb.flat().filter((b) => b.callback_data?.startsWith("p:"))).toEqual([]);
+});
+test("shop colors: Flash Deals red, top category green, grid categories keep their colour", async () => {
+  const shop = await click("shop:0");
+  expect(shop.kb.flat().find((b) => b.callback_data === "flash")?.style).toBe("danger");
+  expect(shop.kb.flat().find((b) => b.callback_data === "cat:c1:0")?.style).toBe("success");
+  expect(shop.kb.flat().find((b) => b.callback_data === "cat:c0:0")?.style).toBe("primary");
 });
 test("empty shop still renders all 24 categories", async () => {
   noProducts = true;
