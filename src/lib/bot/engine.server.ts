@@ -1835,7 +1835,7 @@ async function allProductsView(page: number, catId: "all" | string = "all", chat
   const pageStyle = btnColor(settings, "pagination");
   const navStyle = btnColor(settings, "nav");
   if (flash.length && page === 0)
-    kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), prodStyle)]);
+    kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), btnColor(settings, "flash"))]);
   for (const p of slice) {
     kb.push([
       styled(
