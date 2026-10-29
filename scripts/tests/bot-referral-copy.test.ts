@@ -23,7 +23,7 @@ test("home message keeps the share-only referral link", () => {
 test("copy button copies the exact referral link in one tap", () => {
   expect(referralCopyButton(LINK)).toEqual({
     text: "🔗 Copy Referral Link",
-    copy_text: LINK,
+    copy_text: { text: LINK },
     style: "primary",
   });
 });
