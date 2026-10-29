@@ -434,8 +434,11 @@ function ProductsPage() {
   const allCats = (data?.categories ?? []) as any[];
   const categoriesSection = (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
         <CardTitle>Categories</CardTitle>
+        <Button variant="outline" size="sm" onClick={() => setView("topcats")}>
+          <Sparkles className="mr-1 h-4 w-4" /> Bot Top Categories
+        </Button>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex gap-2">
