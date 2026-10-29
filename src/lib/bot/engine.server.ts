@@ -1627,7 +1627,14 @@ async function categoryLinks() {
   ]);
   const byCat: Record<string, Set<string>> = {};
   for (const l of links ?? []) (byCat[l.category_id] ??= new Set()).add(l.product_id);
-  const categories = telegramCategories(cats ?? []);
+  // Admin "Hide from Bot" list removes categories from every bot category surface.
+  let hidden = new Set<string>();
+  try {
+    const raw = (await getSettings())["telegram_hidden_category_ids"];
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(parsed)) hidden = new Set(parsed.map(String));
+  } catch { /* malformed setting → hide nothing */ }
+  const categories = telegramCategories((cats ?? []).filter((c: any) => !hidden.has(String(c.id))));
   if (cats) categoryLinksCache = { at: Date.now(), value: { categories, byCat } };
   return { categories, byCat };
 }
@@ -1805,7 +1812,10 @@ async function allProductsView(page: number, catId: "all" | string = "all", chat
   const catalogue = await productsWithStock(catId !== "all");
   const all = await applyUserPrices(chatId, catId === "all" ? availableCatalogue(catalogue) : catalogue);
   let title = "P R O D U C T S";
-  let products = all;
+  // All Products: in-house first, then supplier products (stable, keeps existing order inside each group).
+  let products = catId === "all"
+    ? [...all.filter((p: any) => !p.supplier_id), ...all.filter((p: any) => p.supplier_id)]
+    : all;
   let hasCategories = false;
   let subtitle = "";
   if (catId !== "all") {

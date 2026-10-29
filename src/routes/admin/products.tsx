@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { EMPTY_MANUAL_INPUT, type ManualInputConfig } from "@/lib/manual-input";
-import { ArrowDown, ArrowLeft, ArrowUp, Boxes, Filter, FolderTree, PlusCircle, Search, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Boxes, EyeOff, Filter, FolderTree, PlusCircle, Search, Sparkles } from "lucide-react";
 import {
   applyProductIcon,
   deleteCategory,
