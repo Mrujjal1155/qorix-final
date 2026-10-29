@@ -40,7 +40,8 @@ import {
 } from "@/lib/bot/ui.server";
 
 import { renderRich, plainRich, messageToRich } from "@/lib/bot/richtext";
-import { telegramFavoritesPage } from "@/lib/telegram-top-products";
+import { telegramFavoritesPage, TELEGRAM_TOP_PRODUCTS_KEY, parseTopProductIds, selectTopProducts } from "@/lib/telegram-top-products";
+import { TELEGRAM_TOP_CATEGORIES_KEY, chunk, paginateRows, pickTopCategories } from "@/lib/bot/shop-layout";
 import { availableCatalogue, categoryCatalogue, isOutOfStock, stockRowStyle, telegramCategories } from "@/lib/bot/catalogue";
 import {
   credentialItems,
@@ -1708,47 +1709,48 @@ async function shopView(page: number, chatId?: number) {
     const navStyle = btnColor(settings, "nav");
     if (flash.length)
       kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), btnColor(settings, "product"))]);
-    // Featured top categories (Gemini, then Lovable): full-width blue rows under Flash Deals.
-    const featured = [/gemini/i, /lovable/i, /muse/i]
-      .map((re) => categories.find((c: any) => re.test(String(c.name ?? ""))))
-      .filter((c: any, i: number, a: any[]) => c && a.indexOf(c) === i);
-    for (const c of featured) {
-      const ic = catIcon(settings, c);
-      kb.push([styled(categoryButton(settings, c,
-        ic.customId ? `${c.name} — Top Products` : `${ic.glyph} ${c.name} — Top Products`,
-        `cat:${c.id}:0`), "primary")]);
-    }
-    // Telegram allows at most 100 buttons per keyboard. Other buttons use ≤9, so show 84 categories (28 rows of 3) per page.
-    const CAT_PAGE = 84;
-    const allGridCats = categories.filter((c: any) => !featured.includes(c));
-    const catPages = Math.max(1, Math.ceil(allGridCats.length / CAT_PAGE));
-    const catPage = Math.min(Math.max(0, page), catPages - 1);
-    const gridCats = allGridCats.slice(catPage * CAT_PAGE, catPage * CAT_PAGE + CAT_PAGE);
-    for (let i = 0; i < gridCats.length; i += 3) {
-      const row: Button[] = [];
-      for (const c of gridCats.slice(i, i + 3)) {
+    // Admin-chosen top categories: two big buttons per row. Unset → legacy Gemini/Lovable/Muse.
+    const savedTop = settings[TELEGRAM_TOP_CATEGORIES_KEY];
+    const featured: any[] = savedTop != null
+      ? pickTopCategories(categories as any[], parseTopProductIds(savedTop))
+      : [/gemini/i, /lovable/i, /muse/i]
+          .map((re) => categories.find((c: any) => re.test(String(c.name ?? ""))))
+          .filter((c: any, i: number, a: any[]) => c && a.indexOf(c) === i);
+    const rows: Button[][] = [];
+    for (const pair of chunk(featured, 2)) {
+      rows.push(pair.map((c: any) => {
         const ic = catIcon(settings, c);
-        row.push(
-          styled(
-            categoryButton(
-              settings,
-              c,
-              ic.customId ? c.name : `${ic.glyph} ${c.name}`,
-              `cat:${c.id}:0`,
-            ),
-            catStyle,
-          ),
-        );
-      }
-      kb.push(row);
+        return styled(categoryButton(settings, c, ic.customId ? c.name : `${ic.glyph} ${c.name}`, `cat:${c.id}:0`), "primary");
+      }));
     }
+    const gridCats = categories.filter((c: any) => !featured.includes(c));
+    for (const trio of chunk(gridCats, 3)) {
+      rows.push(trio.map((c: any) => {
+        const ic = catIcon(settings, c);
+        return styled(categoryButton(settings, c, ic.customId ? c.name : `${ic.glyph} ${c.name}`, `cat:${c.id}:0`), catStyle);
+      }));
+    }
+    // Admin-chosen top products (in stock only) below the categories.
+    const prodStyle = btnColor(settings, "product");
+    const topProducts = selectTopProducts(
+      (await applyUserPrices(chatId, products)) as any[],
+      parseTopProductIds(settings[TELEGRAM_TOP_PRODUCTS_KEY]),
+    );
+    for (const p of topProducts) {
+      rows.push([styled(productIconButton(p,
+        `${p.name} | ${money(p.price)} | ${(p.delivery_type === "manual" && !p.manual_stock_limited) ? "manual" : `📦 ${p.stock}`}`,
+        `p:${p.id}`), prodRowStyle(p, prodStyle))]);
+    }
+    // Reserved: flash 1 + next 1 + prev 1 + all 1 + refresh 1 + cart/back 2.
+    const paged = paginateRows(rows, 7 + kb.length - (flash.length ? 1 : 0), page);
+    kb.push(...paged.rows);
+    const catPage = paged.page;
+    const catPages = paged.pages;
 
-    // Categories only — no individual product rows on this page.
-    // Next/Previous each get their own full-width row so they are large and easy to tap.
     const curPage = catPage;
     const pagStyle = btnColor(settings, "pagination");
     if (catPage + 1 < catPages)
-      kb.push([styled({ text: `Next Categories ➡️ (${catPage + 2}/${catPages})`, callback_data: `shop:${catPage + 1}` }, pagStyle)]);
+      kb.push([styled({ text: `Next ➡️ (${catPage + 2}/${catPages})`, callback_data: `shop:${catPage + 1}` }, pagStyle)]);
     if (catPage > 0)
       kb.push([styled({ text: `⬅️ Previous (${catPage}/${catPages})`, callback_data: `shop:${catPage - 1}` }, pagStyle)]);
 
