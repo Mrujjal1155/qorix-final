@@ -31,7 +31,9 @@ import {
   Percent,
   Wallet,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { toast } from "sonner";
+import { playBell } from "@/lib/bell-sound";
 import { BrandLogo } from "@/components/BrandLogo";
 import { useSiteContent } from "@/lib/use-site-content";
 
