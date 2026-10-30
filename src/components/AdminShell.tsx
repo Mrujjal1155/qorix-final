@@ -31,7 +31,9 @@ import {
   Percent,
   Wallet,
 } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { toast } from "sonner";
+import { playBell } from "@/lib/bell-sound";
 import { BrandLogo } from "@/components/BrandLogo";
 import { useSiteContent } from "@/lib/use-site-content";
 
@@ -96,9 +98,20 @@ export function AdminShell({
   const { data: tickets } = useQuery({
     queryKey: ["unread-tickets-count"],
     queryFn: () => fetchTickets(),
-    refetchInterval: 30000,
+    refetchInterval: 15000,
   });
   const ticketCount = tickets?.count ?? 0;
+  // Ring a bell whenever the number of tickets waiting on us goes up.
+  const prevTickets = useRef<number | null>(null);
+  useEffect(() => {
+    if (!tickets) return;
+    const prev = prevTickets.current;
+    if (prev !== null && tickets.count > prev) {
+      playBell();
+      toast.info("🔔 New support message");
+    }
+    prevTickets.current = tickets.count;
+  }, [tickets]);
   const badgeFor = (to: string) =>
     to === "/admin/orders" ? pendingCount : to === "/admin/support" ? ticketCount : 0;
 
