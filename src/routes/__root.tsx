@@ -1,3 +1,4 @@
+import { adminThemeClass } from "@/lib/admin-theme";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -168,7 +169,7 @@ function RootDocument({ children }: { children: ReactNode }) {
     select: (state) => state.location.pathname === "/admin" || state.location.pathname.startsWith("/admin/"),
   });
   return (
-    <html lang="en" className={isAdmin ? `dark admin-theme ${theme === "darkpan" ? "darkpan" : "admin-legacy"}` : "dark"}>
+    <html lang="en" className={isAdmin ? adminThemeClass(theme) : "dark"}>
       <head>
         <HeadContent />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />

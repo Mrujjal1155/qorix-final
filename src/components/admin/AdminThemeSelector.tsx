@@ -14,6 +14,7 @@ export function AdminThemeSelector() {
       <SelectContent>
         <SelectItem value="darkpan">DarkPan</SelectItem>
         <SelectItem value="legacy">Previous theme</SelectItem>
+        <SelectItem value="light">White</SelectItem>
       </SelectContent>
     </Select>
   );
