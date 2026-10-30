@@ -1117,6 +1117,10 @@ async function ticketListView(telegramId: number) {
 
 async function ticketView(ticketId: string, viewer: "user" | "admin") {
   const { data: t } = await db.from("support_tickets").select("*").eq("id", ticketId).maybeSingle();
+  // Customer opened the thread → admin replies count as "Seen" in the admin inbox.
+  if (t && viewer === "user" && Number((t as any).unread_user ?? 0) > 0) {
+    await db.from("support_tickets").update({ unread_user: 0 }).eq("id", ticketId);
+  }
   if (!t) return { text: "❌ Ticket not found.", kb: [[styled({ text: "⬅️ Back", callback_data: "support" }, "danger")]] as Button[][] };
   const { data: msgs } = await db
     .from("support_messages")
