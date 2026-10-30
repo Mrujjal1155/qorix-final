@@ -447,7 +447,7 @@
   --secondary: #000000;
   --secondary-foreground: #ffffff;
   --muted: #000000;
-  --muted-foreground: #6c7293;
+  --muted-foreground: #8b91b0;
   --accent: #000000;
   --accent-foreground: #eb1616;
   --destructive: #eb1616;
@@ -620,3 +620,16 @@
 .admin-light table :is(td, th) { border-color: var(--border); }
 .admin-light [data-slot="dialog-content"] { box-shadow: 0 20px 50px -20px oklch(0.2 0.02 265 / 0.3); }
 .admin-light :is([data-slot="dialog-overlay"], .admin-menu-overlay) { background: oklch(0.2 0.02 265 / 0.4); }
+
+/* Theme-aware readable accents: text utilities stay legible on each skin. */
+.admin-light {
+  --chip-text-l: 0.45;
+  --chip-strong-l: 0.4;
+}
+.admin-light :is(.text-warning) { color: oklch(0.52 0.14 65); }
+.admin-light :is(.text-success) { color: oklch(0.46 0.13 155); }
+.admin-light :is(.text-gold) { color: oklch(0.5 0.12 75); }
+.admin-light :is(.text-muted-foreground) { color: var(--muted-foreground); }
+.darkpan :is(.text-success) { color: #3ecf8e; }
+.darkpan :is(.text-destructive, .text-primary) { color: #ff4d4d; }
+.darkpan .bg-primary.text-primary, .darkpan .bg-destructive.text-destructive { color: var(--primary-foreground); }
