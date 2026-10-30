@@ -89,7 +89,7 @@ function supplierChipStyle(key: string): CSSProperties {
   for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) % 360;
   return {
     backgroundColor: `color-mix(in oklch, oklch(0.62 0.19 ${h}) 22%, transparent)`,
-    color: `oklch(0.72 0.17 ${h})`,
+    color: `oklch(var(--chip-text-l, 0.72) 0.17 ${h})`,
     borderColor: `color-mix(in oklch, oklch(0.62 0.19 ${h}) 45%, transparent)`,
   };
 }

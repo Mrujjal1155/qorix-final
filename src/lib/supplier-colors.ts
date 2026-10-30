@@ -9,7 +9,7 @@ const SUPPLIER_HUES = [18, 145, 255, 320, 75, 195, 285, 45, 225, 350] as const;
 export function supplierBadgeStyle(index: number): CSSProperties {
   const h = SUPPLIER_HUES[index % SUPPLIER_HUES.length];
   return {
-    color: `oklch(0.72 0.16 ${h})`,
+    color: `oklch(var(--chip-text-l, 0.72) 0.16 ${h})`,
     borderColor: `oklch(0.72 0.16 ${h} / 0.55)`,
     backgroundColor: `oklch(0.72 0.16 ${h} / 0.12)`,
   };
@@ -19,7 +19,7 @@ export function supplierBadgeStyle(index: number): CSSProperties {
 export function resellerBadgeStyle(index: number): CSSProperties {
   const h = SUPPLIER_HUES[(index + 3) % SUPPLIER_HUES.length];
   return {
-    color: `oklch(0.85 0.13 ${h})`,
+    color: `oklch(var(--chip-strong-l, 0.85) 0.13 ${h})`,
     borderColor: `oklch(0.72 0.15 ${h} / 0.7)`,
     backgroundColor: `oklch(0.58 0.17 ${h} / 0.28)`,
   };

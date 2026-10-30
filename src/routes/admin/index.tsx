@@ -256,8 +256,8 @@ function VisibilityAlertBanner() {
   return (
     <div className="mb-5 space-y-3">
       {ticketCount > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-sky-500/50 bg-sky-500/10 p-4">
-          <LifeBuoy className="size-5 shrink-0 text-sky-500" />
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-primary/50 bg-primary/10 p-4">
+          <LifeBuoy className="size-5 shrink-0 text-primary" />
           <p className="min-w-0 flex-1 text-sm font-medium">
             {ticketCount} support ticket{ticketCount > 1 ? "s" : ""} waiting for your reply.
           </p>
@@ -284,9 +284,9 @@ function VisibilityAlertBanner() {
       )}
 
       {supplierRows.length > 0 && (
-        <div className="rounded-2xl border border-amber-500/50 bg-amber-500/10 p-4">
+        <div className="rounded-2xl border border-warning/60 bg-warning/10 p-4">
           <div className="flex flex-wrap items-center gap-3">
-            <ShieldAlert className="size-5 shrink-0 text-amber-500" />
+            <ShieldAlert className="size-5 shrink-0 text-warning" />
             <p className="min-w-0 flex-1 text-sm font-semibold">
               {supplierRows.length} supplier change{supplierRows.length > 1 ? "s" : ""} detected (product removed or
               supplier ID changed).
