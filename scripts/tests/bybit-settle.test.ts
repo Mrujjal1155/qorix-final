@@ -12,6 +12,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
     return chain;
   },
   rpc: async (name: string, args: any) => {
+    if (name === "record_bybit_website_check") return { data: null, error: null };
     expect(name).toBe("settle_bybit_website");
     expect(args._txid).toBe("transfer-123");
     expect(args._amount).toBe(10.25);

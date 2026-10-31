@@ -5,7 +5,18 @@ export async function bybitSettings(): Promise<Record<string, string>> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin.from("bot_settings").select("key,value").in("key", [...BYBIT_SETTINGS]);
   if (error) throw new Error("Bybit settings unavailable.");
-  return Object.fromEntries((data ?? []).map((r) => [r.key, r.value ?? ""]));
+  const settings = Object.fromEntries((data ?? []).map((r) => [r.key, r.value ?? ""]));
+  // Recheck the receiving account before offering payment after a secret rotation.
+  if (bybitEnabled(settings)) {
+    const apiKey = process.env["BYBIT_API_KEY"];
+    const secret = process.env["BYBIT_API_SECRET"];
+    try {
+      if (!apiKey || !secret) throw new Error("Credentials unavailable");
+      const account = await bybitGet("/v5/user/query-api", {}, { apiKey, secret });
+      if (String(account.userID ?? "") !== settings["bybit_uid"] || account.readOnly !== 1) throw new Error("Account changed");
+    } catch { settings["bybit_enabled"] = "0"; }
+  }
+  return settings;
 }
 
 /** Secrets are supplied by the calling server boundary, never returned to clients. */

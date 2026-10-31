@@ -12,7 +12,7 @@ export async function verifyBybitWebsiteOrder(orderId: string) {
   const match = await findBybitPayment({ txid: order.txid, amount: Number(order.total), since: created - 30 * 60_000, until: Math.min(Date.now(), created + 30 * 60_000) });
   if (!match.ok) {
     const result = { status: "not_found" as const, checked_at: new Date().toISOString(), note: match.reason };
-    await db.from("orders").update({ meta: { ...meta, bybit: result } }).eq("id", order.id).eq("status", "pending");
+    await db.rpc("record_bybit_website_check", { _order_id: order.id, _note: match.reason });
     return result;
   }
   const { data: settled, error } = await db.rpc("settle_bybit_website", { _order_id: order.id, _txid: match.txid, _amount: match.amount });
@@ -35,6 +35,7 @@ export async function sweepBybitWebsiteOrders() {
 }
 
 export async function confirmBybitBotDeposit(row: any, txid: string) {
+  if (row.status !== "pending" || Date.parse(row.expires_at) <= Date.now()) return { ok: false as const, message: "This Bybit deposit expired." };
   const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
   const { data: used, error } = await db.from("binance_used_txs").select("tx_id").eq("tx_id", bybitTransactionKey(txid)).maybeSingle();
   if (error) return { ok: false as const, message: "Payment verification unavailable. Please retry." };
