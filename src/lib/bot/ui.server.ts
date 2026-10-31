@@ -99,6 +99,9 @@ export const UI_ELEMENTS = {
   wal_binance: { icon: "🪙", label: "Binance Pay", group: "wallet" },
   wal_usdt: { icon: "💵", label: "USDT crypto (auto)", group: "wallet" },
   wal_oxapay: { icon: "🪙", label: "Any Crypto · BTC, LTC, USDT", group: "wallet" },
+  wal_bybit: { icon: "🪙", label: "Bybit Pay", group: "wallet" },
+  wal_chain_bep20: { icon: "💵", label: "USDT · BEP20", group: "wallet" },
+  wal_chain_trc20: { icon: "💵", label: "USDT · TRC20", group: "wallet" },
   wal_bkash: { icon: "📱", label: "bKash", group: "wallet" },
   wal_nagad: { icon: "📲", label: "Nagad", group: "wallet" },
   wal_rocket: { icon: "🚀", label: "Rocket", group: "wallet" },
@@ -298,7 +301,10 @@ export function parseIconValue(configured: string, fallback: string) {
 }
 
 function raw(settings: Record<string, string>, key: UiKey) {
-  return parseIconValue(settings[`ui_icon_${key}`] ?? "", UI_ELEMENTS[key].icon);
+  // Existing dashboard Bybit icons remain effective until the bot editor
+  // explicitly saves an override (including an empty value for reset).
+  const legacy = key === "wal_bybit" ? settings["bybit_icon"] : "";
+  return parseIconValue(settings[`ui_icon_${key}`] ?? legacy ?? "", UI_ELEMENTS[key].icon);
 }
 
 /** Admin-customizable label (tag) text. */
