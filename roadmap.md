@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Replace TRON connector gateway reads with direct TronGrid requests authenticated by the server-only TRONGRID_API_KEY; reject redirects and preserve settlement, network availability and Bybit/BEP20 paths.
+- [ ] Verify direct TronGrid connection on external Cloudflare deployment; requires user-added TRONGRID_API_KEY, deployment and admin Test connection. No payment option activated.
+
 - [x] Add approved self-custody TRC20/BEP20 USDT TXID verification for Telegram wallet/checkout and website, admin receiving address/check/save controls and free-provider notices. TronGrid solidified and free BNB Chain canonical finalized reads succeed; both gateway rows remain disabled and empty. 23 new focused/mocked tests and 19 Binance/Bybit regressions pass; latest build OK, public checkout opens without runtime errors. Service-only atomic chain claims and RLS checked; existing Binance paths unchanged.
 - [ ] Verify signed-in Blockchain USDT settings save/readback and real payment/delivery after deployment. Blocked by external unmanaged admin authentication, user-provided receiving addresses, external deployment and user-approved real transfer; none activated or transferred.
 - [ ] Full address-wide incoming/outgoing history remains outside TXID-only delivery: free BSC public RPC disables wallet log queries; a capable free indexer/provider is required. Current admin list shows customer-submitted verified transfer checks, not complete wallet history.
