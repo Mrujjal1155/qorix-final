@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Add shared Bybit/TRC20/BEP20 Premium emoji editors to Bot Admin Payment icons, preserving gateway switches and payment handlers; verify admin save/reset and wallet/checkout rendering without real payments.
+
 - [x] Replace TRON connector gateway reads with direct TronGrid requests authenticated by the server-only TRONGRID_API_KEY; reject redirects and preserve settlement, network availability and Bybit/BEP20 paths.
 - [ ] Verify direct TronGrid connection on external Cloudflare deployment; requires user-added TRONGRID_API_KEY, deployment and admin Test connection. No payment option activated.
 

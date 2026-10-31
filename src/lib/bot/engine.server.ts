@@ -2261,8 +2261,8 @@ async function walletView(user: any) {
     kb.push([wBtn(uiBtn(s, "wal_binance", "dep:binance", cfg.live ? "(auto)" : "(manual)"))]);
   if (cfg.active && cfg.crypto && cfg.live) kb.push([wBtn(uiBtn(s, "wal_usdt", "dep:usdt"))]);
   const bybit = await bybitSettings();
-  if (bybitEnabled(bybit)) kb.push([wBtn({ text: "Bybit Pay", callback_data: "dep:bybit", ...(bybit["bybit_icon"] && /^\d+$/.test(bybit["bybit_icon"]) ? { icon_custom_emoji_id: bybit["bybit_icon"] } : {}) })]);
-  for (const gateway of await blockchainGateways().catch(() => [])) if (gateway.enabled && gateway.verified) kb.push([wBtn({ text: `USDT · ${gateway.network.toUpperCase()}`, callback_data: `dep:chain_${gateway.network}` })]);
+  if (bybitEnabled(bybit)) kb.push([wBtn(uiBtn({ ...s, bybit_icon: bybit.bybit_icon ?? s.bybit_icon ?? "" }, "wal_bybit", "dep:bybit"))]);
+  for (const gateway of await blockchainGateways().catch(() => [])) if (gateway.enabled && gateway.verified) kb.push([wBtn(uiBtn(s, gateway.network === "trc20" ? "wal_chain_trc20" : "wal_chain_bep20", `dep:chain_${gateway.network}`))]);
   {
     // Merged EPS rows: one for bKash/Nagad/Rocket, one for cards.
     const { epsConfig } = await import("@/lib/eps.server");
@@ -5572,13 +5572,18 @@ async function admUiGroupView() {
 }
 
 async function admPaymentIconsView() {
-  const settings = await getSettings();
+  const s = await getSettings();
+  const bybit = await bybitSettings();
+  const settings = { ...s, bybit_icon: bybit.bybit_icon ?? s.bybit_icon ?? "" };
   // Telegram supports one Premium icon per native button, so each merged EPS
   // option has one shared icon editor.
   const gateways = [
     ["mfs_bkash", "MFS"],
     ["card_visa", "Card"],
     ["wal_oxapay", "OxaPay"],
+    ["wal_bybit", "Bybit Pay"],
+    ["wal_chain_bep20", "USDT BEP20"],
+    ["wal_chain_trc20", "USDT TRC20"],
   ] as const;
   const kb: Button[][] = gateways.map(([key]) => [uiBtn(settings, key, `adm:uii:${key}`)]);
   kb.push([{ text: "— Row labels —", callback_data: "adm:pay" }]);
@@ -5599,6 +5604,10 @@ async function admPaymentIconsView() {
       `Mobile row: ${mfsIconsHtml(settings)} <b>${escapeHtml(uiText(settings, "wal_mfs"))}</b>\n` +
       `Card row: ${cardIconsHtml(settings)} <b>${escapeHtml(uiText(settings, "wal_card"))}</b>\n\n` +
       `OxaPay: ${uiTag(settings, "wal_oxapay")} · shared by Wallet and Checkout\n\n` +
+      `Bybit: ${uiTag(settings, "wal_bybit")}\n` +
+      `BEP20: ${uiTag(settings, "wal_chain_bep20")}\n` +
+      `TRC20: ${uiTag(settings, "wal_chain_trc20")}\n` +
+      "These three gateway icons are shared by Wallet and Checkout.\n\n" +
       "Set one Premium custom emoji (or normal emoji) for each merged payment option. " +
       "Row labels rename the merged wallet / checkout buttons.",
     kb,
@@ -5906,8 +5915,8 @@ async function coPayView(chatId: number) {
     kb.push([styled(uiBtn(settings, "pay_balance", "copm:balance", `(${money(user.balance)})`), payStyle)]);
   if (cfg.active && cfg.payid) kb.push([styled(uiBtn(settings, "pay_payid", "copm:payid"), payStyle)]);
   const bybit = await bybitSettings();
-  if (bybitEnabled(bybit)) kb.push([styled({ text: "Bybit Pay", callback_data: "copm:bybit", ...(bybit["bybit_icon"] && /^\d+$/.test(bybit["bybit_icon"]) ? { icon_custom_emoji_id: bybit["bybit_icon"] } : {}) }, payStyle)]);
-  for (const gateway of await blockchainGateways().catch(() => [])) if (gateway.enabled && gateway.verified) kb.push([styled({ text: `USDT · ${gateway.network.toUpperCase()}`, callback_data: `copm:chain_${gateway.network}` }, payStyle)]);
+  if (bybitEnabled(bybit)) kb.push([styled(uiBtn({ ...settings, bybit_icon: bybit.bybit_icon ?? settings.bybit_icon ?? "" }, "wal_bybit", "copm:bybit"), payStyle)]);
+  for (const gateway of await blockchainGateways().catch(() => [])) if (gateway.enabled && gateway.verified) kb.push([styled(uiBtn(settings, gateway.network === "trc20" ? "wal_chain_trc20" : "wal_chain_bep20", `copm:chain_${gateway.network}`), payStyle)]);
   if (cfg.active && cfg.crypto) {
     kb.push([styled(uiBtn(settings, "pay_bep20", "copm:BSC"), payStyle)]);
     kb.push([styled(uiBtn(settings, "pay_trc20", "copm:TRX"), payStyle)]);
