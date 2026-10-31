@@ -2169,6 +2169,10 @@ export type Database = {
         Args: { _observed_at: string; _status: string; _telegram_id: number }
         Returns: undefined
       }
+      record_bybit_website_check: {
+        Args: { _note: string; _order_id: string }
+        Returns: undefined
+      }
       redeem_code_claim: {
         Args: { _code: string; _telegram_id: number }
         Returns: Json
