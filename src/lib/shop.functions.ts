@@ -1,6 +1,7 @@
 import { likeExact } from "@/lib/ilike-escape";
 import { createServerFn } from "@tanstack/react-start";
 import { resolveSiteOrigin } from "@/lib/site-url";
+import { bybitTxidSchema } from "@/lib/bybit-payment";
 
 /* Public storefront server functions — no auth required.
    Reads use the publishable key (anon RLS), writes are validated then
@@ -208,7 +209,6 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
       if (txid.length < 4) throw new Error("Transaction ID / payment reference is required");
       const method = ["binance", "bybit", "usdt_bep20", "usdt_trc20"].includes(d.payment_method) ? d.payment_method : "binance";
       if (method === "bybit") {
-        const { bybitTxidSchema } = await import("@/lib/bybit-payment");
         bybitTxidSchema.parse(txid);
       }
       return { product_id: String(d.product_id), quantity: qty, customer_name: name, customer_email: email, payment_method: method, txid };

@@ -13,6 +13,7 @@ async function run({ request }: { request: Request }) {
   const { recoverPaidOrders } = await import("@/lib/bot/recover-paid.server");
   const { recoverChargedResellerStock } = await import("@/lib/reseller/charged-stock.server");
   const { sweepEpsDeposits } = await import("@/lib/bot/engine.server");
+  const { sweepBybitDeposits } = await import("@/lib/bot/engine.server");
   const { drainLiveUpdates } = await import("@/lib/live-update.server");
   const { drainStockAudience } = await import("@/lib/bot/stock-audience.server");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -24,6 +25,7 @@ async function run({ request }: { request: Request }) {
       sweepEpsDeposits().catch(() => ({ error: "Payment verification will retry" })),
       drainLiveUpdates().catch(() => ({ error: "Live updates will retry" })),
       drainStockAudience(supabaseAdmin),
+      sweepBybitDeposits().catch(() => ({ error: "Bybit verification will retry" })),
     ]);
     return Response.json({ ok: true, ...res, recovered, resellerRecovered, customerNotifications });
   } catch (e) {
