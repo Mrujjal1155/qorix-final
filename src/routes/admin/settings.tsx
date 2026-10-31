@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { BinanceSetupCard } from "@/components/BinanceSetupCard";
+import { BybitSetupCard } from "@/components/BybitSetupCard";
 import { HeroItemsCard } from "@/components/HeroItemsCard";
 import { SettingsHub, type HubSection } from "@/components/SettingsHub";
 import { Bot, Wallet, SlidersHorizontal, Smile, Images, Megaphone, Smartphone, Mail, MailOpen, Gift, Coins, Network, ShieldCheck, BellRing } from "lucide-react";
@@ -865,6 +866,13 @@ function SettingsPage() {
           savingKeys={savingKeys}
         />
       ),
+    },
+    {
+      id: "bybit",
+      title: "Bybit Pay",
+      description: "Bybit UID, connection status and automatic USDT verification.",
+      icon: ShieldCheck,
+      render: () => <BybitSetupCard values={values} setValues={setValues} onSave={onSave} />,
     },
     {
       id: "eps",

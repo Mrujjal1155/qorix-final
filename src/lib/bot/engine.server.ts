@@ -61,6 +61,9 @@ import { epsWalletCredit } from "@/lib/eps-payment";
 import { orderTimezone } from "@/lib/order-time";
 import { reservedCheckout } from "@/lib/bot/paid-checkout";
 import { buildHomeMessage, referralCopyButton, referralShareAnchor } from "@/lib/bot/home-message";
+import { bybitEnabled, bybitTransactionKey } from "@/lib/bybit-payment";
+import { bybitSettings } from "@/lib/bybit.server";
+import { confirmBybitBotDeposit, sweepBybitWebsiteOrders } from "@/lib/bybit-settle.server";
 
 
 const db = supabaseAdmin as any;
@@ -2246,6 +2249,8 @@ async function walletView(user: any) {
   if (cfg.active && cfg.payid)
     kb.push([wBtn(uiBtn(s, "wal_binance", "dep:binance", cfg.live ? "(auto)" : "(manual)"))]);
   if (cfg.active && cfg.crypto && cfg.live) kb.push([wBtn(uiBtn(s, "wal_usdt", "dep:usdt"))]);
+  const bybit = await bybitSettings();
+  if (bybitEnabled(bybit)) kb.push([wBtn({ text: "Bybit Pay", callback_data: "dep:bybit", ...(bybit["bybit_icon"] && /^\d+$/.test(bybit["bybit_icon"]) ? { icon_custom_emoji_id: bybit["bybit_icon"] } : {}) })]);
   {
     // Merged EPS rows: one for bKash/Nagad/Rocket, one for cards.
     const { epsConfig } = await import("@/lib/eps.server");
@@ -2290,7 +2295,7 @@ async function txUsed(tx: string) {
 
 async function startBinanceDeposit(
   chatId: number,
-  kind: "payid" | "crypto",
+  kind: "payid" | "crypto" | "bybit",
   amount: number,
   network?: string,
   meta: Record<string, unknown> = {},
@@ -2300,7 +2305,11 @@ async function startBinanceDeposit(
   const personal = (s["binance_mode"] ?? "live") === "personal";
   let address = "";
 
-  if (kind === "payid") {
+  if (kind === "bybit") {
+    const settings = await bybitSettings();
+    if (!bybitEnabled(settings)) return { error: "Bybit Pay is currently unavailable." };
+    address = settings["bybit_uid"] ?? "";
+  } else if (kind === "payid") {
     address = (s["binance_pay"] || "").trim();
     if (!address)
       return { error: "Binance Pay is not set up yet. Please contact support or use another payment method." };
@@ -2348,6 +2357,10 @@ async function startBinanceDeposit(
 
 
 function binanceView(row: any, settings: Record<string, string> = {}) {
+  if (row.kind === "bybit") return {
+    text: `<b>Bybit Pay · USDT internal transfer</b>\n\nReceiving Bybit UID:\n<code>${escapeHtml(row.address)}</code>\n\nExact amount:\n<code>${Number(row.amount_usdt)}</code> USDT\n\nSend USDT through a Bybit internal transfer to this UID, then tap Verify payment and submit the <b>Internal Transfer Transaction ID</b>. Merchant Pay order IDs and blockchain TXIDs are not accepted here.`,
+    kb: [[{ text: "Verify payment", callback_data: `bchk:${row.id}` }], [uiBtn(settings, "dep_cancel", "wallet")]] as Button[][],
+  };
   const head =
     row.kind === "payid"
       ? `${uiIconHtml(settings, "dep_pay_title")} <b>${escapeHtml(uiText(settings, "dep_pay_title"))}</b>\n\nOpen Binance app → <b>Pay</b> → <b>Send</b> → paste this Pay ID:\n<code>${row.address}</code>`
@@ -2404,6 +2417,7 @@ async function confirmByTxId(
   silent = false,
 ): Promise<{ ok: true; amount: number; txId: string } | { ok: false; message: string; notFound?: boolean }> {
   const txId = String(rawId || "").trim();
+  if (row.kind === "bybit") return confirmBybitBotDeposit(row, txId);
   if (txId.length < 6) return { ok: false, message: row.kind === "payid" ? "Please send the Binance Order ID of your payment." : "Please send the Transaction ID (TXID) of your USDT transfer." };
   if (await txUsed(txId)) return { ok: false, message: "❌ This Order ID / Transaction ID was already used." };
   const expected = Number(row.amount_usdt);
@@ -2464,6 +2478,16 @@ async function verifyBinanceDeposit(chatId: number, id: string) {
 
 /** Credit a wallet deposit, or fulfil a direct checkout attached to the deposit row. */
 async function settlePayment(chatId: number, row: any, amount: number, txid: string, note: string) {
+  if (row.kind === "bybit") {
+    const meta = row.meta ?? {};
+    if (Array.isArray(meta.items) && meta.items.length) {
+      const result = await fulfillCheckout(chatId, meta, "bybit", bybitTransactionKey(txid), row.id, amount);
+      return { message: result.text, keyboard: result.kb };
+    }
+    const { data: result, error } = await db.rpc("settle_bybit_bot", { _deposit_id: row.id, _txid: txid, _amount: amount, _deliverable: false });
+    if (error) throw new Error("Bybit settlement will retry.");
+    return { message: result?.changed ? `✅ Bybit Pay confirmed. Added ${money(amount)} to your wallet.` : "✅ This Bybit payment was already processed.", keyboard: [[uiBtn(await getSettings(), "com_wallet", "wallet")]] as Button[][] };
+  }
   const methodLabel =
     row.kind === "oxapay"
       ? "Crypto (OxaPay)"
@@ -2934,6 +2958,12 @@ async function submitBinanceTxid(chatId: number, depId: string, txid: string, us
     return { message: "⏳ Too many attempts. Please wait 10 minutes and try again, or contact support.", keyboard: back };
   }
 
+  if (row.kind === "bybit") {
+    const { error } = await db.from("binance_deposits").update({ tx_id: txid }).eq("id", row.id).eq("status", "pending");
+    if (error) throw new Error("Bybit verification will retry.");
+    row.tx_id = txid;
+  }
+
   const r = await confirmByTxId(row, txid);
   if (r.ok) {
     const s = await settlePayment(chatId, row, r.amount, r.txId, "Verified via Binance — Order ID / TXID matched");
@@ -2941,7 +2971,7 @@ async function submitBinanceTxid(chatId: number, depId: string, txid: string, us
   }
 
   const expected = Number(row.amount_usdt);
-  const method = row.kind === "payid" ? "Binance Pay" : `USDT ${row.network}`;
+  const method = row.kind === "bybit" ? "Bybit Pay" : row.kind === "payid" ? "Binance Pay" : `USDT ${row.network}`;
   const meta = (row.meta ?? {}) as any;
   const isOrder = Array.isArray(meta.items) && meta.items.length;
   // Keep the ID so the background checker can retry it; tell the admin once per ID.
@@ -2993,6 +3023,7 @@ export async function sweepBinanceDeposits(force = false) {
 
   // Verify hosted payments before the expiry pass; also recover late callbacks.
   await sweepEpsDeposits().catch((error) => console.error("EPS recheck will retry", error));
+  await sweepBybitWebsiteOrders().catch(() => {});
   // Unpaid / underpaid checkouts stop hanging forever.
   await expireAwaitingOrders().catch((e) => console.error("Awaiting order expiry failed:", e));
 
@@ -3001,7 +3032,7 @@ export async function sweepBinanceDeposits(force = false) {
     .from("binance_deposits")
     .select("*")
     .neq("status", "credited")
-    .in("kind", ["payid", "crypto"])
+    .in("kind", ["payid", "crypto", "bybit"])
     .not("tx_id", "is", null)
     .gt("expires_at", nowIso)
     .order("created_at", { ascending: true })
@@ -3042,6 +3073,19 @@ export async function sweepBinanceDeposits(force = false) {
   }
 
   return { skipped: false, settled };
+}
+
+/** Separate bounded Bybit sweep for the existing authenticated notification tick. */
+export async function sweepBybitDeposits() {
+  await sweepBybitWebsiteOrders();
+  const { data: rows } = await db.from("binance_deposits").select("*").eq("kind", "bybit").eq("status", "pending")
+    .not("tx_id", "is", null).gt("expires_at", new Date().toISOString()).order("created_at").limit(5);
+  for (const row of rows ?? []) {
+    const result = await confirmByTxId(row, String(row.tx_id), true);
+    if (!result.ok) continue;
+    const settled = await settlePayment(Number(row.telegram_id), row, result.amount, result.txId, "Verified via Bybit API");
+    await sendMessage(Number(row.telegram_id), settled.message, settled.keyboard).catch(() => {});
+  }
 }
 
 /* --------------------------------------------------- live channel posting */
@@ -3806,7 +3850,7 @@ async function handleMessage(msg: any) {
         await say(chatId, "❌ Please send a valid amount, e.g. <code>10</code>");
         return;
       }
-      const kind = state.bin_kind === "crypto" ? "crypto" : "payid";
+      const kind = state.bin_kind === "bybit" ? "bybit" : state.bin_kind === "crypto" ? "crypto" : "payid";
       state.awaiting = null;
       await setState(chatId, state);
       const r = await startBinanceDeposit(chatId, kind, amount, state.bin_network);
@@ -5815,6 +5859,8 @@ async function coPayView(chatId: number) {
   if (Number(user.balance) >= total && total > 0)
     kb.push([styled(uiBtn(settings, "pay_balance", "copm:balance", `(${money(user.balance)})`), payStyle)]);
   if (cfg.active && cfg.payid) kb.push([styled(uiBtn(settings, "pay_payid", "copm:payid"), payStyle)]);
+  const bybit = await bybitSettings();
+  if (bybitEnabled(bybit)) kb.push([styled({ text: "Bybit Pay", callback_data: "copm:bybit", ...(bybit["bybit_icon"] && /^\d+$/.test(bybit["bybit_icon"]) ? { icon_custom_emoji_id: bybit["bybit_icon"] } : {}) }, payStyle)]);
   if (cfg.active && cfg.crypto) {
     kb.push([styled(uiBtn(settings, "pay_bep20", "copm:BSC"), payStyle)]);
     kb.push([styled(uiBtn(settings, "pay_trc20", "copm:TRX"), payStyle)]);
@@ -5955,10 +6001,12 @@ async function fulfillCheckout(
   const blocked = snapshotBlocked ? ["• This checkout is currently unavailable."] : await checkoutStockIssues(lines);
   let prepaid = false;
   if (depositId && verifiedAmount !== undefined) {
-    const { data: settled, error } = await db.rpc("settle_bot_checkout", {
-      _deposit_id: depositId, _txid: reference, _amount: verifiedAmount,
-      _method: methodKey, _deliverable: !blocked.length,
-    });
+    const { data: settled, error } = methodKey === "bybit"
+      ? await db.rpc("settle_bybit_bot", { _deposit_id: depositId, _txid: reference.replace(/^bybit:/, ""), _amount: verifiedAmount, _deliverable: !blocked.length })
+      : await db.rpc("settle_bot_checkout", {
+          _deposit_id: depositId, _txid: reference, _amount: verifiedAmount,
+          _method: methodKey, _deliverable: !blocked.length,
+        });
     if (error) throw new Error("Payment settlement will retry.");
     if (!settled?.changed) return { text: "✅ This payment was already processed. Check My Orders or your wallet.", kb: [] as Button[][] };
     if (settled.status !== "ready") {
@@ -6860,7 +6908,7 @@ async function handleCallback(cq: any) {
       return;
     }
 
-    const kind = method === "payid" ? "payid" : "crypto";
+    const kind = method === "bybit" ? "bybit" : method === "payid" ? "payid" : "crypto";
 
     const network = method === "payid" ? undefined : method;
     const r = await startBinanceDeposit(chatId, kind as any, total, network, {
@@ -7091,6 +7139,16 @@ async function handleCallback(cq: any) {
     return;
   }
 
+  if (data === "dep:bybit") {
+    if (!bybitEnabled(await bybitSettings())) {
+      await edit("Bybit Pay is currently unavailable.", [[uiBtn(await getSettings(), "com_wallet", "wallet")]]);
+      return;
+    }
+    await setState(chatId, { ...(user.state ?? {}), awaiting: "bin_amount", bin_kind: "bybit" });
+    await edit("<b>Bybit Pay</b>\n\nHow much USDT do you want to add?", [[uiBtn(await getSettings(), "com_wallet", "wallet")]]);
+    return;
+  }
+
   if (data === "dep:binance") {
 
     const cfg = await binanceConfig();
@@ -7152,7 +7210,7 @@ async function handleCallback(cq: any) {
     await setState(chatId, { ...(user.state ?? {}), awaiting: "bin_txid", bin_dep_id: id });
     const { data: depRow } = await db.from("binance_deposits").select("kind").eq("id", id).maybeSingle();
     await edit(
-      depRow?.kind === "payid"
+      depRow?.kind === "bybit" ? "Send the <b>Bybit Internal Transfer Transaction ID</b> from your transfer history." : depRow?.kind === "payid"
         ? `${uiIconHtml(await getSettings(), "dep_txid_title")} Send the <b>Binance Order ID</b> of your payment.\n\nBinance app → Pay → History → open the payment → copy the <b>Order ID</b>.`
         : `${uiIconHtml(await getSettings(), "dep_txid_title")} Send the <b>Transaction ID (TXID)</b> of your USDT network transfer.`,
       [[uiBtn(await getSettings(), "dep_wallet", "wallet")]],
@@ -7168,10 +7226,10 @@ async function handleCallback(cq: any) {
       await setState(chatId, { ...(user.state ?? {}), awaiting: "bin_txid", bin_dep_id: id });
       await edit(
         `${uiIconHtml(await getSettings(), "dep_txid_title")} Send the ${
-          r.kind === "payid"
+          r.kind === "bybit" ? "<b>Bybit Internal Transfer Transaction ID</b> from your transfer history." : r.kind === "payid"
             ? "<b>Binance Order ID</b> of your payment.\n\nBinance app → Pay → History → open the payment → copy the <b>Order ID</b>."
             : "<b>Transaction ID (TXID)</b> of your USDT network transfer.\n\nCopy the TXID from the sending wallet or exchange."
-        }\n\nYour payment is confirmed only when this ID matches our Binance history.`,
+        }\n\nYour payment is confirmed only when this ID matches the receiving account history.`,
         [[uiBtn(await getSettings(), "dep_wallet", "wallet")]],
       );
       return;

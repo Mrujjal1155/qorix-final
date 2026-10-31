@@ -62,6 +62,7 @@ export const Route = createFileRoute("/checkout")({
 
 const METHODS = [
   { id: "binance", label: "Binance Pay", key: "binance_pay_id", icon: CreditCard, hint: "Pay ID transfer" },
+  { id: "bybit", label: "Bybit Pay", key: "bybit_uid", icon: Wallet, hint: "Bybit UID · USDT internal transfer" },
   { id: "usdt_bep20", label: "USDT · BEP-20", key: "usdt_bep20_address", icon: Coins, hint: "BNB Smart Chain" },
   { id: "usdt_trc20", label: "USDT · TRC-20", key: "usdt_trc20_address", icon: Bitcoin, hint: "Tron network" },
 ] as const;
@@ -100,7 +101,7 @@ function CheckoutPage() {
   const [txid, setTxid] = useState("");
 
   const visibleMethods = METHODS.filter((m) =>
-    m.id === "binance" ? pay?.["enable_payid"] !== "0" : pay?.["enable_crypto"] !== "0",
+    m.id === "bybit" ? Boolean(pay?.["bybit_uid"]) : m.id === "binance" ? pay?.["enable_payid"] !== "0" : pay?.["enable_crypto"] !== "0",
   );
   const method =
     picked === "eps" || (picked === "oxapay" && oxa?.enabled) || visibleMethods.some((m) => m.id === picked)
@@ -388,7 +389,7 @@ function CheckoutPage() {
                   >
                     {address || "Not configured yet — contact support"}
                   </button>
-                  <p className="mt-2 text-xs text-muted-foreground">Tap to copy. Send the exact amount, then continue.</p>
+                  <p className="mt-2 text-xs text-muted-foreground">{method === "bybit" ? "Send the exact USDT amount through a Bybit internal transfer to this UID. Copy the Internal Transfer Transaction ID after paying." : "Tap to copy. Send the exact amount, then continue."}</p>
                 </div>
                 {botUser ? (
                   <Button asChild variant="outline" className="w-full rounded-xl border-primary/50 text-primary">
@@ -411,8 +412,8 @@ function CheckoutPage() {
             {step === "confirm" && (
               <div className="space-y-4">
                 <div className="space-y-1">
-                  <Label>Transaction ID</Label>
-                  <Input value={txid} onChange={(e) => setTxid(e.target.value)} placeholder="Paste TXID / Binance order id" />
+                  <Label>{method === "bybit" ? "Bybit Internal Transfer Transaction ID" : "Transaction ID"}</Label>
+                  <Input value={txid} onChange={(e) => setTxid(e.target.value)} placeholder={method === "bybit" ? "Paste internal transfer transaction ID" : "Paste TXID / Binance order id"} />
                   <p className="text-xs text-muted-foreground">
                     We verify the transaction automatically and deliver to {email || "your email"}.
                   </p>
