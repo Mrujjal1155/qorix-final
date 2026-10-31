@@ -1505,7 +1505,8 @@ export const saveBotSettings = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
-    const rows = Object.entries(data.values).map(([key, value]) => ({ key, value }));
+    // Verification flags are written only after a trusted Bybit account/API check.
+    const rows = Object.entries(data.values).filter(([key]) => !["bybit_api_verified", "bybit_api_key", "bybit_api_secret"].includes(key)).map(([key, value]) => ({ key, value }));
     const { error } = await sb.from("bot_settings").upsert(rows, { onConflict: "key" });
     if (error) throw new Error(error.message);
     return { ok: true };

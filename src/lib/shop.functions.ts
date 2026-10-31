@@ -178,6 +178,12 @@ export const getStorePayInfo = createServerFn({ method: "GET" }).handler(async (
   map["enable_crypto"] = sw.crypto ? "1" : "0";
   map["bot_username"] = (raw["bot_username"] || "").replace(/^@/, "");
   map["support_contact"] = raw["support_contact"] || "";
+  try {
+    const { bybitSettings } = await import("@/lib/bybit.server");
+    const { bybitEnabled } = await import("@/lib/bybit-payment");
+    const settings = await bybitSettings();
+    map["bybit_uid"] = bybitEnabled(settings) ? settings["bybit_uid"] ?? "" : "";
+  } catch { map["bybit_uid"] = ""; }
   return map;
 });
 
@@ -200,7 +206,11 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
       if (name.length < 2) throw new Error("Name is required");
       const txid = String(d.txid ?? "").trim().slice(0, 200);
       if (txid.length < 4) throw new Error("Transaction ID / payment reference is required");
-      const method = ["binance", "usdt_bep20", "usdt_trc20"].includes(d.payment_method) ? d.payment_method : "binance";
+      const method = ["binance", "bybit", "usdt_bep20", "usdt_trc20"].includes(d.payment_method) ? d.payment_method : "binance";
+      if (method === "bybit") {
+        const { bybitTxidSchema } = await import("@/lib/bybit-payment");
+        bybitTxidSchema.parse(txid);
+      }
       return { product_id: String(d.product_id), quantity: qty, customer_name: name, customer_email: email, payment_method: method, txid };
     },
   )
@@ -220,7 +230,12 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
       const raw: Record<string, string> = {};
       for (const r of rows ?? []) raw[r.key] = r.value ?? "";
       const sw = binanceSwitches(raw);
-      const allowed = data.payment_method === "binance" ? sw.payid : sw.crypto;
+      let allowed = data.payment_method === "binance" ? sw.payid : sw.crypto;
+      if (data.payment_method === "bybit") {
+        const { bybitSettings } = await import("@/lib/bybit.server");
+        const { bybitEnabled } = await import("@/lib/bybit-payment");
+        allowed = bybitEnabled(await bybitSettings());
+      }
       if (!allowed) throw new Error("This payment method is currently unavailable");
     }
 
@@ -256,7 +271,9 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
       if (liveStock < data.quantity) throw new Error(liveStock > 0 ? `Only ${liveStock} item(s) are available` : "Product is out of stock");
     }
 
-    const dup = await supabaseAdmin.from("orders").select("id").eq("txid", data.txid).maybeSingle();
+    let duplicateQuery = supabaseAdmin.from("orders").select("id").eq("txid", data.txid);
+    duplicateQuery = data.payment_method === "bybit" ? duplicateQuery.eq("payment_method", "bybit") : duplicateQuery.neq("payment_method", "bybit");
+    const dup = await duplicateQuery.maybeSingle();
     if (dup.data) throw new Error("This transaction ID has already been used");
 
     // Anti-spam: a buyer cannot pile up unverified orders while none are confirmed.
@@ -297,8 +314,13 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
     // panel shows the result (found / not found) before anyone delivers.
     if (order?.id) {
       try {
-        const { verifyWebsiteOrderTxid } = await import("@/lib/website-binance-verify.server");
-        await verifyWebsiteOrderTxid(String(order.id));
+        if (data.payment_method === "bybit") {
+          const { verifyBybitWebsiteOrder } = await import("@/lib/bybit-settle.server");
+          await verifyBybitWebsiteOrder(String(order.id));
+        } else {
+          const { verifyWebsiteOrderTxid } = await import("@/lib/website-binance-verify.server");
+          await verifyWebsiteOrderTxid(String(order.id));
+        }
       } catch (e) {
         console.error("[storefront] Binance TXID check failed:", e);
       }
