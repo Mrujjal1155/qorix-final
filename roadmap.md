@@ -1,5 +1,8 @@
 # Roadmap
 
+- [ ] Add approved per-product customer alerts for stock/product/price changes while preserving admin/group notices.
+- [ ] Keep admin pending queue visible, refreshable and deletable; verify focused rules without sending real broadcasts.
+
 - [x] Add shared Bybit/TRC20/BEP20 Premium emoji editors to Bot Admin Payment icons, preserving gateway switches and payment handlers; mocked admin save/reset and wallet/checkout readback verified without real payments.
 - [ ] Verify new gateway emoji appearance in live Telegram after external deployment; requires deployment and user interaction in the actual bot. No gateway activated or real payment attempted.
 
