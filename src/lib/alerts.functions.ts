@@ -52,6 +52,7 @@ export const getStockAlertStats = createServerFn({ method: "GET" })
         "id,product_id,kind,source,status,attempts,last_error,created_at,delivered_at,next_attempt_at,stock,added_qty",
       )
       .gte("created_at", since)
+      .neq("status", "cancelled")
       .order("created_at", { ascending: false })
       .limit(5000);
     if (error) throw new Error(error.message);
