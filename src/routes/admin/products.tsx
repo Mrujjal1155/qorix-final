@@ -4,7 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { EMPTY_MANUAL_INPUT, type ManualInputConfig } from "@/lib/manual-input";
-import { ArrowDown, ArrowLeft, ArrowUp, Boxes, EyeOff, Filter, FolderTree, PlusCircle, Search, Sparkles } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowUp, Boxes, Check, EyeOff, Filter, FolderTree, Pencil, PlusCircle, Search, Sparkles, X } from "lucide-react";
+import { categoryNameSchema, moveCategoryToPosition } from "@/lib/category-edit";
 import {
   applyProductIcon,
   deleteCategory,
@@ -107,6 +108,8 @@ function ProductsPage() {
   const [view, setView] = useState<View>("hub");
   const [cat, setCat] = useState({ name: "", emoji: "📁", channel: "both", image_url: "" });
   const [catSearch, setCatSearch] = useState("");
+  const [categoryEdit, setCategoryEdit] = useState<{ id: string; name: string } | null>(null);
+  const [serialEdit, setSerialEdit] = useState<{ id: string; value: string } | null>(null);
   const [logoFor, setLogoFor] = useState<string>("");
   const [logoUrl, setLogoUrl] = useState<string>("");
   const [manageCat, setManageCat] = useState<string>("");
@@ -153,12 +156,29 @@ function ProductsPage() {
     const list = (data?.categories ?? []) as any[];
     const target = index + dir;
     if (target < 0 || target >= list.length) return;
-    const ids = list.map((c) => String(c.id));
-    const moved = ids[index]!;
-    ids[index] = ids[target]!;
-    ids[target] = moved;
-    reorderMut.mutate(ids);
+    const category = list[index];
+    if (!category) return;
+    reorderMut.mutate(moveCategoryToPosition(list.map((c) => String(c.id)), String(category.id), String(target + 1)));
   }
+
+  function saveSerial() {
+    if (!serialEdit || reorderMut.isPending) return;
+    try {
+      const ids = (data?.categories ?? []).map((c: any) => String(c.id));
+      const next = moveCategoryToPosition(ids, serialEdit.id, serialEdit.value);
+      setSerialEdit(null);
+      if (next.some((id, index) => id !== ids[index])) reorderMut.mutate(next);
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Invalid serial"); }
+  }
+
+  const categoryEditMut = useMutation({
+    mutationFn: async () => {
+      if (!categoryEdit) throw new Error("Select a category");
+      return saveCat({ data: { id: categoryEdit.id, name: categoryNameSchema.parse(categoryEdit.name) } });
+    },
+    onSuccess: () => { setCategoryEdit(null); qc.invalidateQueries({ queryKey: ["catalogue"] }); toast.success("Category name saved"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const [form, setForm] = useState({ ...EMPTY });
   const [mi, setMi] = useState<ManualInputConfig>({ ...EMPTY_MANUAL_INPUT });
@@ -482,10 +502,6 @@ function ProductsPage() {
             JPG / WEBP also work. Max file size <strong>3MB</strong> (ideal 50–200KB). No logo = default icon.
           </p>
         </div>
-        <p className="text-xs text-muted-foreground">
-          The order below is the exact serial shown in the Telegram bot and on the website. Use the arrows to move a
-          category up or down.
-        </p>
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -503,29 +519,42 @@ function ProductsPage() {
             )
             .map(({ c, idx }) => (
             <li key={c.id} className="rounded-md bg-muted px-3 py-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="flex min-w-0 items-center gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="flex min-w-0 flex-1 items-center gap-2">
                   <span className="flex shrink-0 flex-col">
-                    <button
+                    <Button
+                      variant="outline" size="icon"
                       type="button"
                       aria-label="Move up"
+                      title="Move up"
                       disabled={idx === 0 || reorderMut.isPending}
                       onClick={() => moveCategory(idx, -1)}
-                      className="rounded p-0.5 text-muted-foreground hover:bg-background hover:text-foreground disabled:opacity-30"
+                      className="h-7 w-7"
                     >
                       <ArrowUp className="h-3.5 w-3.5" />
-                    </button>
-                    <button
+                    </Button>
+                    <Button
+                      variant="outline" size="icon"
                       type="button"
                       aria-label="Move down"
+                      title="Move down"
                       disabled={idx === (data?.categories ?? []).length - 1 || reorderMut.isPending}
                       onClick={() => moveCategory(idx, 1)}
-                      className="rounded p-0.5 text-muted-foreground hover:bg-background hover:text-foreground disabled:opacity-30"
+                      className="h-7 w-7"
                     >
                       <ArrowDown className="h-3.5 w-3.5" />
-                    </button>
+                    </Button>
                   </span>
-                  <span className="w-5 shrink-0 text-xs font-semibold text-muted-foreground">{idx + 1}</span>
+                  {serialEdit && serialEdit.id === c.id ? (
+                    <Input autoFocus aria-label={`Serial for ${c.name}`} type="text" inputMode="numeric" className="h-9 w-16 shrink-0 text-center" value={serialEdit.value}
+                      disabled={reorderMut.isPending}
+                      onFocus={(e) => e.currentTarget.select()}
+                      onChange={(e) => setSerialEdit({ id: c.id, value: e.target.value })}
+                      onBlur={saveSerial}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } if (e.key === "Escape") setSerialEdit(null); }} />
+                  ) : (
+                    <Button variant="outline" size="sm" className="w-16 shrink-0 tabular-nums" title="Edit serial" aria-label={`Edit serial for ${c.name}`} disabled={reorderMut.isPending} onClick={() => setSerialEdit({ id: c.id, value: String(idx + 1) })}>{idx + 1}</Button>
+                  )}
                   {c.image_url ? (
                     <img src={c.image_url} alt="" className="h-6 w-6 shrink-0 rounded object-contain" />
                   ) : (
@@ -534,7 +563,8 @@ function ProductsPage() {
                   <span className="truncate">{c.name}</span>
                   <Badge variant="secondary">{c.channel ?? "both"}</Badge>
                 </span>
-                <div className="flex shrink-0 gap-1">
+                <div className="flex flex-wrap gap-1">
+                  <Button size="sm" variant="outline" title="Edit category name" onClick={() => setCategoryEdit({ id: c.id, name: c.name })}><Pencil className="mr-1 h-3.5 w-3.5" />Edit</Button>
                   <Button
                     size="sm"
                     variant="outline"
@@ -554,6 +584,16 @@ function ProductsPage() {
                   </Button>
                 </div>
               </div>
+              {categoryEdit && categoryEdit.id === c.id && (
+                <form className="mt-3 flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); categoryEditMut.mutate(); }}>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <Label htmlFor={`category-name-${c.id}`}>Category name</Label>
+                    <Input id={`category-name-${c.id}`} autoFocus maxLength={150} value={categoryEdit.name} disabled={categoryEditMut.isPending} onChange={(e) => setCategoryEdit({ id: c.id, name: e.target.value })} />
+                  </div>
+                  <Button type="submit" size="sm" disabled={categoryEditMut.isPending || !categoryNameSchema.safeParse(categoryEdit.name).success}><Check className="mr-1 h-4 w-4" />Save</Button>
+                  <Button type="button" size="icon" variant="outline" aria-label="Cancel category edit" title="Cancel" disabled={categoryEditMut.isPending} onClick={() => setCategoryEdit(null)}><X className="h-4 w-4" /></Button>
+                </form>
+              )}
               {logoFor === c.id && (
                 <div className="mt-3 space-y-2">
                   <ImageUploadField value={logoUrl} onChange={setLogoUrl} placeholder="Logo image URL" />

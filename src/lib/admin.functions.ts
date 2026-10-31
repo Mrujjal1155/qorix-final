@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { MANUAL_NOTE_PREFIX, parseStock, type StockFormat } from "@/lib/stock-format";
 import { botUserRequest } from "@/lib/bot-users";
+import { categorySaveSchema, categoryOrderSchema } from "@/lib/category-edit";
 
 async function assertAdmin(context: any) {
   const { data } = await context.supabase.rpc("has_role", {
@@ -303,17 +304,17 @@ export const saveCategory = createServerFn({ method: "POST" })
       sort_order?: number;
       channel?: string;
       image_url?: string | null;
-    }) => d,
+    }) => categorySaveSchema.parse(d),
   )
   .handler(async ({ data, context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
     const row: Record<string, unknown> = {
       name: data.name,
-      emoji: data.emoji ?? "📁",
-      sort_order: data.sort_order ?? 0,
-      channel: data.channel ?? "both",
     };
+    if (data.emoji !== undefined || !data.id) row["emoji"] = data.emoji ?? "📁";
+    if (data.sort_order !== undefined || !data.id) row["sort_order"] = data.sort_order ?? 0;
+    if (data.channel !== undefined || !data.id) row["channel"] = data.channel ?? "both";
     if (data.image_url !== undefined) row["image_url"] = data.image_url?.trim() ? data.image_url.trim() : null;
     const { error } = data.id
       ? await sb.from("categories").update(row).eq("id", data.id)
@@ -325,7 +326,7 @@ export const saveCategory = createServerFn({ method: "POST" })
 /** Admin drag-free reordering: ids arrive in the exact serial the admin wants. */
 export const reorderCategories = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { ids: string[] }) => ({ ids: (d.ids ?? []).map(String) }))
+  .inputValidator((d: { ids: string[] }) => categoryOrderSchema.parse(d))
   .handler(async ({ data, context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
