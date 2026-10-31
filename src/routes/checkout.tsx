@@ -63,6 +63,8 @@ export const Route = createFileRoute("/checkout")({
 const METHODS = [
   { id: "binance", label: "Binance Pay", key: "binance_pay_id", icon: CreditCard, hint: "Pay ID transfer" },
   { id: "bybit", label: "Bybit Pay", key: "bybit_uid", icon: Wallet, hint: "Bybit UID · USDT internal transfer" },
+  { id: "chain_bep20", label: "USDT · BEP20 Wallet", key: "chain_bep20_address", icon: Coins, hint: "Self-custody · BNB Smart Chain" },
+  { id: "chain_trc20", label: "USDT · TRC20 Wallet", key: "chain_trc20_address", icon: Bitcoin, hint: "Self-custody · TRON" },
   { id: "usdt_bep20", label: "USDT · BEP-20", key: "usdt_bep20_address", icon: Coins, hint: "BNB Smart Chain" },
   { id: "usdt_trc20", label: "USDT · TRC-20", key: "usdt_trc20_address", icon: Bitcoin, hint: "Tron network" },
 ] as const;
@@ -101,7 +103,7 @@ function CheckoutPage() {
   const [txid, setTxid] = useState("");
 
   const visibleMethods = METHODS.filter((m) =>
-    m.id === "bybit" ? Boolean(pay?.["bybit_uid"]) : m.id === "binance" ? pay?.["enable_payid"] !== "0" : pay?.["enable_crypto"] !== "0",
+    m.id.startsWith("chain_") ? Boolean(pay?.[m.key]) : m.id === "bybit" ? Boolean(pay?.["bybit_uid"]) : m.id === "binance" ? pay?.["enable_payid"] !== "0" : pay?.["enable_crypto"] !== "0",
   );
   const method =
     picked === "eps" || (picked === "oxapay" && oxa?.enabled) || visibleMethods.some((m) => m.id === picked)
@@ -390,6 +392,7 @@ function CheckoutPage() {
                     {address || "Not configured yet — contact support"}
                   </button>
                   <p className="mt-2 text-xs text-muted-foreground">{method === "bybit" ? "Send the exact USDT amount through a Bybit internal transfer to this UID. Copy the Internal Transfer Transaction ID after paying." : "Tap to copy. Send the exact amount, then continue."}</p>
+                  {method.startsWith("chain_") && <p className="mt-2 text-xs text-muted-foreground">Use only this network and USDT token. Network fees are separate; the full exact amount must arrive. Paste the blockchain TXID after sending; verification waits for finality.</p>}
                 </div>
                 {botUser ? (
                   <Button asChild variant="outline" className="w-full rounded-xl border-primary/50 text-primary">
