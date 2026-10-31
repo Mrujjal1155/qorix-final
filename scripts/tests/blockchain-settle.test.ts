@@ -8,7 +8,7 @@ let failSettlement = false;
 const order = { id: "order-1", source: "website", payment_method: "chain_bep20", txid: `0x${"a".repeat(64)}`, status: "pending", total: 10.25, created_at: new Date().toISOString() };
 mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
   from: () => {
-    const chain: any = { select: () => chain, eq: () => chain, update: () => chain, maybeSingle: async () => ({ data: { ...order, meta: { paid } }, error: null }), then: (resolve: any) => Promise.resolve({ data: null, error: null }).then(resolve) };
+    const chain: any = { select: () => chain, eq: () => chain, in: () => chain, update: () => chain, maybeSingle: async () => ({ data: { ...order, meta: { paid } }, error: null }), then: (resolve: any) => Promise.resolve({ data: null, error: null }).then(resolve) };
     return chain;
   },
   rpc: async (name: string, args: any) => {
@@ -25,7 +25,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
 } }));
 mock.module("@/lib/blockchain.server", () => ({ findChainPayment: async (_network: string, claim: any) => {
   expect(claim.txid).toBe(`0x${"a".repeat(64)}`);
-  expect(claim.amount).toBe(10.25);
+  expect(claim.amount).toBe("10.25");
   return apiSuccess ? { ok: true, txid: `0x${"a".repeat(64)}`, amount: 10.25 } : { ok: false, reason: "pending" };
 } }));
 mock.module("@/lib/eps-settle.server", () => ({ autoDeliver: async () => { deliveryCount++; } }));

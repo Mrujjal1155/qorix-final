@@ -17,3 +17,16 @@ test("failed execution produces no payable transfer", async () => { status = "0x
 test("receipt beyond finalized block is not payable", async () => { finalized = "0xff"; setup(); expect(await readChainTransfers("bep20", txid)).toEqual([]); });
 test("noncanonical receipt is not payable", async () => { canonical = false; setup(); expect(await readChainTransfers("bep20", txid)).toEqual([]); });
 test("API outage rejects instead of confirming", async () => { globalThis.fetch = (async () => new Response("", { status: 503 })) as typeof fetch; expect(readChainTransfers("bep20", txid)).rejects.toThrow(); });
+test("solidified TRON receipt requires successful contract execution", async () => {
+  const previousKey = process.env["UDC_TRONGRID_API_KEY"], previousAuth = process.env["LOVABLE_API_KEY"];
+  process.env["UDC_TRONGRID_API_KEY"] = "test-only"; process.env["LOVABLE_API_KEY"] = "test-only";
+  try {
+    let success = true;
+    globalThis.fetch = (async () => Response.json({ id: "a".repeat(64), blockTimeStamp: 2000, receipt: { result: success ? "SUCCESS" : "REVERT" }, log: [{ address: CHAIN_TOKEN.trc20, topics: [TRANSFER_TOPIC.slice(2), "0".repeat(24) + "2".repeat(40), "0".repeat(24) + "1".repeat(40)], data: 10250000n.toString(16).padStart(64, "0") }] })) as typeof fetch;
+    expect((await readChainTransfers("trc20", "a".repeat(64)))[0]?.units).toBe(10250000n);
+    success = false; expect(await readChainTransfers("trc20", "a".repeat(64))).toEqual([]);
+  } finally {
+    if (previousKey === undefined) delete process.env["UDC_TRONGRID_API_KEY"]; else process.env["UDC_TRONGRID_API_KEY"] = previousKey;
+    if (previousAuth === undefined) delete process.env["LOVABLE_API_KEY"]; else process.env["LOVABLE_API_KEY"] = previousAuth;
+  }
+});
