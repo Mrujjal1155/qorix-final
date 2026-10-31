@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Add Bybit Pay beside Binance for Telegram and website with a dedicated admin credentials/settings section and automatic verification; awaiting approval and confirmation of supported Bybit payment account/API type.
+- [ ] Add the approved retail Bybit Pay UID/internal-transfer flow beside Binance for Telegram and website, admin connection/settings and automatic verification; secure project credentials saved, implementation and verification in progress. No merchant QR integration or real payment testing.
 
 - [x] Add category name editing and typed serial positioning with clear arrows; five ordering/validation tests pass and latest build OK. Name-only saves preserve category metadata.
 - [ ] Verify category rename and serial save/readback in the signed-in admin; blocked by external unmanaged authentication.
