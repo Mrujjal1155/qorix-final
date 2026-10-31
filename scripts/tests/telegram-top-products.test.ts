@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { IN_HOUSE_FILTER, countBySupplier, filterCatalogue, parseTopProductIds, selectTopProducts, sortTelegramTopProducts, telegramFavoritesPage } from "../../src/lib/telegram-top-products";
+import { moveTopProductToSerial, IN_HOUSE_FILTER, countBySupplier, filterCatalogue, parseTopProductIds, selectTopProducts, sortTelegramTopProducts, telegramFavoritesPage } from "../../src/lib/telegram-top-products";
 
 describe("Admin-selected Telegram top products", () => {
   const products = [{ id: "a", price: 1.2, stock: 4, featured_rank: 0 }, { id: "b", price: 2, stock: 5, featured_rank: 1 }];
@@ -25,10 +25,14 @@ describe("Admin-selected Telegram top products", () => {
 });
 
 describe("Telegram favorite brand and credit order", () => {
-  test("all selected Gemini including new additions precede Lovable and other products", () => {
-    const products = [{ id: "other", name: "Notion" }, { id: "lovable", name: "Lovable 100 Credit" }, { id: "gemini", name: "Gemini Pro 3 Months" }, { id: "new", name: " Gemini AI Pro 18m NEW" }];
-    expect(selectTopProducts(products, ["other", "lovable", "gemini", "new"]).map((p) => p.id)).toEqual(["gemini", "new", "lovable", "other"]);
-    expect(selectTopProducts(products, ["other", "lovable"]).map((p) => p.id)).toEqual(["lovable", "other"]);
+  test("top products follow the admin's serial, not brand grouping", () => {
+    const products = [{ id: "other", name: "Notion" }, { id: "lovable", name: "Lovable 100 Credit" }, { id: "gemini", name: "Gemini Pro 3 Months" }];
+    expect(selectTopProducts(products, ["other", "lovable", "gemini"]).map((p) => p.id)).toEqual(["other", "lovable", "gemini"]);
+  });
+  test("typing serial 1 moves a product to the top; out-of-range serial is rejected", () => {
+    expect(moveTopProductToSerial(["a", "b", "c"], "c", "1")).toEqual(["c", "a", "b"]);
+    expect(moveTopProductToSerial(["a", "b", "c"], "a", "3")).toEqual(["b", "c", "a"]);
+    expect(() => moveTopProductToSerial(["a", "b"], "a", "5")).toThrow();
   });
   test("Lovable credits are ordered 100, 300, 305, 2k, 5k, 10k, 20k, not by duration or price", () => {
     const names = ["Lovable 20k Credits 7 DW", "Lovable Pro 10k Credits(NW)", "Lovable 5k Credits 7DW", "Lovable 2k Credits 7 DW", "Lovable PRO Lite 305 Credit 12M", "Lovable Pro Lite 12 months + 300 credits", "Lovable PRO 1M 100 Credit NW"];

@@ -66,10 +66,21 @@ export function telegramFavoritesPage<T extends { name?: string }>(products: T[]
 /** Input is the bot's already visibility/availability-filtered, user-priced catalogue. */
 export function selectTopProducts<T extends { id: string; name?: string }>(products: T[], ids: string[]): T[] {
   const byId = new Map(products.map((p) => [p.id, p]));
-  return sortTelegramTopProducts([...new Set(ids)].flatMap((id) => {
+  // The admin's saved serial (array order) is the bot order.
+  return [...new Set(ids)].flatMap((id) => {
     const product = byId.get(id);
     return product ? [product] : [];
-  }));
+  });
+}
+
+/** Move a selected product to a 1-based serial typed by the admin. */
+export function moveTopProductToSerial(ids: string[], id: string, value: string): string[] {
+  const position = Number(value.trim());
+  if (!/^\d+$/.test(value.trim()) || position < 1 || position > ids.length) throw new Error(`Enter a serial from 1 to ${ids.length}`);
+  if (!ids.includes(id)) throw new Error("Select this product first");
+  const next = ids.filter((x) => x !== id);
+  next.splice(position - 1, 0, id);
+  return next;
 }
 
 /** Filter key for products with no supplier: the admin list shows them as "In-house". */

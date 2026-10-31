@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { colorIndexesFor, supplierBadgeStyle } from "@/lib/supplier-colors";
-import { IN_HOUSE_FILTER, countBySupplier, filterCatalogue } from "@/lib/telegram-top-products";
+import { IN_HOUSE_FILTER, countBySupplier, filterCatalogue, moveTopProductToSerial } from "@/lib/telegram-top-products";
 import { getTelegramTopProducts, saveTelegramTopProducts } from "@/lib/telegram-top-products.functions";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +37,14 @@ export function TelegramTopProducts({ products }: { products: Product[] }) {
     onError: (e: Error) => toast.error(e.message),
   });
   const toggle = (id: string, checked: boolean) => setDraft(checked ? [...ids, id] : ids.filter((x) => x !== id));
+  const setSerial = (id: string, value: string) => {
+    if (!value.trim()) return;
+    try { setDraft(moveTopProductToSerial(ids, id, value)); } catch (e) { toast.error((e as Error).message); }
+  };
+  const ordered = useMemo(() => {
+    const rank = new Map(ids.map((id, i) => [id, i]));
+    return [...visible].sort((a, b) => (rank.get(a.id) ?? Infinity) - (rank.get(b.id) ?? Infinity));
+  }, [visible, ids]);
   const chip = (name: string | null | undefined) => {
     const clean = String(name ?? "").trim();
     if (!clean) return <Badge variant="outline" className="text-[11px] text-muted-foreground">In-house</Badge>;
@@ -89,8 +97,25 @@ export function TelegramTopProducts({ products }: { products: Product[] }) {
       )}
       {error ? <p role="alert" className="text-sm text-destructive">Could not load top products. <Button variant="link" onClick={() => qc.invalidateQueries({ queryKey: ["telegram-top-products"] })}>Retry</Button></p> : isPending ? <p className="text-sm text-muted-foreground">Loading top products…</p> : (
         <div className="max-h-[60vh] overflow-y-auto divide-y divide-border border-y border-border">
-          {visible.map((p) => (
-            <label key={p.id} className="flex cursor-pointer items-center gap-3 py-3">
+          {ordered.map((p) => {
+            const serial = ids.indexOf(p.id) + 1;
+            return (
+            <div key={p.id} className="flex items-center gap-3 py-3">
+              {serial > 0 ? (
+                <Input
+                  key={`${p.id}-${serial}`}
+                  aria-label={`Serial for ${p.name}`}
+                  title="Type a serial and press Enter"
+                  inputMode="numeric"
+                  defaultValue={serial}
+                  disabled={mutation.isPending}
+                  className="h-8 w-14 shrink-0 px-1 text-center font-semibold text-primary"
+                  onFocus={(e) => e.currentTarget.select()}
+                  onKeyDown={(e) => { if (e.key === "Enter") setSerial(p.id, e.currentTarget.value); }}
+                  onBlur={(e) => { if (e.currentTarget.value !== String(serial)) setSerial(p.id, e.currentTarget.value); }}
+                />
+              ) : <span className="w-14 shrink-0" />}
+              <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
               <Checkbox aria-label={`Select ${p.name}`} checked={ids.includes(p.id)} disabled={mutation.isPending} onCheckedChange={(checked) => toggle(p.id, checked === true)} />
               <div className="min-w-0 flex-1">
                 <span className="block break-words text-sm font-medium">{p.name}</span>
@@ -98,8 +123,10 @@ export function TelegramTopProducts({ products }: { products: Product[] }) {
               </div>
               {!p.is_active && <span className="text-xs text-muted-foreground">Off</span>}
               <span className="shrink-0 text-sm text-muted-foreground">${Number(p.price).toFixed(2)} · {p.stock ?? 0} items</span>
-            </label>
-          ))}
+              </label>
+            </div>
+            );
+          })}
           {!visible.length && <p className="py-6 text-sm text-muted-foreground">No products match this filter.</p>}
         </div>
       )}
