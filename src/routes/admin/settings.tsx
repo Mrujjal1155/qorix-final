@@ -107,6 +107,8 @@ const MENU_ICON_FIELDS = [
   ["menu_icon_clear", "Clear Chat"],
   ["menu_icon_refresh", "Refresh"],
   ["menu_icon_back", "Back / Main Menu"],
+  ["menu_icon_next", "Shop · Next page"],
+  ["menu_icon_prev", "Shop · Previous page"],
   ["menu_icon_bottom_products", "Bottom menu · Products"],
   ["menu_icon_bottom_deposit", "Bottom menu · Deposit"],
   ["menu_icon_bottom_orders", "Bottom menu · My Orders"],
