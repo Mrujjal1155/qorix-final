@@ -21,7 +21,13 @@ export async function drainStockAudience(db: any, runtime = {
   for (; offset < recipients.length; offset += STOCK_AUDIENCE_CONCURRENCY) {
     if (runtime.now() - started >= STOCK_AUDIENCE_BUDGET_MS) break;
     const waveStarted = runtime.now();
-    await Promise.all(recipients.slice(offset, offset + STOCK_AUDIENCE_CONCURRENCY).map(async (row: any) => {
+    const wave = recipients.slice(offset, offset + STOCK_AUDIENCE_CONCURRENCY);
+    const { data: active, error: activeError } = await db.rpc("active_stock_notification_claims", {
+      _event_ids: wave.map((row: any) => row.event_id), _telegram_ids: wave.map((row: any) => row.telegram_id),
+    });
+    if (activeError) throw new Error("Customer notification cancellation check failed");
+    const allowed = new Set((active ?? []).map((row: any) => `${row.event_id}:${row.telegram_id}`));
+    await Promise.all(wave.filter((row: any) => allowed.has(`${row.event_id}:${row.telegram_id}`)).map(async (row: any) => {
     let result;
     try {
       result = await sendAlertMessage(row.telegram_id, row.message.text, row.message.keyboard);

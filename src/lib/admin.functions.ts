@@ -3,6 +3,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { MANUAL_NOTE_PREFIX, parseStock, type StockFormat } from "@/lib/stock-format";
 import { botUserRequest } from "@/lib/bot-users";
 import { categorySaveSchema, categoryOrderSchema } from "@/lib/category-edit";
+import { customerAlertSettingSchema } from "@/lib/customer-alerts";
 
 async function assertAdmin(context: any) {
   const { data } = await context.supabase.rpc("has_role", {
@@ -385,6 +386,17 @@ export const saveCategoryProducts = createServerFn({ method: "POST" })
     return { ok: true, count: data.product_ids.length };
   });
 
+export const setProductCustomerAlerts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => customerAlertSettingSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { error } = await context.supabase.from("products")
+      .update({ customer_alerts_enabled: data.enabled }).eq("id", data.id);
+    if (error) throw new Error("Could not save customer alerts");
+    return { enabled: data.enabled };
+  });
+
 export const saveProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
@@ -407,6 +419,7 @@ export const saveProduct = createServerFn({ method: "POST" })
       delivery_time?: string | null;
       badge?: string | null;
       is_active?: boolean;
+      customer_alerts_enabled?: boolean;
       sort_order?: number;
       /** Custom selling price for a supplier product. null clears it. */
       price_override?: number | null;

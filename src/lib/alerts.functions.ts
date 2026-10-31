@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { alertQueuePageSchema, cancelAlertSchema } from "@/lib/customer-alerts";
 
 async function assertAdmin(context: any) {
   const { data } = await context.supabase.rpc("has_role", {
@@ -51,6 +52,7 @@ export const getStockAlertStats = createServerFn({ method: "GET" })
         "id,product_id,kind,source,status,attempts,last_error,created_at,delivered_at,next_attempt_at,stock,added_qty",
       )
       .gte("created_at", since)
+      .neq("status", "cancelled")
       .order("created_at", { ascending: false })
       .limit(5000);
     if (error) throw new Error(error.message);
@@ -93,7 +95,7 @@ export const getStockAlertStats = createServerFn({ method: "GET" })
 
     latencies.sort((a, b) => a - b);
     const avgLatency = latencies.length ? latencies.reduce((a, b) => a + b, 0) / latencies.length : 0;
-    const p95 = latencies.length ? latencies[Math.min(latencies.length - 1, Math.floor(latencies.length * 0.95))]! : 0;
+    const p95 = latencies[Math.min(latencies.length - 1, Math.floor(latencies.length * 0.95))] ?? 0;
 
     const problems = events
       .filter((e) => e.status === "failed" || e.status === "retry")
@@ -139,31 +141,23 @@ export const retryStockAlert = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin
       .from("stock_notification_events")
       .update({ status: "pending", next_attempt_at: new Date().toISOString(), claimed_at: null, last_error: null })
-      .eq("id", data.id);
+      .eq("id", data.id).in("status", ["failed", "retry"]);
     if (error) throw new Error(error.message);
     const { drainAllNotifications } = await import("@/lib/suppliers/sync.server");
     await drainAllNotifications().catch(() => {});
     return { ok: true };
   });
 
-const WAITING_RECIPIENT = ["pending", "retry", "sending"];
-const WAITING_EVENT = ["pending", "processing", "retry"];
-
 /** Live size of the waiting notice queue (admin only). */
 export const getAlertQueue = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((data) => alertQueuePageSchema.parse(data))
+  .handler(async ({ context, data }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const [rec, ev] = await Promise.all([
-      supabaseAdmin.from("stock_notification_recipients").select("event_id", { count: "exact", head: true }).in("status", WAITING_RECIPIENT),
-      supabaseAdmin.from("stock_notification_events").select("kind").in("status", WAITING_EVENT).limit(5000),
-    ]);
-    if (rec.error) throw new Error(rec.error.message);
-    if (ev.error) throw new Error(ev.error.message);
-    const byKind: Record<string, number> = {};
-    for (const e of ev.data ?? []) byKind[(e as any).kind ?? "other"] = (byKind[(e as any).kind ?? "other"] ?? 0) + 1;
-    return { pendingRecipients: rec.count ?? 0, pendingEvents: (ev.data ?? []).length, byKind, checkedAt: new Date().toISOString() };
+    const result = await supabaseAdmin.rpc("admin_alert_queue", { _offset: data.offset });
+    if (result.error) throw new Error("Could not load waiting alerts");
+    return result.data as unknown as { pendingRecipients: number; pendingEvents: number; byKind: Record<string, number>; checkedAt: string; totalItems: number; items: { id: string; product_name: string; kind: string; source: string; status: string; created_at: string; last_error: string | null; old_price: number | null; new_price: number | null; waiting: number; sent: number }[] };
   });
 
 /** Delete every waiting (unsent) notice. Sent history is kept. */
@@ -172,9 +166,18 @@ export const deleteAllPendingAlerts = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const rec = await supabaseAdmin.from("stock_notification_recipients").delete({ count: "exact" }).in("status", WAITING_RECIPIENT);
-    if (rec.error) throw new Error(rec.error.message);
-    const ev = await supabaseAdmin.from("stock_notification_events").delete({ count: "exact" }).in("status", [...WAITING_EVENT, "failed"]);
-    if (ev.error) throw new Error(ev.error.message);
-    return { recipients: rec.count ?? 0, events: ev.count ?? 0 };
+    const result = await supabaseAdmin.rpc("admin_cancel_pending_alerts");
+    if (result.error) throw new Error("Could not cancel waiting alerts");
+    return result.data as unknown as { recipients: number; events: number };
+  });
+
+export const deletePendingAlert = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data) => cancelAlertSchema.parse(data))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const result = await supabaseAdmin.rpc("admin_cancel_pending_alerts", { _event_id: data.id });
+    if (result.error) throw new Error("Could not cancel waiting alert");
+    return result.data as unknown as { recipients: number; events: number };
   });
