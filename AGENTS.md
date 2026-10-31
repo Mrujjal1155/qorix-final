@@ -38,5 +38,5 @@
 - Admin themes are root-provided, allowlisted and persisted after hydration; document-root skin classes theme admin/login/portals, are removed elsewhere, and palettes remain in global CSS.
 - Telegram welcome tables use a pure builder and shared send/edit rich HTML dispatch with existing keyboards; only definitive format rejection falls back to regular HTML, preventing duplicate sends after uncertain failures.
 - Category edits use validated schemas and shared position moves; name-only saves preserve metadata.
-- Bybit uses UID-bound read-only signed deposit reads, exact matching and atomic provider-prefixed claims; never infer Merchant Pay.
-- Blockchain USDT keeps service-only settings/atomic claims, solidified TRON/canonical finalized BSC receipts, exact amounts and pending addresses; Binance stays separate. Direct api.trongrid.io uses server-only TRONGRID_API_KEY, no redirects, for portability.
+- Bybit: UID-bound read-only reads, exact matching, atomic prefixed claims; not Merchant Pay. Wallet/checkout share Bybit/chain UI icons; legacy Bybit fallback before override; Binance icons separate.
+- Blockchain: service-only settings/claims, solidified TRON/finalized canonical BSC, exact amounts/pending addresses. api.trongrid.io uses server-only TRONGRID_API_KEY; no redirects; Binance separate.

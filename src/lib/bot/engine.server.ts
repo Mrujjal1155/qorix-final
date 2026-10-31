@@ -2261,7 +2261,7 @@ async function walletView(user: any) {
     kb.push([wBtn(uiBtn(s, "wal_binance", "dep:binance", cfg.live ? "(auto)" : "(manual)"))]);
   if (cfg.active && cfg.crypto && cfg.live) kb.push([wBtn(uiBtn(s, "wal_usdt", "dep:usdt"))]);
   const bybit = await bybitSettings();
-  if (bybitEnabled(bybit)) kb.push([wBtn(uiBtn({ ...s, bybit_icon: bybit.bybit_icon ?? s.bybit_icon ?? "" }, "wal_bybit", "dep:bybit"))]);
+  if (bybitEnabled(bybit)) kb.push([wBtn(uiBtn({ ...s, bybit_icon: bybit["bybit_icon"] ?? s["bybit_icon"] ?? "" }, "wal_bybit", "dep:bybit"))]);
   for (const gateway of await blockchainGateways().catch(() => [])) if (gateway.enabled && gateway.verified) kb.push([wBtn(uiBtn(s, gateway.network === "trc20" ? "wal_chain_trc20" : "wal_chain_bep20", `dep:chain_${gateway.network}`))]);
   {
     // Merged EPS rows: one for bKash/Nagad/Rocket, one for cards.
@@ -5574,7 +5574,7 @@ async function admUiGroupView() {
 async function admPaymentIconsView() {
   const s = await getSettings();
   const bybit = await bybitSettings();
-  const settings = { ...s, bybit_icon: bybit.bybit_icon ?? s.bybit_icon ?? "" };
+  const settings = { ...s, bybit_icon: bybit["bybit_icon"] ?? s["bybit_icon"] ?? "" };
   // Telegram supports one Premium icon per native button, so each merged EPS
   // option has one shared icon editor.
   const gateways = [
@@ -5915,7 +5915,7 @@ async function coPayView(chatId: number) {
     kb.push([styled(uiBtn(settings, "pay_balance", "copm:balance", `(${money(user.balance)})`), payStyle)]);
   if (cfg.active && cfg.payid) kb.push([styled(uiBtn(settings, "pay_payid", "copm:payid"), payStyle)]);
   const bybit = await bybitSettings();
-  if (bybitEnabled(bybit)) kb.push([styled(uiBtn({ ...settings, bybit_icon: bybit.bybit_icon ?? settings.bybit_icon ?? "" }, "wal_bybit", "copm:bybit"), payStyle)]);
+  if (bybitEnabled(bybit)) kb.push([styled(uiBtn({ ...settings, bybit_icon: bybit["bybit_icon"] ?? settings["bybit_icon"] ?? "" }, "wal_bybit", "copm:bybit"), payStyle)]);
   for (const gateway of await blockchainGateways().catch(() => [])) if (gateway.enabled && gateway.verified) kb.push([styled(uiBtn(settings, gateway.network === "trc20" ? "wal_chain_trc20" : "wal_chain_bep20", `copm:chain_${gateway.network}`), payStyle)]);
   if (cfg.active && cfg.crypto) {
     kb.push([styled(uiBtn(settings, "pay_bep20", "copm:BSC"), payStyle)]);

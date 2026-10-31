@@ -303,7 +303,7 @@ export function parseIconValue(configured: string, fallback: string) {
 function raw(settings: Record<string, string>, key: UiKey) {
   // Existing dashboard Bybit icons remain effective until the bot editor
   // explicitly saves an override (including an empty value for reset).
-  const legacy = key === "wal_bybit" ? settings.bybit_icon : "";
+  const legacy = key === "wal_bybit" ? settings["bybit_icon"] : "";
   return parseIconValue(settings[`ui_icon_${key}`] ?? legacy ?? "", UI_ELEMENTS[key].icon);
 }
 
