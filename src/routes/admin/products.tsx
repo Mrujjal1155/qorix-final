@@ -545,7 +545,7 @@ function ProductsPage() {
                       <ArrowDown className="h-3.5 w-3.5" />
                     </Button>
                   </span>
-                  {serialEdit?.id === c.id ? (
+                  {serialEdit && serialEdit.id === c.id ? (
                     <Input autoFocus aria-label={`Serial for ${c.name}`} type="text" inputMode="numeric" className="h-9 w-16 shrink-0 text-center" value={serialEdit.value}
                       disabled={reorderMut.isPending}
                       onFocus={(e) => e.currentTarget.select()}
@@ -584,7 +584,7 @@ function ProductsPage() {
                   </Button>
                 </div>
               </div>
-              {categoryEdit?.id === c.id && (
+              {categoryEdit && categoryEdit.id === c.id && (
                 <form className="mt-3 flex flex-wrap items-end gap-2" onSubmit={(e) => { e.preventDefault(); categoryEditMut.mutate(); }}>
                   <div className="min-w-0 flex-1 space-y-1">
                     <Label htmlFor={`category-name-${c.id}`}>Category name</Label>

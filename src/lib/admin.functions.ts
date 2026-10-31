@@ -312,9 +312,9 @@ export const saveCategory = createServerFn({ method: "POST" })
     const row: Record<string, unknown> = {
       name: data.name,
     };
-    if (data.emoji !== undefined || !data.id) row.emoji = data.emoji ?? "📁";
-    if (data.sort_order !== undefined || !data.id) row.sort_order = data.sort_order ?? 0;
-    if (data.channel !== undefined || !data.id) row.channel = data.channel ?? "both";
+    if (data.emoji !== undefined || !data.id) row["emoji"] = data.emoji ?? "📁";
+    if (data.sort_order !== undefined || !data.id) row["sort_order"] = data.sort_order ?? 0;
+    if (data.channel !== undefined || !data.id) row["channel"] = data.channel ?? "both";
     if (data.image_url !== undefined) row["image_url"] = data.image_url?.trim() ? data.image_url.trim() : null;
     const { error } = data.id
       ? await sb.from("categories").update(row).eq("id", data.id)
