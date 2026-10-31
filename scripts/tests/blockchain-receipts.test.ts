@@ -41,7 +41,7 @@ test("TRON uses its direct provider secret without Lovable gateway headers", asy
       expect(headers.has("TRON-PRO-API-KEY")).toBe(true);
       expect(headers.has("Authorization")).toBe(false);
       expect(headers.has("X-Connection-Api-Key")).toBe(false);
-      expect(init?.redirect).toBe("error");
+      expect(init?.redirect).toBe("manual");
       return Response.json({ blockID: "solidified-block" });
     }) as typeof fetch;
     expect((await tronRead("/walletsolidity/getnowblock")).blockID).toBe("solidified-block");
@@ -60,5 +60,24 @@ test("missing direct TRON secret fails closed before any provider request", asyn
     expect(called).toBe(false);
   } finally {
     if (previousKey !== undefined) process.env["TRONGRID_API_KEY"] = previousKey;
+  }
+});
+test("TRON rejects every redirect without following or accepting a payment", async () => {
+  const previousKey = process.env["TRONGRID_API_KEY"];
+  process.env["TRONGRID_API_KEY"] = "test-only";
+  try {
+    for (const status of [301, 302, 303, 307, 308]) {
+      let requests = 0;
+      globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+        requests++;
+        if (init?.redirect === "error") throw new Error("Invalid redirect value");
+        expect(init?.redirect).toBe("manual");
+        return new Response(null, { status, headers: { Location: "https://example.com/" } });
+      }) as typeof fetch;
+      await expect(tronRead("/walletsolidity/getnowblock")).rejects.toThrow("TronGrid redirect refused");
+      expect(requests).toBe(1);
+    }
+  } finally {
+    if (previousKey === undefined) delete process.env["TRONGRID_API_KEY"]; else process.env["TRONGRID_API_KEY"] = previousKey;
   }
 });
