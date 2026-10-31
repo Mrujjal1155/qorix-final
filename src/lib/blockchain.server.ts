@@ -3,7 +3,7 @@ import { sha256, toHex } from "viem";
 import { CHAIN_TOKEN, TRANSFER_TOPIC, chainTxid, matchesChainPayment, type Chain, type ChainTransfer } from "@/lib/blockchain-payment";
 
 export const BSC_RPC = "https://bsc-dataseed.bnbchain.org";
-const TRON_GATEWAY = "https://connector-gateway.lovable.dev/udc_trongrid";
+const TRON_API = "https://api.trongrid.io";
 export async function bscRpc(method: string, params: unknown[]) {
   const response = await fetch(BSC_RPC, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }), signal: AbortSignal.timeout(8000) });
   if (!response.ok) throw new Error(`BNB Chain unavailable (HTTP ${response.status}).`);
@@ -12,9 +12,9 @@ export async function bscRpc(method: string, params: unknown[]) {
   return body.result;
 }
 export async function tronRead(path: string, body?: object) {
-  const key = process.env["UDC_TRONGRID_API_KEY"], auth = process.env["LOVABLE_API_KEY"];
-  if (!key || !auth) throw new Error("TronGrid connection is not configured.");
-  const response = await fetch(`${TRON_GATEWAY}${path}`, { method: body ? "POST" : "GET", headers: { Authorization: `Bearer ${auth}`, "X-Connection-Api-Key": key, "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(8000) });
+  const key = process.env["TRONGRID_API_KEY"];
+  if (!key) throw new Error("TronGrid connection is not configured. Set the server secret TRONGRID_API_KEY.");
+  const response = await fetch(`${TRON_API}${path}`, { method: body ? "POST" : "GET", headers: { "TRON-PRO-API-KEY": key, "Content-Type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}), redirect: "error", signal: AbortSignal.timeout(8000) });
   if (!response.ok) throw new Error(`TronGrid unavailable (HTTP ${response.status}).`);
   const data = await response.json() as any;
   if (data.Error || data.error || data.success === false) throw new Error("TronGrid could not complete this read.");

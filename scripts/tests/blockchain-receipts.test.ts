@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from "bun:test";
 import { CHAIN_TOKEN, TRANSFER_TOPIC } from "../../src/lib/blockchain-payment";
-import { readChainTransfers } from "../../src/lib/blockchain.server";
+import { readChainTransfers, tronRead } from "../../src/lib/blockchain.server";
 const originalFetch = globalThis.fetch;
 const txid = `0x${"a".repeat(64)}`;
 let status = "0x1", finalized = "0x100", canonical = true;
@@ -18,15 +18,47 @@ test("receipt beyond finalized block is not payable", async () => { finalized = 
 test("noncanonical receipt is not payable", async () => { canonical = false; setup(); expect(await readChainTransfers("bep20", txid)).toEqual([]); });
 test("API outage rejects instead of confirming", async () => { globalThis.fetch = (async () => new Response("", { status: 503 })) as typeof fetch; expect(readChainTransfers("bep20", txid)).rejects.toThrow(); });
 test("solidified TRON receipt requires successful contract execution", async () => {
-  const previousKey = process.env["UDC_TRONGRID_API_KEY"], previousAuth = process.env["LOVABLE_API_KEY"];
-  process.env["UDC_TRONGRID_API_KEY"] = "test-only"; process.env["LOVABLE_API_KEY"] = "test-only";
+  const previousKey = process.env["TRONGRID_API_KEY"];
+  process.env["TRONGRID_API_KEY"] = "test-only";
   try {
     let success = true;
     globalThis.fetch = (async () => Response.json({ id: "a".repeat(64), blockTimeStamp: 2000, receipt: { result: success ? "SUCCESS" : "REVERT" }, log: [{ address: CHAIN_TOKEN.trc20, topics: [TRANSFER_TOPIC.slice(2), "0".repeat(24) + "2".repeat(40), "0".repeat(24) + "1".repeat(40)], data: 10250000n.toString(16).padStart(64, "0") }] })) as typeof fetch;
     expect((await readChainTransfers("trc20", "a".repeat(64)))[0]?.units).toBe(10250000n);
     success = false; expect(await readChainTransfers("trc20", "a".repeat(64))).toEqual([]);
   } finally {
-    if (previousKey === undefined) delete process.env["UDC_TRONGRID_API_KEY"]; else process.env["UDC_TRONGRID_API_KEY"] = previousKey;
-    if (previousAuth === undefined) delete process.env["LOVABLE_API_KEY"]; else process.env["LOVABLE_API_KEY"] = previousAuth;
+    if (previousKey === undefined) delete process.env["TRONGRID_API_KEY"]; else process.env["TRONGRID_API_KEY"] = previousKey;
+  }
+});
+test("TRON uses its direct provider secret without Lovable gateway headers", async () => {
+  const previousKey = process.env["TRONGRID_API_KEY"];
+  process.env["TRONGRID_API_KEY"] = "test-only";
+  try {
+    let called = false;
+    globalThis.fetch = (async (url: unknown, init?: RequestInit) => {
+      called = true;
+      expect(String(url)).toBe("https://api.trongrid.io/walletsolidity/getnowblock");
+      const headers = new Headers(init?.headers);
+      expect(headers.has("TRON-PRO-API-KEY")).toBe(true);
+      expect(headers.has("Authorization")).toBe(false);
+      expect(headers.has("X-Connection-Api-Key")).toBe(false);
+      expect(init?.redirect).toBe("error");
+      return Response.json({ blockID: "solidified-block" });
+    }) as typeof fetch;
+    expect((await tronRead("/walletsolidity/getnowblock")).blockID).toBe("solidified-block");
+    expect(called).toBe(true);
+  } finally {
+    if (previousKey === undefined) delete process.env["TRONGRID_API_KEY"]; else process.env["TRONGRID_API_KEY"] = previousKey;
+  }
+});
+test("missing direct TRON secret fails closed before any provider request", async () => {
+  const previousKey = process.env["TRONGRID_API_KEY"];
+  delete process.env["TRONGRID_API_KEY"];
+  try {
+    let called = false;
+    globalThis.fetch = (async () => { called = true; return Response.json({ blockID: "unused" }); }) as typeof fetch;
+    await expect(tronRead("/walletsolidity/getnowblock")).rejects.toThrow("TRONGRID_API_KEY");
+    expect(called).toBe(false);
+  } finally {
+    if (previousKey !== undefined) process.env["TRONGRID_API_KEY"] = previousKey;
   }
 });
