@@ -14,7 +14,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
     let key = "";
     const result = () => ({ data: table === "bot_settings" ? (key ? { value: settings[key] } : Object.entries(settings).map(([key, value]) => ({ key, value }))) : table === "bot_users" ? user : table === "products" ? [{ id: "p1", name: "Test product", is_active: true, delivery_type: "manual", price: 2 }] : [], error: null });
     const chain: any = {
-      select: () => chain, order: () => chain, range: () => chain, in: () => chain, neq: () => chain, limit: () => chain,
+      select: () => chain, order: () => chain, range: () => chain, in: () => chain, neq: () => chain, limit: () => chain, gte: () => chain, lt: () => chain,
       eq: (field: string, value: string) => { if (field === "key") key = value; return chain; },
       update: (value: any) => { if (table === "bot_users" && value.state) user.state = value.state; return chain; },
       upsert: (value: any) => { if (table === "bot_settings") settings[value.key] = value.value; return chain; },
@@ -81,6 +81,18 @@ test("icons never enable disabled payment gateways", async () => {
     await click(page);
     expect(buttons.flat().filter((b) => /^(dep|copm):(bybit|chain_)/.test(b.callback_data ?? ""))).toHaveLength(0);
   }
+});
+
+test("normal emoji and full reset use the existing shared editor", async () => {
+  enabled = true;
+  await click("adm:uii:wal_chain_trc20");
+  await reply("🔥");
+  expect(settings["ui_icon_wal_chain_trc20"]).toBe("🔥");
+  await click("wallet");
+  expect(buttons.flat().find((b) => b.callback_data === "dep:chain_trc20")?.icon_custom_emoji_id).toBeUndefined();
+  await click("adm:uir:wal_chain_trc20");
+  expect(settings["ui_icon_wal_chain_trc20"]).toBe("");
+  expect(settings["ui_text_wal_chain_trc20"]).toBe("");
 });
 
 test("non-admin cannot enter the icon editor", async () => {
