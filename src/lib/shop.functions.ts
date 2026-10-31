@@ -289,6 +289,11 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
 
 
     const unit = Number(product.price);
+    let paymentMeta = {};
+    if (data.payment_method === "bybit") {
+      const { bybitSettings } = await import("@/lib/bybit.server");
+      paymentMeta = { bybit_uid: (await bybitSettings())["bybit_uid"] };
+    }
     const { data: order, error } = await supabaseAdmin
       .from("orders")
       .insert({
@@ -305,6 +310,7 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
         customer_email: data.customer_email,
         payment_method: data.payment_method,
         txid: data.txid,
+        meta: paymentMeta,
       })
       .select("id,order_no")
       .maybeSingle();

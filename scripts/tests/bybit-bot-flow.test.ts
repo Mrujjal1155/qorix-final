@@ -2,17 +2,15 @@ import { expect, mock, test } from "bun:test";
 
 const user: any = { telegram_id: 123, first_name: "Test", state: {}, balance: 0, total_spent: 0 };
 let deposit: any;
-let message = "";
 let buttons: any[][] = [];
 let credits = 0;
 mock.module("@/lib/bybit.server", () => ({ bybitSettings: async () => ({ bybit_enabled: "1", bybit_api_verified: "1", bybit_uid: "98765" }), findBybitPayment: async () => ({ ok: true, txid: "transfer-123", amount: 10.25 }) }));
 mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
   from: (table: string) => {
-    let insert: any;
     const result = () => ({ data: table === "bot_users" ? user : table === "binance_deposits" ? deposit : table === "binance_used_txs" ? null : [], error: null });
     const chain: any = {
-      select: () => chain, eq: () => chain, neq: () => chain, in: () => chain, not: () => chain, gt: () => chain, gte: () => chain, lt: () => chain, order: () => chain, range: () => chain, limit: () => chain,
-      insert: (value: any) => { insert = value; if (table === "binance_deposits") deposit = { ...value, id: "00000000-0000-0000-0000-000000000123", status: "pending", created_at: new Date(Date.now() - 1000).toISOString() }; return chain; },
+      select: () => chain, eq: () => chain, neq: () => chain, in: () => chain, not: () => chain, gt: () => chain, gte: () => chain, lt: () => chain, or: () => chain, order: () => chain, range: () => chain, limit: () => chain,
+      insert: (value: any) => { if (table === "binance_deposits") deposit = { ...value, id: "00000000-0000-0000-0000-000000000123", status: "pending", created_at: new Date(Date.now() - 1000).toISOString() }; return chain; },
       update: (value: any) => { if (table === "bot_users" && value.state) user.state = value.state; if (table === "binance_deposits") Object.assign(deposit, value); return chain; },
       maybeSingle: async () => result(), single: async () => result(), then: (resolve: any) => Promise.resolve(result()).then(resolve),
     };
@@ -29,7 +27,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
     return { data: null, error: null };
   },
 } }));
-const show = async (_chat: number, text: string, kb: any[][] = []) => { message = text; buttons = kb; return { ok: true, result: { message_id: 1 } }; };
+const show = async (_chat: number, _text: string, kb: any[][] = []) => { buttons = kb; return { ok: true, result: { message_id: 1 } }; };
 mock.module("@/lib/telegram.server", () => ({
   answerCallback: async () => ({ ok: true }), sendMessage: show,
   editMessage: async (chat: number, _id: number, text: string, kb: any[][]) => show(chat, text, kb),

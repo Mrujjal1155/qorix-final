@@ -45,7 +45,7 @@ export async function checkBybitCredentials(credentials: { apiKey: string; secre
   return { ok: true, message: "Bybit UID and internal deposit access verified." };
 }
 
-export async function findBybitPayment(claim: { txid: string; amount: number; since: number; until: number }) {
+export async function findBybitPayment(claim: { txid: string; amount: number; since: number; until: number; recipientUid?: string }) {
   const apiKey = process.env["BYBIT_API_KEY"];
   const secret = process.env["BYBIT_API_SECRET"];
   if (!apiKey || !secret) return { ok: false as const, reason: "Bybit credentials are not configured." };
@@ -53,6 +53,7 @@ export async function findBybitPayment(claim: { txid: string; amount: number; si
   try {
     const settings = await bybitSettings();
     if (!bybitEnabled(settings)) return { ok: false as const, reason: "Bybit Pay is disabled." };
+    if (claim.recipientUid && claim.recipientUid !== settings["bybit_uid"]) return { ok: false as const, reason: "The receiving account changed. Contact support." };
     const account = await bybitGet("/v5/user/query-api", {}, { apiKey, secret });
     if (String(account.userID ?? "") !== settings["bybit_uid"] || account.readOnly !== 1) return { ok: false as const, reason: "Bybit account verification failed." };
     let cursor = "";
