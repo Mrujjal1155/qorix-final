@@ -3460,10 +3460,13 @@ export async function announcePriceChange(
 ) {
   const s = await getSettings();
   if (!product || product.is_active === false) return { channel: true, bot: true, complete: true };
-  if ((s["announce_price"] ?? "on").toLowerCase() === "off") return { channel: true, bot: true, complete: true };
   const down = Number(newPrice) < Number(oldPrice);
-  if (!down && (s["announce_price_up"] ?? "on").toLowerCase() !== "on") {
-    return { channel: true, bot: true, complete: true };
+  const legacyDisabled = (s["announce_price"] ?? "on").toLowerCase() === "off" ||
+    (!down && (s["announce_price_up"] ?? "on").toLowerCase() !== "on");
+  if (legacyDisabled) {
+    if (!delivery?.prepareMessage || product.customer_alerts_enabled === false) return { channel: true, bot: true, complete: true };
+    // Customer switch is independent of the pre-existing admin/group settings.
+    delivery = { ...delivery, channelSent: true, botSent: true };
   }
   // Admin choice: "both" (group + bot) or "bot" (bot only, no group post).
   if ((s["announce_price_target"] ?? "both").toLowerCase() === "bot") {
@@ -4285,10 +4288,17 @@ async function handleMessage(msg: any) {
         await say(chatId, `✅ ${spec.icon} ${spec.label} saved.\n\n${v.text}`, v.kb);
         return;
       }
+      const { data: beforePrice } = field === "price"
+        ? await db.from("products").select("price").eq("id", productId).maybeSingle()
+        : { data: null };
       const { error } = await db.from("products").update({ [field]: value }).eq("id", productId);
       if (error) {
         await say(chatId, `❌ Could not save: ${escapeHtml(error.message)}`, ADM_BACK);
         return;
+      }
+      if (field === "price" && beforePrice && value != null) {
+        const { enqueuePriceChange } = await import("@/lib/suppliers/sync.server");
+        await enqueuePriceChange(db, productId, Number(beforePrice.price), Number(value), `bot:${chatId}:${msg?.message_id ?? Date.now()}`);
       }
       const v = await admDetailView(productId);
       await say(chatId, `✅ ${spec.icon} ${spec.label} saved.\n\n${v.text}`, v.kb);

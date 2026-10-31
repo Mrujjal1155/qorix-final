@@ -4,7 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { AdminShell, AdminPanel } from "@/components/AdminShell";
 import { Button } from "@/components/ui/button";
-import { getStockAlertStats, retryStockAlert, getAlertQueue, deleteAllPendingAlerts } from "@/lib/alerts.functions";
+import { getStockAlertStats, retryStockAlert, getAlertQueue, deleteAllPendingAlerts, deletePendingAlert } from "@/lib/alerts.functions";
+import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { formatEta, minQueueMinutes, NOTICES_PER_MINUTE } from "@/lib/alert-queue-eta";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -77,11 +78,13 @@ function BreakdownTable({ rows }: { rows: any[] }) {
 function QueuePanel() {
   const fetchQueue = useServerFn(getAlertQueue);
   const wipe = useServerFn(deleteAllPendingAlerts);
+  const remove = useServerFn(deletePendingAlert);
+  const [offset, setOffset] = useState(0);
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const { data, isFetching, refetch } = useQuery({
-    queryKey: ["alert-queue"],
-    queryFn: () => fetchQueue(),
+    queryKey: ["alert-queue", offset],
+    queryFn: () => fetchQueue({ data: { offset } }),
     refetchInterval: 5000,
   });
   const minutes = data ? minQueueMinutes(data.pendingRecipients, data.pendingEvents) : 0;
@@ -92,6 +95,7 @@ function QueuePanel() {
     try {
       const r = await wipe();
       toast.success(`Deleted ${r.recipients} customer notices and ${r.events} alerts`);
+      setOffset(0);
       qc.invalidateQueries({ queryKey: ["alert-queue"] });
       qc.invalidateQueries({ queryKey: ["stock-alert-stats"] });
     } catch (e) {
@@ -121,7 +125,7 @@ function QueuePanel() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete all waiting notifications?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  {total} unsent notifications will be removed permanently and never sent. Already-sent history stays.
+                  {total} waiting notifications will be cancelled. Already-sent history stays. A message already being sent may still arrive.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -133,6 +137,37 @@ function QueuePanel() {
           <span className="text-xs text-muted-foreground">
             Auto-refresh every 5s{data ? ` · checked ${new Date(data.checkedAt).toLocaleTimeString()}` : ""}
           </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[44rem] text-sm">
+            <thead className="text-left text-xs text-muted-foreground"><tr>
+              <th className="py-2">Product</th><th>Type / price</th><th>Status</th><th>Waiting</th><th>Sent</th><th>Created</th><th></th>
+            </tr></thead>
+            <tbody>{data?.items.map((item) => <tr key={item.id} className="border-t border-border align-top">
+              <td className="py-3 pr-3 font-medium">{item.product_name}</td>
+              <td className="py-3 pr-3">{item.kind}{item.old_price != null && item.new_price != null && <div className="text-xs text-muted-foreground">${item.old_price} → ${item.new_price}</div>}</td>
+              <td className="py-3 pr-3">{item.status}{item.last_error && <div className="max-w-48 break-words text-xs text-destructive">{item.last_error}</div>}</td>
+              <td className="py-3 pr-3">{item.waiting}</td><td className="py-3 pr-3">{item.sent}</td>
+              <td className="py-3 pr-3 text-xs">{new Date(item.created_at).toLocaleString()}</td>
+              <td className="py-2"><AlertDialog><AlertDialogTrigger asChild>
+                <Button size="icon" variant="ghost" disabled={busy} aria-label={`Delete waiting alert for ${item.product_name}`} title="Delete waiting alert"><Trash2 className="size-4" /></Button>
+              </AlertDialogTrigger><AlertDialogContent><AlertDialogHeader>
+                <AlertDialogTitle>Delete this waiting alert?</AlertDialogTitle>
+                <AlertDialogDescription>{item.product_name}: remaining customer notices will be cancelled. Sent history stays. An in-flight message may still arrive.</AlertDialogDescription>
+              </AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={async () => {
+                setBusy(true);
+                try { await remove({ data: { id: item.id } }); toast.success("Waiting alert deleted"); qc.invalidateQueries({ queryKey: ["alert-queue"] }); qc.invalidateQueries({ queryKey: ["stock-alert-stats"] }); }
+                catch (e) { toast.error(e instanceof Error ? e.message : "Delete failed"); }
+                finally { setBusy(false); }
+              }}>Delete</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></td>
+            </tr>)}</tbody>
+          </table>
+          {data?.items.length === 0 && <p className="py-4 text-sm text-muted-foreground">No waiting alerts.</p>}
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-muted-foreground">{data ? `${data.totalItems ? offset + 1 : 0}–${Math.min(offset + 50, data.totalItems)} of ${data.totalItems}` : "Loading…"}</span>
+          <div className="flex gap-1"><Button size="icon" variant="outline" aria-label="Previous alerts" disabled={offset === 0 || isFetching} onClick={() => setOffset(Math.max(0, offset - 50))}><ChevronLeft className="size-4" /></Button>
+            <Button size="icon" variant="outline" aria-label="Next alerts" disabled={!data || offset + 50 >= data.totalItems || isFetching} onClick={() => setOffset(offset + 50)}><ChevronRight className="size-4" /></Button></div>
         </div>
       </div>
     </AdminPanel>

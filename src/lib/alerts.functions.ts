@@ -140,7 +140,7 @@ export const retryStockAlert = createServerFn({ method: "POST" })
     const { error } = await supabaseAdmin
       .from("stock_notification_events")
       .update({ status: "pending", next_attempt_at: new Date().toISOString(), claimed_at: null, last_error: null })
-      .eq("id", data.id);
+      .eq("id", data.id).in("status", ["failed", "retry"]);
     if (error) throw new Error(error.message);
     const { drainAllNotifications } = await import("@/lib/suppliers/sync.server");
     await drainAllNotifications().catch(() => {});
