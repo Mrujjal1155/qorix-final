@@ -39,4 +39,4 @@
 - Telegram welcome tables use a pure builder and shared send/edit rich HTML dispatch with existing keyboards; only definitive format rejection falls back to regular HTML, preventing duplicate sends after uncertain failures.
 - Category edits use validated schemas and shared position moves; name-only saves preserve metadata.
 - Bybit uses UID-bound read-only signed deposit reads, exact matching and atomic provider-prefixed claims; never infer Merchant Pay.
-- Blockchain USDT uses separate service-written gateways, TronGrid solidified/BSC canonical finalized token receipts, integer exact matching and atomic chain-prefixed settlement; pending attempts retain addresses, Binance remains separate.
+- Blockchain USDT keeps service-only settings/atomic claims, solidified TRON/canonical finalized BSC receipts, exact amounts and pending addresses; Binance stays separate. Direct api.trongrid.io uses server-only TRONGRID_API_KEY, no redirects, for portability.
