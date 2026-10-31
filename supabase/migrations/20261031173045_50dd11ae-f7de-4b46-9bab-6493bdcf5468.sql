@@ -1,0 +1,3 @@
+DO $$ DECLARE n text; def text; BEGIN FOREACH n IN ARRAY ARRAY['admin_alert_queue','admin_cancel_pending_alerts'] LOOP SELECT pg_get_functiondef(oid) INTO def FROM pg_proc WHERE pronamespace='public'::regnamespace AND proname=n; def:=replace(def,'auth.role() IS DISTINCT FROM ''authenticated'' OR NOT public.has_role(auth.uid(),''admin'')','auth.role() IS DISTINCT FROM ''service_role'''); EXECUTE def; END LOOP; END $$;
+REVOKE ALL ON FUNCTION public.admin_alert_queue(integer),public.admin_cancel_pending_alerts(uuid) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_alert_queue(integer),public.admin_cancel_pending_alerts(uuid) TO service_role;
