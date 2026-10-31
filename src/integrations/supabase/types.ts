@@ -125,6 +125,86 @@ export type Database = {
         }
         Relationships: []
       }
+      blockchain_gateways: {
+        Row: {
+          address: string
+          checked_at: string | null
+          created_at: string
+          enabled: boolean
+          message: string
+          network: string
+          updated_at: string
+          verified: boolean
+        }
+        Insert: {
+          address?: string
+          checked_at?: string | null
+          created_at?: string
+          enabled?: boolean
+          message?: string
+          network: string
+          updated_at?: string
+          verified?: boolean
+        }
+        Update: {
+          address?: string
+          checked_at?: string | null
+          created_at?: string
+          enabled?: boolean
+          message?: string
+          network?: string
+          updated_at?: string
+          verified?: boolean
+        }
+        Relationships: []
+      }
+      blockchain_transfers: {
+        Row: {
+          amount: string
+          confirmed: boolean
+          created_at: string
+          matched: boolean
+          network: string
+          occurred_at: string
+          receiver: string
+          sender: string
+          txid: string
+          updated_at: string
+        }
+        Insert: {
+          amount: string
+          confirmed?: boolean
+          created_at?: string
+          matched?: boolean
+          network: string
+          occurred_at: string
+          receiver: string
+          sender: string
+          txid: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: string
+          confirmed?: boolean
+          created_at?: string
+          matched?: boolean
+          network?: string
+          occurred_at?: string
+          receiver?: string
+          sender?: string
+          txid?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blockchain_transfers_network_fkey"
+            columns: ["network"]
+            isOneToOne: false
+            referencedRelation: "blockchain_gateways"
+            referencedColumns: ["network"]
+          },
+        ]
+      }
       bot_settings: {
         Row: {
           key: string
@@ -2165,6 +2245,10 @@ export type Database = {
           updated_at: string
         }[]
       }
+      record_blockchain_website_check: {
+        Args: { _note: string; _order_id: string }
+        Returns: undefined
+      }
       record_bot_contact: {
         Args: { _observed_at: string; _status: string; _telegram_id: number }
         Returns: undefined
@@ -2218,6 +2302,19 @@ export type Database = {
       set_manual_stock: {
         Args: { _pid: string; _qty: number }
         Returns: undefined
+      }
+      settle_blockchain_bot: {
+        Args: {
+          _amount: number
+          _deliverable?: boolean
+          _deposit_id: string
+          _txid: string
+        }
+        Returns: Json
+      }
+      settle_blockchain_website: {
+        Args: { _amount: number; _order_id: string; _txid: string }
+        Returns: Json
       }
       settle_bot_checkout: {
         Args: {
