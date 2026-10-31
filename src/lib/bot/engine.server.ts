@@ -3075,6 +3075,19 @@ export async function sweepBinanceDeposits(force = false) {
   return { skipped: false, settled };
 }
 
+/** Separate bounded Bybit sweep for the existing authenticated notification tick. */
+export async function sweepBybitDeposits() {
+  await sweepBybitWebsiteOrders();
+  const { data: rows } = await db.from("binance_deposits").select("*").eq("kind", "bybit").eq("status", "pending")
+    .not("tx_id", "is", null).gt("expires_at", new Date().toISOString()).order("created_at").limit(5);
+  for (const row of rows ?? []) {
+    const result = await confirmByTxId(row, String(row.tx_id), true);
+    if (!result.ok) continue;
+    const settled = await settlePayment(Number(row.telegram_id), row, result.amount, result.txId, "Verified via Bybit API");
+    await sendMessage(Number(row.telegram_id), settled.message, settled.keyboard).catch(() => {});
+  }
+}
+
 /* --------------------------------------------------- live channel posting */
 
 /**
