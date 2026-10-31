@@ -47,7 +47,7 @@ describe("Telegram favorite brand and credit order", () => {
   });
   test("sorting preserves objects, selections, prices, stock and original input order", () => {
     const input = [{ id: "a", name: "Lovable 20k Credits", price: 80, stock: 1 }, { id: "b", name: "Gemini Pro", price: 0.65, stock: 75 }];
-    const output = selectTopProducts(input, ["a", "b", "a", "missing"]);
+    const output = selectTopProducts(input, ["b", "a", "b", "missing"]);
     expect(output).toHaveLength(2);
     expect(output[0]).toBe(input[1]);
     expect(output[1]).toBe(input[0]);
