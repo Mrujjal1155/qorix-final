@@ -5,8 +5,8 @@ const user: any = { telegram_id: 123, first_name: "Test", state: { co: { items: 
 let buttons: any[][] = [];
 let enabled = true;
 const legacy = "5400280896311944999";
-mock.module("@/lib/bybit.server", () => ({ bybitSettings: async () => ({ bybit_enabled: enabled ? "1" : "0", bybit_api_verified: "1", bybit_uid: "98765", bybit_icon: legacy }) }));
-mock.module("@/lib/blockchain.server", () => ({ blockchainGateways: async () => ["trc20", "bep20"].map((network) => ({ network, enabled, verified: true })) }));
+mock.module("@/lib/bybit.server", () => ({ bybitSettings: async () => ({ bybit_enabled: enabled ? "1" : "0", bybit_api_verified: "1", bybit_uid: "98765", bybit_icon: legacy }), findBybitPayment: async () => { throw new Error("Unexpected payment verification"); } }));
+mock.module("@/lib/blockchain.server", () => ({ blockchainGateways: async () => ["trc20", "bep20"].map((network) => ({ network, enabled, verified: true })), findChainPayment: async () => { throw new Error("Unexpected payment verification"); } }));
 mock.module("@/lib/bulk-discount.server", () => ({ bulkTiersFor: async () => ({}), bulkUnit: (_p: unknown, price: number) => price }));
 mock.module("@/lib/bot/contact.server", () => ({ recordContact: async () => {} }));
 mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
