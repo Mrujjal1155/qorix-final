@@ -100,6 +100,7 @@ const MENU_ICONS = {
   referral: ["🏪", "Referral Store"], support: ["🆘", "Support"], emails: ["📧", "Emails & Trials"],
   api: ["🔌", "Reseller API"], clear: ["🧹", "Clear Chat"], refresh: ["🔄", "Refresh Stock"],
   back: ["◀️", "Main Menu"],
+  next: ["➡️", "Next"], prev: ["⬅️", "Previous"],
   bottom_products: ["🛍", "Products"], bottom_deposit: ["💳", "Deposit"], bottom_orders: ["📦", "My Orders"],
 } as const;
 
@@ -134,6 +135,13 @@ function iconButton(settings: Record<string, string>, key: MenuIconKey, callback
     ...(customId ? { icon_custom_emoji_id: customId } : {}),
     ...(key === "back" ? { style: "danger" as const } : {}),
   };
+}
+
+/** Shop pagination button; admin can set a premium emoji via menu_icon_next / menu_icon_prev. */
+function pageNavButton(settings: Record<string, string>, key: "next" | "prev", label: string, callback_data: string): Button {
+  const { customId, glyph } = menuButtonText(settings, key, label);
+  if (customId) return { text: label, callback_data, icon_custom_emoji_id: customId };
+  return { text: key === "next" ? `${label.replace(/^Next/, `Next ${glyph}`)}` : `${glyph} ${label}`, callback_data };
 }
 
 /** Persistent Telegram menu shown below the message composer. */
@@ -1774,9 +1782,9 @@ async function shopView(page: number, chatId?: number) {
     const curPage = catPage;
     const pagStyle = btnColor(settings, "pagination");
     if (catPage + 1 < catPages)
-      kb.push([styled({ text: `Next ➡️ (${catPage + 2}/${catPages})`, callback_data: `shop:${catPage + 1}` }, pagStyle)]);
+      kb.push([styled(pageNavButton(settings, "next", `Next (${catPage + 2}/${catPages})`, `shop:${catPage + 1}`), pagStyle)]);
     if (catPage > 0)
-      kb.push([styled({ text: `⬅️ Previous (${catPage}/${catPages})`, callback_data: `shop:${catPage - 1}` }, pagStyle)]);
+      kb.push([styled(pageNavButton(settings, "prev", `Previous (${catPage}/${catPages})`, `shop:${catPage - 1}`), pagStyle)]);
 
     const allIc = allProductsIcon(settings);
     kb.push([
