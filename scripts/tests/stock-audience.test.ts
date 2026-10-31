@@ -7,7 +7,13 @@ mock.module("@/lib/telegram.server", () => ({ sendAlertMessage: async (id: numbe
     : id === 5 ? { ok: false, description: "rate limit", parameters: { retry_after: 120 } }
     : id === 3 ? { ok: false, description: "Forbidden: bot was blocked by the user" } : { ok: true };
 } }));
-const { drainStockAudience } = await import("../../src/lib/bot/stock-audience.server");
+const { drainStockAudience: drain } = await import("../../src/lib/bot/stock-audience.server");
+function drainStockAudience(db: any, runtime?: Parameters<typeof drain>[1]) {
+  const original = db.rpc;
+  return drain({ ...db, rpc: async (name: string, args: any) => name === "active_stock_notification_claims"
+    ? { data: args._event_ids.map((event_id: string, i: number) => ({ event_id, telegram_id: args._telegram_ids[i] })) }
+    : original(name, args) }, runtime);
+}
 
 test("fast dispatch sends more than ten recipients in paced waves without losing anyone", async () => {
   let clock = 0;
@@ -104,4 +110,26 @@ test("time budget releases untouched recipients without falsely marking them sen
   expect(await drainStockAudience(db, { now: () => clock, wait: async () => { clock = 10_000; } })).toEqual({ sent: 6, retry: 0 });
   expect(updates.filter(row => row.status === "pending")).toHaveLength(6);
   expect(sentTo.includes(206)).toBe(false);
+});
+
+test("admin cancellation between waves prevents remaining customer sends", async () => {
+  sentTo.length = 0;
+  let checks = 0;
+  const db = {
+    rpc: async (name: string, args: any) => name === "active_stock_notification_claims"
+      ? { data: checks++ === 0 ? args._telegram_ids.map((telegram_id: number) => ({ event_id: "cancel", telegram_id })) : [] }
+      : { data: Array.from({ length: 12 }, (_, i) => ({ event_id: "cancel", telegram_id: 800 + i, message: { text: "notice", kind: "price" } })) },
+    from: () => ({ update: () => { const chain: any = { eq: () => chain, then: (resolve: any) => resolve({ error: null }) }; return chain; } }),
+  };
+  const result = await drain(db, { now: () => 0, wait: async () => {} });
+  expect(result.sent).toBe(6);
+  expect(sentTo).toEqual([800, 801, 802, 803, 804, 805]);
+});
+
+test("failed cancellation check never sends customer messages", async () => {
+  sentTo.length = 0;
+  const db = { rpc: async (name: string) => name === "active_stock_notification_claims"
+    ? { error: { message: "offline" } } : { data: [{ event_id: "cancel", telegram_id: 900, message: { text: "price" } }] } };
+  await expect(drain(db)).rejects.toThrow("cancellation check failed");
+  expect(sentTo).toEqual([]);
 });
