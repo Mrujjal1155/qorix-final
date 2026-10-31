@@ -2225,6 +2225,19 @@ export type Database = {
         }
         Returns: Json
       }
+      settle_bybit_bot: {
+        Args: {
+          _amount: number
+          _deliverable?: boolean
+          _deposit_id: string
+          _txid: string
+        }
+        Returns: Json
+      }
+      settle_bybit_website: {
+        Args: { _amount: number; _order_id: string; _txid: string }
+        Returns: Json
+      }
       stock_counter_bump: {
         Args: { _d: number; _pid: string }
         Returns: undefined
