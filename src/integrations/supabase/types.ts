@@ -666,6 +666,7 @@ export type Database = {
           category_id: string | null
           cost_price: number | null
           created_at: string
+          customer_alerts_enabled: boolean
           delivery_time: string | null
           delivery_type: string
           description: string | null
@@ -703,6 +704,7 @@ export type Database = {
           category_id?: string | null
           cost_price?: number | null
           created_at?: string
+          customer_alerts_enabled?: boolean
           delivery_time?: string | null
           delivery_type?: string
           description?: string | null
@@ -740,6 +742,7 @@ export type Database = {
           category_id?: string | null
           cost_price?: number | null
           created_at?: string
+          customer_alerts_enabled?: boolean
           delivery_time?: string | null
           delivery_type?: string
           description?: string | null
@@ -2046,7 +2049,19 @@ export type Database = {
       }
     }
     Functions: {
+      active_stock_notification_claims: {
+        Args: { _event_ids: string[]; _telegram_ids: number[] }
+        Returns: {
+          event_id: string
+          telegram_id: number
+        }[]
+      }
+      admin_alert_queue: { Args: { _offset?: number }; Returns: Json }
       admin_bot_user_stats: { Args: never; Returns: Json }
+      admin_cancel_pending_alerts: {
+        Args: { _event_id?: string }
+        Returns: Json
+      }
       admin_delete_exported_stock: {
         Args: { _admin_user_id: string; _export_id: string }
         Returns: Json
