@@ -145,3 +145,36 @@ export const retryStockAlert = createServerFn({ method: "POST" })
     await drainAllNotifications().catch(() => {});
     return { ok: true };
   });
+
+const WAITING_RECIPIENT = ["pending", "retry", "sending"];
+const WAITING_EVENT = ["pending", "processing", "retry"];
+
+/** Live size of the waiting notice queue (admin only). */
+export const getAlertQueue = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [rec, ev] = await Promise.all([
+      supabaseAdmin.from("stock_notification_recipients").select("event_id", { count: "exact", head: true }).in("status", WAITING_RECIPIENT),
+      supabaseAdmin.from("stock_notification_events").select("kind").in("status", WAITING_EVENT).limit(5000),
+    ]);
+    if (rec.error) throw new Error(rec.error.message);
+    if (ev.error) throw new Error(ev.error.message);
+    const byKind: Record<string, number> = {};
+    for (const e of ev.data ?? []) byKind[(e as any).kind ?? "other"] = (byKind[(e as any).kind ?? "other"] ?? 0) + 1;
+    return { pendingRecipients: rec.count ?? 0, pendingEvents: (ev.data ?? []).length, byKind, checkedAt: new Date().toISOString() };
+  });
+
+/** Delete every waiting (unsent) notice. Sent history is kept. */
+export const deleteAllPendingAlerts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const rec = await supabaseAdmin.from("stock_notification_recipients").delete({ count: "exact" }).in("status", WAITING_RECIPIENT);
+    if (rec.error) throw new Error(rec.error.message);
+    const ev = await supabaseAdmin.from("stock_notification_events").delete({ count: "exact" }).in("status", [...WAITING_EVENT, "failed"]);
+    if (ev.error) throw new Error(ev.error.message);
+    return { recipients: rec.count ?? 0, events: ev.count ?? 0 };
+  });

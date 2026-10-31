@@ -4,7 +4,12 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { AdminShell, AdminPanel } from "@/components/AdminShell";
 import { Button } from "@/components/ui/button";
-import { getStockAlertStats, retryStockAlert } from "@/lib/alerts.functions";
+import { getStockAlertStats, retryStockAlert, getAlertQueue, deleteAllPendingAlerts } from "@/lib/alerts.functions";
+import { formatEta, minQueueMinutes, NOTICES_PER_MINUTE } from "@/lib/alert-queue-eta";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/alerts")({
@@ -27,7 +32,7 @@ const RANGES = [
   { label: "30 days", days: 30 },
 ] as const;
 
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function Stat({ label, value, hint }: { label: string; value: string; hint?: string | undefined }) {
   return (
     <div className="rounded-2xl border border-border/70 bg-card p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
@@ -69,6 +74,71 @@ function BreakdownTable({ rows }: { rows: any[] }) {
   );
 }
 
+function QueuePanel() {
+  const fetchQueue = useServerFn(getAlertQueue);
+  const wipe = useServerFn(deleteAllPendingAlerts);
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const { data, isFetching, refetch } = useQuery({
+    queryKey: ["alert-queue"],
+    queryFn: () => fetchQueue(),
+    refetchInterval: 5000,
+  });
+  const minutes = data ? minQueueMinutes(data.pendingRecipients, data.pendingEvents) : 0;
+  const total = (data?.pendingRecipients ?? 0) + (data?.pendingEvents ?? 0);
+
+  async function onDeleteAll() {
+    setBusy(true);
+    try {
+      const r = await wipe();
+      toast.success(`Deleted ${r.recipients} customer notices and ${r.events} alerts`);
+      qc.invalidateQueries({ queryKey: ["alert-queue"] });
+      qc.invalidateQueries({ queryKey: ["stock-alert-stats"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Delete failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <AdminPanel title="Live waiting queue">
+      <div className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Stat label="Customer notices waiting" value={String(data?.pendingRecipients ?? "…")} hint="Stock add / stock out / broadcast messages to bot users" />
+          <Stat label="Alerts waiting" value={String(data?.pendingEvents ?? "…")} hint={data ? Object.entries(data.byKind).map(([k, v]) => `${k}: ${v}`).join(" · ") || "None" : undefined} />
+          <Stat label="Minimum time to finish" value={data ? formatEta(minutes) : "…"} hint={`Best case: up to ${NOTICES_PER_MINUTE} messages per minute`} />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
+            {isFetching ? "Refreshing…" : "Refresh"}
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size="sm" variant="destructive" disabled={busy || total === 0}>All Delete</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete all waiting notifications?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {total} unsent notifications will be removed permanently and never sent. Already-sent history stays.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={onDeleteAll}>All Delete</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <span className="text-xs text-muted-foreground">
+            Auto-refresh every 5s{data ? ` · checked ${new Date(data.checkedAt).toLocaleTimeString()}` : ""}
+          </span>
+        </div>
+      </div>
+    </AdminPanel>
+  );
+}
+
 function AlertsPage() {
   const [days, setDays] = useState<number>(7);
   const fetchStats = useServerFn(getStockAlertStats);
@@ -95,6 +165,7 @@ function AlertsPage() {
   return (
     <AdminShell title="Alert health" subtitle="Stock alert delivery rate, failures, retries and latency">
       <div className="space-y-5">
+        <QueuePanel />
         <div className="flex flex-wrap gap-2">
           {RANGES.map((r) => (
             <Button
