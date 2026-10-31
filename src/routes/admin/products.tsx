@@ -20,6 +20,7 @@ import {
   saveCategoryProducts,
   saveProduct,
   setProductActive,
+  setProductCustomerAlerts,
   setManualStock,
 } from "@/lib/admin.functions";
 
@@ -80,6 +81,7 @@ const EMPTY = {
   manual_note: "",
   category_id: "",
   is_active: true,
+  customer_alerts_enabled: true,
   sort_order: 0,
 };
 
@@ -250,6 +252,12 @@ function ProductsPage() {
   const refresh = () => qc.invalidateQueries({ queryKey: ["catalogue"] });
 
   const setActive = useServerFn(setProductActive);
+  const setCustomerAlerts = useServerFn(setProductCustomerAlerts);
+  const alertsMut = useMutation({
+    mutationFn: (v: { id: string; enabled: boolean }) => setCustomerAlerts({ data: v }),
+    onSuccess: () => { refresh(); toast.success("Customer alerts saved"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const activeMut = useMutation({
     mutationFn: (v: { id: string; is_active: boolean }) => setActive({ data: v }),
     onSuccess: (r: any) => {
@@ -322,6 +330,7 @@ function ProductsPage() {
           manual_note: form.manual_note,
           category_id: form.category_id || null,
           is_active: form.is_active,
+          customer_alerts_enabled: form.customer_alerts_enabled,
           sort_order: Number(form.sort_order),
           ...(form.id && form.supplier_id
             ? { price_override: form.price_override === "" ? null : Number(form.price_override) }
@@ -384,6 +393,7 @@ function ProductsPage() {
       manual_note: p.manual_note ?? "",
       category_id: p.category_id ?? "",
       is_active: p.is_active,
+      customer_alerts_enabled: p.customer_alerts_enabled !== false,
       sort_order: p.sort_order,
     });
     setStockFor("");
@@ -888,6 +898,10 @@ function ProductsPage() {
           <Label>Badge (optional)</Label>
           <Input value={form.badge} onChange={(e) => setForm({ ...form, badge: e.target.value })} placeholder="HOT" />
         </div>
+        <div className="flex items-center gap-3 sm:col-span-2">
+          <Switch id="product-customer-alerts" checked={form.customer_alerts_enabled} onCheckedChange={(enabled) => setForm({ ...form, customer_alerts_enabled: enabled })} />
+          <Label htmlFor="product-customer-alerts">Customer alerts · {form.customer_alerts_enabled ? "On" : "Off"}</Label>
+        </div>
         <div className="space-y-1 sm:col-span-2">
           <Label>Description / summary (optional)</Label>
           <Textarea
@@ -1087,6 +1101,7 @@ function ProductsPage() {
                 <th>Delivery</th>
                 <th>Stock</th>
                 <th>Active</th>
+                <th>Customer alerts</th>
                 <th></th>
               </tr>
             </thead>
@@ -1135,6 +1150,13 @@ function ProductsPage() {
                       <span className="text-xs text-muted-foreground">
                         {p.is_active !== false ? "On" : "Off"}
                       </span>
+                    </span>
+                  </td>
+                  <td>
+                    <span className="flex items-center gap-2">
+                      <Switch checked={p.customer_alerts_enabled !== false} disabled={alertsMut.isPending}
+                        onCheckedChange={(enabled) => alertsMut.mutate({ id: p.id, enabled })} aria-label={`Customer alerts for ${p.name}`} />
+                      <span className="text-xs text-muted-foreground">{p.customer_alerts_enabled !== false ? "On" : "Off"}</span>
                     </span>
                   </td>
                   <td className="space-x-1 text-right">
