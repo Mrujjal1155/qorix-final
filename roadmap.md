@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Plan self-custody TRC20/BEP20 USDT payment detection for Telegram and website, admin receiving addresses/API connection health and documented limits; both remain disabled until the user configures and activates. Awaiting approved plan, provider setup and payment-attribution decision; no real transfer or activation.
+- [ ] Implement approved self-custody TRC20/BEP20 USDT for Telegram/website and admin connection checks; TronGrid connected, BEP20 uses approved free BNB Chain RPC (Etherscan free chain access rejected). Both remain disabled; no real transfer/activation. Full address-wide history scanning is separate from TXID verification and depends on free provider support.
 
 - [x] Add retail Bybit Pay UID/internal-transfer to Telegram wallet/product checkout and website, dedicated admin settings/UID verification, secure project secrets, exact payment matching and service-only atomic settlement. API deposit/account probes succeed with a read-only key; 30 focused/mocked flow and regression tests pass, latest build OK; browser shows admin sign-in with no runtime errors. Binance remains intact.
 - [ ] Activate and verify live Bybit payments: admin must enter receiving UID, Verify connection and enable/save; blocked by external unmanaged admin authentication and external bot/site deployment. Real paid checkout/delivery requires user approval and actual transfer; no merchant QR or blockchain integration included. Credential values are entered through the secure project form, not stored in admin database fields.
