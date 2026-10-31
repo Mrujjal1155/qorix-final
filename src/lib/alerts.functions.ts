@@ -174,7 +174,7 @@ export const deleteAllPendingAlerts = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const rec = await supabaseAdmin.from("stock_notification_recipients").delete({ count: "exact" }).in("status", WAITING_RECIPIENT);
     if (rec.error) throw new Error(rec.error.message);
-    const ev = await supabaseAdmin.from("stock_notification_events").delete({ count: "exact" }).in("status", WAITING_EVENT);
+    const ev = await supabaseAdmin.from("stock_notification_events").delete({ count: "exact" }).in("status", [...WAITING_EVENT, "failed"]);
     if (ev.error) throw new Error(ev.error.message);
     return { recipients: rec.count ?? 0, events: ev.count ?? 0 };
   });
