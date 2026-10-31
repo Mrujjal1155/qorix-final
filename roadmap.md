@@ -1,6 +1,7 @@
 # Roadmap
 
-- [ ] Add category name editing and typed serial positioning with clear arrows; verify focused ordering/validation tests. Signed-in save/readback requires external unmanaged admin authentication.
+- [x] Add category name editing and typed serial positioning with clear arrows; five ordering/validation tests pass and latest build OK. Name-only saves preserve category metadata.
+- [ ] Verify category rename and serial save/readback in the signed-in admin; blocked by external unmanaged authentication.
 
 - [x] Render the approved Telegram welcome as native ACCOUNT/WALLET/REFERRALS tables with configured premium emojis, existing inline/persistent buttons and a brief Join Community footer. Eleven focused sender/emoji/contact/navigation tests pass; latest build OK. No real customer messages sent.
 - [ ] Verify native welcome table appearance in the deployed Telegram bot; requires deployment and an actual /start interaction, which cannot be visually verified through the web preview.
