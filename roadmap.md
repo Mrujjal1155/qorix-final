@@ -1,7 +1,8 @@
 # Roadmap
 
-- [ ] Add approved per-product customer alerts for stock/product/price changes while preserving admin/group notices.
-- [ ] Keep admin pending queue visible, refreshable and deletable; verify focused rules without sending real broadcasts.
+- [x] Add per-product customer-alert switches, price/flash fan-out and bot-admin price enqueue, independently of admin/group settings; existing products default ON.
+- [x] Add exact queue aggregates, 50-row pending pages, refresh and individual/all cancellation preserving sent history; waves recheck cancellation. 18 tests pass plus rolled-back SQL rules for all eight notice kinds, all contactable recipients and cancellation; build OK. No real alerts deleted or sent.
+- [ ] Verify signed-in product switch save/readback, pending-list delete and deployed bot delivery; blocked by external unmanaged admin authentication and external deployment. Browser confirms sign-in gate without runtime errors.
 
 - [x] Add shared Bybit/TRC20/BEP20 Premium emoji editors to Bot Admin Payment icons, preserving gateway switches and payment handlers; mocked admin save/reset and wallet/checkout readback verified without real payments.
 - [ ] Verify new gateway emoji appearance in live Telegram after external deployment; requires deployment and user interaction in the actual bot. No gateway activated or real payment attempted.
