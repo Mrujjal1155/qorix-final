@@ -16,6 +16,10 @@ export async function verifyWebsiteOrderTxid(orderId: string): Promise<WebsiteBi
   const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
   const { data: o } = await db.from("orders").select("id,source,txid,total,payment_method,meta,status").eq("id", orderId).maybeSingle();
   if (!o || o.source !== "website" || !o.txid) return null;
+  if (String(o.payment_method).startsWith("chain_")) {
+    const { verifyBlockchainWebsiteOrder } = await import("@/lib/blockchain-settle.server");
+    return verifyBlockchainWebsiteOrder(orderId);
+  }
   if (o.payment_method === "bybit") {
     const { verifyBybitWebsiteOrder } = await import("@/lib/bybit-settle.server");
     return verifyBybitWebsiteOrder(orderId);

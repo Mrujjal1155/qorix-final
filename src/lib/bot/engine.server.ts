@@ -64,6 +64,9 @@ import { buildHomeMessage, referralCopyButton, referralShareAnchor } from "@/lib
 import { bybitEnabled, bybitTransactionKey } from "@/lib/bybit-payment";
 import { bybitSettings } from "@/lib/bybit.server";
 import { confirmBybitBotDeposit, sweepBybitWebsiteOrders } from "@/lib/bybit-settle.server";
+import { blockchainGateways } from "@/lib/blockchain.server";
+import { chainSchema, chainTxid, chainTransactionKey } from "@/lib/blockchain-payment";
+import { confirmBlockchainBotDeposit, sweepBlockchainWebsiteOrders } from "@/lib/blockchain-settle.server";
 
 
 const db = supabaseAdmin as any;
@@ -2251,6 +2254,7 @@ async function walletView(user: any) {
   if (cfg.active && cfg.crypto && cfg.live) kb.push([wBtn(uiBtn(s, "wal_usdt", "dep:usdt"))]);
   const bybit = await bybitSettings();
   if (bybitEnabled(bybit)) kb.push([wBtn({ text: "Bybit Pay", callback_data: "dep:bybit", ...(bybit["bybit_icon"] && /^\d+$/.test(bybit["bybit_icon"]) ? { icon_custom_emoji_id: bybit["bybit_icon"] } : {}) })]);
+  for (const gateway of await blockchainGateways().catch(() => [])) if (gateway.enabled && gateway.verified) kb.push([wBtn({ text: `USDT · ${gateway.network.toUpperCase()}`, callback_data: `dep:chain_${gateway.network}` })]);
   {
     // Merged EPS rows: one for bKash/Nagad/Rocket, one for cards.
     const { epsConfig } = await import("@/lib/eps.server");
@@ -2295,7 +2299,7 @@ async function txUsed(tx: string) {
 
 async function startBinanceDeposit(
   chatId: number,
-  kind: "payid" | "crypto" | "bybit",
+  kind: "payid" | "crypto" | "bybit" | "chain_trc20" | "chain_bep20",
   amount: number,
   network?: string,
   meta: Record<string, unknown> = {},
@@ -2305,7 +2309,11 @@ async function startBinanceDeposit(
   const personal = (s["binance_mode"] ?? "live") === "personal";
   let address = "";
 
-  if (kind === "bybit") {
+  if (kind.startsWith("chain_")) {
+    const gateway = (await blockchainGateways()).find(g => `chain_${g.network}` === kind);
+    if (!gateway?.enabled || !gateway.verified || !gateway.address) return { error: "This blockchain payment is currently unavailable." };
+    address = gateway.address;
+  } else if (kind === "bybit") {
     const settings = await bybitSettings();
     if (!bybitEnabled(settings)) return { error: "Bybit Pay is currently unavailable." };
     address = settings["bybit_uid"] ?? "";
@@ -2357,6 +2365,10 @@ async function startBinanceDeposit(
 
 
 function binanceView(row: any, settings: Record<string, string> = {}) {
+  if (String(row.kind).startsWith("chain_")) return {
+    text: `<b>USDT · ${String(row.kind).replace("chain_", "").toUpperCase()}</b>\n\nSelf-custody receiving address:\n<code>${escapeHtml(row.address)}</code>\n\nExact amount: <code>${Number(row.amount_usdt)}</code> USDT\n\nUse this network and USDT only. Network fees are separate; the full amount must arrive. After sending, tap Verify payment and submit your blockchain TXID. Only finalized successful transfers qualify.`,
+    kb: [[{ text: "Verify payment", callback_data: `bchk:${row.id}` }], [uiBtn(settings, "dep_cancel", "wallet")]] as Button[][],
+  };
   if (row.kind === "bybit") return {
     text: `<b>Bybit Pay · USDT internal transfer</b>\n\nReceiving Bybit UID:\n<code>${escapeHtml(row.address)}</code>\n\nExact amount:\n<code>${Number(row.amount_usdt)}</code> USDT\n\nSend USDT through a Bybit internal transfer to this UID, then tap Verify payment and submit the <b>Internal Transfer Transaction ID</b>. Merchant Pay order IDs and blockchain TXIDs are not accepted here.`,
     kb: [[{ text: "Verify payment", callback_data: `bchk:${row.id}` }], [uiBtn(settings, "dep_cancel", "wallet")]] as Button[][],
@@ -2417,6 +2429,7 @@ async function confirmByTxId(
   silent = false,
 ): Promise<{ ok: true; amount: number; txId: string } | { ok: false; message: string; notFound?: boolean }> {
   const txId = String(rawId || "").trim();
+  if (String(row.kind).startsWith("chain_")) return confirmBlockchainBotDeposit(row, txId);
   if (row.kind === "bybit") return confirmBybitBotDeposit(row, txId);
   if (txId.length < 6) return { ok: false, message: row.kind === "payid" ? "Please send the Binance Order ID of your payment." : "Please send the Transaction ID (TXID) of your USDT transfer." };
   if (await txUsed(txId)) return { ok: false, message: "❌ This Order ID / Transaction ID was already used." };
@@ -2478,6 +2491,16 @@ async function verifyBinanceDeposit(chatId: number, id: string) {
 
 /** Credit a wallet deposit, or fulfil a direct checkout attached to the deposit row. */
 async function settlePayment(chatId: number, row: any, amount: number, txid: string, note: string) {
+  if (String(row.kind).startsWith("chain_")) {
+    const network = chainSchema.parse(String(row.kind).replace("chain_", ""));
+    if (Array.isArray(row.meta?.items) && row.meta.items.length) {
+      const result = await fulfillCheckout(chatId, row.meta, row.kind, chainTransactionKey(network, txid), row.id, amount);
+      return { message: result.text, keyboard: result.kb };
+    }
+    const { data: result, error } = await db.rpc("settle_blockchain_bot", { _deposit_id: row.id, _txid: txid, _amount: amount, _deliverable: false });
+    if (error) throw new Error("Blockchain settlement will retry.");
+    return { message: result && typeof result === "object" && "changed" in result && result.changed ? `✅ USDT confirmed. Added ${money(amount)} to your wallet.` : "✅ This payment was already processed.", keyboard: [[uiBtn(await getSettings(), "com_wallet", "wallet")]] as Button[][] };
+  }
   if (row.kind === "bybit") {
     const meta = row.meta ?? {};
     if (Array.isArray(meta.items) && meta.items.length) {
@@ -2958,7 +2981,11 @@ async function submitBinanceTxid(chatId: number, depId: string, txid: string, us
     return { message: "⏳ Too many attempts. Please wait 10 minutes and try again, or contact support.", keyboard: back };
   }
 
-  if (row.kind === "bybit") {
+  if (row.kind === "bybit" || String(row.kind).startsWith("chain_")) {
+    if (String(row.kind).startsWith("chain_")) {
+      try { txid = chainTxid(chainSchema.parse(String(row.kind).replace("chain_", "")), txid); }
+      catch { return { message: "Enter a valid blockchain TXID.", keyboard: back }; }
+    }
     const { error } = await db.from("binance_deposits").update({ tx_id: txid }).eq("id", row.id).eq("status", "pending");
     if (error) throw new Error("Bybit verification will retry.");
     row.tx_id = txid;
@@ -3084,6 +3111,17 @@ export async function sweepBybitDeposits() {
     const result = await confirmByTxId(row, String(row.tx_id), true);
     if (!result.ok) continue;
     const settled = await settlePayment(Number(row.telegram_id), row, result.amount, result.txId, "Verified via Bybit API");
+    await sendMessage(Number(row.telegram_id), settled.message, settled.keyboard).catch(() => {});
+  }
+}
+
+export async function sweepBlockchainDeposits() {
+  await sweepBlockchainWebsiteOrders();
+  const { data: rows } = await db.from("binance_deposits").select("*").in("kind", ["chain_trc20", "chain_bep20"]).eq("status", "pending").not("tx_id", "is", null).gt("expires_at", new Date().toISOString()).order("created_at").limit(5);
+  for (const row of rows ?? []) {
+    const result = await confirmByTxId(row, String(row.tx_id), true);
+    if (!result.ok) continue;
+    const settled = await settlePayment(Number(row.telegram_id), row, result.amount, result.txId, "Verified blockchain USDT");
     await sendMessage(Number(row.telegram_id), settled.message, settled.keyboard).catch(() => {});
   }
 }
@@ -3850,7 +3888,7 @@ async function handleMessage(msg: any) {
         await say(chatId, "❌ Please send a valid amount, e.g. <code>10</code>");
         return;
       }
-      const kind = state.bin_kind === "bybit" ? "bybit" : state.bin_kind === "crypto" ? "crypto" : "payid";
+      const kind = state.bin_kind === "chain_trc20" ? "chain_trc20" : state.bin_kind === "chain_bep20" ? "chain_bep20" : state.bin_kind === "bybit" ? "bybit" : state.bin_kind === "crypto" ? "crypto" : "payid";
       state.awaiting = null;
       await setState(chatId, state);
       const r = await startBinanceDeposit(chatId, kind, amount, state.bin_network);
@@ -5861,6 +5899,7 @@ async function coPayView(chatId: number) {
   if (cfg.active && cfg.payid) kb.push([styled(uiBtn(settings, "pay_payid", "copm:payid"), payStyle)]);
   const bybit = await bybitSettings();
   if (bybitEnabled(bybit)) kb.push([styled({ text: "Bybit Pay", callback_data: "copm:bybit", ...(bybit["bybit_icon"] && /^\d+$/.test(bybit["bybit_icon"]) ? { icon_custom_emoji_id: bybit["bybit_icon"] } : {}) }, payStyle)]);
+  for (const gateway of await blockchainGateways().catch(() => [])) if (gateway.enabled && gateway.verified) kb.push([styled({ text: `USDT · ${gateway.network.toUpperCase()}`, callback_data: `copm:chain_${gateway.network}` }, payStyle)]);
   if (cfg.active && cfg.crypto) {
     kb.push([styled(uiBtn(settings, "pay_bep20", "copm:BSC"), payStyle)]);
     kb.push([styled(uiBtn(settings, "pay_trc20", "copm:TRX"), payStyle)]);
@@ -6001,7 +6040,9 @@ async function fulfillCheckout(
   const blocked = snapshotBlocked ? ["• This checkout is currently unavailable."] : await checkoutStockIssues(lines);
   let prepaid = false;
   if (depositId && verifiedAmount !== undefined) {
-    const { data: settled, error } = methodKey === "bybit"
+    const { data: settled, error } = methodKey.startsWith("chain_")
+      ? await db.rpc("settle_blockchain_bot", { _deposit_id: depositId, _txid: reference.split(":").slice(2).join(":"), _amount: verifiedAmount, _deliverable: !blocked.length })
+      : methodKey === "bybit"
       ? await db.rpc("settle_bybit_bot", { _deposit_id: depositId, _txid: reference.replace(/^bybit:/, ""), _amount: verifiedAmount, _deliverable: !blocked.length })
       : await db.rpc("settle_bot_checkout", {
           _deposit_id: depositId, _txid: reference, _amount: verifiedAmount,
@@ -6908,7 +6949,7 @@ async function handleCallback(cq: any) {
       return;
     }
 
-    const kind = method === "bybit" ? "bybit" : method === "payid" ? "payid" : "crypto";
+    const kind = method === "chain_trc20" || method === "chain_bep20" ? method : method === "bybit" ? "bybit" : method === "payid" ? "payid" : "crypto";
 
     const network = method === "payid" ? undefined : method;
     const r = await startBinanceDeposit(chatId, kind as any, total, network, {
@@ -7146,6 +7187,15 @@ async function handleCallback(cq: any) {
     }
     await setState(chatId, { ...(user.state ?? {}), awaiting: "bin_amount", bin_kind: "bybit" });
     await edit("<b>Bybit Pay</b>\n\nHow much USDT do you want to add?", [[uiBtn(await getSettings(), "com_wallet", "wallet")]]);
+    return;
+  }
+
+  if (data === "dep:chain_trc20" || data === "dep:chain_bep20") {
+    const kind = data.slice(4);
+    const gateway = (await blockchainGateways()).find(g => `chain_${g.network}` === kind);
+    if (!gateway?.enabled || !gateway.verified) { await edit("This blockchain payment is unavailable.", [[uiBtn(await getSettings(), "com_wallet", "wallet")]]); return; }
+    await setState(chatId, { ...(user.state ?? {}), awaiting: "bin_amount", bin_kind: kind });
+    await edit(`<b>USDT · ${gateway.network.toUpperCase()}</b>\n\nHow much USDT do you want to add?`, [[uiBtn(await getSettings(), "com_wallet", "wallet")]]);
     return;
   }
 

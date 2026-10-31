@@ -37,5 +37,6 @@
 - Admin orders render through the shared `OrderCard` (one order per card on every screen size) with the dense table kept behind a persisted Cards/Table toggle; browser-storage view state is read only after hydration so server markup never mismatches.
 - Admin themes are root-provided, allowlisted and persisted after hydration; document-root skin classes theme admin/login/portals, are removed elsewhere, and palettes remain in global CSS.
 - Telegram welcome tables use a pure builder and shared send/edit rich HTML dispatch with existing keyboards; only definitive format rejection falls back to regular HTML, preventing duplicate sends after uncertain failures.
-- Category rename and serial edits share validated schemas and a pure move-to-position helper; name-only updates preserve category metadata, while arrow and typed moves use the same persisted order.
-- Bybit retail payments use UID-bound read-only secrets and signed internal-deposit reads with exact matching; service-only atomic provider-prefixed claims prevent replay. Merchant Pay is never inferred.
+- Category edits use validated schemas and shared position moves; name-only saves preserve metadata.
+- Bybit uses UID-bound read-only signed deposit reads, exact matching and atomic provider-prefixed claims; never infer Merchant Pay.
+- Blockchain USDT uses separate service-written gateways, TronGrid solidified/BSC canonical finalized token receipts, integer exact matching and atomic chain-prefixed settlement; pending attempts retain addresses, Binance remains separate.

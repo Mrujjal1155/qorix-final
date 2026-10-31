@@ -2,6 +2,7 @@ import { likeExact } from "@/lib/ilike-escape";
 import { createServerFn } from "@tanstack/react-start";
 import { resolveSiteOrigin } from "@/lib/site-url";
 import { bybitTxidSchema } from "@/lib/bybit-payment";
+import { chainSchema, chainTxid } from "@/lib/blockchain-payment";
 
 /* Public storefront server functions — no auth required.
    Reads use the publishable key (anon RLS), writes are validated then
@@ -185,6 +186,10 @@ export const getStorePayInfo = createServerFn({ method: "GET" }).handler(async (
     const settings = await bybitSettings();
     map["bybit_uid"] = bybitEnabled(settings) ? settings["bybit_uid"] ?? "" : "";
   } catch { map["bybit_uid"] = ""; }
+  try {
+    const { blockchainGateways } = await import("@/lib/blockchain.server");
+    for (const gateway of await blockchainGateways()) map[`chain_${gateway.network}_address`] = gateway.enabled && gateway.verified ? gateway.address : "";
+  } catch { /* Disabled until configuration is readable. */ }
   return map;
 });
 
@@ -205,9 +210,10 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("Valid email is required");
       const name = String(d.customer_name ?? "").trim().slice(0, 80);
       if (name.length < 2) throw new Error("Name is required");
-      const txid = String(d.txid ?? "").trim().slice(0, 200);
+      let txid = String(d.txid ?? "").trim().slice(0, 200);
       if (txid.length < 4) throw new Error("Transaction ID / payment reference is required");
-      const method = ["binance", "bybit", "usdt_bep20", "usdt_trc20"].includes(d.payment_method) ? d.payment_method : "binance";
+      const method = ["binance", "bybit", "usdt_bep20", "usdt_trc20", "chain_trc20", "chain_bep20"].includes(d.payment_method) ? d.payment_method : "binance";
+      if (method.startsWith("chain_")) txid = chainTxid(chainSchema.parse(method.replace("chain_", "")), txid);
       if (method === "bybit") {
         bybitTxidSchema.parse(txid);
       }
@@ -222,6 +228,7 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
       .eq("id", data.product_id)
       .maybeSingle();
     if (!product || !product.is_active) throw new Error("Product is not available");
+    let chainSnapshot = "";
     {
       const { data: rows } = await supabaseAdmin
         .from("bot_settings")
@@ -235,6 +242,12 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
         const { bybitSettings } = await import("@/lib/bybit.server");
         const { bybitEnabled } = await import("@/lib/bybit-payment");
         allowed = bybitEnabled(await bybitSettings());
+      }
+      if (data.payment_method.startsWith("chain_")) {
+        const { blockchainGateways } = await import("@/lib/blockchain.server");
+        const gateway = (await blockchainGateways()).find(g => `chain_${g.network}` === data.payment_method);
+        allowed = Boolean(gateway?.enabled && gateway.verified && gateway.address);
+        chainSnapshot = gateway?.address ?? "";
       }
       if (!allowed) throw new Error("This payment method is currently unavailable");
     }
@@ -272,7 +285,7 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
     }
 
     let duplicateQuery = supabaseAdmin.from("orders").select("id").eq("txid", data.txid);
-    duplicateQuery = data.payment_method === "bybit" ? duplicateQuery.eq("payment_method", "bybit") : duplicateQuery.neq("payment_method", "bybit");
+    duplicateQuery = data.payment_method.startsWith("chain_") ? duplicateQuery.eq("payment_method", data.payment_method) : data.payment_method === "bybit" ? duplicateQuery.eq("payment_method", "bybit") : duplicateQuery.neq("payment_method", "bybit");
     const dup = await duplicateQuery.maybeSingle();
     if (dup.data) throw new Error("This transaction ID has already been used");
 
@@ -290,6 +303,7 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
 
     const unit = Number(product.price);
     let paymentMeta = {};
+    if (data.payment_method.startsWith("chain_")) paymentMeta = { chain_address: chainSnapshot };
     if (data.payment_method === "bybit") {
       const { bybitSettings } = await import("@/lib/bybit.server");
       paymentMeta = { bybit_uid: (await bybitSettings())["bybit_uid"] };
@@ -320,7 +334,10 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
     // panel shows the result (found / not found) before anyone delivers.
     if (order?.id) {
       try {
-        if (data.payment_method === "bybit") {
+        if (data.payment_method.startsWith("chain_")) {
+          const { verifyBlockchainWebsiteOrder } = await import("@/lib/blockchain-settle.server");
+          await verifyBlockchainWebsiteOrder(String(order.id));
+        } else if (data.payment_method === "bybit") {
           const { verifyBybitWebsiteOrder } = await import("@/lib/bybit-settle.server");
           await verifyBybitWebsiteOrder(String(order.id));
         } else {
