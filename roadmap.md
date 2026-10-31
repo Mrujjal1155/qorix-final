@@ -1,6 +1,7 @@
 # Roadmap
 
-- [ ] Add the approved retail Bybit Pay UID/internal-transfer flow beside Binance for Telegram and website, admin connection/settings and automatic verification; secure project credentials saved, implementation and verification in progress. No merchant QR integration or real payment testing.
+- [x] Add retail Bybit Pay UID/internal-transfer to Telegram wallet/product checkout and website, dedicated admin settings/UID verification, secure project secrets, exact payment matching and service-only atomic settlement. API deposit/account probes succeed with a read-only key; 30 focused/mocked flow and regression tests pass, latest build OK; browser shows admin sign-in with no runtime errors. Binance remains intact.
+- [ ] Activate and verify live Bybit payments: admin must enter receiving UID, Verify connection and enable/save; blocked by external unmanaged admin authentication and external bot/site deployment. Real paid checkout/delivery requires user approval and actual transfer; no merchant QR or blockchain integration included. Credential values are entered through the secure project form, not stored in admin database fields.
 
 - [x] Add category name editing and typed serial positioning with clear arrows; five ordering/validation tests pass and latest build OK. Name-only saves preserve category metadata.
 - [ ] Verify category rename and serial save/readback in the signed-in admin; blocked by external unmanaged authentication.
