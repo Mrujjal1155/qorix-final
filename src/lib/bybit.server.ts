@@ -43,7 +43,7 @@ export async function findBybitPayment(claim: { txid: string; amount: number; si
     const settings = await bybitSettings();
     if (!bybitEnabled(settings)) return { ok: false as const, reason: "Bybit Pay is disabled." };
     const account = await bybitGet("/v5/user/query-api", {}, { apiKey, secret });
-    if (String(account.userID ?? "") !== settings.bybit_uid || account.readOnly !== 1) return { ok: false as const, reason: "Bybit account verification failed." };
+    if (String(account.userID ?? "") !== settings["bybit_uid"] || account.readOnly !== 1) return { ok: false as const, reason: "Bybit account verification failed." };
     let cursor = "";
     for (let page = 0; page < 5; page++) {
       const result = await bybitGet("/v5/asset/deposit/query-internal-record", {

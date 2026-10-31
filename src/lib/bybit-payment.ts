@@ -5,8 +5,8 @@ export const bybitTxidSchema = z.string().trim().min(6).max(128).regex(/^[A-Za-z
 export const BYBIT_SETTINGS = ["bybit_enabled", "bybit_uid", "bybit_api_verified", "bybit_icon"] as const;
 
 export function bybitEnabled(settings: Record<string, string | undefined>): boolean {
-  return ["1", "true", "on"].includes(settings.bybit_enabled ?? "") &&
-    settings.bybit_api_verified === "1" && bybitUidSchema.safeParse(settings.bybit_uid).success;
+  return ["1", "true", "on"].includes(settings["bybit_enabled"] ?? "") &&
+    settings["bybit_api_verified"] === "1" && bybitUidSchema.safeParse(settings["bybit_uid"]).success;
 }
 
 export function bybitTransactionKey(txid: string): string {

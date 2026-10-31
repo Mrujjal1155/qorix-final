@@ -15,7 +15,7 @@ export function BybitSetupCard({ values, setValues, onSave }: { values: Record<s
   async function verify() {
     setBusy(true);
     try {
-      const result = await check({ data: { uid: values.bybit_uid ?? "" } });
+      const result = await check({ data: { uid: values["bybit_uid"] ?? "" } });
       setMessage(result.message);
       setValues({ ...values, bybit_api_verified: result.ok ? "1" : "0", ...(!result.ok ? { bybit_enabled: "0" } : {}) });
       if (result.ok) toast.success(result.message); else toast.error(result.message);
@@ -24,11 +24,11 @@ export function BybitSetupCard({ values, setValues, onSave }: { values: Record<s
   }
   return <section className="space-y-6">
     <h2 className="flex items-center gap-2 text-2xl font-bold"><ShieldCheck className="text-primary" /> Bybit Pay</h2>
-    <div className="flex items-center justify-between gap-4"><Label htmlFor="bybit-enabled">Bybit Pay</Label><Switch id="bybit-enabled" disabled={values.bybit_api_verified !== "1"} checked={values.bybit_enabled === "1"} onCheckedChange={(enabled) => setValues({ ...values, bybit_enabled: enabled ? "1" : "0" })} /></div>
-    <div className="space-y-2"><Label htmlFor="bybit-uid">Receiving Bybit UID</Label><Input id="bybit-uid" inputMode="numeric" value={values.bybit_uid ?? ""} onChange={(event) => setValues({ ...values, bybit_uid: event.target.value, bybit_api_verified: "0", bybit_enabled: "0" })} /></div>
+    <div className="flex items-center justify-between gap-4"><Label htmlFor="bybit-enabled">Bybit Pay</Label><Switch id="bybit-enabled" disabled={values["bybit_api_verified"] !== "1"} checked={values["bybit_enabled"] === "1"} onCheckedChange={(enabled) => setValues({ ...values, bybit_enabled: enabled ? "1" : "0" })} /></div>
+    <div className="space-y-2"><Label htmlFor="bybit-uid">Receiving Bybit UID</Label><Input id="bybit-uid" inputMode="numeric" value={values["bybit_uid"] ?? ""} onChange={(event) => setValues({ ...values, bybit_uid: event.target.value, bybit_api_verified: "0", bybit_enabled: "0" })} /></div>
     <div className="flex items-center gap-2 text-sm text-muted-foreground"><KeyRound className="h-4 w-4" /> API Key / Secret: secure project secrets</div>
-    <div className="space-y-2"><Label htmlFor="bybit-icon">Telegram Premium emoji ID (optional)</Label><Input id="bybit-icon" value={values.bybit_icon ?? ""} onChange={(event) => setValues({ ...values, bybit_icon: event.target.value })} /></div>
-    {message && <p className={values.bybit_api_verified === "1" ? "text-success" : "text-destructive"}>{message}</p>}
-    <div className="flex flex-wrap gap-3"><Button variant="outline" onClick={verify} disabled={busy || !values.bybit_uid}><RefreshCw className="h-4 w-4" />{busy ? "Verifying…" : "Verify connection"}</Button><Button onClick={onSave}>Save Bybit settings</Button></div>
+    <div className="space-y-2"><Label htmlFor="bybit-icon">Telegram Premium emoji ID (optional)</Label><Input id="bybit-icon" value={values["bybit_icon"] ?? ""} onChange={(event) => setValues({ ...values, bybit_icon: event.target.value })} /></div>
+    {message && <p className={values["bybit_api_verified"] === "1" ? "text-success" : "text-destructive"}>{message}</p>}
+    <div className="flex flex-wrap gap-3"><Button variant="outline" onClick={verify} disabled={busy || !values["bybit_uid"]}><RefreshCw className="h-4 w-4" />{busy ? "Verifying…" : "Verify connection"}</Button><Button onClick={onSave}>Save Bybit settings</Button></div>
   </section>;
 }
