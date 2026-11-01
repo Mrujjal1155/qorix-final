@@ -126,7 +126,7 @@ function ResellerStartPage() {
               </Button>
             </form>}
 
-            {mode === "in" && <Button type="button" variant="link" className="mt-2 w-full" disabled={loading} onClick={() => { setMode("forgot"); setResetSent(false); }}>
+            {mode !== "forgot" && <Button type="button" variant="link" className="mt-2 w-full" disabled={loading} onClick={() => { setMode("forgot"); setResetSent(false); }}>
               Forgot password?
             </Button>}
             <Button
