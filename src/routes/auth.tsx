@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { productionUrlFor } from "@/lib/site-url";
 import { useT } from "@/lib/i18n";
 import { signUpWithBrandedEmail } from "@/lib/auth-signup.functions";
+import { sendPasswordResetEmail } from "@/lib/password-reset.functions";
 
 export const Route = createFileRoute("/auth")({
   head: () => ({
@@ -39,6 +40,24 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
+  async function forgot() {
+    const target = email.trim();
+    if (!/^\S+@\S+\.\S+$/.test(target)) {
+      toast.error("Enter your email above first, then tap Forgot password.");
+      return;
+    }
+    setResetting(true);
+    try {
+      await sendPasswordResetEmail({ data: { email: target } });
+      toast.success("If this email is registered, a reset link is on its way. Check spam too.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not send reset link");
+    } finally {
+      setResetting(false);
+    }
+  }
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -113,13 +132,24 @@ function AuthPage() {
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? t("Please wait…") : mode === "in" ? t("Sign in") : t("Create account")}
               </Button>
-              <button
-                type="button"
-                className="w-full text-sm text-muted-foreground hover:text-foreground"
-                onClick={() => setMode(mode === "in" ? "up" : "in")}
-              >
-                {mode === "in" ? t("Need an account? Sign up") : t("Already have an account? Sign in")}
-              </button>
+              <div className="flex items-center justify-center gap-3 text-sm">
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => setMode(mode === "in" ? "up" : "in")}
+                >
+                  {mode === "in" ? t("Need an account? Sign up") : t("Already have an account? Sign in")}
+                </button>
+                <span className="text-muted-foreground">·</span>
+                <button
+                  type="button"
+                  className="text-primary hover:underline"
+                  disabled={resetting}
+                  onClick={forgot}
+                >
+                  {t("Forgot password?")}
+                </button>
+              </div>
             </form>
           </CardContent>
         </Card>
