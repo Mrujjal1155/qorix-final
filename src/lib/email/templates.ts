@@ -319,3 +319,27 @@ export function adminNewResellerApplicationEmail(d: AdminResellerApplicationData
     text: `New reseller application from ${d.name || d.email} (${d.email}). Review: ${d.adminUrl}`,
   };
 }
+
+/* ------------------------------------------------- password reset mail */
+
+export interface PasswordResetData {
+  siteName: string;
+  logoUrl?: string;
+  resetUrl: string;
+}
+
+export function passwordResetEmail(d: PasswordResetData) {
+  const subject = `Reset your password — ${d.siteName}`;
+  const inner = `
+    <h1 style="margin:0 0 6px;font-size:22px;font-weight:700;">Reset your password</h1>
+    <p style="margin:0 0 18px;font-size:14px;color:${MUTED};line-height:1.6;">We received a request to reset the password for your ${esc(d.siteName)} reseller login. Tap the button below to choose a new password.</p>
+    <p style="margin:0 0 18px;">${btn(d.resetUrl, "Set a new password")}</p>
+    <p style="margin:0 0 6px;font-size:12px;color:${MUTED};">Button not working? Copy this link into your browser:</p>
+    <p style="margin:0 0 18px;font-size:12px;word-break:break-all;"><a href="${esc(d.resetUrl)}" style="color:${BRAND_DARK};">${esc(d.resetUrl)}</a></p>
+    <p style="margin:0;font-size:13px;color:${MUTED};line-height:1.6;">This link works once and expires soon. If you did not ask for this, ignore this email — your password stays the same.</p>`;
+  return {
+    subject,
+    html: shell(inner, d.siteName, d.logoUrl),
+    text: `Reset your ${d.siteName} password\n\nOpen this link to choose a new password:\n${d.resetUrl}\n\nIf you did not ask for this, ignore this email.`,
+  };
+}

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { productionUrlFor } from "@/lib/site-url";
+import { sendPasswordResetEmail } from "@/lib/password-reset.functions";
 import { signUpWithBrandedEmail } from "@/lib/auth-signup.functions";
 
 export const Route = createFileRoute("/reseller/start")({
@@ -54,10 +55,7 @@ function ResellerStartPage() {
     setLoading(true);
     try {
       if (mode === "forgot") {
-        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: `${window.location.origin}/reset-password`,
-        });
-        if (error) throw error;
+        await sendPasswordResetEmail({ data: { email: email.trim() } });
         setResetSent(true);
         return;
       }
