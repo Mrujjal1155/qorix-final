@@ -447,6 +447,23 @@ export async function purchase(
     return { ok: false as const, status: 402, error: "Unable to process balance. Please check your balance and try again." };
   }
 
+  // 2b) Limited manual stock: take the unit now. If none is left (or the
+  //     check fails), refund the debit and void the order — nothing is lost.
+  if (p.delivery_type === "manual" && p.manual_stock_limited) {
+    const { data: took, error: takeError } = await db.rpc("take_manual_stock", { _pid: p.id, _qty: qty });
+    if (takeError || took === false) {
+      await db.rpc("reseller_adjust_balance", {
+        _reseller_id: reseller.id,
+        _amount: total,
+        _type: "refund",
+        _reference: ref,
+        _note: "Refund: out of stock",
+      });
+      await db.from("orders").delete().eq("id", reserved.id);
+      return { ok: false as const, status: 409, error: "Out of stock. Your balance was refunded.", refunded: true };
+    }
+  }
+
   // Warn the reseller in Telegram when this order pushed them under their limit.
   void (async () => {
     try {
