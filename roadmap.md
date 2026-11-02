@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Present Telegram wallet transaction history as tables with payment methods and actual deposit statuses, preserving balances/payment verification; awaiting approval of the proposed display.
+
 - [x] Repair Telegram-admin broadcasts: persist native text/entities with idempotent source-message identity in the existing all-contactable recipient ledger, bounded shared sender and atomic message tracking; 29 focused/regression tests pass, SQL rollback verifies complete audience/idempotency/state preservation and service-only grants. No real broadcast sent; build OK.
 - [ ] Verify deployed Telegram-admin text/Premium broadcast and native appearance; blocked by external Cloudflare deployment and actual admin Telegram interaction. Mocked callback → submitted text → queue → drain verified; transactional test rows rolled back.
 
