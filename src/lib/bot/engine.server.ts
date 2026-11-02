@@ -60,6 +60,7 @@ import { enqueueAdminBroadcast } from "@/lib/bot/admin-broadcast.server";
 import { binancePaymentAmount, exactBinanceAmount } from "@/lib/binance-payment";
 import { epsWalletCredit } from "@/lib/eps-payment";
 import { orderTimezone } from "@/lib/order-time";
+import { formatDepositTable, mergeDepositRows } from "@/lib/bot/deposit-history";
 import { reservedCheckout } from "@/lib/bot/paid-checkout";
 import { buildHomeMessage, referralCopyButton, referralShareAnchor } from "@/lib/bot/home-message";
 import { bybitEnabled, bybitTransactionKey } from "@/lib/bybit-payment";
