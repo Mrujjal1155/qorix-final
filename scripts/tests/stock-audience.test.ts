@@ -1,6 +1,7 @@
 import { expect, mock, test } from "bun:test";
 
 const sentTo: number[] = [];
+mock.module("@/lib/bot/admin-broadcast.server", () => ({ sendAdminBroadcast: async (id: number) => { sentTo.push(id); return { ok: true }; } }));
 mock.module("@/lib/telegram.server", () => ({ sendAlertMessage: async (id: number) => {
   sentTo.push(id);
   return id === 2 ? { ok: false, description: "temporary timeout" }
@@ -79,6 +80,18 @@ test("all claimed customers are sent independently; only successful customers co
 
 test("database claim failure is not reported as successful delivery", async () => {
   await expect(drainStockAudience({ rpc: async () => ({ error: { message: "Unavailable" } }) })).rejects.toThrow("Customer notification claim failed");
+});
+
+test("queued admin broadcasts use the shared paced sender and successful checkpoint", async () => {
+  sentTo.length = 0;
+  let saved: any;
+  const db = {
+    rpc: async () => ({ data: [{ event_id: "broadcast", telegram_id: 77, message: { kind: "broadcast", text: "Premium", entities: [] } }] }),
+    from: () => ({ update: (value: any) => { saved = value; const chain: any = { eq: () => chain, then: (resolve: any) => resolve({ error: null }) }; return chain; } }),
+  };
+  expect(await drainStockAudience(db)).toEqual({ sent: 1, retry: 0 });
+  expect(sentTo).toEqual([77]);
+  expect(saved.status).toBe("sent");
 });
 
 test("Telegram retry_after is preserved rather than retried too early", async () => {

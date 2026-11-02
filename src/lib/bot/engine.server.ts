@@ -56,6 +56,7 @@ import { parseStock } from "@/lib/stock-format";
 import { MANUAL_INPUT_PREFIX, parseManualInput, validateManualReply, type ManualInputConfig } from "@/lib/manual-input";
 import { SITE_ORIGIN } from "@/lib/site-url";
 import { backgroundWaitUntil } from "@/lib/bg.server";
+import { enqueueAdminBroadcast } from "@/lib/bot/admin-broadcast.server";
 import { binancePaymentAmount, exactBinanceAmount } from "@/lib/binance-payment";
 import { epsWalletCredit } from "@/lib/eps-payment";
 import { orderTimezone } from "@/lib/order-time";
@@ -622,30 +623,20 @@ const stateCache = new Map<number, Record<string, unknown>>();
 
 async function setState(telegramId: number, state: Record<string, unknown> | null) {
   const next = (state ?? {}) as Record<string, unknown>;
+  const { error } = await db.from("bot_users").update({ state: next }).eq("telegram_id", telegramId);
+  if (error) throw new Error(`Could not save bot action: ${error.message}`);
   const msgs = (next as any)?.msgs;
   if (Array.isArray(msgs)) msgsCache.set(telegramId, msgs.slice(-40));
   stateCache.set(telegramId, next);
-  await db.from("bot_users").update({ state: next }).eq("telegram_id", telegramId);
 }
 
 async function trackMessage(telegramId: number, messageId?: number) {
   if (!messageId) return;
-  // One read only: the same row carries both the tracked ids and the state.
-  const { data } = await db
-    .from("bot_users")
-    .select("state")
-    .eq("telegram_id", telegramId)
-    .maybeSingle();
-  const dbState = (data?.state ?? {}) as any;
-  let msgs = msgsCache.get(telegramId);
-  if (!msgs) msgs = Array.isArray(dbState.msgs) ? dbState.msgs : [];
-  msgs = [...(msgs ?? []), messageId].slice(-40);
+  // Atomic append updates only msgs; another worker's pending action survives.
+  const { error } = await db.rpc("track_bot_message", { _telegram_id: telegramId, _message_id: messageId });
+  if (error) throw new Error("Bot message tracking failed");
+  const msgs = [...(msgsCache.get(telegramId) ?? []), messageId].slice(-40);
   msgsCache.set(telegramId, msgs);
-  // Never let this background write roll back a newer state (e.g. `awaiting`).
-  const state = { ...dbState, ...(stateCache.get(telegramId) ?? {}) } as any;
-  state.msgs = msgs;
-  stateCache.set(telegramId, state);
-  await db.from("bot_users").update({ state }).eq("telegram_id", telegramId);
 }
 
 
@@ -3723,6 +3714,24 @@ async function handleMessage(msg: any) {
     }
   }
 
+  // A pending admin broadcast owns the next message, even command-like text.
+  // Persist before consuming the prompt; the scheduled sender resumes delivery.
+  if (user.state?.awaiting === "broadcast") {
+    if (!(await isAdmin(chatId))) return;
+    try {
+      const queued = await enqueueAdminBroadcast(chatId, msg);
+      await setState(chatId, { ...user.state, awaiting: null });
+      await say(chatId, `📢 Broadcast saved for ${queued.total} users. Delivery will continue automatically.`, ADM_BACK);
+      defer(async () => {
+        const { drainStockAudience } = await import("@/lib/bot/stock-audience.server");
+        await drainStockAudience(db);
+      });
+    } catch (error) {
+      await say(chatId, `❌ ${escapeHtml(error instanceof Error ? error.message : "Could not save broadcast")}`, ADM_BACK);
+    }
+    return;
+  }
+
   if (text.startsWith("/start")) {
     await setState(chatId, { msgs: (user.state as any)?.msgs ?? [] });
 
@@ -4049,33 +4058,6 @@ async function handleMessage(msg: any) {
       await writeCo(chatId, meta);
       const view = await coView(chatId);
       await say(chatId, `✅ Coupon <code>${escapeHtml(c.code)}</code> applied!\n\n${view.text}`, view.kb);
-      return;
-    }
-
-    case "broadcast": {
-      state.awaiting = null;
-      await setState(chatId, state);
-      if (!(await isAdmin(chatId))) return;
-      // photo (largest size) or document image, caption already captured in `text`
-      const photoId: string | undefined =
-        (Array.isArray(msg.photo) && msg.photo.length
-          ? msg.photo[msg.photo.length - 1]?.file_id
-          : undefined) ??
-        (String(msg.document?.mime_type ?? "").startsWith("image/") ? msg.document?.file_id : undefined);
-
-      if (!photoId && !text.trim()) {
-        await say(chatId, "❌ Send text or a photo (caption optional) to broadcast.");
-        return;
-      }
-
-      const { runBroadcast } = await import("@/lib/bot/broadcast.server");
-      const result = await runBroadcast({ text, ...(photoId ? { photo: photoId } : {}) });
-      await say(
-        chatId,
-        `📢 Broadcast ${photoId ? "(with image) " : ""}sent to ${result.sent}/${result.total} users.` +
-          (result.failed ? `\n⚠️ Failed: ${result.failed}` : "") +
-          (result.error ? `\n🛠 ${escapeHtml(result.error)}` : ""),
-      );
       return;
     }
 
@@ -7933,7 +7915,7 @@ async function handleCallback(cq: any) {
       await setState(chatId, { ...st, awaiting: "broadcast" });
       await say(
         chatId,
-        "📢 Send the broadcast now — text, or a <b>photo with caption</b> (image supported).",
+        "📢 Send the broadcast now — text or a <b>photo with caption</b>. Telegram formatting and Premium emoji are supported.",
       );
     } else if (action === "addbal") {
       await setState(chatId, { ...st, awaiting: "addbal" });

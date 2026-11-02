@@ -96,7 +96,7 @@ export async function tg(method: string, body: Record<string, unknown> = {}, opt
   // Broken HTML (a stray "<", an unsupported tag, a bad custom-emoji entity)
   // must never make a view vanish. Downgrade progressively instead of failing:
   // strip custom emoji first, then drop HTML entirely.
-  if ((!res.ok || json.ok === false) && isParseError(json) && hasMarkupText(body)) {
+  if ((!res.ok || json.ok === false) && isParseError(json) && hasMarkupText(body) && body["parse_mode"] === "HTML") {
     if (hasCustomEmoji(body)) {
       const retry = await post(stripCustomEmoji(body));
       res = retry.res;
@@ -147,6 +147,7 @@ function isReplyKeyboard(body: Record<string, unknown>): boolean {
 }
 
 function hasCustomEmoji(body: Record<string, unknown>): boolean {
+  if ([body["entities"], body["caption_entities"]].some((list) => Array.isArray(list) && list.some((e) => e?.type === "custom_emoji"))) return true;
   const rich = body["rich_message"] as { html?: string } | undefined;
   if (typeof rich?.html === "string" && /<tg-emoji/i.test(rich.html)) return true;
   if (
@@ -165,6 +166,9 @@ function isCustomEmojiError(json: TgResult): boolean {
 
 function stripCustomEmoji(body: Record<string, unknown>): Record<string, unknown> {
   const out = { ...body };
+  for (const key of ["entities", "caption_entities"]) {
+    if (Array.isArray(out[key])) out[key] = (out[key] as Array<{ type?: string }>).filter((e) => e.type !== "custom_emoji");
+  }
   const rich = out["rich_message"] as { html?: string } | undefined;
   if (typeof rich?.html === "string") out["rich_message"] = { ...rich, html: rich.html.replace(TG_EMOJI_RE, "$1") };
   for (const k of ["text", "caption"]) {

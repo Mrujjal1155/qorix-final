@@ -2172,6 +2172,10 @@ export type Database = {
         }[]
       }
       cleanup_old_logs: { Args: never; Returns: Json }
+      enqueue_bot_broadcast: {
+        Args: { _event_key: string; _message: Json }
+        Returns: Json
+      }
       enqueue_stock_notification: {
         Args: {
           _added_qty?: number
@@ -2368,6 +2372,10 @@ export type Database = {
       take_manual_stock: {
         Args: { _pid: string; _qty: number }
         Returns: boolean
+      }
+      track_bot_message: {
+        Args: { _message_id: number; _telegram_id: number }
+        Returns: undefined
       }
       update_stock_notification_progress: {
         Args: { _channel_sent?: boolean; _dm_cursor?: number; _id: string }
