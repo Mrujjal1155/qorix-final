@@ -2070,6 +2070,7 @@ export type Database = {
         Args: { _admin_user_id: string; _product_id: string; _quantity: number }
         Returns: Json
       }
+      admin_find_order_ids: { Args: { _code: string }; Returns: string[] }
       apply_supplier_snapshot: {
         Args: {
           _fetched_at: string
