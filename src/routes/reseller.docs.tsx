@@ -343,9 +343,11 @@ curl -H "Authorization: Bearer YOUR_API_KEY" "${base}/orders?limit=50"`}</Code>
           <Section id="balance" title="7. Balance & transactions">
             <Code>{`curl -H "Authorization: Bearer YOUR_API_KEY" ${base}/transactions`}</Code>
             <p>
-              Returns your current balance plus the last 100 ledger entries (top-ups, order debits, refunds). Top-ups are
-              made by contacting us; the balance updates instantly once we confirm the payment. Tip: block checkout on
-              your site when the balance is below your average order value.
+              Returns your current balance plus the last 100 ledger entries (top-ups, order debits, refunds). Deposits
+              made in our Telegram bot are added to your API balance instantly — the bot and the API share one single
+              balance. Note: single orders placed in the bot are also deducted from this same balance, so a lower
+              balance may come from bot purchases. Tip: block checkout on your site when the balance is below your
+              average order value.
             </p>
           </Section>
 
