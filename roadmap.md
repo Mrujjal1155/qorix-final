@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Repair Telegram-admin broadcasts for arbitrary text and Premium emoji, preserving admin authorization and reaching all contactable users; verify input dispatch and paced delivery without sending a real mass broadcast.
+
 - [x] Add per-product customer-alert switches, price/flash fan-out and bot-admin price enqueue, independently of admin/group settings; existing products default ON.
 - [x] Add exact queue aggregates, 50-row pending pages, refresh and individual/all cancellation preserving sent history; waves recheck cancellation. 18 tests pass plus rolled-back SQL rules for all eight notice kinds, all contactable recipients and cancellation; build OK. No real alerts deleted or sent.
 - [ ] Verify signed-in product switch save/readback, pending-list delete and deployed bot delivery; blocked by external unmanaged admin authentication and external deployment. Browser confirms sign-in gate without runtime errors.
