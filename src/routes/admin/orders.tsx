@@ -184,7 +184,6 @@ function OrdersPage() {
   const { data } = useQuery({
     queryKey: ["orders", status, source, serverSearch],
     queryFn: () => fetchOrders({ data: { status, source, search: serverSearch } }),
-    placeholderData: keepPreviousData,
     // Keep the last list on screen while switching filters or refreshing.
     staleTime: 15_000,
     gcTime: 10 * 60_000,
