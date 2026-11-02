@@ -11,7 +11,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
       if (table === "bot_users" && change) Object.assign(user, change);
       return { data: table === "bot_settings" ? [{ key: "admin_telegram_ids", value: "77" }] : table === "bot_users" ? user : [], error: null };
     };
-    const chain: any = { select: () => chain, eq: () => chain, neq: () => chain, gte: () => chain, order: () => chain, range: () => chain, in: () => chain, lt: () => chain, lte: () => chain, limit: () => chain,
+    const chain: any = { select: () => chain, eq: () => chain, neq: () => chain, gte: () => chain, or: () => chain, order: () => chain, range: () => chain, in: () => chain, lt: () => chain, lte: () => chain, limit: () => chain,
       update: (value: any) => { change = value; return chain; }, maybeSingle: async () => result(), then: (resolve: any) => Promise.resolve(result()).then(resolve) };
     return chain;
   }, rpc: async () => ({ data: [], error: null }),

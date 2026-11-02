@@ -1,6 +1,7 @@
 # Roadmap
 
-- [ ] Repair Telegram-admin broadcasts for arbitrary text and Premium emoji, preserving admin authorization and reaching all contactable users; verify input dispatch and paced delivery without sending a real mass broadcast.
+- [x] Repair Telegram-admin broadcasts: persist native text/entities with idempotent source-message identity in the existing all-contactable recipient ledger, bounded shared sender and atomic message tracking; 29 focused/regression tests pass, SQL rollback verifies complete audience/idempotency/state preservation and service-only grants. No real broadcast sent; build OK.
+- [ ] Verify deployed Telegram-admin text/Premium broadcast and native appearance; blocked by external Cloudflare deployment and actual admin Telegram interaction. Mocked callback → submitted text → queue → drain verified; transactional test rows rolled back.
 
 - [x] Add per-product customer-alert switches, price/flash fan-out and bot-admin price enqueue, independently of admin/group settings; existing products default ON.
 - [x] Add exact queue aggregates, 50-row pending pages, refresh and individual/all cancellation preserving sent history; waves recheck cancellation. 18 tests pass plus rolled-back SQL rules for all eight notice kinds, all contactable recipients and cancellation; build OK. No real alerts deleted or sent.
