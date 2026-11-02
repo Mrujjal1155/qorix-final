@@ -62,6 +62,8 @@ import { epsWalletCredit } from "@/lib/eps-payment";
 import { orderTimezone } from "@/lib/order-time";
 import { reservedCheckout } from "@/lib/bot/paid-checkout";
 import { buildHomeMessage, referralCopyButton, referralShareAnchor } from "@/lib/bot/home-message";
+import { buildWalletHistory, historyOwner, historyPage } from "@/lib/bot/wallet-history";
+import { readWalletHistory } from "@/lib/bot/wallet-history.server";
 import { bybitEnabled, bybitTransactionKey } from "@/lib/bybit-payment";
 import { bybitSettings } from "@/lib/bybit.server";
 import { confirmBybitBotDeposit, sweepBybitWebsiteOrders } from "@/lib/bybit-settle.server";
@@ -7318,31 +7320,33 @@ async function handleCallback(cq: any) {
     return;
   }
 
-  if (data.startsWith("hist:")) {
-    const page = Number(data.split(":")[1] || 0);
-    const { data: rows } = await db
-      .from("transactions")
-      .select("*")
-      .eq("telegram_id", chatId)
-      .order("created_at", { ascending: false })
-      .range(page * 10, page * 10 + 9);
+  if (data.startsWith("hist:") || data.startsWith("histpay:")) {
+    const ownerId = historyOwner(cq.message?.chat ?? {}, cq.from?.id);
+    if (ownerId === null) {
+      await answerCallback(cq.id, "Open your wallet in a private chat with the bot.", true);
+      return;
+    }
+    const page = historyPage(data.split(":")[1] ?? "0");
+    if (page === null || page > 200) {
+      await answerCallback(cq.id, "Invalid history page.", true);
+      return;
+    }
+    const tab = data.startsWith("histpay:") ? "payments" : "transactions";
+    const prefix = tab === "payments" ? "histpay" : "hist";
+    const result = await readWalletHistory(db, ownerId, tab, page);
     const hs = await getSettings();
-    const lines =
-      (rows ?? []).length === 0
-        ? "No transactions yet."
-        : (rows ?? [])
-            .map(
-              (t: any) =>
-                `${uiIconHtml(hs, Number(t.amount) >= 0 ? "hist_in" : "hist_out")} ${money(Math.abs(t.amount))} · ${t.type} · ${new Date(t.created_at).toLocaleDateString()}`,
-            )
-            .join("\n");
     const nav: Button[] = [];
-    if (page > 0) nav.push(uiBtn(hs, "hist_prev", `hist:${page - 1}`));
-    if ((rows ?? []).length === 10) nav.push(uiBtn(hs, "hist_next", `hist:${page + 1}`));
-    const kb: Button[][] = [];
+    if (page > 0) nav.push(uiBtn(hs, "hist_prev", `${prefix}:${page - 1}`));
+    if (result.hasNext && page < 200) nav.push(uiBtn(hs, "hist_next", `${prefix}:${page + 1}`));
+    const kb: Button[][] = [[
+      uiBtn(hs, "wal_history", "hist:0"),
+      { text: "💳 Deposits & payments", callback_data: "histpay:0" },
+    ]];
     if (nav.length) kb.push(nav);
+    kb.push([uiBtn(hs, "com_refresh", `${prefix}:${page}`)]);
     kb.push([uiBtn(hs, "hist_wallet", "wallet")]);
-    await edit(`${uiIconHtml(hs, "hist_title")} <b>${escapeHtml(uiText(hs, "hist_title"))}</b>\n\n${lines}`, kb);
+    const title = tab === "payments" ? "💳 DEPOSITS & PAYMENTS" : `${uiIconHtml(hs, "hist_title")} ${escapeHtml(uiText(hs, "hist_title"))}`;
+    await edit(result.error ? "History is temporarily unavailable. Please try Refresh." : buildWalletHistory(result.rows, tab, title, hs["order_timezone"]), kb);
 
     return;
   }
