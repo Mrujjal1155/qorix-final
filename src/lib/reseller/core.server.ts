@@ -363,10 +363,8 @@ export async function purchase(
   const total = Math.round(unit * qty * 100) / 100;
   if (Number(reseller.balance) + 1e-9 < total)
     return { ok: false as const, status: 402, error: "Insufficient balance", balance: Number(reseller.balance), required: total };
-  if (p.delivery_type === "manual" && p.manual_stock_limited) {
-    const { data: took } = await db.rpc("take_manual_stock", { _pid: p.id, _qty: qty });
-    if (took === false) return { ok: false as const, status: 409, error: "Out of stock" };
-  }
+  // Limited manual stock is taken only after the order is recorded and paid
+  // (step 2b below), so a dropped/duplicate/unpaid order never consumes a unit.
 
   // 1) Reserve the order row first. A unique index on (reseller_id, external_ref)
   //    makes duplicate/replayed API calls impossible, even when they race.
@@ -447,6 +445,23 @@ export async function purchase(
   if (debitError) {
     await db.from("orders").delete().eq("id", reserved.id);
     return { ok: false as const, status: 402, error: "Unable to process balance. Please check your balance and try again." };
+  }
+
+  // 2b) Limited manual stock: take the unit now. If none is left (or the
+  //     check fails), refund the debit and void the order — nothing is lost.
+  if (p.delivery_type === "manual" && p.manual_stock_limited) {
+    const { data: took, error: takeError } = await db.rpc("take_manual_stock", { _pid: p.id, _qty: qty });
+    if (takeError || took === false) {
+      await db.rpc("reseller_adjust_balance", {
+        _reseller_id: reseller.id,
+        _amount: total,
+        _type: "refund",
+        _reference: ref,
+        _note: "Refund: out of stock",
+      });
+      await db.from("orders").delete().eq("id", reserved.id);
+      return { ok: false as const, status: 409, error: "Out of stock. Your balance was refunded.", refunded: true };
+    }
   }
 
   // Warn the reseller in Telegram when this order pushed them under their limit.
