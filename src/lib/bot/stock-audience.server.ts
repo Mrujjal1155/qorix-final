@@ -1,4 +1,5 @@
 import { sendAlertMessage } from "@/lib/telegram.server";
+import { sendAdminBroadcast } from "@/lib/bot/admin-broadcast.server";
 
 export const STOCK_AUDIENCE_CONCURRENCY = 6;
 // Six starts per 200 ms targets Telegram's free ceiling of 30 starts/second.
@@ -30,7 +31,9 @@ export async function drainStockAudience(db: any, runtime = {
     await Promise.all(wave.filter((row: any) => allowed.has(`${row.event_id}:${row.telegram_id}`)).map(async (row: any) => {
     let result;
     try {
-      result = await sendAlertMessage(row.telegram_id, row.message.text, row.message.keyboard);
+      result = row.message.kind === "broadcast"
+        ? await sendAdminBroadcast(row.telegram_id, row.message)
+        : await sendAlertMessage(row.telegram_id, row.message.text, row.message.keyboard);
     } catch (error) {
       result = { ok: false, description: error instanceof Error ? error.message : "Send interrupted" };
     }
