@@ -257,6 +257,18 @@ export const UI_ELEMENTS = {
   hist_prev: { icon: "⬅️", label: "Prev", group: "history" },
   hist_next: { icon: "➡️", label: "Next", group: "history" },
   hist_wallet: { icon: "⬅️", label: "Wallet", group: "history" },
+  hist_pay_title: { icon: "💳", label: "DEPOSITS & PAYMENTS", group: "history" },
+  hist_row_in: { icon: "↗", label: "Row · money in", group: "history" },
+  hist_row_out: { icon: "↘", label: "Row · money out", group: "history" },
+  hist_row_pay: { icon: "💳", label: "Row · payment", group: "history" },
+  hist_st_completed: { icon: "✅", label: "Status · Completed", group: "history" },
+  hist_st_pending: { icon: "⏳", label: "Status · Pending", group: "history" },
+  hist_st_processing: { icon: "🔄", label: "Status · Processing", group: "history" },
+  hist_st_failed: { icon: "❌", label: "Status · Failed", group: "history" },
+  hist_st_rejected: { icon: "⛔", label: "Status · Rejected", group: "history" },
+  hist_st_expired: { icon: "⌛", label: "Status · Expired", group: "history" },
+  hist_st_cancelled: { icon: "🚫", label: "Status · Cancelled", group: "history" },
+  hist_st_refunded: { icon: "↩️", label: "Status · Refunded", group: "history" },
 } as const satisfies Record<string, UiEntry>;
 
 

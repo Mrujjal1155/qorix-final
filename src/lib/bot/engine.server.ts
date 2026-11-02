@@ -7345,8 +7345,11 @@ async function handleCallback(cq: any) {
     if (nav.length) kb.push(nav);
     kb.push([uiBtn(hs, "com_refresh", `${prefix}:${page}`)]);
     kb.push([uiBtn(hs, "hist_wallet", "wallet")]);
-    const title = tab === "payments" ? "💳 DEPOSITS & PAYMENTS" : `${uiIconHtml(hs, "hist_title")} ${escapeHtml(uiText(hs, "hist_title"))}`;
-    await edit(result.error ? "History is temporarily unavailable. Please try Refresh." : buildWalletHistory(result.rows, tab, title, hs["order_timezone"]), kb);
+    const titleKey = tab === "payments" ? "hist_pay_title" : "hist_title";
+    const title = `${uiIconHtml(hs, titleKey)} ${escapeHtml(uiText(hs, titleKey))}`;
+    const hi = (k: Parameters<typeof uiIconHtml>[1]) => uiIconHtml(hs, k);
+    const icons = { in: hi("hist_row_in"), out: hi("hist_row_out"), pay: hi("hist_row_pay"), completed: hi("hist_st_completed"), pending: hi("hist_st_pending"), processing: hi("hist_st_processing"), failed: hi("hist_st_failed"), rejected: hi("hist_st_rejected"), expired: hi("hist_st_expired"), cancelled: hi("hist_st_cancelled"), refunded: hi("hist_st_refunded") };
+    await edit(result.error ? "History is temporarily unavailable. Please try Refresh." : buildWalletHistory(result.rows, tab, title, hs["order_timezone"], icons), kb);
 
     return;
   }

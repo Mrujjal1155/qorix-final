@@ -19,6 +19,16 @@ export function historyOwner(chat: { id?: number; type?: string }, senderId?: nu
     ? Number(senderId) : null;
 }
 
+export type HistoryIcons = Partial<Record<"in" | "out" | "pay" | "completed" | "pending" | "processing" | "failed" | "rejected" | "expired" | "cancelled" | "refunded", string>>;
+
+/** Status label with an optional admin-set icon (pre-escaped HTML). */
+export function historyStatusHtml(status: string, icons: HistoryIcons = {}): string {
+  const base = historyStatus(status);
+  const word = base.slice(base.indexOf(" ") + 1);
+  const key = word.toLowerCase() as keyof HistoryIcons;
+  return icons[key] ? `${icons[key]} ${word}` : base;
+}
+
 export function historyStatus(status: string): string {
   switch (status.toLowerCase()) {
     case "completed": case "credited": case "approved": case "paid": return "✅ Completed";
@@ -50,7 +60,7 @@ const esc = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;"
 const row = (label: string, value: string) => `<tr><td>${label}</td><td align="right">${value}</td></tr>`;
 
 /** Display-only: a payment attempt never becomes a wallet-ledger entry. */
-export function buildWalletHistory(rows: HistoryRow[], tab: HistoryTab, heading: string, timezone?: string): string {
+export function buildWalletHistory(rows: HistoryRow[], tab: HistoryTab, heading: string, timezone?: string, icons: HistoryIcons = {}): string {
   const dates = new Intl.DateTimeFormat("en-GB", { timeZone: orderTimezone(timezone), day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
   const kinds: Record<string, string> = { deposit: "Deposit", purchase: "Purchase", admin: "Admin adjustment", referral: "Referral", refund: "Refund", redeem: "Redeem", preorder: "Pre-order" };
   const body = rows.slice(0, HISTORY_PAGE_SIZE).map((entry) => {
@@ -58,9 +68,9 @@ export function buildWalletHistory(rows: HistoryRow[], tab: HistoryTab, heading:
     const date = new Date(entry.created_at);
     const label = tab === "payments" ? (entry.checkout ? "Checkout payment" : "Wallet deposit") : (kinds[entry.type ?? ""] ?? "Transaction");
     const amountLabel = Number.isFinite(amount) ? `${tab === "transactions" ? (amount < 0 ? "−" : "+") : ""}$${Math.abs(amount).toFixed(2)}` : "—";
-    return row(`<b>${tab === "transactions" ? (amount < 0 ? "↘" : "↗") : "💳"} ${label}</b>`, `<b>${amountLabel}</b>`) +
+    return row(`<b>${tab === "transactions" ? (amount < 0 ? (icons.out ?? "↘") : (icons.in ?? "↗")) : (icons.pay ?? "💳")} ${label}</b>`, `<b>${amountLabel}</b>`) +
       row("Method", esc(historyMethod(entry.kind ?? entry.method, entry.network))) +
-      row("Status", historyStatus(entry.status)) +
+      row("Status", historyStatusHtml(entry.status, icons)) +
       row("Date", Number.isFinite(date.getTime()) ? esc(dates.format(date)) : "—");
   }).join("");
   return `<h3>${heading}</h3>` + (body ? `<table bordered striped compact>${body}</table>` : `<p>${tab === "payments" ? "No payment attempts yet." : "No transactions yet."}</p>`);
