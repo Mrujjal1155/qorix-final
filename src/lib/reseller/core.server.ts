@@ -363,10 +363,8 @@ export async function purchase(
   const total = Math.round(unit * qty * 100) / 100;
   if (Number(reseller.balance) + 1e-9 < total)
     return { ok: false as const, status: 402, error: "Insufficient balance", balance: Number(reseller.balance), required: total };
-  if (p.delivery_type === "manual" && p.manual_stock_limited) {
-    const { data: took } = await db.rpc("take_manual_stock", { _pid: p.id, _qty: qty });
-    if (took === false) return { ok: false as const, status: 409, error: "Out of stock" };
-  }
+  // Limited manual stock is taken only after the order is recorded and paid
+  // (step 2b below), so a dropped/duplicate/unpaid order never consumes a unit.
 
   // 1) Reserve the order row first. A unique index on (reseller_id, external_ref)
   //    makes duplicate/replayed API calls impossible, even when they race.
