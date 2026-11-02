@@ -176,9 +176,14 @@ function OrdersPage() {
     }
   };
 
+  const [serverSearch, setServerSearch] = useState("");
+  useEffect(() => {
+    const t = setTimeout(() => setServerSearch(search.trim()), 400);
+    return () => clearTimeout(t);
+  }, [search]);
   const { data } = useQuery({
-    queryKey: ["orders", status, source],
-    queryFn: () => fetchOrders({ data: { status, source } }),
+    queryKey: ["orders", status, source, serverSearch],
+    queryFn: () => fetchOrders({ data: { status, source, search: serverSearch } }),
     // Keep the last list on screen while switching filters or refreshing.
     staleTime: 15_000,
     gcTime: 10 * 60_000,

@@ -863,7 +863,11 @@ export const completeManualOrder = createServerFn({ method: "POST" })
 
 export const listOrders = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { status?: string; source?: string }) => d ?? {})
+  .inputValidator((d: { status?: string; source?: string; search?: string }) => ({
+    status: d?.status,
+    source: d?.source,
+    search: typeof d?.search === "string" ? d.search.slice(0, 40) : undefined,
+  }))
   .handler(async ({ data, context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
@@ -909,7 +913,26 @@ export const listOrders = createServerFn({ method: "GET" })
     if (data?.source && data.source !== "all") q = q.eq("source", data.source);
     const { data: rows, error } = await q;
     if (error) throw new Error(error.message);
-    const orders = rows ?? [];
+    const orders: any[] = rows ?? [];
+    // Search beyond the latest 200: bot order number (#2880) or order code (ORD-B14849C1).
+    const term = String(data?.search ?? "").trim().replace(/^#/, "").replace(/^ORD-/i, "");
+    if (term) {
+      const extraIds = new Set<string>();
+      if (/^\d{1,12}$/.test(term)) {
+        const { data: byNo } = await sb.from("orders").select("id").eq("order_no", Number(term)).limit(5);
+        for (const r of (byNo ?? []) as any[]) extraIds.add(r.id);
+      }
+      if (/^[0-9a-f-]{4,36}$/i.test(term)) {
+        const { data: byCode } = await sb.rpc("admin_find_order_ids", { _code: term });
+        for (const r of (byCode ?? []) as any[]) extraIds.add(typeof r === "string" ? r : r.admin_find_order_ids ?? r.id);
+      }
+      const have = new Set(orders.map((o: any) => o.id));
+      const missing = [...extraIds].filter((id) => id && !have.has(id));
+      if (missing.length) {
+        const { data: more } = await sb.from("orders").select("*").in("id", missing);
+        orders.unshift(...((more ?? []) as any[]));
+      }
+    }
     if (!orders.length) return orders;
 
     const tgIds = [...new Set(orders.map((o: any) => o.telegram_id).filter((t: any) => Number.isFinite(Number(t))))];
