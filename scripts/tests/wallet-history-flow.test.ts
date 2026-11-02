@@ -13,7 +13,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
     const result = () => ({ data: table === "bot_users" ? user : table === "transactions" ? ledger.slice(start, end) : table === "binance_deposits" && historyRead ? [{ id: "p1", amount_usdt: 10, kind: "bybit", status: "pending", created_at: "2026-11-02T09:00:00Z", checkout_item: null }] : [], error: null });
     const chain: any = {
       select: (fields: string) => { historyRead = fields.includes("checkout_item:"); return chain; }, eq: (key: string, value: number) => { if (key === "telegram_id") read.owner = value; return chain; },
-      neq: () => chain, gte: () => chain, gt: () => chain, lt: () => chain, in: () => chain, not: () => chain,
+      neq: () => chain, gte: () => chain, gt: () => chain, lt: () => chain, in: () => chain, not: () => chain, or: () => chain,
       order: () => chain, insert: () => chain, update: () => chain,
       range: (a: number, b: number) => { start = a; end = b + 1; return chain; }, limit: (n: number) => { end = n; return chain; },
       maybeSingle: async () => result(), single: async () => result(), then: (resolve: any) => Promise.resolve(result()).then(resolve),
