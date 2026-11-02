@@ -60,6 +60,7 @@ import { enqueueAdminBroadcast } from "@/lib/bot/admin-broadcast.server";
 import { binancePaymentAmount, exactBinanceAmount } from "@/lib/binance-payment";
 import { epsWalletCredit } from "@/lib/eps-payment";
 import { orderTimezone } from "@/lib/order-time";
+import { formatDepositTable, mergeDepositRows } from "@/lib/bot/deposit-history";
 import { reservedCheckout } from "@/lib/bot/paid-checkout";
 import { buildHomeMessage, referralCopyButton, referralShareAnchor } from "@/lib/bot/home-message";
 import { bybitEnabled, bybitTransactionKey } from "@/lib/bybit-payment";
@@ -2275,6 +2276,7 @@ async function walletView(user: any) {
   }
   kb.push([wBtn(uiBtn(s, "wal_redeem", "redeem"))]);
   kb.push([wBtn(uiBtn(s, "wal_history", "hist:0"))]);
+  kb.push([wBtn(uiBtn(s, "wal_deposits", "dtx:0"))]);
   kb.push([uiBtn(s, "wal_home", "home")]);
   return { text, kb };
 }
@@ -7344,6 +7346,39 @@ async function handleCallback(cq: any) {
     kb.push([uiBtn(hs, "hist_wallet", "wallet")]);
     await edit(`${uiIconHtml(hs, "hist_title")} <b>${escapeHtml(uiText(hs, "hist_title"))}</b>\n\n${lines}`, kb);
 
+    return;
+  }
+
+  if (data.startsWith("dtx:")) {
+    const page = Number(data.split(":")[1] || 0);
+    const hs = await getSettings();
+    const [{ data: auto }, { data: manual }] = await Promise.all([
+      db
+        .from("binance_deposits")
+        .select("kind,amount_usdt,status,created_at")
+        .eq("telegram_id", chatId)
+        .order("created_at", { ascending: false })
+        .limit(60),
+      db
+        .from("payment_requests")
+        .select("method,amount,status,created_at")
+        .eq("telegram_id", chatId)
+        .order("created_at", { ascending: false })
+        .limit(60),
+    ]);
+    const rows = mergeDepositRows(auto ?? [], manual ?? []);
+    const slice = rows.slice(page * 10, page * 10 + 10);
+    const body =
+      slice.length === 0
+        ? "<i>No deposits yet. Choose a payment method on the wallet page to add funds.</i>"
+        : `<pre>${formatDepositTable(slice, orderTimezone(hs["order_timezone"]))}</pre>`;
+    const nav: Button[] = [];
+    if (page > 0) nav.push(uiBtn(hs, "dtx_prev", `dtx:${page - 1}`));
+    if (rows.length > page * 10 + 10) nav.push(uiBtn(hs, "dtx_next", `dtx:${page + 1}`));
+    const kb: Button[][] = [];
+    if (nav.length) kb.push(nav);
+    kb.push([uiBtn(hs, "dtx_wallet", "wallet")]);
+    await edit(`${uiIconHtml(hs, "dtx_title")} <b>${escapeHtml(uiText(hs, "dtx_title"))}</b>\n\n${body}`, kb);
     return;
   }
 
