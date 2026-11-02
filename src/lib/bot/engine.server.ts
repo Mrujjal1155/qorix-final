@@ -8125,18 +8125,18 @@ async function apiPanelView(user: any) {
     `──────────────\n` +
     `${apiIcon(s, "account")} <i>Account</i>   <b>${escapeHtml(r.name)}</b> <code>#${r.account_no ?? "—"}</code>\n` +
     `${apiIcon(s, "status")} <i>Status</i>   <b>${r.is_active ? "Active" : "Revoked"}</b>\n` +
-    `${apiIcon(s, "balance")} <i>API Balance</i>   <b>${money(r.balance)}</b>\n` +
+    `${apiIcon(s, "balance")} <i>Balance</i>   <b>${money(r.balance)}</b> <i>(same as bot wallet)</i>\n` +
     `${apiIcon(s, "discount")} <i>Discount</i>   ${Number(r.discount_percent ?? 0) > 0 ? `<b>${Number(r.discount_percent)}%</b> off retail` : "custom pricing"}\n` +
     `${apiIcon(s, "orders")} <i>API Orders</i>   <b>${orderCount ?? 0}</b> (${money(spent)} total)\n` +
     `${apiIcon(s, "key")} <i>API Key</i>   <code>${escapeHtml(maskKey(r.api_key))}</code>\n` +
     `${apiIcon(s, "alert")} <i>Low-Bal Alert</i>   ${alert > 0 ? `<b>${money(alert)}</b>` : "off"}\n` +
     `──────────────\n` +
-    `<i>Move funds from your bot wallet (${money(user.balance)}) to your API balance below.</i>`;
+    `<i>One balance for everything: bot orders and API orders use the same wallet. Top up from Wallet.</i>`;
 
   const apiStyle = btnColor(s, "api");
   const aBtn = (b: Button) => styled(b, apiStyle);
   const kb: Button[][] = [
-    [aBtn(apiBtn(s, "topup", "Top Up API Balance", "api:topup"))],
+    [aBtn(apiBtn(s, "topup", "Top Up Balance", "wallet"))],
     [aBtn(apiBtn(s, "prices", "My Prices", "api:prices")), aBtn(apiBtn(s, "orders", "API Orders", "api:orders"))],
     [aBtn({ text: "📖 API Docs", url: `${siteUrl(s)}/reseller/docs` })],
     [aBtn(apiBtn(s, "regen", "Regenerate Key", "api:regen")), aBtn(apiBtn(s, "revoke", r.is_active ? "Revoke Key" : "Re-activate Key", "api:revoke"))],
@@ -8174,6 +8174,8 @@ async function createBotReseller(user: any) {
 
 /** Move money from the bot wallet into the reseller API balance. */
 async function apiTopupFromWallet(user: any, usd: number) {
+  // Bot wallet and API balance are one balance now; transfers are no longer needed.
+  if (Number.isFinite(usd)) return { error: "ℹ️ Your bot wallet and API balance are now the same balance — no transfer needed." };
   const amount = Math.round(Number(usd) * 100) / 100;
   if (!(amount > 0)) return { error: "Enter a valid amount, e.g. 5" };
   const r = await resellerForTelegram(Number(user.telegram_id));
@@ -8275,7 +8277,7 @@ export async function checkResellerLowBalance(resellerId: string) {
   await sendMessage(
     Number(r.telegram_id),
     `${apiIcon(s, "alert")} <b>Low API balance</b>\n\nYour API balance is <b>${money(r.balance)}</b> — below your ${money(limit)} alert.\nTop up to keep orders flowing.`,
-    [[apiBtn(s, "topup", "Top Up API Balance", "api:topup")]],
+    [[apiBtn(s, "topup", "Top Up Balance", "wallet")]],
   );
 }
 
@@ -8335,10 +8337,9 @@ export async function handleApiCallback(
       await edit("Open your API account first.", back);
       return true;
     }
-    await setState(chatId, { ...(user.state ?? {}), awaiting: "api_topup" });
     await edit(
-      `${apiIcon(s, "topup")} <b>Top up API balance</b>\n\nBot wallet: <b>${money(user.balance)}</b>\nAPI balance: <b>${money(r.balance)}</b>\n\nReply with the amount in USD to move, e.g. <code>5</code>.`,
-      back,
+      `${apiIcon(s, "topup")} <b>One balance</b>\n\nYour bot wallet and API balance are the same: <b>${money(r.balance)}</b>.\nTop up from Wallet — it works for both bot and API orders.`,
+      [[{ text: "💳 Wallet", callback_data: "wallet" }], ...back],
     );
     return true;
   }
