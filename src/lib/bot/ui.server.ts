@@ -111,6 +111,7 @@ export const UI_ELEMENTS = {
 
   wal_redeem: { icon: "🎟", label: "Redeem Code", group: "wallet" },
   wal_history: { icon: "🧾", label: "Transaction History", group: "wallet" },
+  wal_deposits: { icon: "💳", label: "Recent Deposits", group: "wallet" },
   wal_home: { icon: "🏠", label: "Home", group: "wallet" },
 
   /* ---- orders page ---- */
@@ -257,6 +258,12 @@ export const UI_ELEMENTS = {
   hist_prev: { icon: "⬅️", label: "Prev", group: "history" },
   hist_next: { icon: "➡️", label: "Next", group: "history" },
   hist_wallet: { icon: "⬅️", label: "Wallet", group: "history" },
+
+  /* ---- recent deposits ---- */
+  dtx_title: { icon: "💳", label: "R E C E N T   D E P O S I T S", group: "history" },
+  dtx_prev: { icon: "⬅️", label: "Prev", group: "history" },
+  dtx_next: { icon: "➡️", label: "Next", group: "history" },
+  dtx_wallet: { icon: "⬅️", label: "Wallet", group: "history" },
 } as const satisfies Record<string, UiEntry>;
 
 

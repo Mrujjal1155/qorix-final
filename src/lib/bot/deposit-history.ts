@@ -129,9 +129,3 @@ export function formatDepositTable(rows: UnifiedDeposit[], timeZone: string): st
   });
   return escapePre([header, divider, ...lines].join("\n"));
 }
-
-/** Per-line status icon shown before each table row is not possible inside
- * one <pre>; instead we append a compact legend under the table. */
-export function depositTableLegend(): string {
-  return "✅ Complete · ⏳ Pending · ❌ Failed · ⌛ Expired";
-}
