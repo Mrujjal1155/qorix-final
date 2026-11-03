@@ -148,14 +148,24 @@ export const retryStockAlert = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+// The queue RPCs are service-role-only in the database. The caller is verified
+// as admin first through their own session, then the privileged client runs them.
+async function serviceRpc(name: string, args: Record<string, unknown>) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return (supabaseAdmin as any).rpc(name, args);
+}
+
 /** Live size of the waiting notice queue (admin only). */
 export const getAlertQueue = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => alertQueuePageSchema.parse(data))
   .handler(async ({ context, data }) => {
     await assertAdmin(context);
-    const result = await (context as any).supabase.rpc("admin_alert_queue", { _offset: data.offset });
-    if (result.error) throw new Error("Could not load waiting alerts");
+    const result = await serviceRpc("admin_alert_queue", { _offset: data.offset });
+    if (result.error) {
+      console.error("admin_alert_queue failed", result.error.message);
+      throw new Error("Could not load waiting alerts");
+    }
     return result.data as unknown as { pendingRecipients: number; pendingEvents: number; byKind: Record<string, number>; checkedAt: string; totalItems: number; items: { id: string; product_name: string; kind: string; source: string; status: string; created_at: string; last_error: string | null; old_price: number | null; new_price: number | null; waiting: number; sent: number }[] };
   });
 
@@ -164,8 +174,11 @@ export const deleteAllPendingAlerts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context);
-    const result = await (context as any).supabase.rpc("admin_cancel_pending_alerts");
-    if (result.error) throw new Error("Could not cancel waiting alerts");
+    const result = await serviceRpc("admin_cancel_pending_alerts", {});
+    if (result.error) {
+      console.error("admin_cancel_pending_alerts failed", result.error.message);
+      throw new Error("Could not cancel waiting alerts");
+    }
     return result.data as unknown as { recipients: number; events: number };
   });
 
@@ -174,7 +187,10 @@ export const deletePendingAlert = createServerFn({ method: "POST" })
   .inputValidator((data) => cancelAlertSchema.parse(data))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const result = await (context as any).supabase.rpc("admin_cancel_pending_alerts", { _event_id: data.id });
-    if (result.error) throw new Error("Could not cancel waiting alert");
+    const result = await serviceRpc("admin_cancel_pending_alerts", { _event_id: data.id });
+    if (result.error) {
+      console.error("admin_cancel_pending_alerts failed", result.error.message);
+      throw new Error("Could not cancel waiting alert");
+    }
     return result.data as unknown as { recipients: number; events: number };
   });
