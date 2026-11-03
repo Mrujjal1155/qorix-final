@@ -82,10 +82,12 @@ function QueuePanel() {
   const [offset, setOffset] = useState(0);
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
-  const { data, isFetching, refetch } = useQuery({
+  const { data, isFetching, refetch, error } = useQuery({
     queryKey: ["alert-queue", offset],
     queryFn: () => fetchQueue({ data: { offset } }),
-    refetchInterval: 5000,
+    refetchInterval: (q) => (q.state.status === "error" ? 30000 : 5000),
+    retry: 1,
+    placeholderData: (prev) => prev,
   });
   const minutes = data ? minQueueMinutes(data.pendingRecipients, data.pendingEvents) : 0;
   const total = (data?.pendingRecipients ?? 0) + (data?.pendingEvents ?? 0);
@@ -108,6 +110,11 @@ function QueuePanel() {
   return (
     <AdminPanel title="Live waiting queue">
       <div className="space-y-4">
+        {error && (
+          <p role="alert" className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+            {error instanceof Error ? error.message : "Could not load waiting alerts"} — press Refresh to try again.
+          </p>
+        )}
         <div className="grid gap-4 sm:grid-cols-3">
           <Stat label="Customer notices waiting" value={String(data?.pendingRecipients ?? "…")} hint="Stock add / stock out / broadcast messages to bot users" />
           <Stat label="Alerts waiting" value={String(data?.pendingEvents ?? "…")} hint={data ? Object.entries(data.byKind).map(([k, v]) => `${k}: ${v}`).join(" · ") || "None" : undefined} />
@@ -179,10 +186,11 @@ function AlertsPage() {
   const fetchStats = useServerFn(getStockAlertStats);
   const retry = useServerFn(retryStockAlert);
   const qc = useQueryClient();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["stock-alert-stats", days],
     queryFn: () => fetchStats({ data: { days } }),
     refetchInterval: 60000,
+    retry: 1,
   });
 
   const maxDay = Math.max(1, ...(data?.trend ?? []).map((t: any) => t.total));
@@ -215,6 +223,11 @@ function AlertsPage() {
         </div>
 
         {isLoading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {error && !data && (
+          <p role="alert" className="text-sm text-destructive">
+            {error instanceof Error ? error.message : "Could not load alert health"}
+          </p>
+        )}
 
         {data && (
           <>
