@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS stock_recipients_event_status_idx ON public.stock_notification_recipients (event_id, status);
