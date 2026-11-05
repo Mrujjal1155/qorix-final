@@ -30,6 +30,7 @@ import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
 import { Route as AdminBinanceRouteImport } from './routes/admin/binance'
 import { Route as AdminBulkRouteImport } from './routes/admin/bulk'
 import { Route as AdminCodesRouteImport } from './routes/admin/codes'
+import { Route as AdminGatewayPaymentsRouteImport } from './routes/admin/gateway-payments'
 import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 import { Route as AdminPaymentsRouteImport } from './routes/admin/payments'
 import { Route as AdminProductsRouteImport } from './routes/admin/products'
@@ -176,6 +177,11 @@ const AdminBulkRoute = AdminBulkRouteImport.update({
 const AdminCodesRoute = AdminCodesRouteImport.update({
   id: '/codes',
   path: '/codes',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminGatewayPaymentsRoute = AdminGatewayPaymentsRouteImport.update({
+  id: '/gateway-payments',
+  path: '/gateway-payments',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminOrdersRoute = AdminOrdersRouteImport.update({
@@ -430,6 +436,7 @@ export interface FileRoutesByFullPath {
   '/admin/binance': typeof AdminBinanceRoute
   '/admin/bulk': typeof AdminBulkRoute
   '/admin/codes': typeof AdminCodesRoute
+  '/admin/gateway-payments': typeof AdminGatewayPaymentsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/products': typeof AdminProductsRoute
@@ -494,6 +501,7 @@ export interface FileRoutesByTo {
   '/admin/binance': typeof AdminBinanceRoute
   '/admin/bulk': typeof AdminBulkRoute
   '/admin/codes': typeof AdminCodesRoute
+  '/admin/gateway-payments': typeof AdminGatewayPaymentsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/products': typeof AdminProductsRoute
@@ -561,6 +569,7 @@ export interface FileRoutesById {
   '/admin/binance': typeof AdminBinanceRoute
   '/admin/bulk': typeof AdminBulkRoute
   '/admin/codes': typeof AdminCodesRoute
+  '/admin/gateway-payments': typeof AdminGatewayPaymentsRoute
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/products': typeof AdminProductsRoute
@@ -628,6 +637,7 @@ export interface FileRouteTypes {
     | '/admin/binance'
     | '/admin/bulk'
     | '/admin/codes'
+    | '/admin/gateway-payments'
     | '/admin/orders'
     | '/admin/payments'
     | '/admin/products'
@@ -692,6 +702,7 @@ export interface FileRouteTypes {
     | '/admin/binance'
     | '/admin/bulk'
     | '/admin/codes'
+    | '/admin/gateway-payments'
     | '/admin/orders'
     | '/admin/payments'
     | '/admin/products'
@@ -758,6 +769,7 @@ export interface FileRouteTypes {
     | '/admin/binance'
     | '/admin/bulk'
     | '/admin/codes'
+    | '/admin/gateway-payments'
     | '/admin/orders'
     | '/admin/payments'
     | '/admin/products'
@@ -993,6 +1005,13 @@ declare module '@tanstack/react-router' {
       path: '/codes'
       fullPath: '/admin/codes'
       preLoaderRoute: typeof AdminCodesRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/gateway-payments': {
+      id: '/admin/gateway-payments'
+      path: '/gateway-payments'
+      fullPath: '/admin/gateway-payments'
+      preLoaderRoute: typeof AdminGatewayPaymentsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/orders': {
@@ -1324,6 +1343,7 @@ interface AdminRouteRouteChildren {
   AdminBinanceRoute: typeof AdminBinanceRoute
   AdminBulkRoute: typeof AdminBulkRoute
   AdminCodesRoute: typeof AdminCodesRoute
+  AdminGatewayPaymentsRoute: typeof AdminGatewayPaymentsRoute
   AdminOrdersRoute: typeof AdminOrdersRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminProductsRoute: typeof AdminProductsRoute
@@ -1345,6 +1365,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminBinanceRoute: AdminBinanceRoute,
   AdminBulkRoute: AdminBulkRoute,
   AdminCodesRoute: AdminCodesRoute,
+  AdminGatewayPaymentsRoute: AdminGatewayPaymentsRoute,
   AdminOrdersRoute: AdminOrdersRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,
   AdminProductsRoute: AdminProductsRoute,
