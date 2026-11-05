@@ -324,7 +324,9 @@ async function richTableMessage(
   html: string,
   keyboard?: Button[][],
   extra: Record<string, unknown> = {},
+  alert = false,
 ): Promise<TgResult> {
+  const opts = { alert };
   const base = {
     chat_id,
     ...(message_id === undefined ? {} : { message_id }),
@@ -343,6 +345,7 @@ async function richTableMessage(
 
 /** Bounded, text-only sender for durable alerts; other bot messages keep their usual timeout. */
 export function sendAlertMessage(chat_id: number | string, text: string, keyboard?: Button[][]) {
+  if (/<table\b/i.test(text)) return richTableMessage("sendRichMessage", chat_id, undefined, text, keyboard, {}, true);
   return tg("sendMessage", {
     chat_id, text, parse_mode: "HTML", disable_web_page_preview: true,
     ...(keyboard ? { reply_markup: { inline_keyboard: withDefaultStyle(keyboard) } } : {}),

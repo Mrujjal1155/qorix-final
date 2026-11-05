@@ -68,21 +68,22 @@ export function buildLivePost(
     const id = String(emojiIds[slot] ?? "").trim();
     return /^\d{5,25}$/.test(id) ? `<tg-emoji emoji-id="${id}">${glyph}</tg-emoji>` : glyph;
   };
-  const lines: string[] = [];
+  // Native Telegram rich table (same style as stock notices); the sender
+  // falls back to "Label: value" lines if Telegram rejects the table format.
+  const rows: Array<[string, string]> = [];
   const title = kind === "purchase" ? "New Purchase!" : kind === "topup" ? "Wallet Top-up!" : "New Member Joined!";
-  lines.push(`${kind === "member" ? e("member") : e("title")} <b>${title}</b>`, "");
-  lines.push(`${e("id")} ID: ${maskId(p.uid)}`);
-  lines.push(`${e("customer")} Customer: ${maskName(p.name)}`);
+  rows.push([`${e("id")} ID`, maskId(p.uid)]);
+  rows.push([`${e("customer")} Customer`, maskName(p.name)]);
   if (kind === "purchase") {
-    lines.push(`${e("product")} Product: <b>${escapeHtml(String(p.product ?? ""))}</b>`);
-    lines.push(`${e("qty")} Quantity: <b>${Math.max(1, Number(p.qty ?? 1))}</b>`);
+    rows.push([`${e("product")} Product`, `<b>${escapeHtml(String(p.product ?? ""))}</b>`]);
+    rows.push([`${e("qty")} Quantity`, `<b>${Math.max(1, Number(p.qty ?? 1))}</b>`]);
   }
-  lines.push(`${e("time")} Time: ${formatLiveTime(when)}`);
-  if (kind !== "member") lines.push(`${e("paid")} Paid: ${paymentLabel(p.method)}`);
-  lines.push(
-    `${e("ok")} ${kind === "purchase" ? "Successfully delivered" : kind === "topup" ? "Wallet credited" : `Welcome via ${p.source === "website" ? "Website" : "Bot"}`}`,
-  );
-  return lines.join("\n");
+  rows.push([`${e("time")} Time`, formatLiveTime(when)]);
+  if (kind !== "member") rows.push([`${e("paid")} Paid`, paymentLabel(p.method)]);
+  const okText = kind === "purchase" ? "Successfully delivered" : kind === "topup" ? "Wallet credited" : `Welcome via ${p.source === "website" ? "Website" : "Bot"}`;
+  return `<h3>${kind === "member" ? e("member") : e("title")} ${title}</h3>` +
+    `<table bordered striped compact>${rows.map(([l, v]) => `<tr><td>${l}</td><td align="right">${v}</td></tr>`).join("")}</table>` +
+    `<p>${e("ok")} ${okText}</p>`;
 }
 
 /** Minimal inline button shape shared with the Telegram keyboard type. */
