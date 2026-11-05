@@ -12,6 +12,7 @@ export type UiEntry = { icon: string; label: string; group: string };
 export const UI_ELEMENTS = {
   /* ---- shop page ---- */
   shop_flash: { icon: "🎁", label: "Flash Deals", group: "shop" },
+  shop_vault: { icon: "🔐", label: "Reseller Vault", group: "shop" },
   shop_prev: { icon: "⬅️", label: "Prev", group: "shop" },
   shop_next: { icon: "➡️", label: "Next", group: "shop" },
   shop_categories: { icon: "🗂", label: "Categories", group: "shop" },
