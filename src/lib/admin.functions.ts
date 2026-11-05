@@ -2439,11 +2439,11 @@ export const listBinanceTransactions = createServerFn({ method: "GET" })
     return value;
   });
 
-/** Bybit / EPS payments recorded by the shop: bot deposits/checkouts + website orders. Read-only. */
+/** Bybit / EPS / OxaPay payments recorded by the shop: bot deposits/checkouts + website orders. Read-only. */
 export const listGatewayPayments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { gateway: "bybit" | "eps"; days?: number }) => ({
-    gateway: d?.gateway === "eps" ? ("eps" as const) : ("bybit" as const),
+  .inputValidator((d: { gateway: "bybit" | "eps" | "oxapay"; days?: number }) => ({
+    gateway: d?.gateway === "eps" ? ("eps" as const) : d?.gateway === "oxapay" ? ("oxapay" as const) : ("bybit" as const),
     days: Math.min(90, Math.max(1, Number(d?.days ?? 7) || 7)),
   }))
   .handler(async ({ data, context }) => {
@@ -2455,7 +2455,7 @@ export const listGatewayPayments = createServerFn({ method: "GET" })
       sb.from("binance_deposits").select("id,telegram_id,kind,network,amount_usdt,status,tx_id,created_at,meta")
         .eq("kind", data.gateway).gte("created_at", since).order("created_at", { ascending: false }).limit(1000),
       sb.from("orders").select("id,order_no,source,customer_email,customer_name,telegram_id,product_name,quantity,total,status,txid,payment_method,created_at")
-        .ilike("payment_method", data.gateway === "eps" ? "eps%" : "bybit%").neq("source", "telegram")
+        .ilike("payment_method", data.gateway === "eps" ? "eps%" : data.gateway === "oxapay" ? "oxapay%" : "bybit%").neq("source", "telegram")
         .gte("created_at", since).order("created_at", { ascending: false }).limit(1000),
     ]);
     if (dep.error || ord.error) return { ok: false as const, error: "Could not load payments." };
@@ -2471,7 +2471,7 @@ export const listGatewayPayments = createServerFn({ method: "GET" })
         key: `o-${o.id}`, source: o.source === "reseller" ? "Reseller" : "Website", ref: `#${o.order_no ?? o.id}`,
         who: o.customer_email || o.customer_name || "—",
         what: `${o.product_name ?? "Order"} ×${o.quantity ?? 1}`,
-        method: String(o.payment_method).replace(/^eps_?/, "").toUpperCase() || null,
+        method: String(o.payment_method).replace(/^(eps|oxapay)_?/, "").toUpperCase() || null,
         amount: Number(o.total ?? 0), status: String(o.status), tx: o.txid ?? null, time: o.created_at,
       })),
     ].sort((a, b) => String(b.time).localeCompare(String(a.time)));
