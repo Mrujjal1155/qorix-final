@@ -1,5 +1,9 @@
 /** Legacy admin picks remain stored separately from website featured ranks. */
 export const TELEGRAM_TOP_PRODUCTS_KEY = "telegram_top_product_ids";
+/** Admin-picked "Reseller Vault" list; array order is the bot order. */
+export const TELEGRAM_VAULT_PRODUCTS_KEY = "telegram_vault_product_ids";
+export type ProductListKind = "top" | "vault";
+export const productListKey = (kind: ProductListKind) => (kind === "vault" ? TELEGRAM_VAULT_PRODUCTS_KEY : TELEGRAM_TOP_PRODUCTS_KEY);
 
 export function parseTopProductIds(value: string | null | undefined): string[] {
   try {

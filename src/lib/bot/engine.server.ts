@@ -41,7 +41,7 @@ import {
 } from "@/lib/bot/ui.server";
 
 import { renderRich, plainRich, messageToRich } from "@/lib/bot/richtext";
-import { telegramFavoritesPage, TELEGRAM_TOP_PRODUCTS_KEY, parseTopProductIds, selectTopProducts } from "@/lib/telegram-top-products";
+import { telegramFavoritesPage, TELEGRAM_TOP_PRODUCTS_KEY, TELEGRAM_VAULT_PRODUCTS_KEY, parseTopProductIds, selectTopProducts } from "@/lib/telegram-top-products";
 import { TELEGRAM_TOP_CATEGORIES_KEY, chunk, paginateRows, pickTopCategories } from "@/lib/bot/shop-layout";
 import { availableCatalogue, categoryCatalogue, isOutOfStock, stockRowStyle, telegramCategories } from "@/lib/bot/catalogue";
 import {
@@ -1735,6 +1735,10 @@ async function shopView(page: number, chatId?: number) {
     const navStyle = btnColor(settings, "nav");
     if (flash.length)
       kb.push([styled(uiBtn(settings, "shop_flash", "flash", `(${flash.length})`), btnColor(settings, "flash"))]);
+    // Admin-picked Reseller Vault (sold-out picks still count; hidden/off products never do).
+    const vaultCount = selectTopProducts(await productsWithStock(true), parseTopProductIds(settings[TELEGRAM_VAULT_PRODUCTS_KEY])).length;
+    if (vaultCount)
+      kb.push([styled(uiBtn(settings, "shop_vault", "vault", `(${vaultCount})`), btnColor(settings, "flash"))]);
     // Admin-chosen top categories: two big buttons per row. Unset → legacy Gemini/Lovable/Muse.
     const savedTop = settings[TELEGRAM_TOP_CATEGORIES_KEY];
     const featured: any[] = savedTop != null
@@ -1768,7 +1772,7 @@ async function shopView(page: number, chatId?: number) {
         `p:${p.id}`), prodRowStyle(p, prodStyle))]);
     }
     // Reserved: flash 1 + next 1 + prev 1 + all 1 + refresh 1 + cart/back 2.
-    const paged = paginateRows(rows, 7 + kb.length - (flash.length ? 1 : 0), page);
+    const paged = paginateRows(rows, 7 + kb.length - (flash.length ? 1 : 0) - (vaultCount ? 1 : 0), page);
     kb.push(...paged.rows);
     const catPage = paged.page;
     const catPages = paged.pages;
@@ -1934,6 +1938,28 @@ async function freebiesView() {
     kb,
   };
 
+}
+
+/** Reseller Vault — admin-picked products in serial order; sold-out picks stay, marked. */
+async function vaultView(chatId?: number) {
+  const settings = await getSettings();
+  const picked = selectTopProducts(await productsWithStock(true), parseTopProductIds(settings[TELEGRAM_VAULT_PRODUCTS_KEY]));
+  const products = (await applyUserPrices(chatId, picked)) as any[];
+  const head = `${uiTag(settings, "shop_vault")}\n──────────────\n`;
+  const prodStyle = btnColor(settings, "product");
+  const kb: Button[][] = products.slice(0, 40).map((p: any) => {
+    const out = isOutOfStock(p) && p.preorder_enabled !== true;
+    const tail = out ? `${uiText(settings, "prod_out")}` : (p.delivery_type === "manual" && !p.manual_stock_limited) ? "manual" : `📦 ${p.stock}`;
+    return [styled(productIconButton(p, `${p.name} | ${money(p.price)} | ${tail}`, `p:${p.id}`), prodRowStyle(p, prodStyle))];
+  });
+  kb.push([iconButton(settings, "refresh", "vault")]);
+  kb.push([iconButton(settings, "shop", "shop:0"), iconButton(settings, "back", "home")]);
+  return {
+    text: products.length
+      ? `${head}<i>Hand-picked best resale products — tap one to view details.</i>`
+      : `${head}\nNothing in the vault right now. Check back soon!`,
+    kb,
+  };
 }
 
 async function flashView(chatId?: number) {
@@ -6733,6 +6759,12 @@ async function handleCallback(cq: any) {
 
   if (data === "freebies") {
     const view = await freebiesView();
+    await edit(view.text, view.kb);
+    return;
+  }
+
+  if (data === "vault") {
+    const view = await vaultView(chatId);
     await edit(view.text, view.kb);
     return;
   }

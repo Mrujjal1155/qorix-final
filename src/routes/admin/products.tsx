@@ -1279,7 +1279,7 @@ function ProductsPage() {
           {view === "categories" && categoriesSection}
           {view === "topcats" && <TelegramTopCategories categories={(data?.categories ?? []) as any[]} />}
           {view === "hidecats" && <TelegramTopCategories mode="hidden" categories={(data?.categories ?? []) as any[]} />}
-          {view === "top" && <TelegramTopProducts products={data?.products ?? []} />}
+          {view === "top" && <TopProductLists products={data?.products ?? []} />}
           {view === "products" && catalogueSection}
           {view === "form" && formSection}
           {view === "pricing" && pricingSection}
@@ -1298,5 +1298,22 @@ function ProductsPage() {
       {extractFor && <StockExtractionDialog key={extractFor.id} productId={extractFor.id} productName={extractFor.name} available={extractFor.stock} onClose={() => setExtractFor(null)} />}
       {salesFor && <ProductSalesDialog key={salesFor.id} productId={salesFor.id} productName={salesFor.name} onClose={() => setSalesFor(null)} />}
     </AdminShell>
+  );
+}
+
+function TopProductLists({ products }: { products: any[] }) {
+  const [kind, setKind] = useState<"top" | "vault">("top");
+  return (
+    <div className="space-y-4">
+      <div className="inline-flex gap-1 rounded-md border border-border p-1" role="tablist">
+        {(["top", "vault"] as const).map((k) => (
+          <Button key={k} size="sm" variant={kind === k ? "default" : "ghost"} role="tab" aria-selected={kind === k} onClick={() => setKind(k)}>
+            {k === "top" ? "Top Products" : "Reseller Vault"}
+          </Button>
+        ))}
+      </div>
+      {kind === "vault" && <p className="text-sm text-muted-foreground">Products picked here appear in the bot's secret "Reseller Vault" button, in this serial order. Sold-out picks stay listed and are marked.</p>}
+      <TelegramTopProducts key={kind} kind={kind} products={products} />
+    </div>
   );
 }
