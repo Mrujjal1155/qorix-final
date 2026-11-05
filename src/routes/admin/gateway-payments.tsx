@@ -11,10 +11,10 @@ import { Input } from "@/components/ui/input";
 export const Route = createFileRoute("/admin/gateway-payments")({
   head: () => ({
     meta: [
-      { title: "Bybit & EPS Payments — Shop Bot Admin" },
-      { name: "description", content: "Every Bybit Pay and EPS payment received by the shop, bot and website." },
-      { property: "og:title", content: "Bybit & EPS Payments — Shop Bot Admin" },
-      { property: "og:description", content: "See all Bybit and EPS payments in one place." },
+      { title: "Bybit, EPS & OxaPay Payments — Shop Bot Admin" },
+      { name: "description", content: "Every Bybit Pay, EPS and OxaPay payment received by the shop, bot and website." },
+      { property: "og:title", content: "Bybit, EPS & OxaPay Payments — Shop Bot Admin" },
+      { property: "og:description", content: "See all Bybit, EPS and OxaPay payments in one place." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -27,7 +27,7 @@ const OK = new Set(["credited", "completed", "paid"]);
 const BAD = new Set(["failed", "cancelled", "expired", "refunded"]);
 
 function GatewayPaymentsPage() {
-  const [gateway, setGateway] = useState<"bybit" | "eps">("bybit");
+  const [gateway, setGateway] = useState<"bybit" | "eps" | "oxapay">("bybit");
   const [days, setDays] = useState(7);
   const [status, setStatus] = useState<"all" | "ok" | "pending" | "bad">("all");
   const [q, setQ] = useState("");
@@ -51,13 +51,13 @@ function GatewayPaymentsPage() {
 
   return (
     <AdminShell
-      title="Bybit & EPS Payments"
-      subtitle="Every Bybit Pay and EPS payment from the bot and website — refreshes every 30 seconds."
+      title="Bybit, EPS & OxaPay Payments"
+      subtitle="Every Bybit Pay, EPS and OxaPay payment from the bot and website — refreshes every 30 seconds."
       actions={<Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>{isFetching ? "Refreshing…" : "Refresh"}</Button>}
     >
       <div className="mb-3 flex flex-wrap gap-2">
-        {(["bybit", "eps"] as const).map((g) => (
-          <Button key={g} variant={gateway === g ? "default" : "outline"} onClick={() => setGateway(g)}>{g === "bybit" ? "Bybit Pay" : "EPS"}</Button>
+        {(["bybit", "eps", "oxapay"] as const).map((g) => (
+          <Button key={g} variant={gateway === g ? "default" : "outline"} onClick={() => setGateway(g)}>{g === "bybit" ? "Bybit Pay" : g === "eps" ? "EPS" : "OxaPay (Crypto)"}</Button>
         ))}
       </div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
