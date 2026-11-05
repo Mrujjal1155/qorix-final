@@ -7,7 +7,7 @@ mock.module("@/integrations/supabase/client.server", () => ({
     rpc: async (method: string, body: any) => { calls.push({method,body}); return {data:{id:"queued-event",total:2}}; },
     from: (table: string) => {
       if (table !== "bot_settings") throw new Error(`Unexpected table: ${table}`);
-      return { select: async () => ({ data: [{ key: "announce_chat_id", value: "-1001234567890" }] }) };
+      return { select: () => ({ order: () => ({ range: async () => ({ data: [{ key: "announce_chat_id", value: "-1001234567890" }] }) }) }) };
     },
   },
 }));

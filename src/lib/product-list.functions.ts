@@ -58,9 +58,9 @@ export const getProductListOptions = createServerFn({ method: "POST" }).middlewa
   const { productListOptions } = await import("@/lib/product-list.server");
   return productListOptions();
 });
-export const saveProductListCopy = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d: unknown) => copySchema.parse(d)).handler(async ({ context, data }) => {
+export const saveProductListCopy = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d: unknown) => z.object({mode: z.enum(["all","category","selected"]), copy: copySchema}).parse(d)).handler(async ({ context, data }) => {
   await assertAdmin(context);
-  const { error } = await context.supabase.from("bot_settings").upsert({ key: "product_list_copy", value: JSON.stringify(data) }, { onConflict: "key" });
+  const { error } = await context.supabase.from("bot_settings").upsert({ key: `product_list_copy_${data.mode}`, value: JSON.stringify(data.copy) }, { onConflict: "key" });
   if (error) throw new Error(error.message);
   return { ok: true };
 });

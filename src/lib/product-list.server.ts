@@ -16,8 +16,17 @@ import {
   type ProductListSnapshot,
 } from "@/lib/product-list";
 
+async function allRows(table: string, columns: string, configure: (q: any) => any = q => q) {
+  const rows: any[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await configure((supabaseAdmin as any).from(table).select(columns)).range(offset,offset+999);
+    if (error) throw new Error(error.message);
+    rows.push(...(data ?? []));
+    if ((data ?? []).length < 1000) return rows;
+  }
+}
 async function loadSettings() {
-  const { data } = await (supabaseAdmin as any).from("bot_settings").select("key,value");
+  const data = await allRows("bot_settings","key,value",q=>q.order("key"));
   const s: Record<string, string> = {};
   for (const r of (data ?? []) as any[]) s[r.key] = r.value ?? "";
   return s;
@@ -27,20 +36,11 @@ export async function buildProductList(requestedOffset = 0, mode: ProductListMod
   const db = supabaseAdmin as any;
   const [s, prods] = await Promise.all([
     loadSettings(),
-    db
-      .from("products")
-      .select("id,name,price,emoji,telegram_custom_emoji_id,featured_rank,sort_order,supplier_id,supplier_stock,category_id")
-      .eq("is_active", true)
-      .is("owner_reseller_id", null)
-      .order("sort_order", { ascending: true })
-      .order("id", { ascending: true })
-      .limit(1000),
+    allRows("products", "id,name,price,emoji,telegram_custom_emoji_id,featured_rank,sort_order,supplier_id,supplier_stock,category_id", q => q.eq("is_active",true).is("owner_reseller_id",null).order("sort_order").order("id")),
   ]);
-  if (prods.error) throw new Error(prods.error.message);
-  const { data: memberships, error: membershipError } = await db.from("product_categories").select("product_id,category_id").limit(10000);
-  if (membershipError) throw new Error(membershipError.message);
-  const allRows = (prods.data ?? []).map((p: any) => ({ ...p, categoryIds: (memberships ?? []).filter((m: any) => m.product_id === p.id).map((m: any) => m.category_id) }));
-  const rows = selectListProducts<any>(allRows, mode, categoryId, ids);
+  const memberships = await allRows("product_categories","product_id,category_id",q=>q.order("product_id").order("category_id"));
+  const catalogueRows = prods.map((p: any) => ({ ...p, categoryIds: (memberships ?? []).filter((m: any) => m.product_id === p.id).map((m: any) => m.category_id) }));
+  const rows = selectListProducts<any>(catalogueRows, mode, categoryId, ids);
   const inhouseIds = rows.filter((p) => !p.supplier_id).map((p) => p.id);
   const inhouseStock = new Map<string, number>();
   if (inhouseIds.length) {
@@ -98,13 +98,13 @@ export async function productListOptions() {
   const db = supabaseAdmin as any;
   const [categories, products, suppliers, memberships, settings] = await Promise.all([
     db.from("categories").select("id,name").eq("is_active",true).order("sort_order").limit(1000),
-    db.from("products").select("id,name,price,emoji,supplier_id,category_id").eq("is_active",true).is("owner_reseller_id",null).order("sort_order").limit(1000),
+    allRows("products","id,name,price,emoji,supplier_id,category_id",q=>q.eq("is_active",true).is("owner_reseller_id",null).order("sort_order").order("id")),
     db.from("suppliers").select("id,name").order("name").limit(1000),
-    db.from("product_categories").select("product_id,category_id").limit(10000), loadSettings(),
+    allRows("product_categories","product_id,category_id",q=>q.order("product_id").order("category_id")), loadSettings(),
   ]);
-  for (const r of [categories,products,suppliers,memberships]) if (r.error) throw new Error(r.error.message);
+  for (const r of [categories,suppliers]) if (r.error) throw new Error(r.error.message);
   let savedCopy = null;
-  try { savedCopy = JSON.parse(settings["product_list_copy"] || "null"); } catch {}
+  try { savedCopy = Object.fromEntries(["all","category","selected"].map(mode => [mode, JSON.parse(settings[`product_list_copy_${mode}`] || "null")])); } catch {}
   const emojis = Object.fromEntries(PRODUCT_LIST_EMOJI_KEYS.map(k => [k.key, settings[productListSettingKey(k.key)] ?? ""]));
-  return { categories: categories.data ?? [], products: (products.data ?? []).map((p: any) => ({...p,categoryIds: (memberships.data ?? []).filter((m: any) => m.product_id === p.id).map((m: any) => m.category_id)})), suppliers: suppliers.data ?? [], emojis, savedCopy };
+  return { categories: categories.data ?? [], products: products.map((p: any) => ({...p,categoryIds: memberships.filter((m: any) => m.product_id === p.id).map((m: any) => m.category_id)})), suppliers: suppliers.data ?? [], emojis, savedCopy };
 }

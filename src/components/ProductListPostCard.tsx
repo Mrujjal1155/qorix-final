@@ -37,7 +37,7 @@ export function ProductListPostCard({ mode = "all" }: { mode?: ProductListMode }
   const [search, setSearch] = useState("");
   const [copy, setCopy] = useState<ProductListCopy>(defaultProductListCopy(mode,"QORIX"));
   const [requestId, setRequestId] = useState("");
-  useEffect(() => { if (options) { setEmojis(options.emojis); if (options.savedCopy) setCopy({ ...defaultProductListCopy(mode,"QORIX"), ...options.savedCopy, title: defaultProductListCopy(mode,"QORIX").title }); } }, [options,mode]);
+  useEffect(() => { if (options) { setEmojis(options.emojis); if (options.savedCopy?.[mode]) setCopy({ ...defaultProductListCopy(mode,"QORIX"), ...options.savedCopy[mode] }); } }, [options,mode]);
   const colors = colorIndexesFor((options?.suppliers ?? []).map((s: any) => s.name));
   const visible = (options?.products ?? []).filter((p: any) => (supplier === "all" || (supplier === "inhouse" ? !p.supplier_id : p.supplier_id === supplier)) && p.name.toLowerCase().includes(search.toLowerCase()));
   const gen = useServerFn(generateProductList);
@@ -70,7 +70,7 @@ export function ProductListPostCard({ mode = "all" }: { mode?: ProductListMode }
           <p className="flex items-center gap-2 text-sm font-semibold">
             <ListOrdered className="size-4 text-primary" /> {mode === "category" ? "Category Products" : mode === "selected" ? "Top Selling Products" : "Product list post"}
           </p>
-          <Button onClick={() => run()} disabled={busy !== ""}>
+          <Button onClick={() => run()} disabled={busy !== "" || !options || (mode === "category" && !categoryId) || (mode === "selected" && !selected.length)}>
             {busy === "gen" ? "Generating..." : list && list.nextOffset > 0 ? "Generate Next 40" : "Generate Product List"}
           </Button>
         </div>
@@ -84,7 +84,7 @@ export function ProductListPostCard({ mode = "all" }: { mode?: ProductListMode }
           <div className="max-h-72 overflow-y-auto divide-y divide-border border border-border">{visible.map((p: any) => <label key={p.id} className="flex items-center gap-3 p-3"><Checkbox checked={selected.includes(p.id)} onCheckedChange={checked => { setSelected(ids => checked ? [...ids,p.id] : ids.filter(id => id !== p.id)); setList(null); }} /><span className="min-w-0 flex-1 break-words text-sm">{p.name}</span><span className="shrink-0 text-sm">{formatUsd(p.price)}</span></label>)}</div>
         </div>}
         <div className="grid gap-3 sm:grid-cols-2">{(["title","intro","instant","warranty","bulk","channel","updates","chat"] as const).map(key => <div key={key} className="space-y-1"><Label htmlFor={`plist-${key}`}>{({title:"Heading",intro:"Introduction",instant:"Delivery text",warranty:"Warranty text",bulk:"Bulk text",channel:"Official channel link",updates:"Update group link",chat:"General chat link"})[key]}</Label>{key === "intro" ? <Textarea id={`plist-${key}`} value={copy[key]} onChange={e => { setCopy(c => ({...c,[key]:e.target.value})); setList(null); }} /> : <Input id={`plist-${key}`} value={copy[key]} onChange={e => { setCopy(c => ({...c,[key]:e.target.value})); setList(null); }} />}</div>)}</div>
-        <Button variant="outline" size="sm" onClick={async () => { try { await copySave({ data: copy }); toast.success("Text and links saved"); } catch(e) { toast.error(e instanceof Error ? e.message : "Failed"); } }}>Save text & links</Button>
+        <Button variant="outline" size="sm" onClick={async () => { try { await copySave({ data: {mode,copy} }); toast.success("Text and links saved"); } catch(e) { toast.error(e instanceof Error ? e.message : "Failed"); } }}>Save text & links</Button>
         <div className="space-y-2 rounded-lg border border-dashed border-border p-3">
           <Label>Product List Emoji</Label>
           <p className="text-xs text-muted-foreground">
