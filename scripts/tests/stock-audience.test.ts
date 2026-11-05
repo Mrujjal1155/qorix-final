@@ -109,6 +109,18 @@ test("Telegram retry_after is preserved rather than retried too early", async ()
   expect(saved.next_attempt_at).toBe("1970-01-01T00:02:00.000Z");
 });
 
+test("queued product tables deliver to users and negative group IDs through the shared sender", async () => {
+  sentTo.length = 0;
+  const statuses: string[] = [];
+  const db = {
+    rpc: async () => ({ data: [77,-100123].map(telegram_id => ({event_id:"list",telegram_id,message:{kind:"product_list",text:"<table><tr><td>Product</td><td>$1</td></tr></table>"}})) }),
+    from: () => ({update:(value: any) => {statuses.push(value.status); const chain:any={eq:()=>chain,then:(resolve:any)=>resolve({error:null})};return chain;}}),
+  };
+  expect(await drainStockAudience(db)).toEqual({sent:2,retry:0});
+  expect(sentTo).toEqual([77,-100123]);
+  expect(statuses).toEqual(["sent","sent"]);
+});
+
 test("time budget releases untouched recipients without falsely marking them sent", async () => {
   let clock = 0;
   const updates: any[] = [];

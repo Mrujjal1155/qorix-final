@@ -19,7 +19,25 @@ export type ProductListSnapshot = {
   storeName: string;
   botUsername: string;
   emojis: Record<string, string | undefined>;
+  copy?: ProductListCopy | undefined;
 };
+
+export type ProductListMode = "all" | "category" | "selected";
+export type ProductListCopy = { title: string; intro: string; instant: string; warranty: string; bulk: string; channel: string; updates: string; chat: string };
+export function defaultProductListCopy(mode: ProductListMode, name: string): ProductListCopy {
+  return { title: mode === "category" ? `${name} — PRODUCT LIST` : mode === "selected" ? "TOP SELLING PRODUCTS" : `${name} — PRICE LIST`,
+    intro: mode === "category" ? `${name} products — explore the latest prices below.` : "Explore our latest products and prices.",
+    instant: "Instant delivery — pay and it arrives in seconds, any hour of the day.",
+    warranty: "Covered by warranty — a problem gets replaced, not argued about.",
+    bulk: "Cheaper in bulk — larger orders drop the unit price automatically at checkout.",
+    channel: "https://t.me/qorixlab", updates: "", chat: "https://t.me/QORIXCHAT" };
+}
+
+export function selectListProducts<T extends { id: string; category_id?: string | null; categoryIds?: string[]; supplier_id?: string | null }>(rows: T[], mode: ProductListMode, categoryId?: string, ids: string[] = []) {
+  if (mode === "category") return rows.filter(p => p.category_id === categoryId || p.categoryIds?.includes(categoryId ?? ""));
+  if (mode === "selected") { const byId = new Map(rows.map(p => [p.id, p])); return [...new Set(ids)].flatMap(id => { const p = byId.get(id); return p ? [p] : []; }); }
+  return rows;
+}
 
 export function productListBatch<T>(products: T[], requestedOffset = 0) {
   const offset = requestedOffset < products.length ? requestedOffset : 0;
@@ -61,6 +79,7 @@ export function buildProductListMarkdown(input: {
   botUsername: string;
   products: ListProduct[];
   emojis: Record<string, string | undefined>;
+  copy?: ProductListCopy;
 }) {
   const e = (k: ProductListEmojiKey) => {
     const def = PRODUCT_LIST_EMOJI_KEYS.find((x) => x.key === k);
@@ -72,18 +91,30 @@ export function buildProductListMarkdown(input: {
     return `| ${icon} ${escapeMd(p.name)} | ${price} ${escapeMd(formatUsd(p.price))} |`;
   });
   const bot = input.botUsername.replace(/^@/, "");
+  const copy = input.copy;
   return [
-    `${e("title")} **${escapeMd(input.storeName)} — PRICE LIST**`,
-    `_${input.products.length} products available_`,
+    `${e("title")} **${escapeMd(copy?.title ?? `${input.storeName} — PRICE LIST`)}**`,
+    copy ? escapeMd(copy.intro) : `_${input.products.length} products available_`,
     "",
     "| PRODUCT | PRICE |",
     "|:--------|:------|",
     ...rows,
     "",
-    `- ${e("instant")} **Instant delivery** — pay and it arrives in seconds, any hour of the day.`,
-    `- ${e("warranty")} **Covered by warranty** — a problem gets replaced, not argued about.`,
-    `- ${e("bulk")} **Cheaper in bulk** — larger orders drop the unit price automatically at checkout.`,
+    `- ${e("instant")} ${copy ? escapeMd(copy.instant) : "**Instant delivery** — pay and it arrives in seconds, any hour of the day."}`,
+    `- ${e("warranty")} ${copy ? escapeMd(copy.warranty) : "**Covered by warranty** — a problem gets replaced, not argued about."}`,
+    `- ${e("bulk")} ${copy ? escapeMd(copy.bulk) : "**Cheaper in bulk** — larger orders drop the unit price automatically at checkout."}`,
     "",
     bot ? `${e("order")} **Order here →** @${bot}` : "",
+    ...(copy ? [["Official Channel", copy.channel], ["Update Group", copy.updates], ["General Chat", copy.chat]].filter(([, url]) => url).map(([label, url]) => `[${label}](${url})`) : []),
   ].join("\n").trim();
+}
+
+export function buildProductListHtml(input: ProductListSnapshot) {
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const icon = (value: string | null | undefined, fallback: string) => { const e = parseEmoji(value, fallback); return e.customId ? `<tg-emoji emoji-id="${e.customId}">${esc(e.glyph)}</tg-emoji>` : esc(e.glyph); };
+  const e = (key: ProductListEmojiKey) => icon(input.emojis[key], PRODUCT_LIST_EMOJI_KEYS.find(k => k.key === key)?.fallback ?? "📦");
+  const copy = input.copy ?? defaultProductListCopy("all", input.storeName);
+  const rows = input.products.map(p => `<tr><td>${icon(p.custom_emoji_id ? `${p.custom_emoji_id}|${p.emoji || "📦"}` : p.emoji, "📦")} ${esc(p.name)}</td><td>${e("price")} ${formatUsd(p.price)}</td></tr>`).join("");
+  const links = [["Official Channel", copy.channel], ["Update Group", copy.updates], ["General Chat", copy.chat]].filter(([, url]) => url).map(([label, url]) => `<a href="${esc(url ?? "")}">${label}</a>`).join(" · ");
+  return `<h3>${e("title")} ${esc(copy.title)}</h3><p>${esc(copy.intro)}</p><table bordered striped compact><tr><td><b>PRODUCT</b></td><td><b>PRICE</b></td></tr>${rows}</table><p>${e("instant")} ${esc(copy.instant)}</p><p>${e("warranty")} ${esc(copy.warranty)}</p><p>${e("bulk")} ${esc(copy.bulk)}</p><p>${e("order")} Order here → @${esc(input.botUsername.replace(/^@/, ""))}</p><p>${links}</p>`;
 }

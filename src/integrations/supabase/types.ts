@@ -2177,6 +2177,10 @@ export type Database = {
         Args: { _event_key: string; _message: Json }
         Returns: Json
       }
+      enqueue_product_list: {
+        Args: { _event_key: string; _groups: number[]; _message: Json }
+        Returns: Json
+      }
       enqueue_stock_notification: {
         Args: {
           _added_qty?: number
@@ -2211,6 +2215,7 @@ export type Database = {
         Args: { _kind: string; _payload: Json; _ref: string }
         Returns: undefined
       }
+      product_list_progress: { Args: { _admin_id: string }; Returns: Json }
       profile_wallet_credit: {
         Args: {
           _amount: number

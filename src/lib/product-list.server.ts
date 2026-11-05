@@ -1,11 +1,14 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { tg } from "@/lib/telegram.server";
-import { loadAllBotUserIds, sendPaced } from "@/lib/bot/audience.server";
+
+
 import {
   PRODUCT_LIST_EMOJI_KEYS,
   buildProductListMarkdown,
-  formatUsd,
-  parseEmoji,
+  buildProductListHtml,
+  defaultProductListCopy,
+  selectListProducts,
+  type ProductListMode,
+  type ProductListCopy,
   productListSettingKey,
   productListBatch,
   PRODUCT_LIST_BATCH_SIZE,
@@ -13,27 +16,31 @@ import {
   type ProductListSnapshot,
 } from "@/lib/product-list";
 
+async function allRows(table: string, columns: string, configure: (q: any) => any = q => q) {
+  const rows: any[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const { data, error } = await configure((supabaseAdmin as any).from(table).select(columns)).range(offset,offset+999);
+    if (error) throw new Error(error.message);
+    rows.push(...(data ?? []));
+    if ((data ?? []).length < 1000) return rows;
+  }
+}
 async function loadSettings() {
-  const { data } = await (supabaseAdmin as any).from("bot_settings").select("key,value");
+  const data = await allRows("bot_settings","key,value",q=>q.order("key"));
   const s: Record<string, string> = {};
   for (const r of (data ?? []) as any[]) s[r.key] = r.value ?? "";
   return s;
 }
 
-export async function buildProductList(requestedOffset = 0) {
+export async function buildProductList(requestedOffset = 0, mode: ProductListMode = "all", categoryId?: string, ids: string[] = [], copy?: ProductListCopy) {
   const db = supabaseAdmin as any;
   const [s, prods] = await Promise.all([
     loadSettings(),
-    db
-      .from("products")
-      .select("id,name,price,emoji,telegram_custom_emoji_id,featured_rank,sort_order,supplier_id,supplier_stock")
-      .eq("is_active", true)
-      .is("owner_reseller_id", null)
-      .order("sort_order", { ascending: true })
-      .order("id", { ascending: true })
-      .limit(1000),
+    allRows("products", "id,name,price,emoji,telegram_custom_emoji_id,featured_rank,sort_order,supplier_id,supplier_stock,category_id", q => q.eq("is_active",true).is("owner_reseller_id",null).order("sort_order").order("id")),
   ]);
-  const rows = (prods.data ?? []) as any[];
+  const memberships = await allRows("product_categories","product_id,category_id",q=>q.order("product_id").order("category_id"));
+  const catalogueRows = prods.map((p: any) => ({ ...p, categoryIds: (memberships ?? []).filter((m: any) => m.product_id === p.id).map((m: any) => m.category_id) }));
+  const rows = selectListProducts<any>(catalogueRows, mode, categoryId, ids);
   const inhouseIds = rows.filter((p) => !p.supplier_id).map((p) => p.id);
   const inhouseStock = new Map<string, number>();
   if (inhouseIds.length) {
@@ -42,7 +49,7 @@ export async function buildProductList(requestedOffset = 0) {
   }
   // Only products that are actually in stock: supplier rows by supplier_stock, in-house by stock_counters.
   const products: ListProduct[] = rows
-    .filter((p) => (p.supplier_id ? Number(p.supplier_stock ?? 0) > 0 : (inhouseStock.get(p.id) ?? 0) > 0))
+    .filter((p) => mode !== "all" || (p.supplier_id ? Number(p.supplier_stock ?? 0) > 0 : (inhouseStock.get(p.id) ?? 0) > 0))
     .map((p) => ({
       name: p.name,
       price: Number(p.price ?? 0),
@@ -54,9 +61,10 @@ export async function buildProductList(requestedOffset = 0) {
   const botUsername = s["bot_username"] ?? "";
   const storeName = s["store_name"] || s["shop_name"] || "QORIX";
   const batch = productListBatch(products, requestedOffset);
-  const markdown = buildProductListMarkdown({ storeName, botUsername, products: batch.products, emojis });
+  const finalCopy = copy ?? defaultProductListCopy(mode, storeName);
+  const markdown = buildProductListMarkdown({ storeName, botUsername, products: batch.products, emojis, copy: finalCopy });
   const groups = productListGroups(s);
-  return { markdown, ...batch, botUsername, storeName, emojis, groups };
+  return { markdown, ...batch, botUsername, storeName, emojis, groups, copy: finalCopy };
 }
 
 function productListGroups(s: Record<string, string>) {
@@ -70,44 +78,33 @@ function productListGroups(s: Record<string, string>) {
   ];
 }
 
-function fallbackHtml(list: ProductListSnapshot) {
-  const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const lines = list.products.map((p) => {
-    const e = parseEmoji(p.custom_emoji_id ? `${p.custom_emoji_id}|${p.emoji || "📦"}` : p.emoji, "📦");
-    const icon = e.customId ? `<tg-emoji emoji-id="${e.customId}">${e.glyph}</tg-emoji>` : e.glyph;
-    return `${icon} ${esc(p.name)} — <b>${formatUsd(p.price)}</b>`;
-  });
-  return `<b>${esc(list.storeName)} — PRICE LIST</b>\n\n${lines.join("\n")}`;
-}
-
-async function sendTo(chatId: number | string, list: ProductListSnapshot & { markdown: string }, kb: any) {
-  const rich = await tg("sendRichMessage", { chat_id: chatId, rich_message: { markdown: list.markdown }, ...(kb ? { reply_markup: kb } : {}) });
-  if (rich.ok) return { ok: true };
-  // Older clients/API: still deliver a readable list.
-  const html = fallbackHtml(list);
-  const res = await tg("sendMessage", { chat_id: chatId, text: html.slice(0, 4000), parse_mode: "HTML", ...(kb ? { reply_markup: kb } : {}) });
-  return { ok: res.ok, error: rich.description ?? res.description };
-}
-
-export async function sendProductList(snapshot: ProductListSnapshot) {
+export async function sendProductList(snapshot: ProductListSnapshot, adminId: string, requestId: string) {
   if (snapshot.products.length > PRODUCT_LIST_BATCH_SIZE) throw new Error("Product list batch is too large");
-  const list = { ...snapshot, markdown: buildProductListMarkdown(snapshot), groups: productListGroups(await loadSettings()) };
-  if (!list.products.length) throw new Error("No active products to list");
-  const kb = list.botUsername
-    ? { inline_keyboard: [[{ text: "🛒 Open the shop", url: `https://t.me/${list.botUsername.replace(/^@/, "")}`, style: "success" }]] }
-    : null;
+  if (!snapshot.products.length) throw new Error("No active products to list");
+  const text = buildProductListHtml(snapshot);
+  if (new TextEncoder().encode(text).length > 32768) throw new Error("This preview is too long. Shorten the text or select fewer products.");
+  const groups = productListGroups(await loadSettings()).filter(g => /^-\d+$/.test(g));
+  const keyboard = snapshot.botUsername ? [[{ text: "🛒 Open the shop", url: `https://t.me/${snapshot.botUsername.replace(/^@/, "")}`, style: "success" }]] : undefined;
+  const { data, error } = await (supabaseAdmin as any).rpc("enqueue_product_list", {
+    _event_key: `broadcast:product-list:${adminId}:${requestId}`,
+    _message: { kind: "product_list", text, keyboard, admin_id: adminId, title: snapshot.copy?.title ?? "Product list" },
+    _groups: groups.map(Number),
+  });
+  if (error || !data?.id) throw new Error(error?.message ?? "Could not queue product list");
+  return data as { id: string; total: number };
+}
 
-  let groupsSent = 0;
-  let lastError = "";
-  for (const g of list.groups) {
-    const r = await sendTo(g, list, kb);
-    if (r.ok) groupsSent++;
-    else lastError = r.error ?? lastError;
-  }
-
-  const users = await loadAllBotUserIds();
-  const r = await sendPaced(users, (id) => sendTo(id, list, kb));
-  const sent = r.sent, failed = r.failed;
-  if (r.error) lastError = r.error;
-  return { sent, failed, total: users.length, groupsSent, groupsTotal: list.groups.length, error: lastError };
+export async function productListOptions() {
+  const db = supabaseAdmin as any;
+  const [categories, products, suppliers, memberships, settings] = await Promise.all([
+    db.from("categories").select("id,name").eq("is_active",true).order("sort_order").limit(1000),
+    allRows("products","id,name,price,emoji,supplier_id,category_id",q=>q.eq("is_active",true).is("owner_reseller_id",null).order("sort_order").order("id")),
+    db.from("suppliers").select("id,name").order("name").limit(1000),
+    allRows("product_categories","product_id,category_id",q=>q.order("product_id").order("category_id")), loadSettings(),
+  ]);
+  for (const r of [categories,suppliers]) if (r.error) throw new Error(r.error.message);
+  let savedCopy = null;
+  try { savedCopy = Object.fromEntries(["all","category","selected"].map(mode => [mode, JSON.parse(settings[`product_list_copy_${mode}`] || "null")])); } catch {}
+  const emojis = Object.fromEntries(PRODUCT_LIST_EMOJI_KEYS.map(k => [k.key, settings[productListSettingKey(k.key)] ?? ""]));
+  return { categories: categories.data ?? [], products: products.map((p: any) => ({...p,categoryIds: memberships.filter((m: any) => m.product_id === p.id).map((m: any) => m.category_id)})), suppliers: suppliers.data ?? [], emojis, savedCopy };
 }

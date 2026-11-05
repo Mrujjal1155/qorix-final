@@ -4,9 +4,10 @@ import { productListBatch, type ListProduct } from "../../src/lib/product-list";
 const calls: { method: string; body: any }[] = [];
 mock.module("@/integrations/supabase/client.server", () => ({
   supabaseAdmin: {
+    rpc: async (method: string, body: any) => { calls.push({method,body}); return {data:{id:"queued-event",total:2}}; },
     from: (table: string) => {
       if (table !== "bot_settings") throw new Error(`Unexpected table: ${table}`);
-      return { select: async () => ({ data: [{ key: "announce_chat_id", value: "-1001234567890" }] }) };
+      return { select: () => ({ order: () => ({ range: async () => ({ data: [{ key: "announce_chat_id", value: "-1001234567890" }] }) }) }) };
     },
   },
 }));
@@ -31,30 +32,31 @@ const snapshot = { storeName: "QORIX", botUsername: "QORIX3_bot", emojis: {} };
 describe("Product list batch delivery", () => {
   test("first send broadcasts only the previewed 40 products to group and user", async () => {
     calls.length = 0;
-    const result = await sendProductList({ ...snapshot, products: productListBatch(products).products });
-    expect(result.groupsSent).toBe(1);
-    expect(result.sent).toBe(1);
-    expect(calls.map((c) => c.body.chat_id)).toEqual(["-1001234567890", 12345]);
+    const result = await sendProductList({ ...snapshot, products: productListBatch(products).products }, "admin-id", "request-id");
+    expect(result.total).toBe(2);
+    expect(result.id).toBe("queued-event");
+    expect(calls[0]?.body._groups).toEqual([-1001234567890]);
     for (const call of calls) {
-      expect(call.method).toBe("sendRichMessage");
-      expect(call.body.rich_message.markdown).toContain("Product 40 END");
-      expect(call.body.rich_message.markdown).not.toContain("Product 41 END");
-      expect((call.body.rich_message.markdown.match(/tg:\/\/emoji/g) ?? []).length).toBe(40);
+      expect(call.method).toBe("enqueue_product_list");
+      expect(call.body._message.text).toContain("Product 40 END");
+      expect(call.body._message.text).not.toContain("Product 41 END");
+      expect((call.body._message.text.match(/emoji-id/g) ?? []).length).toBe(40);
+      expect(call.body._event_key).toBe("broadcast:product-list:admin-id:request-id");
     }
   });
   test("second send broadcasts only the remaining 30 products", async () => {
     calls.length = 0;
-    await sendProductList({ ...snapshot, products: productListBatch(products, 40).products });
-    expect(calls.length).toBe(2);
+    await sendProductList({ ...snapshot, products: productListBatch(products, 40).products }, "admin-id", "next-request");
+    expect(calls.length).toBe(1);
     for (const call of calls) {
-      expect(call.body.rich_message.markdown).toContain("Product 41 END");
-      expect(call.body.rich_message.markdown).toContain("Product 70 END");
-      expect(call.body.rich_message.markdown).not.toContain("Product 40 END");
+      expect(call.body._message.text).toContain("Product 41 END");
+      expect(call.body._message.text).toContain("Product 70 END");
+      expect(call.body._message.text).not.toContain("Product 40 END");
     }
   });
   test("rejects more than 40 products without broadcasting", async () => {
     calls.length = 0;
-    await expect(sendProductList({ ...snapshot, products: products.slice(0, 41) })).rejects.toThrow("too large");
+    await expect(sendProductList({ ...snapshot, products: products.slice(0, 41) }, "admin", "request")).rejects.toThrow("too large");
     expect(calls.length).toBe(0);
   });
 });
