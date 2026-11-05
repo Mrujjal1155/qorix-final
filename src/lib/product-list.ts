@@ -19,7 +19,7 @@ export type ProductListSnapshot = {
   storeName: string;
   botUsername: string;
   emojis: Record<string, string | undefined>;
-  copy?: ProductListCopy;
+  copy?: ProductListCopy | undefined;
 };
 
 export type ProductListMode = "all" | "category" | "selected";
@@ -116,5 +116,5 @@ export function buildProductListHtml(input: ProductListSnapshot) {
   const copy = input.copy ?? defaultProductListCopy("all", input.storeName);
   const rows = input.products.map(p => `<tr><td>${icon(p.custom_emoji_id ? `${p.custom_emoji_id}|${p.emoji || "📦"}` : p.emoji, "📦")} ${esc(p.name)}</td><td>${e("price")} ${formatUsd(p.price)}</td></tr>`).join("");
   const links = [["Official Channel", copy.channel], ["Update Group", copy.updates], ["General Chat", copy.chat]].filter(([, url]) => url).map(([label, url]) => `<a href="${esc(url ?? "")}">${label}</a>`).join(" · ");
-  return `<h3>${e("title")} ${esc(copy.title)}</h3><p>${esc(copy.intro)}</p><table bordered striped compact><tr><th>PRODUCT</th><th>PRICE</th></tr>${rows}</table><p>${e("instant")} ${esc(copy.instant)}</p><p>${e("warranty")} ${esc(copy.warranty)}</p><p>${e("bulk")} ${esc(copy.bulk)}</p><p>${e("order")} Order here → @${esc(input.botUsername.replace(/^@/, ""))}</p><p>${links}</p>`;
+  return `<h3>${e("title")} ${esc(copy.title)}</h3><p>${esc(copy.intro)}</p><table bordered striped compact><tr><td><b>PRODUCT</b></td><td><b>PRICE</b></td></tr>${rows}</table><p>${e("instant")} ${esc(copy.instant)}</p><p>${e("warranty")} ${esc(copy.warranty)}</p><p>${e("bulk")} ${esc(copy.bulk)}</p><p>${e("order")} Order here → @${esc(input.botUsername.replace(/^@/, ""))}</p><p>${links}</p>`;
 }
