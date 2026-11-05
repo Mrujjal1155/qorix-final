@@ -97,7 +97,7 @@ export function ProductListPostCard({ mode = "all" }: { mode?: ProductListMode }
                 <Input
                   value={emojis[k.key] ?? ""}
                   placeholder={k.fallback}
-                  onChange={(e) => setEmojis((m) => ({ ...m, [k.key]: e.target.value }))}
+                  onChange={(e) => { setEmojis((m) => ({ ...m, [k.key]: e.target.value })); setList(null); }}
                 />
               </div>
             ))}

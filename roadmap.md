@@ -1,8 +1,9 @@
 # Roadmap
 
-- [ ] Add Category Products and admin-selected Top Selling Products price-list modes with supplier filters, editable copy, premium emojis and three community links.
-- [ ] Queue preview-only product-list broadcasts through the existing durable sender and show persisted completion counts without blocking other admin work.
-- [ ] Verify focused selection/queue tests and admin controls without sending a real broadcast.
+- [x] Add Category Products and admin-selected Top Selling Products price-list modes, paginated active catalogue, supplier filters, separate saved editable copy, premium emojis and community link fields. Update-group URL is unknown and remains empty, not invented.
+- [x] Queue preview-only product-list broadcasts through the existing durable sender with atomic idempotent user/group receipts, service-only progress aggregates and admin-wide completion popup; no real broadcast sent.
+- [x] Run 32 focused/regression tests independently (mock isolation required); latest build OK and service-only RPC grants verified.
+- [ ] Verify signed-in admin generate/save/queue/readback and actual Telegram appearance after deployment; blocked by external unmanaged authentication and blank local preview with a pre-existing shop/order-access import-protection error. User must supply the update-group link; no real customer messages sent.
 
 - [x] Present approved Telegram wallet history in rich tables with separate ledger/payment-attempt pages, gateway/status/date, refresh and pagination; sender-private scoped projections preserve balances and verification. 24 focused/regression tests pass, build OK; no real messages/payments sent.
 - [ ] Verify wallet tables visually in the deployed Telegram bot; blocked by external deployment and actual Telegram interaction. Mocked callback navigation/status readback passes.
