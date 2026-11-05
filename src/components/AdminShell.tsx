@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { SupplierBell } from "@/components/admin/SupplierBell";
 import { AdminThemeSelector } from "@/components/admin/AdminThemeSelector";
+import { ProductListProgress } from "@/components/admin/ProductListProgress";
 import {
   ArrowLeft,
   Boxes,
@@ -146,6 +147,7 @@ export function AdminShell({
 
   return (
     <div className="admin-theme flex min-h-screen">
+      <ProductListProgress />
       {mobileOpen && (
         <Button
           variant="ghost"
