@@ -19,7 +19,7 @@ export function cardToTable(text: string): string {
     const line = raw.trim();
     if (!line || SEPARATOR.test(line)) continue;
     const m = ROW.exec(line);
-    if (m) rows.push(`<tr><td>${m[1]}${m[2]}</td><td align="right">${m[3].trim()}</td></tr>`);
+    if (m) rows.push(`<tr><td>${m[1]}${m[2]}</td><td align="right">${(m[3] ?? "").trim()}</td></tr>`);
     else { flush(); out.push(`<p>${line}</p>`); }
   }
   flush();
