@@ -99,7 +99,7 @@ export function LiveUpdateCard({
           <pre className="whitespace-pre-wrap rounded-md bg-muted p-3 text-xs">
             {buildLivePost("purchase", { uid: "2808123968", name: "Ahmed", product: "Gemini 18 Months", qty: 1, method: "binance_pay" }, new Date(), emoji)
               .replace(/<tg-emoji[^>]*>(.*?)<\/tg-emoji>/g, "$1")
-              .replace(/<[^>]+>/g, "")}
+              .replace(/<\/td><td[^>]*>/g, ": ").replace(/<\/(tr|h3|p)>/g, "\n").replace(/<[^>]+>/g, "")}
           </pre>
         </div>
 

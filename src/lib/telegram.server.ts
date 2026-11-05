@@ -324,25 +324,28 @@ async function richTableMessage(
   html: string,
   keyboard?: Button[][],
   extra: Record<string, unknown> = {},
+  alert = false,
 ): Promise<TgResult> {
+  const opts = { alert };
   const base = {
     chat_id,
     ...(message_id === undefined ? {} : { message_id }),
     ...(keyboard ? { reply_markup: { inline_keyboard: withDefaultStyle(keyboard) } } : {}),
     ...extra,
   };
-  const result = await tg(method, { ...base, rich_message: { html } });
+  const result = await tg(method, { ...base, rich_message: { html } }, opts);
   if (result.ok || /not modified/i.test(result.description ?? "")) return result;
   // Only a definitive format/method rejection may fall back. A timeout can
   // mean Telegram accepted the send; retrying it as plain text risks duplicates.
   if (![400, 404].includes(Number(result.error_code)) || /chat not found|message to edit not found/i.test(result.description ?? "")) return result;
   return tg(method === "sendRichMessage" ? "sendMessage" : "editMessageText", {
     ...base, text: homeMessageFallback(html), parse_mode: "HTML", disable_web_page_preview: true,
-  });
+  }, opts);
 }
 
 /** Bounded, text-only sender for durable alerts; other bot messages keep their usual timeout. */
 export function sendAlertMessage(chat_id: number | string, text: string, keyboard?: Button[][]) {
+  if (/<table\b/i.test(text)) return richTableMessage("sendRichMessage", chat_id, undefined, text, keyboard, {}, true);
   return tg("sendMessage", {
     chat_id, text, parse_mode: "HTML", disable_web_page_preview: true,
     ...(keyboard ? { reply_markup: { inline_keyboard: withDefaultStyle(keyboard) } } : {}),
