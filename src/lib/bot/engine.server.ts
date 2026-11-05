@@ -1688,7 +1688,7 @@ const COLOR_SLOTS: { key: ColorSlot; label: string; def: ButtonStyle }[] = [
   { key: "pagination", label: "Pagination (Prev/Next)", def: "primary" },
   { key: "wallet", label: "Wallet & payment buttons", def: "primary" },
   { key: "api", label: "Reseller API buttons", def: "primary" },
-  { key: "flash", label: "Flash Deals button", def: "danger" },
+  { key: "flash", label: "Flash Deals button", def: "success" },
   { key: "top_category", label: "Top category cards", def: "success" },
   { key: "nav", label: "Navigation & actions", def: "default" },
   { key: "menu", label: "Main menu", def: "primary" },
