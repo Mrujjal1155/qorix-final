@@ -1,3 +1,4 @@
+import { cardToTable, saleTable } from "@/lib/bot/alert-table";
 // Server-only Telegram shop bot engine.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { membershipContact } from "@/lib/bot/contact";
@@ -3245,7 +3246,9 @@ async function deliverCard(
 ) {
   // Alerts are text-only: sending banners made every card wait on Telegram
   // fetching the image, which blocked the queue. Images stay on product view.
-  if (text.length > CAPTION_LIMIT) banner = null;
+  // Every card goes out as a native table; captions cannot hold tables.
+  text = cardToTable(text);
+  banner = null;
   if (delivery?.prepareMessage) await delivery.prepareMessage(text, kb);
   let channelSent = Boolean(delivery?.channelSent);
   let botSent = Boolean(delivery?.botSent);
@@ -3305,11 +3308,11 @@ export async function announcePurchase(user: any, product: any, qty: number, sou
   if (!s["announce_chat_id"] || (s["announce_sales"] ?? "on").toLowerCase() === "off") return;
   const [tagIcon, tagLabel] = SALE_TAGS[source] ?? SALE_TAGS.bot;
   const who = escapeHtml(maskUsername(user?.username, user?.first_name));
-  const text =
-    `${alertIcon(s, tagIcon)} <b>${tagLabel}</b>\n` +
-    `<blockquote>${alertIcon(s, "sale_user")} <b>${who}</b> just bought\n` +
-    `${alertIcon(s, "sale_qty")} <b>${qty}×</b> ${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b></blockquote>\n` +
-    `${alertIcon(s, "sale_done")} <i>Order delivered</i>`;
+  const text = saleTable({
+    tag: alertIcon(s, tagIcon), label: tagLabel, userIcon: alertIcon(s, "sale_user"), who,
+    qtyIcon: alertIcon(s, "sale_qty"), qty, productIcon: productIconHtml(product),
+    product: escapeHtml(String(product?.name ?? "")), doneIcon: alertIcon(s, "sale_done"),
+  });
   await postToChannel(s, text, await channelProductButton(s, product));
 }
 
