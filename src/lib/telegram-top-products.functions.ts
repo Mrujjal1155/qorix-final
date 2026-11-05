@@ -1,21 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { TELEGRAM_TOP_PRODUCTS_KEY, parseTopProductIds, selectTopProducts } from "@/lib/telegram-top-products";
+import { parseTopProductIds, productListKey, selectTopProducts } from "@/lib/telegram-top-products";
+const listKind = z.enum(["top", "vault"]).default("top");
 
 export const getTelegramTopProducts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((input: { kind?: "top" | "vault" } | undefined) => z.object({ kind: listKind }).parse(input ?? {}))
+  .handler(async ({ data: input, context }) => {
     const { data: admin, error: roleError } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (roleError || !admin) throw new Error("Forbidden");
-    const { data, error } = await context.supabase.from("bot_settings").select("value").eq("key", TELEGRAM_TOP_PRODUCTS_KEY).maybeSingle();
+    const { data, error } = await context.supabase.from("bot_settings").select("value").eq("key", productListKey(input.kind)).maybeSingle();
     if (error) throw new Error("Could not load top products");
     return { product_ids: parseTopProductIds(data?.value) };
   });
 
 export const saveTelegramTopProducts = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { product_ids: string[] }) => z.object({ product_ids: z.array(z.string().uuid()) }).parse(input))
+  .inputValidator((input: { product_ids: string[]; kind?: "top" | "vault" }) => z.object({ product_ids: z.array(z.string().uuid()), kind: listKind }).parse(input))
   .handler(async ({ data, context }) => {
     const { data: admin, error: roleError } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
     if (roleError || !admin) throw new Error("Forbidden");
@@ -29,7 +31,7 @@ export const saveTelegramTopProducts = createServerFn({ method: "POST" })
       catalogue.push(...(products ?? []));
     }
     const orderedIds = selectTopProducts(catalogue, ids).map((p) => p.id);
-    const { error } = await context.supabase.from("bot_settings").upsert({ key: TELEGRAM_TOP_PRODUCTS_KEY, value: JSON.stringify(orderedIds) }, { onConflict: "key" });
+    const { error } = await context.supabase.from("bot_settings").upsert({ key: productListKey(data.kind), value: JSON.stringify(orderedIds) }, { onConflict: "key" });
     if (error) throw new Error("Could not save top products");
     return { product_ids: orderedIds };
   });

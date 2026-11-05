@@ -14,11 +14,13 @@ import { cn } from "@/lib/utils";
 
 type Product = { id: string; name: string; price: number; stock?: number; is_active: boolean; owner_reseller_id?: string | null; supplier_name?: string | null };
 
-export function TelegramTopProducts({ products }: { products: Product[] }) {
+export function TelegramTopProducts({ products, kind = "top" }: { products: Product[]; kind?: "top" | "vault" }) {
+  const label = kind === "vault" ? "Reseller Vault" : "Top Products";
+  const qk = ["telegram-top-products", kind];
   const qc = useQueryClient();
   const load = useServerFn(getTelegramTopProducts);
   const save = useServerFn(saveTelegramTopProducts);
-  const { data, isPending, error } = useQuery({ queryKey: ["telegram-top-products"], queryFn: () => load() });
+  const { data, isPending, error } = useQuery({ queryKey: qk, queryFn: () => load({ data: { kind } }) });
   const [draft, setDraft] = useState<string[] | null>(null);
   const [search, setSearch] = useState("");
   const [supplier, setSupplier] = useState<string | null>(null);
@@ -28,11 +30,11 @@ export function TelegramTopProducts({ products }: { products: Product[] }) {
   const supplierColors = useMemo(() => colorIndexesFor(catalogue.map((p) => p.supplier_name)), [products]);
   const counts = useMemo(() => countBySupplier(catalogue), [products]);
   const mutation = useMutation({
-    mutationFn: () => save({ data: { product_ids: ids.filter((id) => catalogue.some((p) => p.id === id)) } }),
+    mutationFn: () => save({ data: { product_ids: ids.filter((id) => catalogue.some((p) => p.id === id)), kind } }),
     onSuccess: (result) => {
-      qc.setQueryData(["telegram-top-products"], result);
+      qc.setQueryData(qk, result);
       setDraft(null);
-      toast.success("Top products saved");
+      toast.success(`${label} saved`);
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -58,7 +60,7 @@ export function TelegramTopProducts({ products }: { products: Product[] }) {
         <span className="text-sm text-muted-foreground">{ids.length} selected · {visible.length} shown</span>
         <div className="flex gap-2">
           <Button variant="outline" disabled={isPending || !!error || mutation.isPending || !ids.length} onClick={() => setDraft([])}><X className="size-4" /> Clear selection</Button>
-          <Button disabled={isPending || !!error || mutation.isPending} onClick={() => mutation.mutate()}><Save className="size-4" /> {mutation.isPending ? "Saving…" : "Save Top Products"}</Button>
+          <Button disabled={isPending || !!error || mutation.isPending} onClick={() => mutation.mutate()}><Save className="size-4" /> {mutation.isPending ? "Saving…" : `Save ${label}`}</Button>
         </div>
       </div>
       <div className="relative max-w-md">
@@ -95,7 +97,7 @@ export function TelegramTopProducts({ products }: { products: Product[] }) {
           </Button>
         </div>
       )}
-      {error ? <p role="alert" className="text-sm text-destructive">Could not load top products. <Button variant="link" onClick={() => qc.invalidateQueries({ queryKey: ["telegram-top-products"] })}>Retry</Button></p> : isPending ? <p className="text-sm text-muted-foreground">Loading top products…</p> : (
+      {error ? <p role="alert" className="text-sm text-destructive">Could not load top products. <Button variant="link" onClick={() => qc.invalidateQueries({ queryKey: qk })}>Retry</Button></p> : isPending ? <p className="text-sm text-muted-foreground">Loading top products…</p> : (
         <div className="max-h-[60vh] overflow-y-auto divide-y divide-border border-y border-border">
           {ordered.map((p) => {
             const serial = ids.indexOf(p.id) + 1;
