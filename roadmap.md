@@ -1,5 +1,9 @@
 # Roadmap
 
+- [ ] Add Category Products and admin-selected Top Selling Products price-list modes with supplier filters, editable copy, premium emojis and three community links.
+- [ ] Queue preview-only product-list broadcasts through the existing durable sender and show persisted completion counts without blocking other admin work.
+- [ ] Verify focused selection/queue tests and admin controls without sending a real broadcast.
+
 - [x] Present approved Telegram wallet history in rich tables with separate ledger/payment-attempt pages, gateway/status/date, refresh and pagination; sender-private scoped projections preserve balances and verification. 24 focused/regression tests pass, build OK; no real messages/payments sent.
 - [ ] Verify wallet tables visually in the deployed Telegram bot; blocked by external deployment and actual Telegram interaction. Mocked callback navigation/status readback passes.
 
