@@ -28,10 +28,10 @@
 
 ### ২. নির্ভরযোগ্য সংরক্ষণ ও উত্তর পাঠানো
 - আলাদা Business connection, chat, message, job ও audit records থাকবে—**ticket records নয়**। Scope হবে connection ID + chat ID।
-- Webhook secret ও bounded input validation-এর পরে update durable storage-এ রেখে acknowledgment; দীর্ঘ AI call webhook acknowledgment আটকে রাখবে না। Storage ব্যর্থ হলে retryable response, যাতে update নিঃশব্দে হারিয়ে না যায়।
+- Validated update durable storage-এ রেখে acknowledgment; দীর্ঘ AI call webhook আটকে রাখবে না। Storage ব্যর্থ হলে retryable response।
 - Update/message deduplication, chat-ভিত্তিক serial job claims, generation/version checks এবং recovery থাকবে। Edit-এ pending উত্তর invalidate হবে; deletion-এর content AI context থেকে বাদ যাবে।
 - উত্তর তৈরি ও send-এর ঠিক আগে active connection, chat AI flag, takeover/version এবং `can_reply` পুনরায় যাচাই হবে। Telegram-এর নিয়ম: গত **২৪ ঘণ্টায় incoming message থাকা private chat**-এ reply permission প্রযোজ্য।
-- একই customer chat-এ `business_connection_id` সহ send হবে; সাধারণ bot DM-এ fallback নয়। Unknown network outcome-এ অন্ধ resend নয়—duplicate এড়াতে uncertain delivery থামিয়ে মানুষকে দেখানো হবে। Telegram send-এ পূর্ণ exactly-once guarantee নেই।
+- একই chat-এ `business_connection_id` সহ send; bot DM fallback নয়। Unknown delivery outcome-এ resend না করে handover; exactly-once guarantee নেই।
 
 ### ৩. বর্তমান তথ্য থেকে AI উত্তর
 - Product search, বর্তমান stock/retail price, description, important note, quick guide ও অনুমোদিত documentation server-side read-only tools থেকে আসবে। Stock-এর জন্য বর্তমান counter ব্যবস্থাই থাকবে; supplier কেনাকাটার API ডাকবে না।
@@ -47,8 +47,8 @@
 - Global auto-reply default OFF; প্রথমে নির্বাচিত test chat-এ ON। এক chat-এর switch অন্য chat বা shop bot-কে প্রভাবিত করবে না।
 - Take Over করলে pending reply cancel হবে; চলমান generation stop করার সংকেত ও send-time guard থাকবে। ইতিমধ্যে Telegram-এ গৃহীত reply ফিরিয়ে নেওয়া যাবে এমন প্রতিশ্রুতি নয়।
 - Refund, payment dispute, account ownership/security, অনিশ্চিত উত্তর বা backend/provider failure-এ handover; admin Resume না করা পর্যন্ত AI বন্ধ।
-- Telegram app-এ connection/chat management controls থাকলে সেটিও সম্মান করা হবে; dedicated per-chat pause Bot API আছে ধরে নেওয়া হবে না।
-- Admin actions ও safe error reasons audit হবে; stored chats-এর retention/cleanup এবং অন্য account-এর data access নিষিদ্ধ থাকবে।
+- Telegram app-এর pause মানতে হবে; dedicated per-chat pause Bot API আছে ধরে নেওয়া হবে না।
+- Admin action audit, chat retention/cleanup ও অন্য account-এর data access নিষিদ্ধ থাকবে।
 
 ## প্রযুক্তিগত বাস্তবায়ন
 - নতুন server-only `src/lib/business-inbox/` modules: update validation/routing, policy, data reads, durable jobs, AI generation ও Business sender। পুরোনো `engine.server.ts`-এ Business message পুনর্ব্যবহার নয়।
@@ -56,7 +56,7 @@
 - AI: Lovable AI Gateway, নতুন default `openai/gpt-6-astra`, Vercel AI SDK Responses streaming server-side; final উত্তরই Telegram-এ যাবে। Request-local gateway run ID, `store:false`, supported reasoning এবং bounded read-only tools থাকবে; secrets browser-এ নয়। AI usage workspace credits থেকে কাটবে।
 - Durable background execution: persist করার পরে bounded independent processing; বর্তমান notify/scheduled tick-এ কেবল ছোট recovery trigger। AI generation existing stock-alert lease/recipient queue দখল করবে না; runtime capacity ও published execution pilot-এ যাচাই হবে।
 - RLS enabled থাকবে। Business records-এর public access নেই; admin controls-এ verified admin role; webhook/worker privileged writes কেবল validated caller/connection-এর পরে। বর্তমান schema/grants live যাচাই করে additive migrations; backend migration নয়।
-- নতুন admin leaf route-এ নিজস্ব metadata; shared admin theme/components ব্যবহার হবে। Existing support schema/UI/API untouched।
+- Admin route-এ নিজস্ব metadata/shared theme; support schema/UI/API untouched।
 - Gateway denial/refusal-এ stop, নিরাপদ কারণ admin-এ; credit/policy block-এ persistent global pause, blind retry নয়। Transient 429/5xx-এ bounded backoff; account/model failure-এ নতুন probe বা model substitution নয়।
 
 ## পরীক্ষা, চালু করা ও rollback
