@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Eye, ShieldCheck, ShoppingCart, Star, Zap } from "lucide-react";
+import { Bell, Eye, ShieldCheck, ShoppingCart } from "lucide-react";
 import { SmartImage } from "@/components/SmartImage";
 import { Button } from "@/components/ui/button";
 import { usePrefs } from "@/lib/prefs";
@@ -40,6 +40,10 @@ export function ProductCard({
   const { money, usd, currency } = usePrefs();
   const auto = product.delivery_type === "auto";
   const sold = Number(product.sold ?? 0);
+  const deliveryText = product.delivery_time ? t(product.delivery_time) : auto ? t("Instant delivery") : t("Manual delivery");
+  const noWarranty = /no\s*warranty/i.test(product.delivery_time ?? "");
+  // Only an explicit "not in stock" disables buying; unknown keeps the old behaviour.
+  const soldOut = product.in_stock === false;
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:card-glow">
@@ -77,16 +81,16 @@ export function ProductCard({
       <div className="flex flex-1 flex-col gap-2 p-4">
         <h3 className="line-clamp-2 text-sm font-bold leading-snug">{product.name}</h3>
 
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          {[0, 1, 2, 3, 4].map((i) => (
-            <Star key={i} className="h-3.5 w-3.5 fill-warning text-warning" />
-          ))}
-          {sold > 0 && <span className="ml-1.5 text-success">↗ {sold}+ {t("sold")}</span>}
-        </div>
+        {/* No star row: there are no real reviews to average. */}
+        {sold > 0 && <p className="text-xs text-success">↗ {sold}+ {t("sold")}</p>}
 
-        <p className="inline-flex items-center gap-1.5 text-xs text-success">
+        <p
+          className={`inline-flex items-center gap-1.5 text-xs ${
+            noWarranty ? "text-warning" : "text-success"
+          }`}
+        >
           <ShieldCheck className="h-3.5 w-3.5" />
-          {product.delivery_time ? t(product.delivery_time) : auto ? t("Instant delivery") : t("Manual delivery")}
+          {deliveryText}
         </p>
 
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
@@ -105,18 +109,19 @@ export function ProductCard({
               <Eye className="h-4 w-4" /> {t("View Details")}
             </Link>
           </Button>
-          <span
-            className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[10px] font-bold ${
-              auto ? "bg-success/15 text-success" : "bg-warning/15 text-warning"
-            }`}
-          >
-            <Zap className="h-3 w-3" /> {auto ? t("Instant") : t("Manual")}
-          </span>
-          <Button asChild size="sm" className="flex-1 rounded-lg">
-            <Link to="/store/$id" params={{ id: (product as any).slug ?? product.id }} search={{ buy: true }}>
-              <ShoppingCart className="h-4 w-4" /> {t("Buy Now")}
-            </Link>
-          </Button>
+          {soldOut ? (
+            <Button asChild size="sm" variant="outline" className="flex-1 rounded-lg">
+              <a href={`https://t.me/QORIX3_bot?start=p_${product.id}`} target="_blank" rel="noreferrer">
+                <Bell className="h-4 w-4" /> {t("Notify me")}
+              </a>
+            </Button>
+          ) : (
+            <Button asChild size="sm" className="flex-1 rounded-lg">
+              <Link to="/store/$id" params={{ id: (product as any).slug ?? product.id }} search={{ buy: true }}>
+                <ShoppingCart className="h-4 w-4" /> {t("Buy Now")}
+              </Link>
+            </Button>
+          )}
         </div>
       </div>
     </article>

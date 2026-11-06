@@ -18,6 +18,7 @@ import {
   Share2,
   ShieldCheck,
   ShoppingCart,
+  Bell,
   Star,
   Zap,
 } from "lucide-react";
