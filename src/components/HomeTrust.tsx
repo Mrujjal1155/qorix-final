@@ -94,7 +94,7 @@ export function ResellerTeaser() {
           </span>
           <div>
             <h2 className="text-xl font-bold tracking-tight">Become a reseller</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Wholesale prices, one shared balance for the website, the Telegram bot @QORIX3_bot and our REST API.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Reseller prices, with one balance shared between the Telegram bot @QORIX3_bot and our REST API.</p>
           </div>
         </div>
         <Button asChild size="lg" className="rounded-full px-7">

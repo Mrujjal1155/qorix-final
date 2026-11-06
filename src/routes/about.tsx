@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { BOT_HANDLE, BOT_URL } from "@/lib/telegram-bot";
 import { Clock, Headphones, ShieldCheck, Sparkles } from "lucide-react";
 import { StoreShell } from "@/components/StoreShell";
 import { useSiteContent } from "@/lib/use-site-content";
@@ -11,14 +12,14 @@ import { brandFallbackOnError } from "@/components/SmartImage";
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
-      { title: "About qorixlab.com — Premium Digital Subscriptions" },
+      { title: "About QORIX Store — Digital Subscriptions from Bangladesh" },
       {
         name: "description",
         content:
-          "qorixlab.com delivers genuine premium subscriptions and AI tools at the best price, with instant delivery on the web and inside Telegram.",
+          "QORIX Store sells AI, developer, SEO, streaming and VPN subscriptions with automatic delivery on the website and in the Telegram bot @QORIX3_bot.",
       },
-      { property: "og:title", content: "About qorixlab.com" },
-      { property: "og:description", content: "Who we are and why thousands trust us for premium digital products." },
+      { property: "og:title", content: "About QORIX Store" },
+      { property: "og:description", content: "Who we are, what we sell, how payment and delivery work." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:url", content: productionUrlFor("/about") },
@@ -32,7 +33,6 @@ const ICONS = [Sparkles, Clock, ShieldCheck, Headphones];
 
 function AboutPage() {
   const { site, v } = useSiteContent();
-  const brand = `${v("site_brand_name")}${v("site_brand_suffix")}`;
   const points = siteCards(site, "site_page_about_points");
 
   return (
@@ -72,80 +72,65 @@ function AboutPage() {
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Our story</h2>
             <p className="mt-3 text-muted-foreground">
-              {brand} started with a simple frustration: premium digital tools are priced for Western
-              markets, while creators, students and small businesses everywhere else are left paying two or
-              three times what a subscription is really worth. We began by sourcing a handful of legitimate
-              plans for friends, and grew into a full storefront serving thousands of orders across the web
-              and Telegram — with the same catalogue, the same prices and the same delivery speed on both.
+              QORIX Store started to make paid digital tools easier to buy from Bangladesh and nearby
+              markets, where international cards are often hard to use. We sell the subscriptions we can
+              deliver, accept crypto and local mobile wallets, and run the same catalogue on this website and
+              in our Telegram bot{" "}
+              <a href={BOT_URL} target="_blank" rel="noopener" className="font-semibold text-primary hover:underline">{BOT_HANDLE}</a>.
             </p>
           </div>
 
           <div>
             <h2 className="text-2xl font-bold tracking-tight">What we sell</h2>
             <p className="mt-3 text-muted-foreground">
-              Everything a creator, developer or marketer needs — in one place, at fair prices:
+              Subscriptions, accounts, keys and codes in these groups. The live list, prices and stock are
+              always on the <Link to="/store" className="text-primary hover:underline">Store</Link> page.
             </p>
             <ul className="mt-3 list-disc space-y-1.5 pl-5 text-muted-foreground">
-              <li>
-                <strong className="text-foreground">AI tools</strong> — Google AI Pro, Gemini AI Pro, Manus Pro,
-                Runway Pro, Muse AI, Wispr Flow and Gamma Pro.
-              </li>
-              <li>
-                <strong className="text-foreground">Developer tools</strong> — Lovable, Replit Core, Bolt.new,
-                Supabase Pro, Railway, n8n, Warp, Resend and PostHog.
-              </li>
-              <li>
-                <strong className="text-foreground">Design &amp; productivity</strong> — Canva, Figma, Framer,
-                Adobe Express, Notion, Linear, Granola, Miro and Descript.
-              </li>
-              <li>
-                <strong className="text-foreground">Streaming, learning &amp; VPN</strong> — Amazon Prime
-                Video, Apple Music, Crunchyroll, Coursera, Duolingo, LinkedIn Premium, NordVPN and Surfshark.
-              </li>
+              <li><strong className="text-foreground">AI tools</strong> — chat, writing, video and presentation tools.</li>
+              <li><strong className="text-foreground">Developer tools</strong> — app builders, hosting, databases and automation.</li>
+              <li><strong className="text-foreground">SEO &amp; marketing tools</strong></li>
+              <li><strong className="text-foreground">Design &amp; productivity</strong></li>
+              <li><strong className="text-foreground">Streaming, learning &amp; VPN</strong></li>
             </ul>
             <p className="mt-3 text-muted-foreground">
-              Every product page shows the exact plan length, warranty terms and what you receive, so there
-              are no surprises after checkout.
+              Each product page shows the plan length, warranty period and what you receive.
             </p>
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold tracking-tight">Fair pricing &amp; instant delivery</h2>
+            <h2 className="text-2xl font-bold tracking-tight">Payment</h2>
             <p className="mt-3 text-muted-foreground">
-              We buy in volume and keep our margin small, so you get genuine premium tools at fair
-              prices — often a fraction of the official subscription. Payment is verified automatically and
-              stock is released the moment your payment confirms: credentials, activation links or account
-              details reach your dashboard, email and Telegram chat within seconds, 24/7 — no waiting for
-              manual processing, day or night.
+              We accept Binance Pay, USDT (BEP-20 / TRC-20), Bitcoin, and bKash, Nagad or Rocket through
+              EPS — whichever methods are enabled at checkout at the time of your order. Payments are
+              checked automatically.
             </p>
           </div>
 
           <div>
             <h2 className="text-2xl font-bold tracking-tight">How ordering works</h2>
             <ol className="mt-3 space-y-2 text-muted-foreground">
-              <li>1. Pick a product and plan length from the store or the Telegram bot.</li>
-              <li>2. Pay with the method that suits you — crypto, mobile wallets or card gateways.</li>
-              <li>3. Your payment is verified automatically and stock is released instantly.</li>
-              <li>4. Credentials or activation links appear in your account, inbox and Telegram chat.</li>
+              <li>1. Pick a product on the website or in {BOT_HANDLE}.</li>
+              <li>2. Pay with one of the methods shown at checkout.</li>
+              <li>3. Products with automatic stock are delivered as soon as the payment is verified; manual products are sent by our team.</li>
+              <li>4. Find your order on the <Link to="/track" className="text-primary hover:underline">Track Order</Link> page, in your account, or in the bot chat.</li>
             </ol>
           </div>
 
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Warranty &amp; support</h2>
             <p className="mt-3 text-muted-foreground">
-              Eligible orders carry a replacement warranty for the full plan period. If an account stops
-              working, message us with your order number and we replace it — no arguments, no long forms.
-              Real people answer on Telegram and WhatsApp around the clock, and every order stays traceable
-              from your account dashboard.
+              Warranty depends on the product and is shown on its page. If something stops working inside
+              that period, contact support with your order number. See the{" "}
+              <Link to="/refund" className="text-primary hover:underline">Refund Policy</Link> for details.
             </p>
           </div>
 
           <div>
             <h2 className="text-2xl font-bold tracking-tight">For resellers</h2>
             <p className="mt-3 text-muted-foreground">
-              We also run a reseller programme with wholesale pricing, balance top-ups and a REST API so you
-              can plug our catalogue straight into your own shop or bot. Apply from the Reseller page and we
-              review new partners within a day.
+              Approved resellers get reseller prices, balance top-ups and a REST API to sell our catalogue
+              in their own shop or bot. Apply from the <Link to="/reseller" className="text-primary hover:underline">Reseller</Link> page.
             </p>
           </div>
         </div>

@@ -3,11 +3,11 @@
 
 export const SITE_DEFAULTS: Record<string, string> = {
   site_brand_name: "QORIX",
-  site_brand_suffix: ".shop",
-  site_tagline: "Premium digital products and subscriptions at unbeatable prices.",
+  site_brand_suffix: " Store",
+  site_tagline: "AI, developer, SEO, streaming and VPN subscriptions with automatic delivery.",
 
   // Header
-  site_nav: "Home|/\nAbout Us|/about\nProducts|/store\nFAQ|/faq\nContact Us|/contact",
+  site_nav: "Home|/\nAbout Us|/about\nProducts|/store\nFAQ|/faq\nTelegram Bot|/telegram-bot\nContact Us|/contact",
 
   // Footer columns — one item per line: Label|href
   site_footer_categories_title: "Categories",
@@ -16,7 +16,7 @@ export const SITE_DEFAULTS: Record<string, string> = {
   site_footer_categories_more: "View All|/store",
 
   site_footer_quick_title: "Quick Links",
-  site_footer_quick: "Home|/\nAbout Us|/about\nProducts|/store\nCart|/store\nWrite Review|/contact",
+  site_footer_quick: "Home|/\nAbout Us|/about\nProducts|/store\nTrack Order|/track\nTelegram Bot|/telegram-bot",
 
   site_footer_support_title: "Support",
   site_footer_support: "Contact Us|/contact\nFAQ|/faq\nBecome a Reseller|/reseller\nAPI Documentation|/reseller/docs\nRefund Policy|/refund\nTerms of Service|/terms\nPrivacy Policy|/privacy",
@@ -33,7 +33,7 @@ export const SITE_DEFAULTS: Record<string, string> = {
   site_socials:
     "facebook|https://facebook.com\ninstagram|https://instagram.com\ntelegram|https://t.me/QORIX3_bot\ntwitter|https://twitter.com",
 
-  site_copyright: "© {year} qorixlab.com. All rights reserved. Made with ❤️ in Bangladesh.",
+  site_copyright: "© {year} QORIX Store. All rights reserved. Made with ❤️ in Bangladesh.",
 
   // Floating buttons
   site_whatsapp_enabled: "1", // 1 = show floating WhatsApp button, 0 = hide
@@ -48,22 +48,22 @@ export const SITE_DEFAULTS: Record<string, string> = {
   // ── Pages (all editable from /admin/site) ─────────────────────────
   site_page_about_title: "About {brand}",
   site_page_about_body:
-    "We are a digital goods store focused on premium AI tools, creative apps, streaming and productivity subscriptions. Order from the website or straight from our Telegram bot — the catalogue, prices and delivery are the same everywhere.",
+    "QORIX Store sells digital subscriptions — AI, developer, SEO, streaming, VPN and creative tools. Order on this website or in our Telegram bot @QORIX3_bot; the catalogue and prices are the same on both.",
   // one per line: Title|Text
   site_page_about_points:
-    "Genuine products|Every subscription is sourced legitimately and tested before delivery.\nInstant delivery|Automatic stock is delivered the moment your payment is verified.\nWarranty included|Replacement warranty on every eligible order — no questions asked.\n24/7 support|Real humans on Telegram, ready whenever you need help.",
+    "Automatic delivery|Products with automatic stock are delivered as soon as your payment is verified.\nLocal & crypto payments|Binance Pay, USDT (BEP-20 / TRC-20), Bitcoin, and bKash / Nagad / Rocket via EPS.\nProduct warranty|Each product page shows its own warranty period.\nTelegram support|Message us through @QORIX3_bot for orders, delivery and warranty.",
 
   site_page_faq_title: "Frequently asked questions",
   site_page_faq_sub: "Payment, delivery, warranty and support — answered.",
   // one per line: Question|Answer
   site_page_faq_items:
-    "How do I pay?|We accept Binance Pay and USDT (BEP-20 / TRC-20). Pick a method at checkout, send the exact amount and paste the transaction ID.\nHow fast is delivery?|Automatic products are delivered instantly after the payment is verified. Manual products are delivered by our team, usually within a few hours.\nWhere do I get my credentials?|On the tracking page, in your account order history, and on Telegram if you ordered through the bot.\nIs there a warranty?|Yes. Each product shows its own warranty period on the product page. Contact support inside that period for a replacement.\nA product is out of stock — what now?|Tap “Notify Me When Available” on the product in our Telegram bot and we will message you the moment it is restocked.\nCan I get a refund?|If we cannot deliver a product you paid for, you get a full refund. Delivered credentials are non-refundable but are covered by the warranty.",
+    "How do I pay?|Pick one of the methods enabled at checkout — Binance Pay, USDT (BEP-20 / TRC-20), Bitcoin, or bKash / Nagad / Rocket via EPS — and pay the exact amount shown.\nHow fast is delivery?|Automatic products are delivered instantly after the payment is verified. Manual products are delivered by our team, usually within a few hours.\nWhere do I get my credentials?|On the tracking page, in your account order history, and on Telegram if you ordered through the bot.\nIs there a warranty?|Yes. Each product shows its own warranty period on the product page. Contact support inside that period for a replacement.\nA product is out of stock — what now?|Tap “Notify me when back in stock” on the product page or in our Telegram bot @QORIX3_bot and we will message you the moment it is restocked.\nCan I get a refund?|If we cannot deliver a product you paid for, you get a full refund. Delivered credentials are non-refundable but are covered by the warranty.",
 
   site_page_contact_title: "Contact us",
-  site_page_contact_sub: "The fastest way to reach us is Telegram — we reply around the clock.",
+  site_page_contact_sub: "The fastest way to reach us is Telegram through @QORIX3_bot.",
   // one per line: Title|Text|link(optional)|icon(telegram|chat|clock|track)
   site_page_contact_cards:
-    "Telegram support|@QORIX3_bot — orders, delivery and warranty.|https://t.me/QORIX3_bot|telegram\nOrder bot|Buy and manage orders directly inside Telegram.|https://t.me/QORIX3_bot|chat\nSupport hours|24/7 — average reply time under 30 minutes.||clock\nOrder status|Check delivery anytime on the Track Order page.|/track|track",
+    "Telegram support|@QORIX3_bot — orders, delivery and warranty.|https://t.me/QORIX3_bot|telegram\nOrder bot|Buy and manage orders directly inside Telegram.|https://t.me/QORIX3_bot|chat\nHow the bot works|Commands, payment and delivery in Telegram.|/telegram-bot|chat\nOrder status|Check delivery anytime on the Track Order page.|/track|track",
 
   site_legal_updated: "September 2026",
   site_page_terms_title: "Terms of Service",
