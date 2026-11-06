@@ -50,25 +50,25 @@ export function ProductCard({
   const soldOut = product.in_stock === false;
 
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:card-glow">
+    <article className="group relative flex flex-col">
       <Link
         to="/store/$id"
         params={{ id: (product as any).slug ?? product.id }}
         search={{ buy: false }}
-        className="relative block aspect-[4/3] overflow-hidden bg-secondary/60"
+        className="relative block aspect-[4/3] overflow-hidden rounded-lg border border-[color-mix(in_oklab,var(--foreground)_10%,transparent)] bg-secondary/40 transition-colors group-hover:border-primary/50"
       >
         <SmartImage
           src={product.image_url}
           alt={product.name}
           priority={priority}
           sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 320px"
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
         />
 
         {/* top badge row */}
         <div className="pointer-events-none absolute inset-x-2 top-2 flex items-start justify-between gap-2">
           {off > 0 ? (
-            <span className="rounded-full bg-destructive px-2.5 py-1 text-[11px] font-bold text-destructive-foreground shadow">
+            <span className="rounded-sm bg-destructive px-2 py-0.5 font-mono text-[11px] font-medium text-destructive-foreground">
               -{off}%
             </span>
           ) : (
@@ -76,7 +76,7 @@ export function ProductCard({
           )}
           {product.badge ? (
             <span
-              className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide backdrop-blur ${
+              className={`rounded-sm border px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider backdrop-blur ${
                 badgeNoWarranty
                   ? "border-warning/60 bg-warning/20 text-warning"
                   : "border-border/70 bg-background/80 text-foreground"
@@ -88,10 +88,10 @@ export function ProductCard({
         </div>
       </Link>
 
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <h3 className="line-clamp-2 text-sm font-bold leading-snug">{product.name}</h3>
+      <div className="flex flex-1 flex-col gap-2 pt-4">
+        <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight">{product.name}</h3>
         {variantNote ? (
-          <p className="rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
+          <p className="border-l-2 border-primary pl-2 font-mono text-[11px] text-primary">
             {variantNote}
           </p>
         ) : null}
@@ -104,12 +104,12 @@ export function ProductCard({
             noWarranty ? "text-warning" : "text-success"
           }`}
         >
-          <ShieldCheck className="h-3.5 w-3.5" />
+          <ShieldCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
           {deliveryText}
         </p>
 
-        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-          <span className="text-xl font-extrabold text-primary">{money(product.price)}</span>
+        <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 border-t border-[color-mix(in_oklab,var(--foreground)_10%,transparent)] pt-3">
+          <span className="text-2xl font-bold tabular-nums tracking-tight text-foreground">{money(product.price)}</span>
           {product.old_price ? (
             <span className="text-sm text-muted-foreground line-through">{money(product.old_price)}</span>
           ) : null}
@@ -118,22 +118,22 @@ export function ProductCard({
           ) : null}
         </div>
 
-        <div className="mt-auto flex items-center gap-2">
-          <Button asChild size="sm" variant="secondary" className="flex-1 rounded-lg">
+        <div className="mt-auto flex items-center gap-2 pt-1">
+          <Button asChild size="sm" variant="ghost" className="flex-1 rounded-md border border-[color-mix(in_oklab,var(--foreground)_12%,transparent)]">
             <Link to="/store/$id" params={{ id: (product as any).slug ?? product.id }} search={{ buy: false }}>
-              <Eye className="h-4 w-4" /> {t("View Details")}
+              <Eye className="h-4 w-4" strokeWidth={1.75} /> {t("View Details")}
             </Link>
           </Button>
           {soldOut ? (
-            <Button asChild size="sm" variant="outline" className="h-auto min-h-8 flex-1 whitespace-normal rounded-lg py-1 text-xs">
+            <Button asChild size="sm" variant="outline" className="h-auto min-h-8 flex-1 whitespace-normal rounded-md py-1 text-xs">
               <a href={`https://t.me/QORIX3_bot?start=p_${product.id}`} target="_blank" rel="noreferrer">
-                <Bell className="h-4 w-4" /> {t("Notify me when back in stock")}
+                <Bell className="h-4 w-4" strokeWidth={1.75} /> {t("Notify me when back in stock")}
               </a>
             </Button>
           ) : (
-            <Button asChild size="sm" className="flex-1 rounded-lg">
+            <Button asChild size="sm" className="flex-1 rounded-md">
               <Link to="/store/$id" params={{ id: (product as any).slug ?? product.id }} search={{ buy: true }}>
-                <ShoppingCart className="h-4 w-4" /> {t("Buy Now")}
+                <ShoppingCart className="h-4 w-4" strokeWidth={1.75} /> {t("Buy Now")}
               </Link>
             </Button>
           )}

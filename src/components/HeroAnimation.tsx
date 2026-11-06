@@ -164,71 +164,70 @@ export function HeroAnimation({
 
 
   return (
-    <section className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-card via-background to-secondary/40 p-6 sm:p-10">
-      <span className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/10 blur-[80px]" />
-      <span className="pointer-events-none absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-success/10 blur-[80px]" />
+    <section className="relative">
 
-      <div className="relative z-10 grid items-center gap-10 lg:grid-cols-2">
+      <div className="relative z-10 grid items-center gap-12 lg:grid-cols-12 lg:gap-10">
         {/* left: copy */}
-        <div className="w-full min-w-0 max-w-xl">
-          <div className="inline-flex items-center gap-2 rounded-full border border-border bg-secondary/60 px-3 py-1 text-xs font-semibold text-muted-foreground">
-            <Zap className="h-3.5 w-3.5 text-primary" />
+        <div className="w-full min-w-0 lg:col-span-7">
+          <div className="eyebrow inline-flex items-center gap-2">
+            <Zap className="h-3.5 w-3.5 text-primary" strokeWidth={1.75} />
             {t("Instant digital delivery")}
           </div>
-          <h1 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl">
+          <h1 className="display-xl mt-5 max-w-[14ch] text-balance sm:max-w-[16ch]">
             {t("Premium AI & streaming subscriptions")}
-            <span className="block text-primary">{t("— delivered to your inbox in seconds, from $0.03.")}</span>
+            <span className="mt-2 block text-[0.6em] font-bold leading-[1.1] text-muted-foreground">{t("— delivered to your inbox in seconds, from $0.03.")}</span>
           </h1>
-          <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
+          <p className="mt-6 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
             {t("Order from our website or Telegram bot. Pay with Binance Pay or USDT. Receive your account, key or activation code automatically — no waiting.")}
           </p>
-          <div className="mt-6 flex flex-wrap items-center gap-4 text-sm font-medium">
-            <span className="inline-flex items-center gap-2 rounded-full bg-success/10 px-3 py-1.5 text-success">
-              <KeyRound className="h-4 w-4" /> {t("Auto delivery")}
+          <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-2">
+              <KeyRound className="h-4 w-4 text-primary" strokeWidth={1.75} /> {t("Auto delivery")}
             </span>
-            <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1.5 text-primary">
-              <CreditCard className="h-4 w-4" /> {t("Crypto payment")}
+            <span aria-hidden className="h-3 w-px bg-border" />
+            <span className="inline-flex items-center gap-2">
+              <CreditCard className="h-4 w-4 text-primary" strokeWidth={1.75} /> {t("Crypto payment")}
             </span>
-            <span className="inline-flex items-center gap-2 rounded-full bg-secondary px-3 py-1.5 text-secondary-foreground">
-              <Bot className="h-4 w-4" /> {t("Telegram bot")}
+            <span aria-hidden className="h-3 w-px bg-border" />
+            <span className="inline-flex items-center gap-2">
+              <Bot className="h-4 w-4 text-primary" strokeWidth={1.75} /> {t("Telegram bot")}
             </span>
           </div>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Button asChild size="lg" className="rounded-full px-7 shadow-lg shadow-primary/30">
+          <div className="mt-9 flex flex-wrap gap-3">
+            <Button asChild size="lg" className="rounded-md px-6">
               <Link to="/store">
-                <ShoppingBag className="h-4 w-4" /> {t("Browse Products")}
+                <ShoppingBag className="h-4 w-4" strokeWidth={1.75} /> {t("Browse Products")}
               </Link>
             </Button>
-            <Button asChild size="lg" variant="outline" className="rounded-full px-7 glass-panel">
+            <Button asChild size="lg" variant="outline" className="rounded-md px-6">
               <a href="https://t.me/QORIX3_bot" target="_blank" rel="noreferrer">
-                <Send className="h-4 w-4" /> {t("Shop on Telegram")}
+                <Send className="h-4 w-4" strokeWidth={1.75} /> {t("Shop on Telegram")}
               </a>
             </Button>
-            <Button asChild size="lg" variant="outline" className="rounded-full px-7">
+            <Button asChild size="lg" variant="ghost" className="rounded-md px-4 underline-offset-4 hover:underline">
               <Link to="/track">
-                <Search className="h-4 w-4" /> {t("Track Order")}
+                <Search className="h-4 w-4" strokeWidth={1.75} /> {t("Track Order")}
               </Link>
             </Button>
           </div>
-          <p className="mt-4 text-sm font-medium text-muted-foreground">Binance Pay · USDT · bKash · Nagad</p>
+          <p className="mt-6 border-t hairline pt-4 font-mono text-xs tracking-wide text-muted-foreground">Binance Pay · USDT · bKash · Nagad</p>
         </div>
 
         {/* right: finished order-demo card — Order → Payment → Delivery (hidden until real products/items exist) */}
         {current && (
-        <div className="relative mx-auto w-full min-w-0 max-w-md lg:max-w-none lg:pl-6">
+        <div className="relative mx-auto w-full min-w-0 max-w-md lg:col-span-5 lg:max-w-none">
           {/* layered backdrop so the column never reads as empty */}
-          <span className="pointer-events-none absolute inset-x-6 -bottom-3 top-6 rounded-3xl border border-border/40 bg-card/40" />
-          <span className="pointer-events-none absolute -inset-4 rounded-[2rem] bg-primary/10 blur-3xl" />
+          <span aria-hidden className="pointer-events-none absolute -bottom-3 -right-3 left-3 top-3 rounded-xl border hairline" />
 
-          <div className="relative overflow-hidden rounded-3xl border border-border bg-card shadow-2xl shadow-primary/10">
+          <div className="relative overflow-hidden rounded-xl border hairline bg-card shadow-[0_30px_60px_-30px_rgb(0_0_0/0.6)]">
             {/* window header */}
-            <div className="flex items-center justify-between border-b border-border bg-secondary/40 px-5 py-3">
+            <div className="flex items-center justify-between border-b hairline px-5 py-3">
               <div className="flex items-center gap-2">
                 <span className="h-2.5 w-2.5 rounded-full bg-destructive/70" />
                 <span className="h-2.5 w-2.5 rounded-full bg-warning/70" />
                 <span className="h-2.5 w-2.5 rounded-full bg-success/70" />
               </div>
-              <span className="text-xs font-semibold text-muted-foreground">{t("How an order works")}</span>
+              <span className="eyebrow">{t("How an order works")}</span>
               <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-success">
                 <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" /> {t("Live demo")}
               </span>
