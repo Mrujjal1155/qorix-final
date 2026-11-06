@@ -78,8 +78,23 @@ export const listStorefront = createServerFn({ method: "GET" }).handler(async ()
       if (ra !== rb) return ra - rb;
       return Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0);
     });
-  return { categories, products, heroItems: hero.data ?? [] };
+  const { currentSlugs } = await import("@/lib/product-slugs.server");
+  const slugs = await currentSlugs(products.map((p: any) => p.id)).catch(() => ({}) as Record<string, string>);
+  const { productInStock } = await import("@/lib/stock-status");
+  return {
+    categories,
+    products: products.map((p: any) => ({ ...p, slug: slugs[p.id] ?? null, in_stock: productInStock(p) })),
+    heroItems: hero.data ?? [],
+  };
 });
+
+/** Resolve /store/<param> (slug, old slug or UUID) to the product id and its current slug. */
+export const resolveStoreProduct = createServerFn({ method: "GET" })
+  .inputValidator((d: { param: string }) => ({ param: String(d.param ?? "").slice(0, 200) }))
+  .handler(async ({ data }) => {
+    const { resolveProductParam } = await import("@/lib/product-slugs.server");
+    return resolveProductParam(data.param);
+  });
 
 export const getStoreProduct = createServerFn({ method: "GET" })
   .inputValidator((d: { id: string }) => d)
@@ -87,7 +102,7 @@ export const getStoreProduct = createServerFn({ method: "GET" })
     const { publicProducts } = await import("@/lib/public-products.server");
     const { data: row } = await publicProducts()
       .select(
-        "id,name,emoji,description,important_note,quick_guide,details,price,old_price,delivery_type,category_id,image_url,delivery_time,badge,stock,instant,manual_stock_limited",
+        "id,name,emoji,description,important_note,quick_guide,details,price,old_price,delivery_type,category_id,image_url,delivery_time,badge,stock,instant,manual_stock_limited,updated_at",
       )
       .eq("id", data.id)
       .eq("is_active", true)
@@ -103,7 +118,9 @@ export const getStoreProduct = createServerFn({ method: "GET" })
         console.error("[storefront] live stock unavailable:", e);
       }
     }
-    return { ...row, id: String(row.id ?? ""), name: String(row.name ?? ""), stock };
+    const { productInStock, isStockCounted } = await import("@/lib/stock-status");
+    const shaped = { ...row, id: String(row.id ?? ""), name: String(row.name ?? ""), stock };
+    return { ...shaped, in_stock: productInStock(shaped as any), stock_counted: isStockCounted(shaped as any) };
   });
 
 /**
@@ -121,13 +138,14 @@ export const getProductSeo = createServerFn({ method: "GET" })
       .maybeSingle();
     if (!row) return null;
     const anyRow = row as any;
+    const { productInStock } = await import("@/lib/stock-status");
     return {
       id: String(anyRow.id),
       name: String(anyRow.name ?? ""),
       description: String(anyRow.description ?? ""),
       price: Number(anyRow.price ?? 0),
       image_url: (anyRow.image_url ?? null) as string | null,
-      in_stock: Number(anyRow.stock ?? 0) > 0 || (!anyRow.instant && !anyRow.manual_stock_limited),
+      in_stock: productInStock(anyRow),
     };
   });
 

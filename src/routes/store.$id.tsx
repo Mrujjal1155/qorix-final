@@ -1,5 +1,5 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link, notFound, redirect, useNavigate } from "@tanstack/react-router";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { plainRich } from "@/lib/bot/richtext";
@@ -22,7 +22,7 @@ import {
   Zap,
 } from "lucide-react";
 
-import { getStoreProduct, getStorePayInfo, getProductSeo } from "@/lib/shop.functions";
+import { getStoreProduct, getStorePayInfo, resolveStoreProduct } from "@/lib/shop.functions";
 import { SmartImage } from "@/components/SmartImage";
 import { useT } from "@/lib/i18n";
 import { StoreShell } from "@/components/StoreShell";
@@ -34,26 +34,42 @@ import { breadcrumbJsonLd, metaText, productImageUrl } from "@/lib/seo";
 
 
 
+const productQuery = (id: string, fetcher: (a: { data: { id: string } }) => Promise<any> = getStoreProduct as any) =>
+  queryOptions({
+    queryKey: ["store-product", id],
+    queryFn: () => fetcher({ data: { id } }),
+  });
+
 export const Route = createFileRoute("/store/$id")({
-  loader: async ({ params }) => {
-    try {
-      return { seo: await getProductSeo({ data: { id: params.id } }) };
-    } catch {
-      return { seo: null };
+  loader: async ({ params, context, location }) => {
+    const resolved = await resolveStoreProduct({ data: { param: params.id } });
+    if (!resolved) throw notFound();
+    // Old UUID links and renamed slugs move permanently to the current readable URL.
+    if (!resolved.canonical && resolved.slug) {
+      throw redirect({
+        to: "/store/$id",
+        params: { id: resolved.slug },
+        search: location.search as any,
+        statusCode: 301,
+      });
     }
+    const product = await context.queryClient.ensureQueryData(productQuery(resolved.id));
+    if (!product) throw notFound();
+    return { productId: resolved.id, slug: resolved.slug ?? params.id, product };
   },
   head: ({ params, loaderData }) => {
-    const seo = loaderData?.seo ?? null;
-    const url = productionUrlFor(`/store/${params.id}`);
+    const seo = loaderData?.product ?? null;
+    const path = `/store/${loaderData?.slug ?? params.id}`;
+    const url = productionUrlFor(path);
     const name = seo?.name?.trim() || "Product";
-    const title = seo ? `${name} — Buy online at the best price | QORIX Store` : "Product — QORIX Store";
+    const title = seo ? `${name} — Buy online at the best price | QORIX Store` : "Product unavailable — QORIX Store";
     const description = seo
       ? metaText(
-          seo.description ||
+          plainRich(seo.description) ||
             `Buy ${name} from QORIX Store at the best price. Instant automated delivery, secure crypto checkout and 24/7 Telegram support.`,
         )
-      : "Review the product, pay with Binance Pay or USDT and submit your transaction ID to complete the order.";
-    const image = seo ? productImageUrl(params.id, seo.image_url) : productionUrlFor("/og-image.png");
+      : "This product is not available right now. Browse the QORIX Store catalogue for similar products.";
+    const image = seo ? productImageUrl(seo.id, seo.image_url) : productionUrlFor("/og-image.png");
 
     return {
       meta: [
@@ -66,6 +82,7 @@ export const Route = createFileRoute("/store/$id")({
         { property: "og:image", content: image },
         { name: "twitter:card", content: "summary_large_image" },
         { name: "twitter:image", content: image },
+        ...(seo ? [] : [{ name: "robots", content: "noindex" }]),
       ],
       links: [{ rel: "canonical", href: url }],
       scripts: seo
@@ -86,9 +103,8 @@ export const Route = createFileRoute("/store/$id")({
                   url,
                   price: Number(seo.price ?? 0).toFixed(2),
                   priceCurrency: "USD",
-                  availability: seo.in_stock
-                    ? "https://schema.org/InStock"
-                    : "https://schema.org/OutOfStock",
+                  // Same rule and same data as the visible stock badge.
+                  availability: seo.in_stock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",
                   itemCondition: "https://schema.org/NewCondition",
                   seller: { "@type": "Organization", name: "QORIX STORE" },
                 },
@@ -100,7 +116,7 @@ export const Route = createFileRoute("/store/$id")({
                 breadcrumbJsonLd([
                   ["Home", "/"],
                   ["Store", "/store"],
-                  [name, `/store/${params.id}`],
+                  [name, path],
                 ]),
               ),
             },
@@ -108,15 +124,30 @@ export const Route = createFileRoute("/store/$id")({
         : [],
     };
   },
-  validateSearch: (search: Record<string, unknown>) => ({
-    buy: search["buy"] === true || search["buy"] === "true" || search["buy"] === "1",
-  }),
+  errorComponent: ({ error }) => (
+    <StoreShell>
+      <section className="mx-auto max-w-3xl px-4 py-16 text-center" role="alert">
+        <p className="text-muted-foreground">{error instanceof Error ? error.message : "Could not load this product."}</p>
+        <Link to="/store" className="mt-4 inline-block text-primary hover:underline">Browse products</Link>
+      </section>
+    </StoreShell>
+  ),
+  notFoundComponent: () => (
+    <StoreShell>
+      <section className="mx-auto max-w-3xl px-4 py-16 text-center">
+        <h1 className="text-2xl font-bold">Product not available</h1>
+        <Link to="/store" className="mt-4 inline-block text-primary hover:underline">Browse products</Link>
+      </section>
+    </StoreShell>
+  ),
+  validateSearch: (search: Record<string, unknown>): { buy?: boolean } =>
+    search["buy"] === true || search["buy"] === "true" || search["buy"] === "1" ? { buy: true } : {},
   component: ProductPage,
 });
 
 function ProductPage() {
   const t = useT();
-  const { id } = Route.useParams();
+  const { productId: id, product: initialProduct } = Route.useLoaderData();
   const { buy } = Route.useSearch();
   const navigate = useNavigate();
   const fetchProduct = useServerFn(getStoreProduct);
@@ -124,8 +155,8 @@ function ProductPage() {
 
 
   const { data: product } = useQuery({
-    queryKey: ["store-product", id],
-    queryFn: () => fetchProduct({ data: { id } }),
+    ...productQuery(id, fetchProduct as any),
+    initialData: initialProduct,
     refetchInterval: 5_000,
     refetchIntervalInBackground: true,
   });
@@ -140,7 +171,8 @@ function ProductPage() {
   const oldPrice = Number(product?.old_price ?? 0);
   const off = oldPrice > Number(product?.price ?? 0) ? Math.round(((oldPrice - Number(product?.price)) / oldPrice) * 100) : 0;
   const sold = Number((product as any)?.sold ?? 0);
-  const inStock = auto || (product as any)?.manual_stock_limited ? stock > 0 : true;
+  const inStock = (product as any)?.in_stock === true;
+  const counted = (product as any)?.stock_counted === true;
   const claimed = stock + sold > 0 ? Math.round((sold / (stock + sold)) * 100) : 0;
   const botUser = pay?.["bot_username"] ?? "";
   const supportContact = (pay?.["support_contact"] ?? "").replace(/^@/, "");
@@ -282,13 +314,13 @@ function ProductPage() {
             <div className="mt-4 rounded-2xl border border-border bg-card p-4">
               <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-xs font-semibold">
                 <span className="inline-flex items-center gap-1.5 text-success">
-                  <span className="h-2 w-2 rounded-full bg-success" /> Available: {stock} units
+                  <span className="h-2 w-2 rounded-full bg-success" /> Available: {counted ? `${stock} units` : "On order"}
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-primary">
                   <span className="h-2 w-2 rounded-full bg-primary" /> Sold: {sold} units
                 </span>
                 <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                  <span className="h-2 w-2 rounded-full bg-muted-foreground" /> Total Stock: {stock + sold} units
+                  <span className="h-2 w-2 rounded-full bg-muted-foreground" /> Total Stock: {counted ? `${stock + sold} units` : "Unlimited"}
                 </span>
               </div>
               <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">

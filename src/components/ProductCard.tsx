@@ -18,6 +18,8 @@ export type StoreProduct = {
   delivery_type: string;
   stock?: number;
   sold?: number;
+  slug?: string | null;
+  in_stock?: boolean;
 };
 
 export function discountPct(p: StoreProduct) {
@@ -43,7 +45,7 @@ export function ProductCard({
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-border bg-card transition-all duration-300 hover:-translate-y-1 hover:border-primary/60 hover:card-glow">
       <Link
         to="/store/$id"
-        params={{ id: product.id }}
+        params={{ id: (product as any).slug ?? product.id }}
         search={{ buy: false }}
         className="relative block aspect-[4/3] overflow-hidden bg-secondary/60"
       >
@@ -99,7 +101,7 @@ export function ProductCard({
 
         <div className="mt-auto flex items-center gap-2">
           <Button asChild size="sm" variant="secondary" className="flex-1 rounded-lg">
-            <Link to="/store/$id" params={{ id: product.id }} search={{ buy: false }}>
+            <Link to="/store/$id" params={{ id: (product as any).slug ?? product.id }} search={{ buy: false }}>
               <Eye className="h-4 w-4" /> {t("View Details")}
             </Link>
           </Button>
@@ -111,7 +113,7 @@ export function ProductCard({
             <Zap className="h-3 w-3" /> {auto ? t("Instant") : t("Manual")}
           </span>
           <Button asChild size="sm" className="flex-1 rounded-lg">
-            <Link to="/store/$id" params={{ id: product.id }} search={{ buy: true }}>
+            <Link to="/store/$id" params={{ id: (product as any).slug ?? product.id }} search={{ buy: true }}>
               <ShoppingCart className="h-4 w-4" /> {t("Buy Now")}
             </Link>
           </Button>

@@ -658,6 +658,35 @@ export type Database = {
           },
         ]
       }
+      product_slugs: {
+        Row: {
+          created_at: string
+          is_current: boolean
+          product_id: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          is_current?: boolean
+          product_id: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          is_current?: boolean
+          product_id?: string
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_slugs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           api_price: number | null
@@ -2216,6 +2245,7 @@ export type Database = {
         Returns: undefined
       }
       product_list_progress: { Args: { _admin_id: string }; Returns: Json }
+      product_slugify: { Args: { _name: string }; Returns: string }
       profile_wallet_credit: {
         Args: {
           _amount: number

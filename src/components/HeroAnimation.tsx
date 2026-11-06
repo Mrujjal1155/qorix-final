@@ -356,7 +356,7 @@ export function HeroAnimation({
               <Link
                 key={p.id}
                 to="/store/$id"
-                params={{ id: p.id }}
+                params={{ id: (p as any).slug ?? p.id }}
                 search={{ buy: false }}
                 onClick={() => setActive(null)}
                 className="flex items-center gap-3 rounded-xl border border-border bg-card p-2.5 transition-colors hover:border-primary/60"
