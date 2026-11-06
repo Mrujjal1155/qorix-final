@@ -13,6 +13,36 @@ function safeEqual(a: string, b: string): boolean {
 
 let lastTrackAt = 0;
 
+/** Coarse handler label only (command or callback prefix) — never text, IDs or user data. */
+function commandLabel(update: any): string {
+  const data = update.callback_query?.data;
+  if (typeof data === "string") return "cb:" + (data.split(/[:_|]/)[0] ?? "").replace(/[^a-z0-9]/gi, "").slice(0, 16);
+  const text = (update.message ?? update.edited_message)?.text;
+  if (typeof text === "string" && text.startsWith("/"))
+    return "cmd:" + (text.slice(1).split(/[\s@]/)[0] ?? "").replace(/[^a-z0-9]/gi, "").slice(0, 16);
+  if (update.my_chat_member) return "member";
+  return update.callback_query ? "cb" : "msg";
+}
+
+const durations = new Map<string, number[]>();
+let durationCount = 0;
+function pct(sorted: number[], p: number) {
+  return sorted[Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p))];
+}
+/** Per-isolate rolling timings; logs p50/p95 per label every 50 updates. */
+function recordDuration(label: string, ms: number) {
+  const list = durations.get(label) ?? [];
+  list.push(ms);
+  if (list.length > 200) list.shift();
+  durations.set(label, list);
+  if (++durationCount % 50 !== 0) return;
+  const report = [...durations.entries()].map(([k, v]) => {
+    const s = [...v].sort((a, b) => a - b);
+    return `${k} n=${s.length} p50=${pct(s, 0.5)}ms p95=${pct(s, 0.95)}ms`;
+  });
+  console.log("[bot-timing]", report.join(" | "));
+}
+
 export const Route = createFileRoute("/api/public/telegram/webhook")({
   server: {
     handlers: {
@@ -67,8 +97,13 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
         })().catch((error) => console.error("Webhook status tracking failed:", error));
 
         const handle = (async () => {
+          const started = Date.now();
           const { handleUpdate } = await import("@/lib/bot/engine.server");
-          await handleUpdate(update);
+          try {
+            await handleUpdate(update);
+          } finally {
+            recordDuration(commandLabel(update), Date.now() - started);
+          }
         })().catch((error) =>
           console.error(`Telegram update failed [update_id=${String(update.update_id ?? "unknown")}]:`, error),
         );
