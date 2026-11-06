@@ -606,6 +606,16 @@ function isVexorix(s: SupplierRow) {
   return /vexorix/i.test(s.key) || /207-148-64-141\.sslip\.io/i.test(s.base_url || "");
 }
 
+/** Prime Labs API v1 (prime-labs.tech/api/v1): Bearer key, Idempotency-Key on orders. */
+function isPrimeLabs(s: SupplierRow) {
+  return /primelabs|prime-labs/i.test(s.key) || /prime-labs\.tech|mylabsstore\.com/i.test(s.base_url || "");
+}
+
+function primeBase(s: SupplierRow) {
+  const b = (s.base_url || "https://prime-labs.tech/api/v1").replace(/\/+$/, "");
+  return /\/api\/v1$/.test(b) ? "" : "/api/v1";
+}
+
 /** Partner API v1 at api.cmpdr.dev: Bearer auth, idempotent POST /v1/orders. */
 function isRouteis(s: SupplierRow) {
   return /routeis/i.test(s.key) || /cmpdr\.dev/i.test(s.base_url || "");
@@ -681,6 +691,10 @@ async function callAny(
 }
 
 export async function supplierPing(s: SupplierRow) {
+  if (isPrimeLabs(s)) {
+    await call(s, `${primeBase(s)}/me`);
+    return { ok: true as const, status: "active" };
+  }
   if (isRouteis(s)) {
     await call(s, "/v1/balance");
     return { ok: true as const, status: "active" };
@@ -742,6 +756,10 @@ export async function supplierDeleteWebhook(s: SupplierRow, endpointId: string) 
 
 
 export async function supplierBalance(s: SupplierRow) {
+  if (isPrimeLabs(s)) {
+    const j = await call(s, `${primeBase(s)}/me`);
+    return { balance: Number(j?.user?.balance ?? j?.balance ?? 0) || 0, currency: "USD" };
+  }
   if (isRouteis(s)) {
     const j = await call(s, "/v1/balance");
     return { balance: Number(j?.balance ?? 0) || 0, currency: String(j?.currency ?? "USD") };
@@ -768,6 +786,38 @@ export async function supplierBalance(s: SupplierRow) {
 }
 
 export async function supplierProducts(s: SupplierRow): Promise<SupplierProduct[]> {
+  if (isPrimeLabs(s)) {
+    const all: any[] = [];
+    for (let offset = 0; offset < 5000; offset += 200) {
+      const j = await call(s, `${primeBase(s)}/products?limit=200&offset=${offset}`);
+      const page: any[] = Array.isArray(j) ? j : (j?.products ?? j?.data ?? j?.items ?? []);
+      all.push(...page);
+      if (page.length < 200) break;
+    }
+    return all
+      .filter((p) => p?.id != null)
+      // Activation/manual products need extra buyer steps, so only instant-delivery types are listed.
+      .filter((p) => {
+        const t = String(p.stock?.type ?? p.delivery_mode ?? "limited");
+        return t === "limited" || t === "unlimited";
+      })
+      .map((p) => {
+        const t = String(p.stock?.type ?? p.delivery_mode ?? "limited");
+        const unit = typeof p.price === "object" && p.price ? p.price.unit : p.price;
+        const avail = Number(p.stock?.available ?? 0) || 0;
+        const inStock = p.stock?.in_stock !== false;
+        return {
+          external_id: String(p.id),
+          name: String(p.name ?? p.id),
+          description: p.description ? String(p.description) : null,
+          cost_price: Number(unit ?? p.list_price) || 0,
+          stock: t === "unlimited" ? (inStock ? 999 : 0) : Math.max(0, avail),
+          currency: "USD",
+          min_qty: 1,
+          raw: { ...p, duration: p.terms?.duration, warranty: p.terms?.warranty },
+        };
+      });
+  }
   if (isRouteis(s)) {
     const j = await call(s, "/v1/catalog/products?description=true");
     const list: any[] = Array.isArray(j?.data) ? j.data : [];
@@ -1029,6 +1079,31 @@ export async function supplierOrder(
     .replace(/[^A-Za-z0-9._:-]/g, "")
     .slice(0, 128)
     .padEnd(8, "0") || `ord${Date.now()}`;
+  if (isPrimeLabs(s)) {
+    // Unlimited products are sold one per call, so buy them unit by unit with
+    // a stable per-unit Idempotency-Key: a retry replays, never charges twice.
+    const one = async (q: number, key: string) => {
+      const idNum = Number(externalId);
+      const j = await call(s, `${primeBase(s)}/orders`, {
+        method: "POST",
+        headers: { "Idempotency-Key": key.slice(0, 128) },
+        body: { product_id: Number.isFinite(idNum) ? idNum : externalId, quantity: q },
+      });
+      const order = j?.order ?? j;
+      const items = (Array.isArray(order?.items) ? order.items : []).map(formatDeliveryItem).filter(Boolean);
+      return { code: order?.id != null ? String(order.id) : null, items, mode: String(order?.delivery_mode ?? "") };
+    };
+    const first = await one(qty, idemKey);
+    if (first.items.length >= qty || first.mode !== "unlimited" || qty <= 1) {
+      return { code: first.code, items: splitBulkDelivery(first.items, qty) };
+    }
+    const items = [...first.items];
+    for (let i = 1; items.length < qty && i < qty; i++) {
+      const r = await one(1, `${idemKey}-${i}`);
+      items.push(...r.items);
+    }
+    return { code: first.code, items };
+  }
   if (isRouteis(s)) {
     // externalOrderId is idempotent: a retry returns the same order, never charged twice.
     const ext = idemKey.slice(0, 64);
@@ -1366,6 +1441,7 @@ export type SupplierAnnouncement = {
 function announcementPaths(s: SupplierRow): string[] {
   if (isCanboso(s)) return ["/api/v2/telegram-buyer/announcements"];
   if (isRouteis(s)) return [];
+  if (isPrimeLabs(s)) return [];
   if (isActionDialect(s)) return [actionPath("announcements"), actionPath("notices")];
   return ["/v1/announcements", "/api/announcements"];
 }
