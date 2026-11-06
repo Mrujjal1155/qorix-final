@@ -87,22 +87,20 @@ function AboutPage() {
             </p>
             <ul className="mt-3 list-disc space-y-1.5 pl-5 text-muted-foreground">
               <li>
-                <strong className="text-foreground">AI &amp; productivity tools</strong> — Gemini AI Pro, Lovable,
-                Gamma, Canva, Granola and Linear plans, with more added as stock arrives.
+                <strong className="text-foreground">AI tools</strong> — Google AI Pro, Gemini AI Pro, Manus Pro,
+                Runway Pro, Muse AI, Wispr Flow and Gamma Pro.
               </li>
               <li>
-                <strong className="text-foreground">Developer tools</strong> — IDE and coding assistants,
-                API credits, hosting and cloud credits, domains, GitHub Copilot, Cursor and dev
-                productivity suites.
+                <strong className="text-foreground">Developer tools</strong> — Lovable, Replit Core, Bolt.new,
+                Supabase Pro, Railway, n8n, Warp, Resend and PostHog.
               </li>
               <li>
-                <strong className="text-foreground">SEO &amp; marketing tools</strong> — Semrush, Ahrefs,
-                keyword research, backlink and rank-tracking tools for agencies and site owners.
+                <strong className="text-foreground">Design &amp; productivity</strong> — Canva, Figma, Framer,
+                Adobe Express, Notion, Linear, Granola, Miro and Descript.
               </li>
               <li>
-                <strong className="text-foreground">Streaming, VPN, design &amp; productivity</strong> —
-                Netflix, YouTube Premium, Spotify, NordVPN, Office 365, cloud storage, editing apps and
-                verified accounts.
+                <strong className="text-foreground">Streaming, learning &amp; VPN</strong> — Amazon Prime
+                Video, Apple Music, Crunchyroll, Coursera, Duolingo, LinkedIn Premium, NordVPN and Surfshark.
               </li>
             </ul>
             <p className="mt-3 text-muted-foreground">
