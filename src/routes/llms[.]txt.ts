@@ -69,11 +69,13 @@ async function buildLlmsTxt() {
     for (const c of (cats ?? []) as any[]) {
       if (c.channel !== "telegram") allowed.set(String(c.id), String(c.name));
     }
+    const { currentSlugs } = await import("@/lib/product-slugs.server");
+    const slugs = await currentSlugs(((prods ?? []) as any[]).map((p) => String(p.id))).catch(() => ({}) as Record<string, string>);
     const lines = ((prods ?? []) as any[])
       .filter((p) => !p.category_id || allowed.has(String(p.category_id)))
       .map(
         (p) =>
-          `- [${p.name}](${PRODUCTION_SITE_URL}/store/${p.id}) — $${Number(p.price ?? 0).toFixed(2)}${
+          `- [${p.name}](${PRODUCTION_SITE_URL}/store/${slugs[String(p.id)] ?? p.id}) — $${Number(p.price ?? 0).toFixed(2)}${
             p.category_id && allowed.has(String(p.category_id)) ? ` (${allowed.get(String(p.category_id))})` : ""
           }`,
       );
