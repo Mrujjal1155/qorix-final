@@ -12,7 +12,7 @@ import { brandFallbackOnError } from "@/components/SmartImage";
 export const Route = createFileRoute("/about")({
   head: () => ({
     meta: [
-      { title: "About QORIX Store — Digital Subscriptions from Bangladesh" },
+      { title: "About QORIX Store — Digital Subscriptions for Customers Worldwide" },
       {
         name: "description",
         content:
