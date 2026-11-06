@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Audit Telegram Business compatibility, existing @QORIX3_bot/backend and safe product/order data integration; present a plan for personal-inbox AI, human takeover and per-chat controls without changing existing tickets or shop. Implementation waits for plan approval and actual Business connection verification.
+
 - [x] Add Category Products and admin-selected Top Selling Products price-list modes, paginated active catalogue, supplier filters, separate saved editable copy, premium emojis and community link fields. Update-group URL is unknown and remains empty, not invented.
 - [x] Queue preview-only product-list broadcasts through the existing durable sender with atomic idempotent user/group receipts, service-only progress aggregates and admin-wide completion popup; no real broadcast sent.
 - [x] Run 32 focused/regression tests independently (mock isolation required); latest build OK and service-only RPC grants verified.
