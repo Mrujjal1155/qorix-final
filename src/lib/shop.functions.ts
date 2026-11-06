@@ -88,6 +88,16 @@ export const listStorefront = createServerFn({ method: "GET" }).handler(async ()
   };
 });
 
+/** Real, aggregate-only homepage numbers. Delivered = orders with status "completed". */
+export const getPublicStats = createServerFn({ method: "GET" }).handler(async () => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { count, error } = await supabaseAdmin
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "completed");
+  return { delivered: error ? null : (count ?? null) };
+});
+
 /** Resolve /store/<param> (slug, old slug or UUID) to the product id and its current slug. */
 export const resolveStoreProduct = createServerFn({ method: "GET" })
   .inputValidator((d: { param: string }) => ({ param: String(d.param ?? "").slice(0, 200) }))
