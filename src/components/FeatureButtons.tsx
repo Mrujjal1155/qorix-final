@@ -20,8 +20,8 @@ const FEATURES: Feature[] = [
   {
     key: "support",
     icon: Headphones,
-    label: "24/7 Support",
-    detail: "Real humans on Telegram, 24/7",
+    label: "Telegram Support",
+    detail: "Help through @QORIX3_bot",
   },
 ];
 

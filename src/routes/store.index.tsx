@@ -37,7 +37,7 @@ export const Route = createFileRoute("/store/")({
       { title: "All Products — QORIX Store" },
       { name: "description", content: "Browse AI tools, creative apps, VPN, streaming and productivity subscriptions with instant delivery." },
       { property: "og:title", content: "All Products — QORIX Store" },
-      { property: "og:description", content: "Premium digital subscriptions at the best price, delivered instantly." },
+      { property: "og:description", content: "AI, developer, SEO, streaming and VPN subscriptions with automatic delivery after payment." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:url", content: productionUrlFor("/store") },
