@@ -69,8 +69,6 @@ function StorePage() {
   const activeCat = cat === "all" && linked ? (linked as any).id : cat;
   const all = (data?.products ?? []) as StoreProduct[];
   const notes = duplicateNotes(all as any[]);
-  const countFor = (id: string) =>
-    all.filter((p: any) => ((p.category_ids ?? (p.category_id ? [p.category_id] : [])) as string[]).includes(id)).length;
   // Busiest categories first; the rest fold behind "More categories". Empty categories are
   // hidden so the chip total matches the homepage "Categories" count (one definition).
   const chipCats = categoriesWithProducts(categories as any[], all as any[]).sort((a: any, b: any) => b.n - a.n);
