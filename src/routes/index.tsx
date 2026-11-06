@@ -20,6 +20,8 @@ import { useT } from "@/lib/i18n";
 import { categoriesWithProducts } from "@/lib/category-count";
 // Served from public/ so it works on the Cloudflare deploy (qorixlab.com) too.
 const EXPLAINER_URL = "/qorix-explainer.mp4";
+// Real frame taken from the explainer itself (3s) — always renders, no wait for the video.
+const EXPLAINER_POSTER = "/qorix-explainer-poster.jpg";
 
 
 export const Route = createFileRoute("/")({
@@ -116,7 +118,7 @@ function Landing() {
           <div className="lg:col-span-8">
             <div className="relative overflow-hidden rounded-xl border hairline bg-card">
               {playing ? (
-                <video controls autoPlay playsInline preload="auto" className="aspect-video w-full bg-background">
+                <video controls autoPlay playsInline preload="metadata" poster={EXPLAINER_POSTER} className="aspect-video w-full bg-background object-contain">
                   <source src={EXPLAINER_URL} type="video/mp4" />
                 </video>
               ) : (
@@ -124,23 +126,28 @@ function Landing() {
                   type="button"
                   onClick={() => setPlaying(true)}
                   aria-label="Play: QORIX explainer — store, instant delivery and Telegram bot"
-                  className="group relative flex aspect-video w-full flex-col justify-between overflow-hidden p-6 text-left sm:p-8"
-                  style={{
-                    background:
-                      "linear-gradient(160deg, var(--card) 0%, var(--background) 70%), repeating-linear-gradient(90deg, transparent 0 79px, var(--hairline) 79px 80px)",
-                    backgroundBlendMode: "normal",
-                  }}
+                  className="group relative block aspect-video w-full overflow-hidden text-left"
                 >
-                  <span className="text-2xl font-extrabold tracking-tight sm:text-4xl" style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.035em" }}>
-                    QORIX<span className="text-primary">.shop</span>
-                  </span>
-                  <span className="flex items-end justify-between gap-4">
-                    <span className="max-w-xs text-sm font-medium text-foreground sm:text-base">
-                      QORIX explainer — store, instant delivery &amp; Telegram bot
-                    </span>
-                    <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-transform duration-300 group-hover:scale-105 sm:h-20 sm:w-20">
+                  <img
+                    src={EXPLAINER_POSTER}
+                    alt="QORIX Store explainer video thumbnail"
+                    width={1280}
+                    height={720}
+                    loading="eager"
+                    decoding="async"
+                    className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                  />
+                  <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/10 to-transparent" />
+                  <span className="absolute inset-0 flex items-center justify-center">
+                    <span className="flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background/40 transition-transform duration-300 group-hover:scale-105 sm:h-20 sm:w-20">
                       <Play className="ml-1 h-7 w-7 fill-current sm:h-8 sm:w-8" strokeWidth={1.75} />
                     </span>
+                  </span>
+                  <span className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-4 sm:p-6">
+                    <span className="max-w-[75%] text-xs font-medium text-foreground sm:text-base">
+                      QORIX explainer — store, instant delivery &amp; Telegram bot
+                    </span>
+                    <span className="shrink-0 rounded-full border hairline bg-background/70 px-2 py-0.5 text-xs tabular-nums text-foreground">1:11</span>
                   </span>
                 </button>
               )}
