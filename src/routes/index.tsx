@@ -176,7 +176,7 @@ function Landing() {
                   <CategoryIcon name={c.name} src={c.image_url} icon={catIcons.get(String(c.name ?? ""))} className="h-7 w-7" />
                 </span>
                 <h3 className="mt-3 text-sm font-semibold group-hover:text-primary">{c.name}</h3>
-                <p className="text-xs text-muted-foreground">{countFor(c.id)} {t(countFor(c.id) === 1 ? "product" : "products")}</p>
+                <p className="text-xs text-muted-foreground">{c.n} {t(c.n === 1 ? "product" : "products")}</p>
               </Link>
             ))}
           </div>
