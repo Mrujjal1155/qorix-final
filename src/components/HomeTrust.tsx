@@ -15,7 +15,7 @@ export function StatsStrip({ products, categories, delivered }: { products: numb
   if (items.length === 0) return null;
   return (
     <section className="mx-auto max-w-7xl px-4 pb-14">
-      <div className={`grid gap-3 rounded-3xl border border-border bg-card p-6 sm:grid-cols-${items.length}`}>
+      <div className={`grid gap-3 rounded-3xl border border-border bg-card p-6 ${["", "sm:grid-cols-1", "sm:grid-cols-2", "sm:grid-cols-3"][items.length]}`}>
         {items.map(({ icon: Icon, value, label }) => (
           <div key={label} className="flex items-center justify-center gap-3 text-center sm:flex-col sm:gap-1">
             <Icon className="h-5 w-5 text-primary" />
