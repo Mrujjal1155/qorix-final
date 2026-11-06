@@ -633,3 +633,17 @@
 .darkpan :is(.text-success) { color: #3ecf8e; }
 .darkpan :is(.text-destructive, .text-primary) { color: #ff4d4d; }
 .darkpan .bg-primary.text-primary, .darkpan .bg-destructive.text-destructive { color: var(--primary-foreground); }
+
+/* One light band on the dark landing page — same brand blue, readable dark text. */
+.section-light {
+  --background: oklch(0.975 0.006 250);
+  --foreground: oklch(0.2 0.02 255);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.02 255);
+  --muted-foreground: oklch(0.45 0.02 255);
+  --border: oklch(0.88 0.012 250);
+  --secondary: oklch(0.95 0.01 250);
+  --primary: oklch(0.55 0.19 258);
+  background-color: var(--background);
+  color: var(--foreground);
+}
