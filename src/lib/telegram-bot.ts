@@ -21,7 +21,7 @@ export const BOT_FAQ: Array<{ title: string; text: string }> = [
   },
   {
     title: "How do I pay in the Telegram bot?",
-    text: "Add funds to your bot wallet or pay for an order with the methods enabled in the bot, such as Binance Pay and USDT. The wallet balance is then used to buy products.",
+    text: "Add funds to your bot wallet or pay for an order with the methods enabled in the bot, such as Binance Pay, USDT, or bKash / Nagad / Rocket through EPS (Wallet → bKash · Nagad · Rocket & more). The wallet balance is then used to buy products.",
   },
   {
     title: "Where do I get my order in the Telegram bot?",

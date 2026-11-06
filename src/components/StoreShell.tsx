@@ -47,6 +47,7 @@ const CURRENCY_FLAG: Record<Currency, string> = {
 import { useT } from "@/lib/i18n";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { useSiteContent } from "@/lib/use-site-content";
+import { stableTagline } from "@/lib/site-content";
 import { InstallAppButton } from "@/components/InstallAppButton";
 import { InstallPromptPopup } from "@/components/InstallPromptPopup";
 import { siteContacts, type SiteLink } from "@/lib/site-content";
@@ -225,7 +226,7 @@ export function StoreShell({ children }: { children: ReactNode }) {
   const copyright = `${v("site_copyright")
     .replace("{year}", String(new Date().getFullYear()))
     .replace(/\s*(made|built|crafted)\s+(with|in)\b.*$/i, "")
-    .trim()} Made with ❤️ in Bangladesh.`;
+    .trim()} Made with ❤️ Qorix Lab`;
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
@@ -433,7 +434,7 @@ export function StoreShell({ children }: { children: ReactNode }) {
           <div className="grid grid-cols-2 gap-x-6 gap-y-10 lg:grid-cols-5">
             <div className="col-span-2 lg:col-span-1">
               <BrandLogo src={brandLogo} name={v("site_brand_name")} className="h-12 w-auto object-contain" textClassName="text-2xl" />
-              <p className="mt-5 max-w-xs text-sm leading-relaxed text-muted-foreground">{t(v("site_tagline"))}</p>
+              <p className="mt-5 max-w-xs text-sm leading-relaxed text-muted-foreground">{t(stableTagline(v("site_tagline")))}</p>
               <div className="mt-6 flex flex-wrap gap-3">
                 {socials.map((s, i) => {
                   const key = s.label.toLowerCase();

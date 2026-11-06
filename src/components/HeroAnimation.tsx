@@ -14,6 +14,7 @@ import type { StoreProduct } from "@/components/ProductCard";
 import { brandFallbackOnError } from "@/components/SmartImage";
 import {
   Bot,
+  Check,
   CreditCard,
   Globe,
   KeyRound,
@@ -212,132 +213,137 @@ export function HeroAnimation({
           <p className="mt-4 text-sm font-medium text-muted-foreground">Binance Pay · USDT · bKash · Nagad</p>
         </div>
 
-        {/* right: serial product board → payment → delivery (hidden until real products/items exist) */}
+        {/* right: finished order-demo card — Order → Payment → Delivery (hidden until real products/items exist) */}
         {current && (
-        <div className="relative mx-auto w-full min-w-0 max-w-md">
-          <div className="rounded-3xl border border-border/70 bg-card/80 p-4 shadow-xl backdrop-blur">
-            {/* step rail */}
-            <div className="mb-4 flex w-full min-w-0 items-center gap-1.5 sm:gap-2">
-              {[
-                { icon: ShoppingBag, label: t("Order") },
-                { icon: CreditCard, label: t("Payment") },
-                { icon: KeyRound, label: t("Delivery") },
-              ].map((s, i) => (
-                <div
-                  key={s.label}
-                  className={`flex min-w-0 items-center gap-1.5 sm:gap-2 ${i < 2 ? "flex-1" : "shrink-0"}`}
-                >
-                  <span
-                    className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border transition-colors duration-500 ${
-                      step >= i
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border bg-secondary text-muted-foreground"
-                    }`}
-                  >
-                    <s.icon className="h-4 w-4" />
-                  </span>
-                  <span
-                    className={`min-w-0 truncate text-[11px] font-semibold transition-colors duration-500 ${
-                      step >= i ? "text-foreground" : "text-muted-foreground"
-                    }`}
-                  >
-                    {s.label}
-                  </span>
-                  {i < 2 && (
-                    <span className="relative ml-auto h-1 w-4 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
-                      <span
-                        className={`absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-700 ${
-                          step > i ? "w-full" : "w-0"
-                        }`}
-                      />
-                    </span>
-                  )}
-                </div>
-              ))}
+        <div className="relative mx-auto w-full min-w-0 max-w-md lg:max-w-none lg:pl-6">
+          {/* layered backdrop so the column never reads as empty */}
+          <span className="pointer-events-none absolute inset-x-6 -bottom-3 top-6 rounded-3xl border border-border/40 bg-card/40" />
+          <span className="pointer-events-none absolute -inset-4 rounded-[2rem] bg-primary/10 blur-3xl" />
+
+          <div className="relative overflow-hidden rounded-3xl border border-border bg-card shadow-2xl shadow-primary/10">
+            {/* window header */}
+            <div className="flex items-center justify-between border-b border-border bg-secondary/40 px-5 py-3">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-destructive/70" />
+                <span className="h-2.5 w-2.5 rounded-full bg-warning/70" />
+                <span className="h-2.5 w-2.5 rounded-full bg-success/70" />
+              </div>
+              <span className="text-xs font-semibold text-muted-foreground">{t("How an order works")}</span>
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-success">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-success" /> {t("Live demo")}
+              </span>
             </div>
 
-            {/* step 0 — serial product list */}
-            {step === 0 && (
-              <ul className="animate-fade-in space-y-2">
-                {cards.map((item, i) => (
-                  <li key={item.id ?? item.name}>
-                    <button
-                      type="button"
-                      onClick={() => startFlow(i)}
-                      aria-label={`Order ${item.name}`}
-                      className={`flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition-all hover:border-primary/60 hover:bg-secondary/60 ${
-                        i === index ? "border-primary bg-secondary/70 shadow-md" : "border-border bg-card"
-                      }`}
-                    >
-                      <span className="w-5 shrink-0 text-center text-xs font-bold text-muted-foreground">
-                        {i + 1}
+            <div className="p-5 sm:p-6">
+              {/* step rail with checkmarks */}
+              <ol className="relative mb-6 grid grid-cols-3 gap-2">
+                <span className="absolute left-[16.67%] right-[16.67%] top-5 h-0.5 rounded-full bg-border" aria-hidden>
+                  <span
+                    className="absolute inset-y-0 left-0 rounded-full bg-success transition-all duration-700"
+                    style={{ width: step === 0 ? "0%" : step === 1 ? "50%" : "100%" }}
+                  />
+                </span>
+                {[
+                  { icon: ShoppingBag, label: t("Order") },
+                  { icon: CreditCard, label: t("Payment") },
+                  { icon: KeyRound, label: t("Delivery") },
+                ].map((s, i) => {
+                  const done = step > i || (step === 2 && i === 2);
+                  const on = step === i;
+                  return (
+                    <li key={s.label} className="relative z-10 flex flex-col items-center gap-2 text-center">
+                      <span
+                        className={`grid h-10 w-10 place-items-center rounded-full border-2 transition-all duration-500 ${
+                          done
+                            ? "border-success bg-success text-success-foreground"
+                            : on
+                              ? "border-primary bg-primary/15 text-primary ring-4 ring-primary/15"
+                              : "border-border bg-secondary text-muted-foreground"
+                        }`}
+                      >
+                        {done ? <Check className="h-5 w-5" /> : <s.icon className="h-4 w-4" />}
                       </span>
-                      <Logo src={item.image_url} name={item.name} accent={item.accent} />
-                      <span className="min-w-0 flex-1 truncate text-sm font-semibold">{item.name}</span>
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
-                        Buy
+                      <span className={`text-xs font-semibold ${done || on ? "text-foreground" : "text-muted-foreground"}`}>
+                        {i + 1}. {s.label}
                       </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+                    </li>
+                  );
+                })}
+              </ol>
+              {/* stage — fixed height so the card never jumps */}
+              <div className="min-h-[236px]">
+                {step === 0 && (
+                  <ul className="animate-fade-in space-y-2">
+                    {cards.slice(0, 4).map((item, i) => (
+                      <li key={`${item.name}-${i}`}>
+                        <button
+                          type="button"
+                          onClick={() => startFlow(i)}
+                          className={`flex w-full items-center gap-3 rounded-xl border p-2.5 text-left transition-all ${
+                            i === index ? "border-primary/60 bg-primary/10 shadow-md shadow-primary/10" : "border-border bg-secondary/40 hover:border-primary/40"
+                          }`}
+                        >
+                          <Logo src={item.image_url} name={item.name} accent={item.accent} className="h-10 w-10" />
+                          <span className="min-w-0 flex-1 truncate text-sm font-semibold">{item.name}</span>
+                          <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${i === index ? "bg-primary text-primary-foreground" : "bg-primary/10 text-primary"}`}>
+                            {i === index ? t("Selected") : "Buy"}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
 
-            {/* step 1 — payment */}
-            {step === 1 && (
-              <div className="animate-fade-in space-y-3">
-                <div className="flex items-center gap-3 rounded-xl border border-border bg-secondary/50 p-2.5">
-                  <Logo src={current.image_url} name={current.name} accent={current.accent} />
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">{current.name}</span>
-                  <span className="text-xs font-bold text-primary">{t("Checkout")}</span>
-                </div>
-                <div className="rounded-2xl border border-border p-4">
-                  <p className="flex items-center gap-2 text-sm font-semibold">
-                    <CreditCard className="h-4 w-4 text-primary" /> Binance Pay / USDT
-                  </p>
-                  <div className="relative mt-3 h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                    <span className="hero-beam absolute inset-y-0 left-0 w-1/3 rounded-full bg-primary" />
+                {step === 1 && (
+                  <div className="animate-fade-in space-y-3">
+                    <div className="flex items-center gap-3 rounded-xl border border-border bg-secondary/40 p-3">
+                      <Logo src={current.image_url} name={current.name} accent={current.accent} className="h-11 w-11" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">{current.name}</p>
+                        <p className="text-[11px] text-muted-foreground">{t("Added to order")}</p>
+                      </div>
+                      <Check className="h-5 w-5 shrink-0 text-success" />
+                    </div>
+                    <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
+                      <p className="flex items-center gap-2 text-sm font-semibold">
+                        <CreditCard className="h-4 w-4 text-primary" /> Binance Pay / USDT
+                      </p>
+                      <div className="relative mt-4 h-2 w-full overflow-hidden rounded-full bg-muted">
+                        <span className="hero-beam absolute inset-y-0 left-0 w-1/3 rounded-full bg-primary" />
+                      </div>
+                      <p className="mt-3 text-xs text-muted-foreground">{t("Verifying payment…")}</p>
+                    </div>
                   </div>
+                )}
 
-                  <p className="mt-3 text-xs text-muted-foreground">{t("Verifying transaction on-chain…")}</p>
-                </div>
+                {step === 2 && (
+                  <div className="animate-fade-in space-y-3">
+                    <div className="rounded-2xl border border-success/40 bg-success/10 p-4">
+                      <div className="flex items-center gap-3">
+                        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-success text-success-foreground shadow-lg shadow-success/30">
+                          <Check className="h-6 w-6" />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-success">{t("Order delivered")}</p>
+                          <p className="truncate text-xs text-muted-foreground">{current.name}</p>
+                        </div>
+                      </div>
+                      <div className="mt-3 flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 font-mono text-xs text-muted-foreground">
+                        <KeyRound className="h-3.5 w-3.5 shrink-0 text-primary" />
+                        <span className="truncate">{t("Your access details are ready")}</span>
+                      </div>
+                      <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <MessageCircle className="h-3.5 w-3.5" /> {t("Sent to your inbox & Telegram")}
+                      </p>
+                    </div>
+                    <Button size="sm" variant="outline" className="w-full min-w-0 rounded-full" onClick={() => setActive(current)}>
+                      <Globe className="h-4 w-4 shrink-0" />
+                      <span className="min-w-0 truncate">See {current.name} plans</span>
+                    </Button>
+                  </div>
+                )}
               </div>
-            )}
-
-            {/* step 2 — delivery */}
-            {step === 2 && (
-              <div className="animate-fade-in space-y-3">
-                <div className="flex items-center gap-3 rounded-2xl border border-success/40 bg-success/10 p-3">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-success/20 text-success">
-                    <KeyRound className="h-5 w-5" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold">{t("Payment confirmed")}</p>
-                    <p className="truncate text-[11px] text-muted-foreground">{current.name} — delivering now</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 rounded-2xl border border-border bg-card p-3 shadow-lg">
-                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-                    <MessageCircle className="h-5 w-5" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold">{t("Order delivered")}</p>
-                    <p className="truncate text-[11px] text-muted-foreground">
-                      Your {current.name} access is in your inbox & Telegram
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full min-w-0 rounded-full"
-                  onClick={() => setActive(current)}
-                >
-                  <Globe className="h-4 w-4 shrink-0" />
-                  <span className="min-w-0 truncate">See {current.name} plans</span>
-                </Button>
-              </div>
-            )}
+            </div>
           </div>
         </div>
         )}
