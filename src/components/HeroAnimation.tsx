@@ -18,7 +18,6 @@ import {
   Globe,
   KeyRound,
   MessageCircle,
-  Search,
   Send,
   ShoppingBag,
   Zap,
