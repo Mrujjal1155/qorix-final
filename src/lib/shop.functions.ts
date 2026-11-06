@@ -47,7 +47,7 @@ export const listStorefront = createServerFn({ method: "GET" }).handler(async ()
       .order("sort_order"),
     publicProducts()
       .select(
-        "id,name,emoji,description,price,old_price,delivery_type,category_id,sort_order,featured_rank,image_url,delivery_time,badge,stock,instant,is_active",
+        "id,name,emoji,description,price,old_price,delivery_type,category_id,sort_order,featured_rank,image_url,delivery_time,badge,stock,instant,is_active,created_at",
       )
       .eq("is_active", true)
       .order("sort_order"),
