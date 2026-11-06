@@ -33,7 +33,7 @@ export const SITE_DEFAULTS: Record<string, string> = {
   site_socials:
     "facebook|https://facebook.com\ninstagram|https://instagram.com\ntelegram|https://t.me/QORIX3_bot\ntwitter|https://twitter.com",
 
-  site_copyright: "© {year} QORIX Store. All rights reserved. Made with ❤️ Qorix Lab",
+  site_copyright: "© {year} QORIX Store. All rights reserved. Made with Qorix Lab",
 
   // Floating buttons
   site_whatsapp_enabled: "1", // 1 = show floating WhatsApp button, 0 = hide
