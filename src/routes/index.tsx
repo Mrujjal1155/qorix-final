@@ -37,10 +37,10 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Premium digital subscriptions — AI tools, developer tools, SEO & marketing tools, streaming, VPN, productivity and creative apps — delivered instantly on the web or through our Telegram bot.",
+          "AI, developer, SEO, streaming, VPN and creative subscriptions with automatic delivery after payment. Shop on the website or in our Telegram bot @QORIX3_bot.",
       },
       { property: "og:title", content: "QORIX Store — AI, Developer, SEO, Streaming, VPN & Creative Apps at the Best Price" },
-      { property: "og:description", content: "AI, developer, SEO & marketing, streaming, VPN, productivity and creative apps — at the best price, delivered instantly." },
+      { property: "og:description", content: "AI, developer, SEO, streaming, VPN and creative apps — on the web or via @QORIX3_bot on Telegram." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:url", content: productionUrlFor("/") },

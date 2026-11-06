@@ -9,6 +9,7 @@ const STATIC_PATHS = [
   "/about",
   "/contact",
   "/faq",
+  "/telegram-bot",
   "/reseller",
   "/reseller/docs",
   "/terms",

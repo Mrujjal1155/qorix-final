@@ -33,10 +33,11 @@ export function siteJsonLd() {
         name: "QORIX STORE",
         alternateName: "qorixlab.com",
         url: `${PRODUCTION_SITE_URL}/`,
+        sameAs: [`${PRODUCTION_SITE_URL}/`, "https://t.me/QORIX3_bot"],
         logo: productionUrlFor("/favicon.png"),
         image: productionUrlFor("/og-image.png"),
         description:
-          "QORIX STORE sells premium digital subscriptions — AI tools, VPN, streaming, creative and productivity apps — with instant automated delivery on the website and on Telegram.",
+          "QORIX STORE sells digital subscriptions — AI, developer, SEO, streaming, VPN and creative apps — with automatic delivery after payment on the website and in the Telegram bot @QORIX3_bot.",
         contactPoint: [
           {
             "@type": "ContactPoint",
