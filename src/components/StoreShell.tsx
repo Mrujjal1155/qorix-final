@@ -214,7 +214,9 @@ export function StoreShell({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const nav = links("site_nav");
+  const navRaw = links("site_nav");
+  // The Telegram bot page is always in the header, even if an admin-saved menu predates it.
+  const nav = navRaw.some((n) => n.href === "/telegram-bot") ? navRaw : [...navRaw, { label: "Telegram Bot", href: "/telegram-bot" }];
   const socials = links("site_socials");
   const more = links("site_footer_categories_more")[0];
   const whatsapp = v("site_whatsapp_enabled") === "0" ? "" : v("site_whatsapp");
@@ -480,6 +482,12 @@ export function StoreShell({ children }: { children: ReactNode }) {
                 </Link>
                 <Link to="/reseller/panel" className="block text-muted-foreground hover:text-primary">
                   {t("Reseller Panel Login")}
+                </Link>
+                <a href="https://t.me/QORIX3_bot" target="_blank" rel="noopener" className="block font-medium text-primary hover:underline">
+                  Telegram Bot @QORIX3_bot
+                </a>
+                <Link to="/telegram-bot" className="block text-muted-foreground hover:text-primary">
+                  How the bot works
                 </Link>
               </div>
             </div>

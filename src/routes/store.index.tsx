@@ -9,6 +9,7 @@ import { listStorefront } from "@/lib/shop.functions";
 const storefrontQuery = queryOptions({ queryKey: ["storefront"], queryFn: () => listStorefront() });
 import { StoreShell } from "@/components/StoreShell";
 import { CategoryIcon } from "@/components/CategoryIcon";
+import { categoriesWithProducts } from "@/lib/category-count";
 import { ProductCard, type StoreProduct } from "@/components/ProductCard";
 import { Input } from "@/components/ui/input";
 import { productionUrlFor } from "@/lib/site-url";
@@ -37,7 +38,7 @@ export const Route = createFileRoute("/store/")({
       { title: "All Products — QORIX Store" },
       { name: "description", content: "Browse AI tools, creative apps, VPN, streaming and productivity subscriptions with instant delivery." },
       { property: "og:title", content: "All Products — QORIX Store" },
-      { property: "og:description", content: "Premium digital subscriptions at the best price, delivered instantly." },
+      { property: "og:description", content: "AI, developer, SEO, streaming and VPN subscriptions with automatic delivery after payment." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:url", content: productionUrlFor("/store") },
@@ -68,12 +69,9 @@ function StorePage() {
   const activeCat = cat === "all" && linked ? (linked as any).id : cat;
   const all = (data?.products ?? []) as StoreProduct[];
   const notes = duplicateNotes(all as any[]);
-  const countFor = (id: string) =>
-    all.filter((p: any) => ((p.category_ids ?? (p.category_id ? [p.category_id] : [])) as string[]).includes(id)).length;
-  // Busiest categories first; the rest fold behind "More categories" (none are removed).
-  const chipCats = [...categories]
-    .map((c: any) => ({ ...c, n: countFor(c.id) }))
-    .sort((a: any, b: any) => b.n - a.n);
+  // Busiest categories first; the rest fold behind "More categories". Empty categories are
+  // hidden so the chip total matches the homepage "Categories" count (one definition).
+  const chipCats = categoriesWithProducts(categories as any[], all as any[]).sort((a: any, b: any) => b.n - a.n);
   const CHIP_LIMIT = 14;
   const shownChips = allChips
     ? chipCats

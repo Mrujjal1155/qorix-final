@@ -66,7 +66,7 @@ function Paragraphs({ lines }: { lines: string[] }) {
    Lines starting with "- " inside a block become bullet points. */
 export function SiteTextPage({ titleKey, bodyKey }: { titleKey: string; bodyKey: string }) {
   const { v } = useSiteContent();
-  const brand = `${v("site_brand_name")}${v("site_brand_suffix")}`;
+  const brand = "QORIX Store";
   const title = v(titleKey).replaceAll("{brand}", brand);
   const body = v(bodyKey).replaceAll("{brand}", brand);
   const updated = v("site_legal_updated");

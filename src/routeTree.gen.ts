@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as AdminRouteRouteImport } from './routes/admin/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as BotRouteImport } from './routes/bot'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as FaqRouteImport } from './routes/faq'
@@ -22,6 +23,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RefundRouteImport } from './routes/refund'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as TelegramBotRouteImport } from './routes/telegram-bot'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as TrackRouteImport } from './routes/track'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
@@ -99,6 +101,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const BotRoute = BotRouteImport.update({
+  id: '/bot',
+  path: '/bot',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CheckoutRoute = CheckoutRouteImport.update({
   id: '/checkout',
   path: '/checkout',
@@ -137,6 +144,11 @@ const ResetPasswordRoute = ResetPasswordRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TelegramBotRoute = TelegramBotRouteImport.update({
+  id: '/telegram-bot',
+  path: '/telegram-bot',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TermsRoute = TermsRouteImport.update({
@@ -421,6 +433,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteRouteWithChildren
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
+  '/bot': typeof BotRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
@@ -429,6 +442,7 @@ export interface FileRoutesByFullPath {
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/telegram-bot': typeof TelegramBotRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
   '/admin/alerts': typeof AdminAlertsRoute
@@ -486,6 +500,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
+  '/bot': typeof BotRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
@@ -494,6 +509,7 @@ export interface FileRoutesByTo {
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/telegram-bot': typeof TelegramBotRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
   '/admin/alerts': typeof AdminAlertsRoute
@@ -554,6 +570,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteRouteWithChildren
   '/about': typeof AboutRoute
   '/auth': typeof AuthRoute
+  '/bot': typeof BotRoute
   '/checkout': typeof CheckoutRoute
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
@@ -562,6 +579,7 @@ export interface FileRoutesById {
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/telegram-bot': typeof TelegramBotRoute
   '/terms': typeof TermsRoute
   '/track': typeof TrackRoute
   '/admin/alerts': typeof AdminAlertsRoute
@@ -622,6 +640,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/about'
     | '/auth'
+    | '/bot'
     | '/checkout'
     | '/contact'
     | '/faq'
@@ -630,6 +649,7 @@ export interface FileRouteTypes {
     | '/refund'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/telegram-bot'
     | '/terms'
     | '/track'
     | '/admin/alerts'
@@ -687,6 +707,7 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/auth'
+    | '/bot'
     | '/checkout'
     | '/contact'
     | '/faq'
@@ -695,6 +716,7 @@ export interface FileRouteTypes {
     | '/refund'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/telegram-bot'
     | '/terms'
     | '/track'
     | '/admin/alerts'
@@ -754,6 +776,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/about'
     | '/auth'
+    | '/bot'
     | '/checkout'
     | '/contact'
     | '/faq'
@@ -762,6 +785,7 @@ export interface FileRouteTypes {
     | '/refund'
     | '/reset-password'
     | '/sitemap.xml'
+    | '/telegram-bot'
     | '/terms'
     | '/track'
     | '/admin/alerts'
@@ -822,6 +846,7 @@ export interface RootRouteChildren {
   AdminRouteRoute: typeof AdminRouteRouteWithChildren
   AboutRoute: typeof AboutRoute
   AuthRoute: typeof AuthRoute
+  BotRoute: typeof BotRoute
   CheckoutRoute: typeof CheckoutRoute
   ContactRoute: typeof ContactRoute
   FaqRoute: typeof FaqRoute
@@ -830,6 +855,7 @@ export interface RootRouteChildren {
   RefundRoute: typeof RefundRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TelegramBotRoute: typeof TelegramBotRoute
   TermsRoute: typeof TermsRoute
   TrackRoute: typeof TrackRoute
   OrderConfirmationRoute: typeof OrderConfirmationRoute
@@ -895,6 +921,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/bot': {
+      id: '/bot'
+      path: '/bot'
+      fullPath: '/bot'
+      preLoaderRoute: typeof BotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/checkout': {
       id: '/checkout'
       path: '/checkout'
@@ -949,6 +982,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/telegram-bot': {
+      id: '/telegram-bot'
+      path: '/telegram-bot'
+      fullPath: '/telegram-bot'
+      preLoaderRoute: typeof TelegramBotRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/terms': {
@@ -1419,6 +1459,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRouteRoute: AdminRouteRouteWithChildren,
   AboutRoute: AboutRoute,
   AuthRoute: AuthRoute,
+  BotRoute: BotRoute,
   CheckoutRoute: CheckoutRoute,
   ContactRoute: ContactRoute,
   FaqRoute: FaqRoute,
@@ -1427,6 +1468,7 @@ const rootRouteChildren: RootRouteChildren = {
   RefundRoute: RefundRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TelegramBotRoute: TelegramBotRoute,
   TermsRoute: TermsRoute,
   TrackRoute: TrackRoute,
   OrderConfirmationRoute: OrderConfirmationRoute,

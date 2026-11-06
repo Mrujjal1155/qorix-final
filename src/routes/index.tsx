@@ -16,6 +16,7 @@ import { FeatureButtons } from "@/components/FeatureButtons";
 import { productionUrlFor } from "@/lib/site-url";
 import { catalogPriceRange, storeJsonLd } from "@/lib/seo";
 import { useT } from "@/lib/i18n";
+import { categoriesWithProducts } from "@/lib/category-count";
 // Served from public/ so it works on the Cloudflare deploy (qorixlab.com) too.
 const EXPLAINER_URL = "/qorix-explainer.mp4";
 
@@ -37,10 +38,10 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Premium digital subscriptions — AI tools, developer tools, SEO & marketing tools, streaming, VPN, productivity and creative apps — delivered instantly on the web or through our Telegram bot.",
+          "AI, developer, SEO, streaming, VPN and creative subscriptions with automatic delivery after payment. Shop on the website or in our Telegram bot @QORIX3_bot.",
       },
       { property: "og:title", content: "QORIX Store — AI, Developer, SEO, Streaming, VPN & Creative Apps at the Best Price" },
-      { property: "og:description", content: "AI, developer, SEO & marketing, streaming, VPN, productivity and creative apps — at the best price, delivered instantly." },
+      { property: "og:description", content: "AI, developer, SEO, streaming, VPN and creative apps — on the web or via @QORIX3_bot on Telegram." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:url", content: productionUrlFor("/") },
@@ -69,9 +70,8 @@ function Landing() {
   const { data } = useQuery({ ...storefrontQuery, queryFn: () => fetchStore() });
 
   const products = (data?.products ?? []) as StoreProduct[];
-  const countFor = (id: string) => products.filter((p: any) => p.category_id === id).length;
-  // Empty categories are hidden on the homepage.
-  const categories = (data?.categories ?? []).filter((c: any) => countFor(c.id) > 0);
+  // Same definition as /store: categories holding at least one listed product.
+  const categories = categoriesWithProducts((data?.categories ?? []) as any[], products as any[]);
   const catIcons = distinctCategoryIcons(categories.map((c: any) => String(c.name ?? "")));
   const [playing, setPlaying] = useState(false);
   const fetchStats = useServerFn(getPublicStats);
@@ -176,7 +176,7 @@ function Landing() {
                   <CategoryIcon name={c.name} src={c.image_url} icon={catIcons.get(String(c.name ?? ""))} className="h-7 w-7" />
                 </span>
                 <h3 className="mt-3 text-sm font-semibold group-hover:text-primary">{c.name}</h3>
-                <p className="text-xs text-muted-foreground">{countFor(c.id)} {t(countFor(c.id) === 1 ? "product" : "products")}</p>
+                <p className="text-xs text-muted-foreground">{c.n} {t(c.n === 1 ? "product" : "products")}</p>
               </Link>
             ))}
           </div>

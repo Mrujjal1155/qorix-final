@@ -8,13 +8,13 @@ import { productionUrlFor } from "@/lib/site-url";
 export const Route = createFileRoute("/contact")({
   head: () => ({
     meta: [
-      { title: "Contact qorixlab.com — 24/7 Telegram Support" },
+      { title: "Contact QORIX Store — Telegram Support via @QORIX3_bot" },
       {
         name: "description",
-        content: "Reach the qorixlab.com team on Telegram for orders, delivery issues, warranty claims and pre-sale questions.",
+        content: "Reach the QORIX Store team through @QORIX3_bot on Telegram for orders, delivery issues, warranty claims and pre-sale questions.",
       },
-      { property: "og:title", content: "Contact qorixlab.com" },
-      { property: "og:description", content: "Talk to our support team on Telegram, any time of day." },
+      { property: "og:title", content: "Contact QORIX Store" },
+      { property: "og:description", content: "Message our support team through the Telegram bot @QORIX3_bot." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:url", content: productionUrlFor("/contact") },
@@ -72,6 +72,12 @@ function ContactPage() {
             <ContactCard key={`${c.title}-${i}`} card={c} />
           ))}
         </div>
+        <p className="mt-8 text-sm text-muted-foreground">
+          Shop and get support in Telegram:{" "}
+          <a href="https://t.me/QORIX3_bot" target="_blank" rel="noopener" className="font-semibold text-primary hover:underline">@QORIX3_bot</a>
+          {" · "}
+          <Link to="/telegram-bot" className="text-primary hover:underline">How the bot works</Link>
+        </p>
       </section>
     </StoreShell>
   );
