@@ -95,7 +95,7 @@ export function siteValue(site: SiteContent | undefined, key: string): string {
 
 /** Footer tagline: an older admin-saved wording ("…at unbeatable prices") is replaced by the current one. */
 export function stableTagline(saved: string): string {
-  if (!saved || /unbeatable/i.test(saved)) return SITE_DEFAULTS.site_tagline;
+  if (!saved || /unbeatable/i.test(saved)) return SITE_DEFAULTS["site_tagline"] ?? "";
   return saved;
 }
 
