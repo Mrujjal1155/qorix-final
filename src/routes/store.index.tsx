@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { Search, Sparkles } from "lucide-react";
+import { ChevronDown, Search, Sparkles } from "lucide-react";
+import { duplicateNotes } from "@/lib/duplicate-products";
 import { listStorefront } from "@/lib/shop.functions";
 
 const storefrontQuery = queryOptions({ queryKey: ["storefront"], queryFn: () => listStorefront() });
@@ -59,16 +60,43 @@ function StorePage() {
   const { c, q: q0 } = Route.useSearch();
   const [cat, setCat] = useState<string>("all");
   const [q, setQ] = useState(q0 ?? "");
+  const [sort, setSort] = useState<"featured" | "price-asc" | "price-desc" | "newest">("featured");
+  const [allChips, setAllChips] = useState(false);
 
   const categories = data?.categories ?? [];
   const linked = c ? categories.find((x: any) => String(x.name).toLowerCase().includes(c.toLowerCase())) : undefined;
   const activeCat = cat === "all" && linked ? (linked as any).id : cat;
-  const products = ((data?.products ?? []) as StoreProduct[]).filter((p: any) => {
+  const all = (data?.products ?? []) as StoreProduct[];
+  const notes = duplicateNotes(all as any[]);
+  const countFor = (id: string) =>
+    all.filter((p: any) => ((p.category_ids ?? (p.category_id ? [p.category_id] : [])) as string[]).includes(id)).length;
+  // Busiest categories first; the rest fold behind "More categories" (none are removed).
+  const chipCats = [...categories]
+    .map((c: any) => ({ ...c, n: countFor(c.id) }))
+    .sort((a: any, b: any) => b.n - a.n);
+  const CHIP_LIMIT = 14;
+  const shownChips = allChips
+    ? chipCats
+    : chipCats.filter((c: any, i: number) => i < CHIP_LIMIT || c.id === activeCatPre());
+  function activeCatPre() {
+    return cat === "all" && linked ? (linked as any).id : cat;
+  }
+  const filtered = all.filter((p: any) => {
     const ids: string[] = (p as any).category_ids ?? (p.category_id ? [p.category_id] : []);
     if (activeCat !== "all" && !ids.includes(activeCat)) return false;
     if (q && !p.name.toLowerCase().includes(q.toLowerCase())) return false;
     return true;
   });
+  const products =
+    sort === "featured"
+      ? filtered
+      : [...filtered].sort((a: any, b: any) =>
+          sort === "price-asc"
+            ? Number(a.price) - Number(b.price)
+            : sort === "price-desc"
+              ? Number(b.price) - Number(a.price)
+              : String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")),
+        );
 
   return (
     <StoreShell>
@@ -93,15 +121,27 @@ function StorePage() {
 
         <div className="mt-6 flex flex-wrap gap-2">
           <CatPill active={activeCat === "all"} onClick={() => setCat("all")} label={t("All")} />
-          {categories.map((c: any) => (
+          {shownChips.map((c: any) => (
             <CatPill
               key={c.id}
               active={activeCat === c.id}
               onClick={() => setCat(c.id)}
               label={c.name}
+              count={c.n}
               image={c.image_url}
             />
           ))}
+          {chipCats.length > CHIP_LIMIT && (
+            <button
+              type="button"
+              onClick={() => setAllChips((v) => !v)}
+              aria-expanded={allChips}
+              className="inline-flex items-center gap-1 rounded-full border border-dashed border-primary/50 px-4 py-1.5 text-sm font-semibold text-primary"
+            >
+              {allChips ? t("Show less") : `${t("More categories")} (${chipCats.length - CHIP_LIMIT})`}
+              <ChevronDown className={`h-4 w-4 transition-transform ${allChips ? "rotate-180" : ""}`} />
+            </button>
+          )}
         </div>
 
         <div className="mt-8 flex items-center gap-3">
@@ -112,6 +152,19 @@ function StorePage() {
             {activeCat === "all" ? t("Featured Products") : categories.find((x: any) => x.id === activeCat)?.name}
           </h2>
           <span className="h-px flex-1 bg-border" />
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="sr-only sm:not-sr-only">{t("Sort")}</span>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as typeof sort)}
+              className="rounded-full border border-border bg-card px-3 py-1.5 text-sm text-foreground"
+            >
+              <option value="featured">Featured</option>
+              <option value="price-asc">Price: low to high</option>
+              <option value="price-desc">Price: high to low</option>
+              <option value="newest">Newest</option>
+            </select>
+          </label>
           {data ? <span className="text-sm text-muted-foreground">{products.length} {t(products.length === 1 ? "item" : "items")}</span> : null}
         </div>
 
@@ -129,7 +182,7 @@ function StorePage() {
         ) : (
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {products.map((p, i) => (
-              <ProductCard key={p.id} product={p} priority={i < 4} />
+              <ProductCard key={p.id} product={p} priority={i < 4} variantNote={notes.get(p.id)} />
             ))}
           </div>
         )}
@@ -142,11 +195,13 @@ function CatPill({
   active,
   onClick,
   label,
+  count,
   image,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
+  count?: number;
   image?: string | null | undefined;
 }) {
   return (
@@ -160,6 +215,7 @@ function CatPill({
     >
       <CategoryIcon name={label} src={image} className="h-4 w-4" />
       {label}
+      {count !== undefined ? <span className="opacity-70">({count})</span> : null}
     </button>
   );
 }

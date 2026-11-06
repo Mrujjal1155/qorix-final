@@ -609,13 +609,13 @@ export function StoreShell({ children }: { children: ReactNode }) {
         </div>
       </nav>
 
-      <div className="pointer-events-none fixed bottom-24 right-4 z-50 flex flex-col items-end gap-3 md:bottom-6 md:right-6">
+      <div className="pointer-events-none fixed bottom-20 right-3 z-30 flex flex-col items-end gap-3 lg:bottom-6 lg:right-6 lg:z-50">
         {v("site_show_scrolltop") !== "0" && showTop ? (
           <button
             type="button"
             aria-label="Back to top"
             onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="pointer-events-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-primary/40 bg-background/80 text-primary shadow-md backdrop-blur transition-all hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground hover:shadow-lg"
+            className="pointer-events-auto hidden h-9 w-9 items-center lg:inline-flex justify-center rounded-full border border-primary/40 bg-background/80 text-primary shadow-md backdrop-blur transition-all hover:-translate-y-0.5 hover:bg-primary hover:text-primary-foreground hover:shadow-lg"
           >
             <ArrowUp className="h-4 w-4" strokeWidth={2.5} />
           </button>

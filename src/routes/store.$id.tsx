@@ -23,8 +23,9 @@ import {
   Zap,
 } from "lucide-react";
 
-import { getStoreProduct, getStorePayInfo, resolveStoreProduct } from "@/lib/shop.functions";
+import { getStoreProduct, getStorePayInfo, resolveStoreProduct, listStorefront } from "@/lib/shop.functions";
 import { SmartImage } from "@/components/SmartImage";
+import { duplicateNotes } from "@/lib/duplicate-products";
 import { useT } from "@/lib/i18n";
 import { StoreShell } from "@/components/StoreShell";
 import { Button } from "@/components/ui/button";
@@ -151,6 +152,7 @@ function ProductPage() {
   const navigate = useNavigate();
   const fetchProduct = useServerFn(getStoreProduct);
   const fetchPay = useServerFn(getStorePayInfo);
+  const fetchStore = useServerFn(listStorefront);
 
 
   const { data: product } = useQuery({
@@ -175,6 +177,10 @@ function ProductPage() {
   const claimed = stock + sold > 0 ? Math.round((sold / (stock + sold)) * 100) : 0;
   const botUser = pay?.["bot_username"] ?? "";
   const supportContact = (pay?.["support_contact"] ?? "").replace(/^@/, "").replace(/^vibexAcademybd$/i, "QORIX3_bot");
+
+  // Near-duplicate listings (same name): show what tells them apart.
+  const { data: store } = useQuery({ queryKey: ["storefront"], queryFn: () => fetchStore(), staleTime: 60_000 });
+  const variantNote = product ? (duplicateNotes((store?.products ?? []) as any[]).get(String((product as any).id)) ?? null) : null;
 
   const startCheckout = () => void navigate({ to: "/checkout", search: { id, qty, step: "details" } });
 
@@ -259,6 +265,11 @@ function ProductPage() {
           {/* Info */}
           <div>
             <h1 className="text-3xl font-extrabold leading-tight tracking-tight">{product?.name ?? "Loading…"}</h1>
+            {variantNote ? (
+              <p className="mt-2 inline-flex rounded-lg border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                {variantNote}
+              </p>
+            ) : null}
 
             <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
               <span className="inline-flex items-center gap-1">
@@ -337,7 +348,8 @@ function ProductPage() {
               </div>
             </div>
 
-            {/* Quantity + price */}
+            {/* Quantity + price — hidden when nothing can be bought */}
+            {(!product || inStock) && (<>
             <div className="mt-4 flex flex-wrap items-center gap-3 text-sm">
               <span className="font-semibold">Quantity:</span>
               <div className="inline-flex items-center rounded-xl border border-border">
@@ -366,6 +378,7 @@ function ProductPage() {
             {currency !== "USD" ? (
               <p className="text-xs text-muted-foreground">≈ {usd(total)} USD</p>
             ) : null}
+            </>)}
 
             {product && !inStock ? (
               <div className="mt-4">
@@ -387,6 +400,11 @@ function ProductPage() {
               </div>
             )}
 
+            <p className="mt-3 text-center text-[11px] text-muted-foreground">
+              Visa · Mastercard · Amex · bKash · Nagad · Rocket (EPS) · Binance Pay · USDT
+            </p>
+
+            {(!product || inStock) && (<>
             <p className="mt-4 text-center">
               <span className="rounded-full bg-warning/15 px-3 py-1 text-xs font-semibold text-warning">
                 ⭐ Recommended
@@ -405,6 +423,7 @@ function ProductPage() {
                 </a>
               </Button>
             </div>
+            </>)}
 
 
             <p className="mt-5 text-xs font-semibold">We Accept:</p>

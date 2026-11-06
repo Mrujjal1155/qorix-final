@@ -47,7 +47,7 @@ export const listStorefront = createServerFn({ method: "GET" }).handler(async ()
       .order("sort_order"),
     publicProducts()
       .select(
-        "id,name,emoji,description,price,old_price,delivery_type,category_id,sort_order,featured_rank,image_url,delivery_time,badge,stock,instant,is_active",
+        "id,name,emoji,description,price,old_price,delivery_type,category_id,sort_order,featured_rank,image_url,delivery_time,badge,stock,instant,is_active,created_at",
       )
       .eq("is_active", true)
       .order("sort_order"),
@@ -86,6 +86,16 @@ export const listStorefront = createServerFn({ method: "GET" }).handler(async ()
     products: products.map((p: any) => ({ ...p, slug: slugs[p.id] ?? null, in_stock: productInStock(p) })),
     heroItems: hero.data ?? [],
   };
+});
+
+/** Real, aggregate-only homepage numbers. Delivered = orders with status "completed". */
+export const getPublicStats = createServerFn({ method: "GET" }).handler(async () => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { count, error } = await supabaseAdmin
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "completed");
+  return { delivered: error ? null : (count ?? null) };
 });
 
 /** Resolve /store/<param> (slug, old slug or UUID) to the product id and its current slug. */

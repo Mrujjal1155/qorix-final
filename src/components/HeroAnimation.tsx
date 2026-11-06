@@ -18,6 +18,7 @@ import {
   Globe,
   KeyRound,
   MessageCircle,
+  Search,
   Send,
   ShoppingBag,
   Zap,
@@ -201,6 +202,11 @@ export function HeroAnimation({
               <a href="https://t.me/QORIX3_bot" target="_blank" rel="noreferrer">
                 <Send className="h-4 w-4" /> {t("Shop on Telegram")}
               </a>
+            </Button>
+            <Button asChild size="lg" variant="outline" className="rounded-full px-7">
+              <Link to="/track">
+                <Search className="h-4 w-4" /> {t("Track Order")}
+              </Link>
             </Button>
           </div>
           <p className="mt-4 text-sm font-medium text-muted-foreground">Binance Pay · USDT · bKash · Nagad</p>

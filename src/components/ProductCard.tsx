@@ -31,9 +31,12 @@ export function discountPct(p: StoreProduct) {
 export function ProductCard({
   product,
   priority = false,
+  variantNote,
 }: {
   product: StoreProduct;
   priority?: boolean;
+  /** Shown when another listing has the same name, so buyers can tell them apart. */
+  variantNote?: string | undefined;
 }) {
   const t = useT();
   const off = discountPct(product);
@@ -87,6 +90,11 @@ export function ProductCard({
 
       <div className="flex flex-1 flex-col gap-2 p-4">
         <h3 className="line-clamp-2 text-sm font-bold leading-snug">{product.name}</h3>
+        {variantNote ? (
+          <p className="rounded-md border border-primary/40 bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
+            {variantNote}
+          </p>
+        ) : null}
 
         {/* No star row: there are no real reviews to average. */}
         {sold > 0 && <p className="text-xs text-success">↗ {sold}+ {t("sold")}</p>}

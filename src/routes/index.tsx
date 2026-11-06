@@ -3,7 +3,9 @@ import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { ChevronDown, Play, Send, Sparkles } from "lucide-react";
-import { listStorefront } from "@/lib/shop.functions";
+import { listStorefront, getPublicStats } from "@/lib/shop.functions";
+import { FaqTeaser, ResellerTeaser, StatsStrip, StayUpdated, Testimonials, WeeklyOffers } from "@/components/HomeTrust";
+import { duplicateNotes } from "@/lib/duplicate-products";
 
 const storefrontQuery = queryOptions({ queryKey: ["storefront"], queryFn: () => listStorefront() });
 import { StoreShell } from "@/components/StoreShell";
@@ -72,6 +74,9 @@ function Landing() {
   const categories = (data?.categories ?? []).filter((c: any) => countFor(c.id) > 0);
   const catIcons = distinctCategoryIcons(categories.map((c: any) => String(c.name ?? "")));
   const [playing, setPlaying] = useState(false);
+  const fetchStats = useServerFn(getPublicStats);
+  const { data: stats } = useQuery({ queryKey: ["public-stats"], queryFn: () => fetchStats(), staleTime: 300_000 });
+  const notes = duplicateNotes(products as any[]);
   /* show only two lines of category cards; the rest stays behind "More" */
   const [showAllCats, setShowAllCats] = useState(false);
   const cols = useGridCols();
@@ -196,7 +201,7 @@ function Landing() {
 
       {/* Featured */}
       {products.length > 0 && (
-        <section className="mx-auto max-w-7xl px-4 pb-20">
+        <section className="mx-auto max-w-7xl px-4 pb-14">
           <div className="mb-6 flex items-center gap-3">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary">
               <Sparkles className="h-4 w-4" />
@@ -209,11 +214,21 @@ function Landing() {
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {products.slice(0, 12).map((p, i) => (
-              <ProductCard key={p.id} product={p} priority={i < 4} />
+              <ProductCard key={p.id} product={p} priority={i < 4} variantNote={notes.get(p.id)} />
             ))}
           </div>
         </section>
       )}
+
+      {data ? (
+        <StatsStrip products={products.length} categories={categories.length} delivered={stats?.delivered ?? null} />
+      ) : null}
+      {/* Real verified reviews only — none exist yet, so this stays hidden. */}
+      <Testimonials reviews={[]} />
+      <FaqTeaser />
+      <ResellerTeaser />
+      <StayUpdated />
+      <WeeklyOffers products={products} />
     </StoreShell>
   );
 }
