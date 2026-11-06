@@ -39,5 +39,5 @@
 - Telegram tables share pure builders and send/edit fallback only on definitive format rejection, never uncertain failure. Wallet history keeps ledger/payment attempts separate and reads only the verified private-chat sender to preserve accounting/privacy.
 - Category edits use validated schemas and shared position moves; name-only saves preserve metadata.
 - Bybit: UID-bound read-only reads, exact matching, atomic prefixed claims; not Merchant Pay. Wallet/checkout share Bybit/chain UI icons; legacy Bybit fallback before override; Binance icons separate.
-- Blockchain: service-only settings/claims, solidified TRON/finalized canonical BSC, exact amounts/pending addresses. api.trongrid.io uses server-only TRONGRID_API_KEY; no redirects; Binance separate.
-- Product URLs use readable slugs stored in service-only `product_slugs` (kept by a products trigger, old slugs retained); `/store/$id` resolves UUID/old slug and 301-redirects so existing links never break, while checkout/bot keep using product UUIDs.
+- Blockchain: service-only settings/claims, solidified TRON/finalized BSC, exact amounts. TronGrid uses server-only TRONGRID_API_KEY, no redirects.
+- Store URLs: trigger-kept service-only `product_slugs`; UUID/old slugs 301; checkout/bot use UUIDs.
