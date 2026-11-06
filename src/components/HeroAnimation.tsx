@@ -236,7 +236,13 @@ export function HeroAnimation({
 
             <div className="p-5 sm:p-6">
               {/* step rail with checkmarks */}
-              <ol className="grid grid-cols-3 gap-2">
+              <ol className="relative mb-6 grid grid-cols-3 gap-2">
+                <span className="absolute left-[16.67%] right-[16.67%] top-5 h-0.5 rounded-full bg-border" aria-hidden>
+                  <span
+                    className="absolute inset-y-0 left-0 rounded-full bg-success transition-all duration-700"
+                    style={{ width: step === 0 ? "0%" : step === 1 ? "50%" : "100%" }}
+                  />
+                </span>
                 {[
                   { icon: ShoppingBag, label: t("Order") },
                   { icon: CreditCard, label: t("Payment") },
@@ -245,7 +251,7 @@ export function HeroAnimation({
                   const done = step > i || (step === 2 && i === 2);
                   const on = step === i;
                   return (
-                    <li key={s.label} className="flex flex-col items-center gap-2 text-center">
+                    <li key={s.label} className="relative z-10 flex flex-col items-center gap-2 text-center">
                       <span
                         className={`grid h-10 w-10 place-items-center rounded-full border-2 transition-all duration-500 ${
                           done
@@ -264,15 +270,8 @@ export function HeroAnimation({
                   );
                 })}
               </ol>
-              <div className="relative mx-6 -mt-[3.1rem] mb-8 h-0.5 rounded-full bg-border" aria-hidden>
-                <span
-                  className="absolute inset-y-0 left-0 rounded-full bg-success transition-all duration-700"
-                  style={{ width: step === 0 ? "0%" : step === 1 ? "50%" : "100%" }}
-                />
-              </div>
-
               {/* stage — fixed height so the card never jumps */}
-              <div className="min-h-[244px]">
+              <div className="min-h-[236px]">
                 {step === 0 && (
                   <ul className="animate-fade-in space-y-2">
                     {cards.slice(0, 4).map((item, i) => (
