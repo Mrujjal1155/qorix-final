@@ -85,12 +85,12 @@ export function siteValue(site: SiteContent | undefined, key: string): string {
   const v = site?.[key];
   const out = v == null || v === "" ? (SITE_DEFAULTS[key] ?? "") : v;
   // The old support handle may still be saved in admin-edited text — always show QORIX.
-  // The old support handle may still be saved in admin-edited text — always show QORIX.
   // QORIX is a worldwide store: strip any saved country-of-location wording.
-  return out
+  const clean = out
     .replace(/vibexAcademybd/gi, "QORIX3_bot")
-    .replace(/,?\s*(Chattogram|Chittagong|Dhaka)?,?\s*Bangladesh\b/gi, (m) => (/^\s*(Chattogram|Chittagong|Dhaka)/i.test(m.replace(/^,/, "")) || m.trim().startsWith(",") ? "" : ""))
-    .replace(/^\s*$/, key === "site_contact_address" ? (SITE_DEFAULTS[key] ?? "") : "");
+    .replace(/,?\s*(?:(?:Chattogram|Chittagong|Dhaka),\s*)?Bangladesh\b/gi, "")
+    .trim();
+  return clean === "" && out !== "" ? (SITE_DEFAULTS[key] ?? "") : clean;
 }
 
 /** Footer tagline: an older admin-saved wording ("…at unbeatable prices") is replaced by the current one. */

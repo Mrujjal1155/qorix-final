@@ -72,8 +72,8 @@ function AboutPage() {
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Our story</h2>
             <p className="mt-3 text-muted-foreground">
-              QORIX Store started to make paid digital tools easier to buy from Bangladesh and nearby
-              markets, where international cards are often hard to use. We sell the subscriptions we can
+              QORIX Store started to make paid digital tools easier to buy for customers around
+              the world, including places where international cards are hard to use. We sell the subscriptions we can
               deliver, accept crypto and local mobile wallets, and run the same catalogue on this website and
               in our Telegram bot{" "}
               <a href={BOT_URL} target="_blank" rel="noopener" className="font-semibold text-primary hover:underline">{BOT_HANDLE}</a>.

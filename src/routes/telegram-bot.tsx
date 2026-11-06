@@ -48,7 +48,7 @@ export const Route = createFileRoute("/telegram-bot")({
 
 const FEATURES = [
   { icon: ShoppingBag, title: "Browse the catalogue", text: "The same AI, developer, SEO, streaming, VPN and creative products as the website, grouped by category." },
-  { icon: Wallet, title: "Wallet & deposits", text: "Top up your bot wallet with Binance Pay or USDT and pay for orders from the balance." },
+  { icon: Wallet, title: "Wallet & deposits", text: "Top up your bot wallet with Binance Pay, USDT or bKash / Nagad / Rocket (EPS), then pay for orders from the balance." },
   { icon: FileText, title: "Delivery in the chat", text: "Automatic products are sent in the chat after payment is verified. Larger orders arrive as a .txt file." },
   { icon: Bell, title: "Stock alerts", text: "Ask to be notified on a sold-out product and the bot messages you when it is back." },
   { icon: PackageSearch, title: "Order history", text: "See your past orders and their delivery from the bot menu." },
@@ -108,8 +108,10 @@ function BotPage() {
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Payment</h2>
             <p className="mt-3 text-muted-foreground">
-              The bot shows the payment methods that are currently enabled, such as Binance Pay and USDT
-              (BEP-20 / TRC-20). Send the exact amount shown; payments are matched automatically.
+              Open <b>Wallet</b> in the bot and pick a method to add funds: Binance Pay, USDT (BEP-20 / TRC-20)
+              and other crypto options, plus <b>bKash · Nagad · Rocket</b> through EPS — tap that button, reply
+              with the amount in USD, then finish the payment on the EPS page and your wallet is credited
+              automatically. Only the methods currently enabled are shown. Your wallet balance then pays for orders.
             </p>
           </div>
           <div>
