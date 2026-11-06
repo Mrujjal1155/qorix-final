@@ -19,6 +19,7 @@ import {
   KeyRound,
   MessageCircle,
   Search,
+  Send,
   ShoppingBag,
   Zap,
 } from "lucide-react";
@@ -174,8 +175,8 @@ export function HeroAnimation({
             {t("Instant digital delivery")}
           </div>
           <h1 className="mt-4 text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl">
-            {t("Buy AI tools & subscriptions.")}
-            <span className="block text-primary">{t("Delivered in seconds.")}</span>
+            {t("Premium AI & streaming subscriptions")}
+            <span className="block text-primary">{t("— delivered to your inbox in seconds, from $0.03.")}</span>
           </h1>
           <p className="mt-4 text-base leading-relaxed text-muted-foreground sm:text-lg">
             {t("Order from our website or Telegram bot. Pay with Binance Pay or USDT. Receive your account, key or activation code automatically — no waiting.")}
@@ -198,11 +199,12 @@ export function HeroAnimation({
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline" className="rounded-full px-7 glass-panel">
-              <Link to="/track">
-                <Search className="h-4 w-4" /> {t("Track Order")}
-              </Link>
+              <a href="https://t.me/QORIX3_bot" target="_blank" rel="noreferrer">
+                <Send className="h-4 w-4" /> {t("Shop on Telegram")}
+              </a>
             </Button>
           </div>
+          <p className="mt-4 text-sm font-medium text-muted-foreground">Binance Pay · USDT · bKash · Nagad</p>
         </div>
 
         {/* right: serial product board → payment → delivery (hidden until real products/items exist) */}

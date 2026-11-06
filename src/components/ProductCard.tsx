@@ -42,6 +42,7 @@ export function ProductCard({
   const sold = Number(product.sold ?? 0);
   const deliveryText = product.delivery_time ? t(product.delivery_time) : auto ? t("Instant delivery") : t("Manual delivery");
   const noWarranty = /no\s*warranty/i.test(product.delivery_time ?? "");
+  const badgeNoWarranty = /no\s*warranty/i.test(product.badge ?? "");
   // Only an explicit "not in stock" disables buying; unknown keeps the old behaviour.
   const soldOut = product.in_stock === false;
 
@@ -71,7 +72,13 @@ export function ProductCard({
             <span />
           )}
           {product.badge ? (
-            <span className="rounded-full border border-border/70 bg-background/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-foreground backdrop-blur">
+            <span
+              className={`rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide backdrop-blur ${
+                badgeNoWarranty
+                  ? "border-warning/60 bg-warning/20 text-warning"
+                  : "border-border/70 bg-background/80 text-foreground"
+              }`}
+            >
               {product.badge}
             </span>
           ) : null}
@@ -110,9 +117,9 @@ export function ProductCard({
             </Link>
           </Button>
           {soldOut ? (
-            <Button asChild size="sm" variant="outline" className="flex-1 rounded-lg">
+            <Button asChild size="sm" variant="outline" className="h-auto min-h-8 flex-1 whitespace-normal rounded-lg py-1 text-xs">
               <a href={`https://t.me/QORIX3_bot?start=p_${product.id}`} target="_blank" rel="noreferrer">
-                <Bell className="h-4 w-4" /> {t("Notify me")}
+                <Bell className="h-4 w-4" /> {t("Notify me when back in stock")}
               </a>
             </Button>
           ) : (
