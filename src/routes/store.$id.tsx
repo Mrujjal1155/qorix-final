@@ -140,9 +140,8 @@ export const Route = createFileRoute("/store/$id")({
       </section>
     </StoreShell>
   ),
-  validateSearch: (search: Record<string, unknown>) => ({
-    buy: search["buy"] === true || search["buy"] === "true" || search["buy"] === "1",
-  }),
+  validateSearch: (search: Record<string, unknown>): { buy?: boolean } =>
+    search["buy"] === true || search["buy"] === "true" || search["buy"] === "1" ? { buy: true } : {},
   component: ProductPage,
 });
 
