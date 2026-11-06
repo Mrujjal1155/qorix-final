@@ -138,13 +138,14 @@ export const getProductSeo = createServerFn({ method: "GET" })
       .maybeSingle();
     if (!row) return null;
     const anyRow = row as any;
+    const { productInStock } = await import("@/lib/stock-status");
     return {
       id: String(anyRow.id),
       name: String(anyRow.name ?? ""),
       description: String(anyRow.description ?? ""),
       price: Number(anyRow.price ?? 0),
       image_url: (anyRow.image_url ?? null) as string | null,
-      in_stock: Number(anyRow.stock ?? 0) > 0 || (!anyRow.instant && !anyRow.manual_stock_limited),
+      in_stock: productInStock(anyRow),
     };
   });
 

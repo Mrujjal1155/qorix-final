@@ -1,9 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { Search, Sparkles } from "lucide-react";
 import { listStorefront } from "@/lib/shop.functions";
+
+const storefrontQuery = queryOptions({ queryKey: ["storefront"], queryFn: () => listStorefront() });
 import { StoreShell } from "@/components/StoreShell";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { ProductCard, type StoreProduct } from "@/components/ProductCard";
@@ -17,6 +19,14 @@ export const Route = createFileRoute("/store/")({
     if (typeof search["c"] === "string") out.c = search["c"];
     if (typeof search["q"] === "string") out.q = search["q"];
     return out;
+  },
+  loader: async ({ context }) => {
+    // Server-render the real catalogue so names, prices and stock are in the first HTML.
+    try {
+      await context.queryClient.ensureQueryData(storefrontQuery);
+    } catch {
+      /* fall back to client loading with skeletons */
+    }
   },
   head: () => ({
     meta: [
@@ -37,7 +47,7 @@ function StorePage() {
   const t = useT();
   const fetchStore = useServerFn(listStorefront);
   const { data, isLoading } = useQuery({
-    queryKey: ["storefront"],
+    ...storefrontQuery,
     queryFn: () => fetchStore(),
     refetchInterval: 10_000,
     refetchIntervalInBackground: true,
@@ -98,11 +108,18 @@ function StorePage() {
             {activeCat === "all" ? t("Featured Products") : categories.find((x: any) => x.id === activeCat)?.name}
           </h2>
           <span className="h-px flex-1 bg-border" />
-          <span className="text-sm text-muted-foreground">{products.length} {t("items")}</span>
+          {data ? <span className="text-sm text-muted-foreground">{products.length} {t("items")}</span> : null}
         </div>
 
-        {isLoading ? (
-          <p className="mt-10 text-sm text-muted-foreground">{t("Loading catalogue…")}</p>
+        {isLoading || !data ? (
+          <div className="mt-6" aria-busy="true">
+            <p className="text-sm text-muted-foreground">{t("Loading catalogue…")}</p>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h-72 animate-pulse rounded-2xl border border-border bg-card" />
+              ))}
+            </div>
+          </div>
         ) : products.length === 0 ? (
           <p className="mt-10 text-sm text-muted-foreground">{t("No products found.")}</p>
         ) : (

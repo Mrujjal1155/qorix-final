@@ -1,9 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { ChevronDown, Sparkles } from "lucide-react";
 import { listStorefront } from "@/lib/shop.functions";
+
+const storefrontQuery = queryOptions({ queryKey: ["storefront"], queryFn: () => listStorefront() });
 import { StoreShell } from "@/components/StoreShell";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { ProductCard, type StoreProduct } from "@/components/ProductCard";
@@ -16,16 +18,24 @@ const EXPLAINER_URL = "/qorix-explainer.mp4";
 
 
 export const Route = createFileRoute("/")({
+  loader: async ({ context }) => {
+    // Server-render the real catalogue so names, prices and stock are in the first HTML.
+    try {
+      await context.queryClient.ensureQueryData(storefrontQuery);
+    } catch {
+      /* fall back to client loading with skeletons */
+    }
+  },
   head: () => ({
     meta: [
-      { title: "QORIX Store — AI Tools, VPN & Creative Apps at the Best Price" },
+      { title: "QORIX Store — AI, Developer, SEO, Streaming, VPN & Creative Apps at the Best Price" },
       {
         name: "description",
         content:
-          "Premium digital subscriptions — AI tools, VPN, creative and productivity apps — delivered instantly on the web or through our Telegram bot.",
+          "Premium digital subscriptions — AI tools, developer tools, SEO & marketing tools, streaming, VPN, productivity and creative apps — delivered instantly on the web or through our Telegram bot.",
       },
-      { property: "og:title", content: "QORIX Store — Premium Digital Subscriptions" },
-      { property: "og:description", content: "AI Tools, VPN, Creative Apps & more — at the best price, delivered instantly." },
+      { property: "og:title", content: "QORIX Store — AI, Developer, SEO, Streaming, VPN & Creative Apps at the Best Price" },
+      { property: "og:description", content: "AI, developer, SEO & marketing, streaming, VPN, productivity and creative apps — at the best price, delivered instantly." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:url", content: productionUrlFor("/") },
@@ -50,7 +60,7 @@ function useGridCols() {
 function Landing() {
   const t = useT();
   const fetchStore = useServerFn(listStorefront);
-  const { data } = useQuery({ queryKey: ["storefront"], queryFn: () => fetchStore() });
+  const { data } = useQuery({ ...storefrontQuery, queryFn: () => fetchStore() });
 
   const categories = data?.categories ?? [];
   const products = (data?.products ?? []) as StoreProduct[];
