@@ -9,6 +9,7 @@ import { listStorefront } from "@/lib/shop.functions";
 const storefrontQuery = queryOptions({ queryKey: ["storefront"], queryFn: () => listStorefront() });
 import { StoreShell } from "@/components/StoreShell";
 import { CategoryIcon } from "@/components/CategoryIcon";
+import { categoriesWithProducts } from "@/lib/category-count";
 import { ProductCard, type StoreProduct } from "@/components/ProductCard";
 import { Input } from "@/components/ui/input";
 import { productionUrlFor } from "@/lib/site-url";
@@ -70,10 +71,9 @@ function StorePage() {
   const notes = duplicateNotes(all as any[]);
   const countFor = (id: string) =>
     all.filter((p: any) => ((p.category_ids ?? (p.category_id ? [p.category_id] : [])) as string[]).includes(id)).length;
-  // Busiest categories first; the rest fold behind "More categories" (none are removed).
-  const chipCats = [...categories]
-    .map((c: any) => ({ ...c, n: countFor(c.id) }))
-    .sort((a: any, b: any) => b.n - a.n);
+  // Busiest categories first; the rest fold behind "More categories". Empty categories are
+  // hidden so the chip total matches the homepage "Categories" count (one definition).
+  const chipCats = categoriesWithProducts(categories as any[], all as any[]).sort((a: any, b: any) => b.n - a.n);
   const CHIP_LIMIT = 14;
   const shownChips = allChips
     ? chipCats

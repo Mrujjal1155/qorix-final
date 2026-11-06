@@ -16,6 +16,7 @@ import { FeatureButtons } from "@/components/FeatureButtons";
 import { productionUrlFor } from "@/lib/site-url";
 import { catalogPriceRange, storeJsonLd } from "@/lib/seo";
 import { useT } from "@/lib/i18n";
+import { categoriesWithProducts } from "@/lib/category-count";
 // Served from public/ so it works on the Cloudflare deploy (qorixlab.com) too.
 const EXPLAINER_URL = "/qorix-explainer.mp4";
 
@@ -69,9 +70,8 @@ function Landing() {
   const { data } = useQuery({ ...storefrontQuery, queryFn: () => fetchStore() });
 
   const products = (data?.products ?? []) as StoreProduct[];
-  const countFor = (id: string) => products.filter((p: any) => p.category_id === id).length;
-  // Empty categories are hidden on the homepage.
-  const categories = (data?.categories ?? []).filter((c: any) => countFor(c.id) > 0);
+  // Same definition as /store: categories holding at least one listed product.
+  const categories = categoriesWithProducts((data?.categories ?? []) as any[], products as any[]);
   const catIcons = distinctCategoryIcons(categories.map((c: any) => String(c.name ?? "")));
   const [playing, setPlaying] = useState(false);
   const fetchStats = useServerFn(getPublicStats);
