@@ -39,7 +39,7 @@ function AboutPage() {
     <StoreShell>
       <section className="mx-auto max-w-5xl px-4 py-14">
         <h1 className="text-4xl font-extrabold tracking-tight">
-          {v("site_page_about_title").replaceAll("{brand}", brand)}
+          About QORIX Store
         </h1>
         <p className="mt-4 max-w-2xl whitespace-pre-line text-muted-foreground">{v("site_page_about_body")}</p>
 
@@ -83,13 +83,12 @@ function AboutPage() {
           <div>
             <h2 className="text-2xl font-bold tracking-tight">What we sell</h2>
             <p className="mt-3 text-muted-foreground">
-              Everything a creator, developer or marketer needs — in one place, at fair-trade prices:
+              Everything a creator, developer or marketer needs — in one place, at fair prices:
             </p>
             <ul className="mt-3 list-disc space-y-1.5 pl-5 text-muted-foreground">
               <li>
-                <strong className="text-foreground">AI tools</strong> — ChatGPT, Claude, Gemini, Midjourney,
-                ElevenLabs, Copilot, Perplexity, Canva AI and every major AI assistant, image, video, voice
-                and coding model.
+                <strong className="text-foreground">AI &amp; productivity tools</strong> — Gemini AI Pro, Lovable,
+                Gamma, Canva, Granola and Linear plans, with more added as stock arrives.
               </li>
               <li>
                 <strong className="text-foreground">Developer tools</strong> — IDE and coding assistants,
@@ -115,7 +114,7 @@ function AboutPage() {
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Fair pricing &amp; instant delivery</h2>
             <p className="mt-3 text-muted-foreground">
-              We buy in volume and keep our margin small, so you get genuine premium tools at free-trade
+              We buy in volume and keep our margin small, so you get genuine premium tools at fair
               prices — often a fraction of the official subscription. Payment is verified automatically and
               stock is released the moment your payment confirms: credentials, activation links or account
               details reach your dashboard, email and Telegram chat within seconds, 24/7 — no waiting for
