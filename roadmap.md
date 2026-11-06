@@ -1,7 +1,8 @@
 # Roadmap
 
 - [x] Audit Telegram Business documentation, existing @QORIX3_bot source/backend and safe product/order data integration; prepare an approval plan without changing tickets, shop or live connections.
-- [ ] Implement personal-inbox Business AI, human takeover and per-chat controls; blocked by plan approval and actual bot/account Business capability/connection verification. Telegram credentials are not available here; live backend settings and AI validity remain unverified.
+- [x] Receive plan approval, link Online's existing Telegram connection and verify live identity as @QORIX3_bot; getWebhookInfo confirms unchanged qorixlab.com webhook and four existing update subscriptions. No customer messages sent or webhook changed.
+- [ ] Implement personal-inbox Business AI, human takeover and per-chat controls; compatibility gate blocked: live getMe reports can_connect_to_business=false. Owner must enable Business Mode in BotFather, then verify account Business connection/rights. Backend hosted settings and AI validity remain unverified; no app code or schema changed.
 
 - [x] Add Category Products and admin-selected Top Selling Products price-list modes, paginated active catalogue, supplier filters, separate saved editable copy, premium emojis and community link fields. Update-group URL is unknown and remains empty, not invented.
 - [x] Queue preview-only product-list broadcasts through the existing durable sender with atomic idempotent user/group receipts, service-only progress aggregates and admin-wide completion popup; no real broadcast sent.
