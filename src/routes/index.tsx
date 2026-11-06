@@ -2,12 +2,12 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
-import { ChevronDown, Sparkles } from "lucide-react";
+import { ChevronDown, Play, Send, Sparkles } from "lucide-react";
 import { listStorefront } from "@/lib/shop.functions";
 
 const storefrontQuery = queryOptions({ queryKey: ["storefront"], queryFn: () => listStorefront() });
 import { StoreShell } from "@/components/StoreShell";
-import { CategoryIcon } from "@/components/CategoryIcon";
+import { CategoryIcon, distinctCategoryIcons } from "@/components/CategoryIcon";
 import { ProductCard, type StoreProduct } from "@/components/ProductCard";
 import { HeroAnimation } from "@/components/HeroAnimation";
 import { FeatureButtons } from "@/components/FeatureButtons";
@@ -66,9 +66,12 @@ function Landing() {
   const fetchStore = useServerFn(listStorefront);
   const { data } = useQuery({ ...storefrontQuery, queryFn: () => fetchStore() });
 
-  const categories = data?.categories ?? [];
   const products = (data?.products ?? []) as StoreProduct[];
   const countFor = (id: string) => products.filter((p: any) => p.category_id === id).length;
+  // Empty categories are hidden on the homepage.
+  const categories = (data?.categories ?? []).filter((c: any) => countFor(c.id) > 0);
+  const catIcons = distinctCategoryIcons(categories.map((c: any) => String(c.name ?? "")));
+  const [playing, setPlaying] = useState(false);
   /* show only two lines of category cards; the rest stays behind "More" */
   const [showAllCats, setShowAllCats] = useState(false);
   const cols = useGridCols();
@@ -111,16 +114,39 @@ function Landing() {
             over a minute.
           </p>
         </div>
-        <div className="mt-8 overflow-hidden rounded-3xl border border-border bg-card shadow-lg">
-          <video
-            controls
-            preload="metadata"
-            playsInline
-            className="aspect-video w-full bg-background"
-          >
-            <source src={EXPLAINER_URL} type="video/mp4" />
-          </video>
+        <div className="relative mt-8 overflow-hidden rounded-3xl border border-border bg-card shadow-lg">
+          {playing ? (
+            <video controls autoPlay playsInline preload="auto" className="aspect-video w-full bg-background">
+              <source src={EXPLAINER_URL} type="video/mp4" />
+            </video>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setPlaying(true)}
+              aria-label="Play: QORIX explainer — store, instant delivery and Telegram bot"
+              className="group relative flex aspect-video w-full flex-col items-center justify-center gap-4 overflow-hidden text-center"
+              style={{
+                background:
+                  "radial-gradient(60% 70% at 50% 40%, color-mix(in oklab, var(--primary) 30%, transparent), transparent 75%), linear-gradient(135deg, var(--card), var(--background))",
+              }}
+            >
+              <span className="text-2xl font-extrabold tracking-tight sm:text-4xl">
+                QORIX<span className="text-primary">.shop</span>
+              </span>
+              <span className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/40 transition-transform group-hover:scale-110 sm:h-24 sm:w-24">
+                <Play className="ml-1 h-9 w-9 fill-current sm:h-11 sm:w-11" />
+              </span>
+              <span className="px-4 text-sm font-semibold text-foreground sm:text-base">
+                QORIX explainer — store, instant delivery &amp; Telegram bot
+              </span>
+            </button>
+          )}
         </div>
+        <p className="mt-3 text-center text-xs text-muted-foreground">
+          <a href="https://t.me/QORIX3_bot" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 hover:text-primary">
+            <Send className="h-3.5 w-3.5" /> Prefer Telegram? Open @QORIX3_bot
+          </a>
+        </p>
       </section>
 
       {/* Categories */}
@@ -142,10 +168,10 @@ function Landing() {
                 className="group rounded-2xl border border-border bg-card px-4 py-6 text-center transition-all hover:-translate-y-1 hover:border-primary/60 hover:card-glow"
               >
                 <span className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-primary/12 text-primary">
-                  <CategoryIcon name={c.name} src={c.image_url} className="h-7 w-7" />
+                  <CategoryIcon name={c.name} src={c.image_url} icon={catIcons.get(String(c.name ?? ""))} className="h-7 w-7" />
                 </span>
                 <h3 className="mt-3 text-sm font-semibold group-hover:text-primary">{c.name}</h3>
-                <p className="text-xs text-muted-foreground">{countFor(c.id)} {t("products")}</p>
+                <p className="text-xs text-muted-foreground">{countFor(c.id)} {t(countFor(c.id) === 1 ? "product" : "products")}</p>
               </Link>
             ))}
           </div>

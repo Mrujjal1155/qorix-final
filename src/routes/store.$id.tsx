@@ -18,6 +18,7 @@ import {
   Share2,
   ShieldCheck,
   ShoppingCart,
+  Bell,
   Star,
   Zap,
 } from "lucide-react";
@@ -173,12 +174,13 @@ function ProductPage() {
   const counted = (product as any)?.stock_counted === true;
   const claimed = stock + sold > 0 ? Math.round((sold / (stock + sold)) * 100) : 0;
   const botUser = pay?.["bot_username"] ?? "";
-  const supportContact = (pay?.["support_contact"] ?? "").replace(/^@/, "");
+  const supportContact = (pay?.["support_contact"] ?? "").replace(/^@/, "").replace(/^vibexAcademybd$/i, "QORIX3_bot");
 
   const startCheckout = () => void navigate({ to: "/checkout", search: { id, qty, step: "details" } });
 
   useEffect(() => {
-    if (buy) startCheckout();
+    // ?buy=true must never open checkout for an out-of-stock product.
+    if (buy && (product as any)?.in_stock === true) startCheckout();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buy]);
 
@@ -365,14 +367,25 @@ function ProductPage() {
               <p className="text-xs text-muted-foreground">≈ {usd(total)} USD</p>
             ) : null}
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Button variant="secondary" size="lg" className="rounded-xl" onClick={startCheckout}>
-                <ShoppingCart className="h-4 w-4" /> Add to Cart
-              </Button>
-              <Button size="lg" className="rounded-xl" onClick={startCheckout}>
-                <Zap className="h-4 w-4" /> {t("Buy Now")}
-              </Button>
-            </div>
+            {product && !inStock ? (
+              <div className="mt-4">
+                {/* Out of stock: no checkout. Restock alerts live in the Telegram bot. */}
+                <Button asChild size="lg" variant="outline" className="w-full rounded-xl">
+                  <a href={`https://t.me/${botUser || "QORIX3_bot"}?start=p_${id}`} target="_blank" rel="noreferrer">
+                    <Bell className="h-4 w-4" /> {t("Notify me when back in stock")}
+                  </a>
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <Button variant="secondary" size="lg" className="rounded-xl" onClick={startCheckout}>
+                  <ShoppingCart className="h-4 w-4" /> Add to Cart
+                </Button>
+                <Button size="lg" className="rounded-xl" onClick={startCheckout}>
+                  <Zap className="h-4 w-4" /> {t("Buy Now")}
+                </Button>
+              </div>
+            )}
 
             <p className="mt-4 text-center">
               <span className="rounded-full bg-warning/15 px-3 py-1 text-xs font-semibold text-warning">
@@ -382,7 +395,7 @@ function ProductPage() {
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <Button asChild variant="outline" size="lg" className="rounded-xl border-success/50 text-success">
-                <a href={`https://t.me/${supportContact || "vibexAcademybd"}`} target="_blank" rel="noreferrer">
+                <a href={`https://t.me/${supportContact || "QORIX3_bot"}`} target="_blank" rel="noreferrer">
                   <MessageCircle className="h-4 w-4" /> Order on Support
                 </a>
               </Button>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getBrandMark } from "@/lib/brand-mark";
 
 type Props = {
@@ -77,17 +77,27 @@ export function SmartImage({
 }: Props) {
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
+  const ref = useRef<HTMLImageElement | null>(null);
 
-  // A new source gets a fresh chance to load.
+  // A new source gets a fresh chance to load. A server-rendered image can finish
+  // loading before React hydrates, so its onLoad never fires and it stayed at
+  // opacity-0 (the blank product hero). Read the element's real state instead.
   useEffect(() => {
     setFailed(false);
-    setLoaded(false);
+    const el = ref.current;
+    if (el?.complete) {
+      if (el.naturalWidth > 0) setLoaded(true);
+      else if (src) setFailed(true);
+    } else {
+      setLoaded(false);
+    }
   }, [src]);
 
   if (!src || failed) return <BrandImageFallback className={className} alt={alt} />;
 
   return (
     <img
+      ref={ref}
       src={src}
       alt={alt}
       {...(width ? { width } : {})}

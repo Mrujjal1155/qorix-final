@@ -8,10 +8,12 @@ type BeforeInstallPromptEvent = Event & {
 };
 
 const DISMISS_KEY = "install_prompt_dismissed_at";
-/** Once closed, stay quiet for this long before asking again. */
-const DISMISS_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000; // 3 days
-/** Wait a little after page load so it doesn't pop instantly. */
-const SHOW_DELAY_MS = 6000;
+/** Set once the popup has been shown — it never appears a second time. */
+const SHOWN_KEY = "install_prompt_shown";
+/** Minimum time on the page before it may appear (never on first paint). */
+const SHOW_DELAY_MS = 20000;
+/** And the visitor must have scrolled past the hero. */
+const MIN_SCROLL_PX = 600;
 
 function isStandalone(): boolean {
   return (
@@ -23,16 +25,15 @@ function isStandalone(): boolean {
 
 function dismissedRecently(): boolean {
   try {
-    const raw = localStorage.getItem(DISMISS_KEY);
-    if (!raw) return false;
-    return Date.now() - Number(raw) < DISMISS_COOLDOWN_MS;
+    return !!localStorage.getItem(DISMISS_KEY) || !!localStorage.getItem(SHOWN_KEY);
   } catch {
     return false;
   }
 }
 
 /**
- * Occasional "install our app" popup. Shows at most once every 3 days,
+ * "Install our app" popup. Shown at most once ever, only after 20s on the page
+ * AND scrolling past the hero; never again after dismissal,
  * never when the app is already installed, and stays closed once installed.
  */
 export function InstallPromptPopup() {
@@ -50,9 +51,33 @@ export function InstallPromptPopup() {
     };
     window.addEventListener("beforeinstallprompt", onBip);
 
-    const timer = window.setTimeout(() => setOpen(true), SHOW_DELAY_MS);
+    let timeOk = false;
+    let scrollOk = false;
+    let done = false;
+    const tryOpen = () => {
+      if (done || !timeOk || !scrollOk) return;
+      done = true;
+      try {
+        localStorage.setItem(SHOWN_KEY, "1");
+      } catch {
+        /* ignore */
+      }
+      setOpen(true);
+    };
+    const onScroll = () => {
+      if (window.scrollY >= MIN_SCROLL_PX) {
+        scrollOk = true;
+        tryOpen();
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    const timer = window.setTimeout(() => {
+      timeOk = true;
+      tryOpen();
+    }, SHOW_DELAY_MS);
     return () => {
       window.removeEventListener("beforeinstallprompt", onBip);
+      window.removeEventListener("scroll", onScroll);
       window.clearTimeout(timer);
     };
   }, []);

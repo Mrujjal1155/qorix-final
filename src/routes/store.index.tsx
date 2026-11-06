@@ -112,7 +112,7 @@ function StorePage() {
             {activeCat === "all" ? t("Featured Products") : categories.find((x: any) => x.id === activeCat)?.name}
           </h2>
           <span className="h-px flex-1 bg-border" />
-          {data ? <span className="text-sm text-muted-foreground">{products.length} {t("items")}</span> : null}
+          {data ? <span className="text-sm text-muted-foreground">{products.length} {t(products.length === 1 ? "item" : "items")}</span> : null}
         </div>
 
         {isLoading || !data ? (

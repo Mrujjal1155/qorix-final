@@ -31,7 +31,7 @@ export const SITE_DEFAULTS: Record<string, string> = {
 
   // Socials — one per line: Name|url  (facebook / instagram / telegram / twitter / whatsapp)
   site_socials:
-    "facebook|https://facebook.com\ninstagram|https://instagram.com\ntelegram|https://t.me/vibexAcademybd\ntwitter|https://twitter.com",
+    "facebook|https://facebook.com\ninstagram|https://instagram.com\ntelegram|https://t.me/QORIX3_bot\ntwitter|https://twitter.com",
 
   site_copyright: "© {year} qorixlab.com. All rights reserved. Made with ❤️ in Bangladesh.",
 
@@ -63,7 +63,7 @@ export const SITE_DEFAULTS: Record<string, string> = {
   site_page_contact_sub: "The fastest way to reach us is Telegram — we reply around the clock.",
   // one per line: Title|Text|link(optional)|icon(telegram|chat|clock|track)
   site_page_contact_cards:
-    "Telegram support|@vibexAcademybd — orders, delivery and warranty.|https://t.me/vibexAcademybd|telegram\nOrder bot|Buy and manage orders directly inside Telegram.|https://t.me/QORIX3_bot|chat\nSupport hours|24/7 — average reply time under 30 minutes.||clock\nOrder status|Check delivery anytime on the Track Order page.|/track|track",
+    "Telegram support|@QORIX3_bot — orders, delivery and warranty.|https://t.me/QORIX3_bot|telegram\nOrder bot|Buy and manage orders directly inside Telegram.|https://t.me/QORIX3_bot|chat\nSupport hours|24/7 — average reply time under 30 minutes.||clock\nOrder status|Check delivery anytime on the Track Order page.|/track|track",
 
   site_legal_updated: "September 2026",
   site_page_terms_title: "Terms of Service",
@@ -83,7 +83,9 @@ export type SiteContent = Record<string, string>;
 
 export function siteValue(site: SiteContent | undefined, key: string): string {
   const v = site?.[key];
-  return v == null || v === "" ? (SITE_DEFAULTS[key] ?? "") : v;
+  const out = v == null || v === "" ? (SITE_DEFAULTS[key] ?? "") : v;
+  // The old support handle may still be saved in admin-edited text — always show QORIX.
+  return out.replace(/vibexAcademybd/gi, "QORIX3_bot");
 }
 
 export type SiteLink = { label: string; href: string; extra?: string };

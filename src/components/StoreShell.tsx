@@ -219,7 +219,11 @@ export function StoreShell({ children }: { children: ReactNode }) {
   const more = links("site_footer_categories_more")[0];
   const whatsapp = v("site_whatsapp_enabled") === "0" ? "" : v("site_whatsapp");
   const brandLogo = v("site_brand_logo");
-  const copyright = v("site_copyright").replace("{year}", String(new Date().getFullYear()));
+  // One credit line everywhere, whatever variant an admin saved.
+  const copyright = `${v("site_copyright")
+    .replace("{year}", String(new Date().getFullYear()))
+    .replace(/\s*(made|built|crafted)\s+(with|in)\b.*$/i, "")
+    .trim()} Made with ❤️ in Bangladesh.`;
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
@@ -476,9 +480,6 @@ export function StoreShell({ children }: { children: ReactNode }) {
                 </Link>
                 <Link to="/reseller/panel" className="block text-muted-foreground hover:text-primary">
                   {t("Reseller Panel Login")}
-                </Link>
-                <Link to="/reseller/docs" className="block text-muted-foreground hover:text-primary">
-                  {t("API Documentation")}
                 </Link>
               </div>
             </div>

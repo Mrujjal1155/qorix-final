@@ -9,19 +9,19 @@ const FEATURES: Feature[] = [
     key: "delivery",
     icon: Zap,
     label: "Instant Delivery",
-    detail: "As soon as your order is confirmed, the account / key is delivered automatically — no waiting.",
+    detail: "Credentials in your inbox within seconds of payment",
   },
   {
     key: "pay",
     icon: ShieldCheck,
     label: "Secure Crypto Pay",
-    detail: "Binance Pay and USDT (BEP20 / TRC20) — every payment is verified automatically.",
+    detail: "Binance Pay, USDT, bKash & Nagad — no card needed",
   },
   {
     key: "support",
     icon: Headphones,
     label: "24/7 Support",
-    detail: "Our support team is on Telegram 24 hours a day for any issue.",
+    detail: "Real humans on Telegram, 24/7",
   },
 ];
 
@@ -63,7 +63,7 @@ export function FeatureButtons() {
               className={`mx-auto h-5 w-5 text-primary transition-colors ${isPulse ? "feature-icon-active" : ""}`}
             />
             <p className="mt-2 text-xs font-medium sm:text-sm">{label}</p>
-            {isOpen && <p className="feature-reveal mt-2 text-[11px] leading-relaxed text-muted-foreground">{detail}</p>}
+            <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">{detail}</p>
             <span
               aria-hidden
               className={`mx-auto mt-2 block h-0.5 rounded-full bg-primary transition-all duration-300 ${
