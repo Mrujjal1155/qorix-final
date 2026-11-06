@@ -54,6 +54,8 @@ export const TRANSLATIONS: Record<string, Entry> = {
   "All categories →": { "pt-BR": "Todas as categorias →", es: "Todas las categorías →", hi: "सभी श्रेणियाँ →", ur: "تمام زمرے →", bn: "সব ক্যাটাগরি →", ar: "كل الفئات →" },
   "Featured Products": { "pt-BR": "Produtos em destaque", es: "Productos destacados", hi: "विशेष उत्पाद", ur: "نمایاں پروڈکٹس", bn: "ফিচার্ড প্রোডাক্ট", ar: "منتجات مميزة" },
   "View All →": { "pt-BR": "Ver tudo →", es: "Ver todo →", hi: "सभी देखें →", ur: "سب دیکھیں →", bn: "সব দেখুন →", ar: "عرض الكل →" },
+  product: { "pt-BR": "produto", es: "producto", hi: "उत्पाद", ur: "پروڈکٹ", bn: "প্রোডাক্ট", ar: "منتج" },
+  item: { "pt-BR": "item", es: "artículo", hi: "आइटम", ur: "آئٹم", bn: "আইটেম", ar: "عنصر" },
   products: { "pt-BR": "produtos", es: "productos", hi: "उत्पाद", ur: "پروڈکٹس", bn: "প্রোডাক্ট", ar: "منتجات" },
   More: { "pt-BR": "Ver mais", es: "Ver más", hi: "और देखें", ur: "مزید", bn: "আরও", ar: "المزيد" },
   "Show less": { "pt-BR": "Ver menos", es: "Ver menos", hi: "कम देखें", ur: "کم دکھیں", bn: "কম দেখুন", ar: "عرض أقل" },

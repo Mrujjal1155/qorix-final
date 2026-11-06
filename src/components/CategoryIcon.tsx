@@ -47,18 +47,40 @@ export function categoryIcon(name?: string | null): LucideIcon {
   return Boxes;
 }
 
+const SPARE_ICONS: LucideIcon[] = [
+  Boxes, Globe, Wrench, ShoppingBag, Sparkles, Layers, KeyRound, Smartphone, LineChart, Users,
+  GraduationCap, Gamepad2, Music, Clapperboard, ShieldCheck, Image, Palette, Bot,
+];
+
+/** One icon per category name with no repeats in the list (best match first, then a spare). */
+export function distinctCategoryIcons(names: string[]): Map<string, LucideIcon> {
+  const used = new Set<LucideIcon>();
+  const out = new Map<string, LucideIcon>();
+  for (const n of names) {
+    let pick: LucideIcon | undefined;
+    for (const [re, Icon] of RULES) if (re.test(n) && !used.has(Icon)) { pick = Icon; break; }
+    pick ??= SPARE_ICONS.find((i) => !used.has(i)) ?? categoryIcon(n);
+    used.add(pick);
+    out.set(n, pick);
+  }
+  return out;
+}
+
 export function CategoryIcon({
   name,
   src,
+  icon,
   className = "h-5 w-5",
 }: {
   name?: string | null;
+  /** Explicit icon (e.g. from distinctCategoryIcons) — overrides the name match. */
+  icon?: LucideIcon | undefined;
   /** Admin-uploaded category logo; falls back to the matching icon when missing or broken. */
   src?: string | null | undefined;
   className?: string;
 }) {
   const [failed, setFailed] = useState(false);
-  const Icon = categoryIcon(name);
+  const Icon = icon ?? categoryIcon(name);
   if (src && !failed) {
     return (
       <img
