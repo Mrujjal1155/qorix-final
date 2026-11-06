@@ -30,7 +30,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { usePrefs } from "@/lib/prefs";
 import { productionUrlFor } from "@/lib/site-url";
-import { breadcrumbJsonLd, metaText, productImageUrl } from "@/lib/seo";
+import { breadcrumbJsonLd, metaText, productMetaDescription, productImageUrl } from "@/lib/seo";
 
 
 
@@ -64,10 +64,8 @@ export const Route = createFileRoute("/store/$id")({
     const name = seo?.name?.trim() || "Product";
     const title = seo ? `${name} — Buy online at the best price | QORIX Store` : "Product unavailable — QORIX Store";
     const description = seo
-      ? metaText(
-          plainRich(seo.description) ||
-            `Buy ${name} from QORIX Store at the best price. Instant automated delivery, secure crypto checkout and 24/7 Telegram support.`,
-        )
+      ? (productMetaDescription(name, plainRich(seo.description)) ||
+          metaText(`Buy ${name} from QORIX Store at the best price. Instant automated delivery, secure crypto checkout and 24/7 Telegram support.`))
       : "This product is not available right now. Browse the QORIX Store catalogue for similar products.";
     const image = seo ? productImageUrl(seo.id, seo.image_url) : productionUrlFor("/og-image.png");
 

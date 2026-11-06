@@ -12,6 +12,7 @@ import { ProductCard, type StoreProduct } from "@/components/ProductCard";
 import { HeroAnimation } from "@/components/HeroAnimation";
 import { FeatureButtons } from "@/components/FeatureButtons";
 import { productionUrlFor } from "@/lib/site-url";
+import { catalogPriceRange, storeJsonLd } from "@/lib/seo";
 import { useT } from "@/lib/i18n";
 // Served from public/ so it works on the Cloudflare deploy (qorixlab.com) too.
 const EXPLAINER_URL = "/qorix-explainer.mp4";
@@ -21,12 +22,14 @@ export const Route = createFileRoute("/")({
   loader: async ({ context }) => {
     // Server-render the real catalogue so names, prices and stock are in the first HTML.
     try {
-      await context.queryClient.ensureQueryData(storefrontQuery);
+      const data: any = await context.queryClient.ensureQueryData(storefrontQuery);
+      return { priceRange: catalogPriceRange(data?.products ?? []) };
     } catch {
       /* fall back to client loading with skeletons */
+      return { priceRange: null };
     }
   },
-  head: () => ({
+  head: ({ loaderData }) => ({
     meta: [
       { title: "QORIX Store — AI, Developer, SEO, Streaming, VPN & Creative Apps at the Best Price" },
       {
@@ -40,6 +43,7 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:url", content: productionUrlFor("/") },
     ],
+    scripts: [{ type: "application/ld+json", children: JSON.stringify(storeJsonLd(loaderData?.priceRange ?? null)) }],
     links: [{ rel: "canonical", href: productionUrlFor("/") }],
   }),
   component: Landing,
