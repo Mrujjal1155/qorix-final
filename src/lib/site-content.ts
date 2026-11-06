@@ -88,7 +88,7 @@ export function siteValue(site: SiteContent | undefined, key: string): string {
   // QORIX is a worldwide store: strip any saved country-of-location wording.
   const clean = out
     .replace(/vibexAcademybd/gi, "QORIX3_bot")
-    .replace(/,?\s*(?:(?:Chattogram|Chittagong|Dhaka),\s*)?Bangladesh\b/gi, "")
+    .replace(/(?:,|\s+(?:in|from))?\s*(?:(?:Chattogram|Chittagong|Dhaka),\s*)?Bangladesh\b/gi, "")
     .trim();
   return clean === "" && out !== "" ? (SITE_DEFAULTS[key] ?? "") : clean;
 }
