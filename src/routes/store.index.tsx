@@ -11,6 +11,7 @@ import { CategoryIcon } from "@/components/CategoryIcon";
 import { ProductCard, type StoreProduct } from "@/components/ProductCard";
 import { Input } from "@/components/ui/input";
 import { productionUrlFor } from "@/lib/site-url";
+import { catalogPriceRange, storeJsonLd } from "@/lib/seo";
 import { useT } from "@/lib/i18n";
 
 export const Route = createFileRoute("/store/")({
@@ -23,12 +24,14 @@ export const Route = createFileRoute("/store/")({
   loader: async ({ context }) => {
     // Server-render the real catalogue so names, prices and stock are in the first HTML.
     try {
-      await context.queryClient.ensureQueryData(storefrontQuery);
+      const data: any = await context.queryClient.ensureQueryData(storefrontQuery);
+      return { priceRange: catalogPriceRange(data?.products ?? []) };
     } catch {
       /* fall back to client loading with skeletons */
+      return { priceRange: null };
     }
   },
-  head: () => ({
+  head: ({ loaderData }) => ({
     meta: [
       { title: "All Products — QORIX Store" },
       { name: "description", content: "Browse AI tools, creative apps, VPN, streaming and productivity subscriptions with instant delivery." },
@@ -38,6 +41,7 @@ export const Route = createFileRoute("/store/")({
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:url", content: productionUrlFor("/store") },
     ],
+    scripts: [{ type: "application/ld+json", children: JSON.stringify(storeJsonLd(loaderData?.priceRange ?? null)) }],
     links: [{ rel: "canonical", href: productionUrlFor("/store") }],
   }),
   component: StorePage,
