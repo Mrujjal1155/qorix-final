@@ -226,7 +226,7 @@ export function StoreShell({ children }: { children: ReactNode }) {
   const copyright = `${v("site_copyright")
     .replace("{year}", String(new Date().getFullYear()))
     .replace(/\s*(made|built|crafted)\s+(with|in)\b.*$/i, "")
-    .trim()} Made with ❤️ Qorix Lab`;
+    .trim()} Made with Qorix Lab`;
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
