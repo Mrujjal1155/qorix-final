@@ -74,6 +74,10 @@ export function FaqTeaser() {
           <Link to="/faq" className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
             See all FAQs <ArrowRight className="h-4 w-4" />
           </Link>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Prefer Telegram? Order through{" "}
+            <a href="https://t.me/QORIX3_bot" target="_blank" rel="noopener" className="font-semibold text-primary hover:underline">@QORIX3_bot</a>.
+          </p>
         </div>
       </div>
     </section>
@@ -90,7 +94,7 @@ export function ResellerTeaser() {
           </span>
           <div>
             <h2 className="text-xl font-bold tracking-tight">Become a reseller</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Sell our full catalogue from your own website or bot.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Wholesale prices, one shared balance for the website, the Telegram bot @QORIX3_bot and our REST API.</p>
           </div>
         </div>
         <Button asChild size="lg" className="rounded-full px-7">

@@ -4,29 +4,41 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { useSiteContent } from "@/lib/use-site-content";
 import { siteCards } from "@/lib/site-content";
 import { productionUrlFor } from "@/lib/site-url";
+import { BOT_FAQ } from "@/lib/telegram-bot";
 
 export const Route = createFileRoute("/faq")({
   head: () => ({
     meta: [
-      { title: "FAQ — qorixlab.com Orders, Payment & Delivery" },
+      { title: "FAQ — QORIX Store Orders, Payment, Delivery & Telegram Bot" },
       {
         name: "description",
-        content: "Answers about payment methods, delivery time, warranty and refunds for qorixlab.com digital subscriptions.",
+        content: "Answers about payment methods, delivery, warranty, refunds and the QORIX Telegram bot @QORIX3_bot.",
       },
-      { property: "og:title", content: "FAQ — qorixlab.com" },
+      { property: "og:title", content: "FAQ — QORIX Store" },
       { property: "og:description", content: "Everything about payment, delivery, warranty and support." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:url", content: productionUrlFor("/faq") },
     ],
     links: [{ rel: "canonical", href: productionUrlFor("/faq") }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: BOT_FAQ.map((f) => ({ "@type": "Question", name: f.title, acceptedAnswer: { "@type": "Answer", text: f.text } })),
+        }),
+      },
+    ],
   }),
   component: FaqPage,
 });
 
 function FaqPage() {
   const { site, v } = useSiteContent();
-  const faqs = siteCards(site, "site_page_faq_items");
+  const saved = siteCards(site, "site_page_faq_items");
+  const faqs = [...saved, ...BOT_FAQ.filter((b) => !saved.some((s) => s.title === b.title))];
 
   return (
     <StoreShell>
