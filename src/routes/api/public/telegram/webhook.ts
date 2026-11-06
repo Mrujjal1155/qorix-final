@@ -16,10 +16,10 @@ let lastTrackAt = 0;
 /** Coarse handler label only (command or callback prefix) — never text, IDs or user data. */
 function commandLabel(update: any): string {
   const data = update.callback_query?.data;
-  if (typeof data === "string") return "cb:" + data.split(/[:_|]/)[0].replace(/[^a-z0-9]/gi, "").slice(0, 16);
+  if (typeof data === "string") return "cb:" + (data.split(/[:_|]/)[0] ?? "").replace(/[^a-z0-9]/gi, "").slice(0, 16);
   const text = (update.message ?? update.edited_message)?.text;
   if (typeof text === "string" && text.startsWith("/"))
-    return "cmd:" + text.slice(1).split(/[\s@]/)[0].replace(/[^a-z0-9]/gi, "").slice(0, 16);
+    return "cmd:" + (text.slice(1).split(/[\s@]/)[0] ?? "").replace(/[^a-z0-9]/gi, "").slice(0, 16);
   if (update.my_chat_member) return "member";
   return update.callback_query ? "cb" : "msg";
 }
