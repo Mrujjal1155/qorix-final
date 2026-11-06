@@ -79,3 +79,33 @@ export function breadcrumbJsonLd(trail: Array<[string, string]>) {
     })),
   };
 }
+
+/** "$min – $max" (USD) from the live catalogue's prices; null when no priced products. */
+export function catalogPriceRange(products: Array<{ price?: number | string | null }>): string | null {
+  const prices = products.map((p) => Number(p.price)).filter((n) => Number.isFinite(n) && n > 0);
+  if (!prices.length) return null;
+  const fmt = (n: number) => `$${n.toFixed(2)}`;
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  return min === max ? fmt(min) : `${fmt(min)} – ${fmt(max)}`;
+}
+
+/** Store JSON-LD (Organization + OnlineStore) carrying the live catalogue price range. */
+export function storeJsonLd(priceRange: string | null) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "OnlineStore",
+    "@id": `${PRODUCTION_SITE_URL}/#store`,
+    name: "QORIX STORE",
+    url: `${PRODUCTION_SITE_URL}/`,
+    parentOrganization: { "@id": ORGANIZATION_ID },
+    currenciesAccepted: "USD",
+    ...(priceRange ? { priceRange } : {}),
+  };
+}
+
+/** Product meta description that leads with the product's own name so shared templates stay distinct. */
+export function productMetaDescription(name: string, description: string): string {
+  const body = description.replace(/\p{Extended_Pictographic}|\uFE0F/gu, " ").replace(/\s+/g, " ").trim();
+  return metaText(body ? `${name}: ${body}` : "");
+}
