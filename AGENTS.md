@@ -40,3 +40,4 @@
 - Category edits use validated schemas and shared position moves; name-only saves preserve metadata.
 - Bybit: UID-bound read-only reads, exact matching, atomic prefixed claims; not Merchant Pay. Wallet/checkout share Bybit/chain UI icons; legacy Bybit fallback before override; Binance icons separate.
 - Blockchain: service-only settings/claims, solidified TRON/finalized canonical BSC, exact amounts/pending addresses. api.trongrid.io uses server-only TRONGRID_API_KEY; no redirects; Binance separate.
+- Product URLs use readable slugs stored in service-only `product_slugs` (kept by a products trigger, old slugs retained); `/store/$id` resolves UUID/old slug and 301-redirects so existing links never break, while checkout/bot keep using product UUIDs.
