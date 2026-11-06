@@ -647,3 +647,31 @@
   background-color: var(--background);
   color: var(--foreground);
 }
+
+/* ---------- Editorial landing (homepage only) ---------- */
+.editorial {
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-label: "JetBrains Mono", ui-monospace, monospace;
+  --hairline: color-mix(in oklab, var(--foreground) 10%, transparent);
+  --hairline-strong: color-mix(in oklab, var(--foreground) 18%, transparent);
+}
+.editorial :is(h1, h2) {
+  font-family: var(--font-display);
+  letter-spacing: -0.035em;
+  font-weight: 800;
+}
+@utility eyebrow {
+  font-family: var(--font-label, ui-monospace, monospace);
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+@utility hairline {
+  border-color: var(--hairline, var(--border));
+}
+@utility display-xl {
+  font-size: clamp(2.25rem, 5.2vw, 4.25rem);
+  line-height: 0.98;
+}

@@ -37,7 +37,7 @@ export function FeatureButtons() {
   }
 
   return (
-    <div className="mx-auto mt-10 grid max-w-3xl gap-3 sm:grid-cols-3">
+    <div className="mt-12 grid border-y hairline sm:grid-cols-3 sm:divide-x sm:divide-[var(--hairline)] lg:mt-16">
       {FEATURES.map(({ key, icon: Icon, label: rawLabel, detail: rawDetail }) => {
         const label = t(rawLabel);
         const detail = t(rawDetail);
@@ -49,8 +49,8 @@ export function FeatureButtons() {
             type="button"
             onClick={() => activate(key)}
             aria-expanded={isOpen}
-            className={`glass-panel group relative isolate overflow-hidden rounded-2xl px-3 py-4 text-center transition-all duration-300 hover:-translate-y-1 ${
-              isOpen ? "border-primary/60 shadow-lg shadow-primary/20" : ""
+            className={`group relative isolate flex items-start gap-4 overflow-hidden border-b hairline px-1 py-5 text-left transition-colors last:border-b-0 sm:border-b-0 sm:px-6 sm:first:pl-0 ${
+              isOpen ? "text-foreground" : ""
             } ${isPulse ? "feature-pop" : ""}`}
           >
             {isPulse && (
@@ -60,16 +60,19 @@ export function FeatureButtons() {
               />
             )}
             <Icon
-              className={`mx-auto h-5 w-5 text-primary transition-colors ${isPulse ? "feature-icon-active" : ""}`}
+              strokeWidth={1.75}
+              className={`mt-0.5 h-5 w-5 shrink-0 text-primary transition-colors ${isPulse ? "feature-icon-active" : ""}`}
             />
-            <p className="mt-2 text-xs font-medium sm:text-sm">{label}</p>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">{detail}</p>
+            <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold">{label}</span>
+            <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">{detail}</span>
             <span
               aria-hidden
-              className={`mx-auto mt-2 block h-0.5 rounded-full bg-primary transition-all duration-300 ${
+              className={`mt-2 block h-px bg-primary transition-all duration-300 ${
                 isOpen ? "w-10" : "w-0 group-hover:w-6"
               }`}
             />
+            </span>
           </button>
         );
       })}
