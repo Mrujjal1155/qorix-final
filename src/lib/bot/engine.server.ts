@@ -6594,8 +6594,11 @@ async function sendOrderFile(chatId: number, code: string, kind: "full" | "plain
   // Upload the file itself so no download URL is ever shown to the user.
   let res = await sendDocumentUpload(chatId, filename, body, caption, back);
   if (res?.ok === false) {
-    const url = `${siteUrl(settings)}/api/public/order-file/${signOrderToken(o.id, kind)}/${filename}`;
-    res = await sendDocument(chatId, url, caption, back);
+    const token = signOrderToken(o.id, kind);
+    if (token) {
+      const url = `${siteUrl(settings)}/api/public/order-file/${token}/${filename}`;
+      res = await sendDocument(chatId, url, caption, back);
+    }
   }
   if (res?.ok === false) {
     await say(chatId, "\u26a0\ufe0f Could not build your file right now. Please try again in a moment.", back);
