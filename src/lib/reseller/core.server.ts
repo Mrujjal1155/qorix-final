@@ -543,9 +543,8 @@ export async function purchase(
     confirmedFailure = (e as { deliveryOutcome?: string })?.deliveryOutcome === "rejected";
   }
 
-  // 3a) Supplier-linked product failed on OUR side (e.g. our supplier wallet is
-  // empty): keep the reseller's payment and park the order as pending so the
-  // admin can top up and press "Retry API". The reseller gets "submitted".
+  // Unknown supplier outcomes are NOT confirmed delivery failures. STOP this
+  // case: preserve pending/readback and prohibit another supplier purchase.
   const fromSupplierLink = Boolean(p.supplier_id && p.supplier_external_id);
   if (status !== "completed" && fromSupplierLink && p.delivery_type === "auto" && !confirmedFailure) {
     console.error("reseller supplier fulfilment parked", p.id, failReason);
@@ -579,7 +578,7 @@ export async function purchase(
     };
   }
 
-  // 3) Nothing delivered on an instant product → refund and void the order.
+  // 3) Confirmed delivery rejection only: atomic refund and terminal failed row.
   if (status !== "completed" && p.delivery_type === "auto") {
     const { refundResellerDeliveryFailure } = await import("./failure-refund.server");
     if (fromSupplierLink) console.error("reseller supplier fulfilment failed", p.id, failReason);

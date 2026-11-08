@@ -144,7 +144,7 @@ function DocsPage() {
               <li>Base URL: <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs break-all">{base}</code></li>
               <li>All responses are JSON and always contain an <code className="font-mono">ok</code> field.</li>
               <li>Prices are in USD and already include your reseller discount.</li>
-              <li>Orders are paid instantly from your wallet balance. In-house automatic delivery failures and limited manual-stock failures are refunded; see the supplier-processing exception below.</li>
+              <li>Products, available stock and your balance are checked before any debit. Refunds apply only when money was debited and QORIX failed to deliver; cancellation or expiry never refunds.</li>
               <li>CORS is open, but never expose your API key in browser code — always call from your server.</li>
             </ul>
             <p>Quick smoke test from your terminal:</p>
@@ -324,16 +324,18 @@ x-api-key: YOUR_API_KEY`}</Code>
                 drops, the order still finishes on our side — fetch it with <code className="font-mono">GET /orders</code>{" "}
                 (or resend the same <code className="font-mono">external_ref</code>) instead of creating a new one.
               </li>
-              <li>Insufficient balance returns HTTP 402 with the required amount.</li>
+              <li>Insufficient balance returns HTTP 402 with balance and required, without a debit or refund. Missing stock returns HTTP 409 out_of_stock, "Product temporarily unavailable", refunded: false, without a debit.</li>
             </ul>
             <p>
-              In-house confirmed automatic delivery failures and limited manual-stock shortages return HTTP 409 with <code className="font-mono">code: "delivery_failed"</code> and <code className="font-mono">refunded: true</code>.
-              The cancelled order remains available with empty items and a refund transaction. If a refund cannot be confirmed, HTTP 503 is returned without claiming it was refunded; contact support rather than creating another order.
-              If the refund succeeds but saving the order status fails, HTTP 503 explicitly reports refunded: true and asks you to contact support; GET may still show the earlier status.
+              After a debit, confirmed QORIX delivery failure (automatic delivery rejection or limited manual stock disappearing) returns HTTP 409 with <code className="font-mono">code: "delivery_failed"</code> and <code className="font-mono">refunded: true</code>, using the neutral message "Delivery failed — please try again later.".
+              The original debited amount is refunded exactly once: the order and wallet ledger are saved together. The retained order has status failed, empty items, refunded: true and a stored refund amount. It is terminal: it cannot be refunded again or reopened for delivery. Completed delivery never refunds.
+              If payment, delivery or refund cannot be confirmed, HTTP 503 asks you to check the existing order/contact support; never assume a refund or create a replacement order.
             </p>
             <p>
-              Current exception: supplier-linked unsuccessful fulfilment remains pending with <code className="font-mono">submitted: true</code> and payment retained for admin retry. This behaviour has not yet been changed.
-              Genuine manual processing and interrupted in-house automatic fulfilment also keep their existing pending/readback behaviour.
+              Safety exception: an unknown delivery outcome (connection interruption or an accepted order without delivery confirmation) remains pending for reconciliation, not an assumed failure or a new purchase. Genuine manual processing remains pending. These rules are implemented in the preview, not yet published; older orders and legacy recovery retain their previous rules.
+            </p>
+            <p>
+              Cancellation is panel-only: there is no cancellation API endpoint. New reseller orders cancelled or expired are retained with empty items and refunded: false; the debit stays and no refund entry is created. There is no automatic paid-manual/reseller expiry timer. Existing unpaid checkout expiry does not refund. Legacy bot preorder/admin cancellation still refunds; changing that separate system was stopped to preserve existing bot behaviour.
             </p>
           </Section>
 
@@ -350,7 +352,7 @@ curl -H "Authorization: Bearer YOUR_API_KEY" "${base}/orders?limit=50"`}</Code>
             </p>
             <p>
               GET /orders/&#123;id&#125; accepts the UUID, numeric order_no, or external_ref and only returns your orders.
-              GET /orders defaults to the latest 50 orders; limit is clamped to 1–100. Cancelled refunded orders have empty items and refunded: true; stop polling them for delivery.
+              GET /orders defaults to the latest 50 orders; limit is clamped to 1–100. Failed/refunded and cancelled/expired orders remain fetchable. Stop polling terminal orders for delivery; failed refunded orders expose refunded: true, while new cancelled/expired orders expose refunded: false.
             </p>
             <p>
               <strong>Recommended:</strong> set an order webhook URL in your reseller panel. When a pending order is
@@ -383,7 +385,7 @@ curl -H "Authorization: Bearer YOUR_API_KEY" "${base}/orders?limit=50"`}</Code>
                     ["403", "Account disabled, or that channel is not enabled for you"],
                     ["402", "Not enough wallet balance"],
                     ["404", "Product or order not found"],
-                    ["409", "Confirmed delivery failure: delivery_failed, refunded: true (see supplier exception)"],
+                    ["409", "Missing stock before debit: out_of_stock, refunded: false; confirmed delivery failure after debit: delivery_failed, refunded: true"],
                     ["503", "Product catalogue is temporarily unavailable, or refund could not be confirmed"],
                     ["400", "Bad request — check the JSON body and product_id"],
                   ].map((r) => (
@@ -620,9 +622,7 @@ bot.on("callback_query", async (q) => {
               <code className="font-mono">price</code>; whatever you charge your customer is your profit.
             </p>
             <p>
-              <strong>What if delivery fails?</strong> Confirmed in-house auto failures and limited manual-stock shortages
-              return HTTP 409 delivery_failed with a confirmed refund and a retained cancelled order.
-              Supplier-linked failures currently stay paid and pending for admin retry; manual processing and interrupted stock fulfilment also retain their existing pending behaviour.
+              <strong>What if delivery fails?</strong> After a debit, a confirmed QORIX delivery failure returns HTTP 409 delivery_failed with one refund and a retained terminal failed order. No debit occurs on failed balance/stock pre-checks. Cancellation/expiry never refunds new reseller orders. Unknown delivery outcomes require reconciliation; manual processing remains pending.
             </p>
             <p>
               <strong>Can I use one key for a website and a bot?</strong> Yes, if both channels are enabled on your
@@ -645,8 +645,8 @@ bot.on("callback_query", async (q) => {
             <p>Every change to the API is listed here, newest first. Check it when something behaves differently.</p>
             <p><strong>Preview-only Phase 1 — not yet published</strong></p>
             <ul className="list-disc space-y-1 pl-5">
-              <li>Confirmed in-house and limited manual-stock failures retain cancelled orders, expose refunded: true and share HTTP 409 delivery_failed. Atomic debit rejection includes balance and required.</li>
-              <li>Supplier-auto refund changes are blocked pending coordinated refund/retry safety; the existing paid pending behaviour remains unchanged.</li>
+              <li>Owner-rule preview: stock and balance pre-checks before reservation/debit; atomic original-debit refund with terminal failed order and ledger; debit-race 402 includes balance and required; duplicate reservations are retained cancelled, never deleted.</li>
+              <li>Confirmed delivery rejections share neutral delivery_failed responses. Unknown delivery outcomes, legacy recovery and bot cancellation conflicts remain explicitly outside the changed path.</li>
             </ul>
             <p><strong>2026-10-18 — Charged stock-order recovery</strong></p>
             <ul className="list-disc space-y-1 pl-5">
@@ -657,7 +657,7 @@ bot.on("callback_query", async (q) => {
             <ul className="list-disc space-y-1 pl-5">
               <li>Use the documented QORIX product endpoints rather than querying underlying database tables. Internal connection settings and diagnostics are private. Product IDs, selling prices, stock, descriptions, images and order endpoints are unchanged.</li>
               <li>Webhook addresses must use public HTTPS on the default port, without embedded credentials. Private network destinations are rejected and redirects are not followed; use your final webhook URL.</li>
-              <li>Confirmed in-house automatic delivery failure returns the neutral error code <code>delivery_failed</code>. Read the response's <code>refunded</code> flag; supplier-linked failures currently use the pending exception above.</li>
+              <li>Historical behaviour; the preview owner-rule changes above supersede delivery-failure handling for new reseller purchases.</li>
             </ul>
             <p>
               <strong>2026-10-29</strong>
@@ -690,7 +690,7 @@ bot.on("callback_query", async (q) => {
               <li>
                 Automatic recovery: an order interrupted before charging is charged and delivered within about 1–2
                 minutes. If balance or stock is missing it becomes{" "}
-                <code className="font-mono">cancelled</code> (nothing charged or a full refund).
+                <code className="font-mono">cancelled</code> under legacy recovery rules. New preview purchases are excluded from that legacy debit/recovery path.
               </li>
               <li>
                 Orders delivered later are pushed to your order webhook with <code className="font-mono">items</code>.
@@ -710,7 +710,7 @@ bot.on("callback_query", async (q) => {
                 <code className="font-mono">"submitted": true</code> and <code className="font-mono">status: "pending"</code>;
                 your balance is kept and items arrive once we deliver.
               </li>
-              <li>Confirmed in-house delivery unavailability returns <code className="font-mono">code: "delivery_failed"</code> with a refund; supplier-linked failures currently retain payment pending admin retry.</li>
+              <li>Historical paid-pending handling is superseded for new preview purchases only; see the exact pre-check/refund/cancellation rules above.</li>
             </ul>
           </Section>
         </div>
