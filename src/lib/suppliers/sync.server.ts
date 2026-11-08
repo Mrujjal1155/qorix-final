@@ -107,6 +107,7 @@ type NotifyItem =
   | ({ t: "restock"; qty: number } & NotifyBase)
   | ({ t: "low"; stock: number } & NotifyBase)
   | ({ t: "new" } & NotifyBase)
+  | ({ t: "still"; stock: number } & NotifyBase)
   | ({ t: "price"; old_price: number; new_price: number } & NotifyBase)
   | ({ t: "flash" | "flash_end"; old_price: number; new_price: number } & NotifyBase);
 
@@ -271,7 +272,7 @@ async function enqueueNotifications(sb: any, supplierId: string, items: NotifyIt
       _kind: item.t === "low" && Number((item as any).stock ?? 0) <= 0 ? "out" : item.t,
       _source: supplierId === MANUAL_QUEUE_ID ? "manual" : `supplier:${supplierId}`,
       _added_qty: item.t === "restock" ? item.qty : 0,
-      _stock: item.t === "low" ? item.stock : 0,
+      _stock: item.t === "low" || item.t === "still" ? item.stock : 0,
       _old_price: hasPrice ? (item as any).old_price : null,
       _new_price: hasPrice ? (item as any).new_price : null,
     });
@@ -315,6 +316,14 @@ export async function enqueueNewProduct(sb: any, productId: string, source: stri
   ]);
 }
 
+/** Admin pressed Alert → one "STILL AVAILABLE" card through the same durable queue. */
+export async function enqueueStillAvailable(sb: any, productId: string, stock: number, actionId: string = crypto.randomUUID()) {
+  if (!productId || !(stock > 0)) return;
+  await enqueueNotifications(sb, MANUAL_QUEUE_ID, [
+    { t: "still", stock, product_id: productId, event_id: `still:admin:${productId}:${actionId}`, at: Date.now() } as NotifyItem,
+  ]);
+}
+
 /** Admin changed a product's customer price → one durable price card (up or down). */
 export async function enqueuePriceChange(sb: any, productId: string, oldPrice: number, newPrice: number, actionId: string = crypto.randomUUID()) {
   if (!productId || !Number.isFinite(oldPrice) || !Number.isFinite(newPrice)) return;
@@ -334,7 +343,7 @@ export async function enqueuePriceChange(sb: any, productId: string, oldPrice: n
 
 
 async function drainNotificationEvents(sb: any, budget: { cards: number; until?: number }) {
-  const { notifyRestock, announceLowStock, announceNewProduct, announcePriceChange, announceProductRemoved } = await import(
+  const { notifyRestock, announceLowStock, announceNewProduct, announcePriceChange, announceProductRemoved, announceStillAvailable } = await import(
     "@/lib/bot/engine.server"
   );
   const log: any[] = [];
@@ -413,6 +422,7 @@ async function drainNotificationEvents(sb: any, budget: { cards: number; until?:
       const send = async () => {
         if (item.kind === "removed") return await announceProductRemoved(prod, progress);
         if (item.kind === "restock") return await notifyRestock(item.product_id, item.added_qty, progress);
+        if (item.kind === "still") return await announceStillAvailable(prod, Number(item.stock ?? 0), progress);
         if (item.kind === "low" || item.kind === "out") return await announceLowStock(prod, item.stock, progress);
         if (item.kind === "price") return await announcePriceChange(prod, item.old_price, item.new_price, progress);
         if (isFlashKind) {
@@ -436,7 +446,7 @@ async function drainNotificationEvents(sb: any, budget: { cards: number; until?:
         } catch (e) {
           console.error("API user flash notice failed:", e);
         }
-      } else if (item.kind !== "removed" && prod && (prod as any).is_active !== false) {
+      } else if (item.kind !== "removed" && item.kind !== "still" && prod && (prod as any).is_active !== false) {
         const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
         await pushResellerEvent(
           item.kind === "out" ? "out" : (item.kind as any),
