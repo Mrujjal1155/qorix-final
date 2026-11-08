@@ -302,6 +302,8 @@ x-api-key: YOUR_API_KEY`}</Code>
             <ul className="list-disc space-y-1 pl-5">
               <li>Quantity is rounded down and clamped to 1–50 (missing, zero or invalid values default to 1).</li>
               <li>POST /orders accepts website or bot as channel; any other value, including all, is treated as website.</li>
+              <li>Send an object JSON body, not null or an array. external_ref is truncated to 120 characters and customer_name to 80; keep unique references within that limit. customer_email is trimmed and format-checked.</li>
+              <li>Duplicate submissions retain HTTP 201 with duplicate: true and the original order, normally without a fresh balance. The same reference with different input still returns the original order; it does not create another purchase.</li>
               <li>Different references can still be treated as a double submit for the same reseller, customer, product and quantity: 60 seconds with a matching email, or 5 seconds without an email match (customer name is matched instead).</li>
               <li>
                 <strong>Always send <code className="font-mono">external_ref</code></strong> — your own order id. If the
@@ -321,7 +323,7 @@ x-api-key: YOUR_API_KEY`}</Code>
               </li>
               <li>
                 Wait up to <strong>60 seconds</strong> for the response. If your request times out or the connection
-                drops, the order still finishes on our side — fetch it with <code className="font-mono">GET /orders</code>{" "}
+                drops, processing may continue, but interruptions can leave an uncertain result — fetch it with <code className="font-mono">GET /orders</code>{" "}
                 (or resend the same <code className="font-mono">external_ref</code>) instead of creating a new one.
               </li>
               <li>Insufficient balance returns HTTP 402 with balance and required, without a debit or refund. Missing stock returns HTTP 409 out_of_stock, "Product temporarily unavailable", refunded: false, without a debit.</li>
@@ -352,7 +354,9 @@ curl -H "Authorization: Bearer YOUR_API_KEY" "${base}/orders?limit=50"`}</Code>
             </p>
             <p>
               GET /orders/&#123;id&#125; accepts the UUID, numeric order_no, or external_ref and only returns your orders.
+              UUID-shaped identifiers are interpreted as order IDs and digits as order_no before other text is treated as external_ref. Use the returned order UUID as the canonical lookup, especially for numeric or UUID-shaped references.
               GET /orders defaults to the latest 50 orders; limit is clamped to 1–100. Failed/refunded and cancelled/expired orders remain fetchable. Stop polling terminal orders for delivery; failed refunded orders expose refunded: true, while new cancelled/expired orders expose refunded: false.
+              Invalid/nonfinite limits default to 50 and fractional limits round down. Order history and transactions have no pagination; transactions returns at most 100 entries. Balance and transactions are separate reads, not one atomic snapshot.
             </p>
             <p>
               <strong>Recommended:</strong> set an order webhook URL in your reseller panel. When a pending order is
@@ -386,7 +390,8 @@ curl -H "Authorization: Bearer YOUR_API_KEY" "${base}/orders?limit=50"`}</Code>
                     ["402", "Not enough wallet balance"],
                     ["404", "Product or order not found"],
                     ["409", "Missing stock before debit: out_of_stock, refunded: false; confirmed delivery failure after debit: delivery_failed, refunded: true"],
-                    ["503", "Product catalogue is temporarily unavailable, or refund could not be confirmed"],
+                    ["500", "Order could not be recorded; check the same reference before retrying"],
+                    ["503", "Catalogue/history unavailable, or payment/delivery/refund uncertain; a debit may already exist — check the existing order"],
                     ["400", "Bad request — check the JSON body and product_id"],
                   ].map((r) => (
                     <tr key={r[0]} className="border-b border-border/40">
@@ -647,6 +652,7 @@ bot.on("callback_query", async (q) => {
             <ul className="list-disc space-y-1 pl-5">
               <li>Owner-rule preview: stock and balance pre-checks before reservation/debit; atomic original-debit refund with terminal failed order and ledger; debit-race 402 includes balance and required; duplicate reservations are retained cancelled, never deleted.</li>
               <li>Confirmed delivery rejections share neutral delivery_failed responses. Unknown delivery outcomes, legacy recovery and bot cancellation conflicts remain explicitly outside the changed path.</li>
+              <li>Safety hardening: non-object JSON is rejected, read errors return neutral 503, unknown write outcomes do not trigger transport fallback, and saved completion is confirmed rather than fabricated from memory. New completed/terminal orders preserve delivery and financial identity.</li>
             </ul>
             <p><strong>2026-10-18 — Charged stock-order recovery</strong></p>
             <ul className="list-disc space-y-1 pl-5">
@@ -684,7 +690,7 @@ bot.on("callback_query", async (q) => {
             </p>
             <ul className="list-disc space-y-1 pl-5">
               <li>
-                Orders now finish on our side even if your request times out or disconnects. Do not create a new order —
+                Background execution supports continued processing, but does not guarantee completion after every interruption. Do not create a new order —
                 fetch the existing one or resend the same <code className="font-mono">external_ref</code>.
               </li>
               <li>
