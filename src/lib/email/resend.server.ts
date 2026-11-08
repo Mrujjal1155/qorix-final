@@ -178,7 +178,7 @@ export async function getEmailConfig(): Promise<EmailConfig> {
 export async function sendResendEmail(input: SendEmailInput): Promise<SendEmailResult> {
   const apiKey = process.env["RESEND_API_KEY"];
   if (!apiKey) {
-    console.warn("[email] RESEND_API_KEY not configured — skipping send to", input.to);
+    console.warn("[email] RESEND_API_KEY not configured — email not sent");
     return { ok: false, error: "RESEND_API_KEY not configured" };
   }
 
