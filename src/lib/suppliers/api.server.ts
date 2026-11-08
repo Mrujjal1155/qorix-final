@@ -473,11 +473,13 @@ async function call(
 
   // Canboso rate-limits by server IP. Retrying the same request extends its
   // nginx penalty window, so make only one attempt for that supplier.
-  const maxAttempts = canbosoCall ? 1 : 3;
+  const writeRequest = (init.method ?? "GET").toUpperCase() !== "GET";
+  const maxAttempts = canbosoCall || writeRequest ? 1 : 3;
 
   let lastErr: unknown = null;
   for (let b = 0; b < bases.length; b++) {
-    const base = bases[b]!;
+    const base = bases[b];
+    if (!base) continue;
     const baseUrl = canbosoCall
       ? `${base}${path}${path.includes("?") ? "&" : "?"}key=${encodeURIComponent(key)}`
       : `${base}${path}`;
@@ -486,7 +488,8 @@ async function call(
       let res: Response | null = null;
       let text = "";
       for (let v = 0; v < authVariants.length; v++) {
-        const variant = authVariants[v]!;
+        const variant = authVariants[v];
+        if (!variant) continue;
         const url = variant.query
           ? `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}${variant.query}`
           : baseUrl;
@@ -568,10 +571,10 @@ async function call(
         path,
         ms: Date.now() - startedAt,
         error: String(e?.message ?? e).slice(0, 200),
-        willFallback: !isLast && !e?.rateLimited,
+        willFallback: !isLast && !e?.rateLimited && (!writeRequest || e?.deliveryOutcome === "rejected"),
       });
       // Rate limits mean the host answered — don't switch hosts for those.
-      if (isLast || e?.rateLimited) throw e;
+      if (isLast || e?.rateLimited || (writeRequest && e?.deliveryOutcome !== "rejected")) throw e;
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error(`Supplier request failed (${path})`);

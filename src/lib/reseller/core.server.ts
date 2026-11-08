@@ -550,15 +550,9 @@ export async function purchase(
   const fromSupplierLink = Boolean(p.supplier_id && p.supplier_external_id);
   if (status !== "completed" && fromSupplierLink && p.delivery_type === "auto" && !confirmedFailure) {
     console.error("reseller supplier fulfilment parked", p.id, failReason);
-    const { data: parked } = await db
-      .from("orders")
-      .update({
-        status: "pending",
-        meta: { ...((reserved as any).meta ?? {}), reseller_owner_rule: true, paid: true, debit_amount: total, refunded: false, supplier_outcome: "unknown", supplier_failed: true, supplier_error: String(failReason ?? "").slice(0, 300) },
-      })
-      .eq("id", reserved.id)
-      .select("*")
-      .maybeSingle();
+    const { saveResellerDelivery } = await import("./delivery-save.server");
+    const parked = await saveResellerDelivery(reserved.id, null, String(failReason ?? "Unknown delivery outcome"));
+    if (!parked) return { ok: false as const, status: 503, error: "Delivery status could not be confirmed — please contact support." };
     const notify = (async () => {
       const { notifyAdmins } = await import("@/lib/bot/engine.server");
       const esc = (t: string) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -575,7 +569,7 @@ export async function purchase(
       ok: true as const,
       submitted: true,
       message: "Order submitted — delivery is being processed. Check GET /orders/{id} for the items.",
-      order: orderPayload(parked ?? { ...reserved, status: "pending", delivered_content: null }),
+      order: orderPayload(parked),
       balance: Number(balanceAfter ?? reseller.balance - total),
     };
   }
@@ -587,14 +581,11 @@ export async function purchase(
     return refundResellerDeliveryFailure(reserved.id, fromSupplierLink ? "delivery_rejected" : "out_of_stock", fromSupplierLink ? failReason : null);
   }
 
-  const { data: order } = await db
-    .from("orders")
-    .update({ status, delivered_content: delivered })
-    .eq("id", reserved.id)
-    .select("*")
-    .maybeSingle();
+  const { saveResellerDelivery } = await import("./delivery-save.server");
+  const order = await saveResellerDelivery(reserved.id, delivered);
+  if (!order) return { ok: false as const, status: 503, error: "Delivery status could not be confirmed — please contact support." };
 
-  if (status === "completed") {
+  if (order.status === "completed") {
     // Must be awaited (or handed to waitUntil): the worker kills unawaited
     // work as soon as the API response is sent, so the group post was lost.
     const post = (async () => {
@@ -608,7 +599,7 @@ export async function purchase(
 
   return {
     ok: true as const,
-    order: orderPayload(order ?? { ...reserved, status, delivered_content: delivered }),
+    order: orderPayload(order),
     balance: Number(balanceAfter ?? reseller.balance - total),
   };
 }

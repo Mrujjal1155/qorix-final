@@ -9,12 +9,13 @@ export const Route = createFileRoute("/api/public/reseller/v1/transactions")({
         const auth = await core.authReseller(request);
         if ("error" in auth) return auth.error;
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data } = await (supabaseAdmin as any)
+        const { data, error } = await (supabaseAdmin as any)
           .from("reseller_transactions")
           .select("id,type,amount,balance_after,reference,note,created_at")
           .eq("reseller_id", auth.reseller.id)
           .order("created_at", { ascending: false })
           .limit(100);
+        if (error) return core.fail("Transaction history is temporarily unavailable", 503);
         return core.json({ ok: true, balance: Number(auth.reseller.balance), transactions: data ?? [] });
       },
     },

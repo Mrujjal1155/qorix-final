@@ -46,6 +46,12 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
     return query;
   },
   async rpc(name: string, args: any) {
+    if (name === "save_reseller_delivery") {
+      if (saveFails) return { data: null, error: { message: "save failed" } };
+      if (args._content) { order.status = "completed"; order.delivered_content = args._content; }
+      if (args._supplier_error) order.meta = { ...order.meta, supplier_outcome: "unknown", supplier_error: args._supplier_error };
+      return { data: { order: { ...order }, status: order.status }, error: null };
+    }
     if (name === "stock_counts") return { data: [{ available }], error: null };
     if (name === "debit_reseller_order") {
       if (debitFails) { balance = 2; return { data: { status: "insufficient_balance" }, error: null }; }
@@ -212,4 +218,13 @@ test("direct refund path twice changes nothing on the second attempt", async () 
   expect(await refundResellerDeliveryFailure(orderId, "out_of_stock")).toMatchObject({ status: 409, refunded: true });
   expect(ledger.filter(t => t._type === "refund")).toHaveLength(1);
   expect(balance).toBe(100);
+});
+test("supplier success with failed local save never fabricates completed", async () => {
+  supplierSuccess = true; saveFails = true;
+  product.supplier_id = "supplier"; product.supplier_external_id = "external";
+  const response = await post();
+  expect(response.status).toBe(503);
+  expect(order.status).toBe("pending");
+  expect(ledger.map(t => t._type)).toEqual(["order"]);
+  expect(supplierCalls).toBe(1);
 });

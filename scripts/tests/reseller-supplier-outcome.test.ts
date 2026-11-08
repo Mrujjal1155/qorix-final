@@ -13,3 +13,19 @@ test("supplier rejection is explicit regardless of response text; network outcom
     catch(error) { expect((error as any).deliveryOutcome).not.toBe("rejected"); }
   } finally { globalThis.fetch=original; }
 });
+test("unknown action-style purchase never falls through to another host", async () => {
+  const original=globalThis.fetch; let calls=0;
+  try {
+    globalThis.fetch=mock(async () => { calls++; throw new Error("unrecognized lost response"); }) as any;
+    await expect(supplierOrder({...supplier,key:"vexoran",base_url:"https://configured.example.invalid"},"1",1,"fixture-order")).rejects.toThrow("unrecognized lost response");
+    expect(calls).toBe(1);
+  } finally { globalThis.fetch=original; }
+});
+test("write rate limit never automatically repeats the purchase", async () => {
+  const original=globalThis.fetch; let calls=0;
+  try {
+    globalThis.fetch=mock(async () => { calls++; return new Response(JSON.stringify({ok:false,code:"RATE_LIMITED"}),{status:429}); }) as any;
+    await expect(supplierOrder(supplier,"1",1,"fixture-order")).rejects.toThrow();
+    expect(calls).toBe(1);
+  } finally { globalThis.fetch=original; }
+});
