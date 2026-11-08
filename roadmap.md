@@ -1,9 +1,10 @@
 # Roadmap
 
-- [ ] Owner-rule reseller fix: pre-debit stock/balance checks, atomic centrally persisted failure refund and terminal retry protection, retained no-refund cancellation/expiry, aligned docs and focused tests. Stop any conflicting shared production path; no publish or live order tests.
+- [x] Owner-rule safe reseller purchase changes: pre-debit stock/balance checks, order-locked transfer/refund, retained terminal failed and no-refund cancelled/expired rows, explicit supplier rejection, docs and 27 reseller + 5 in-house tests; build OK, preview docs verified, no live orders/publish. Additive database migrations applied, old records untouched.
+- [ ] Owner-rule conflicts: unknown supplier outcomes need reconciliation rather than assumed refunds; legacy bot preorder/admin cancellation refunds and legacy reseller recovery retained under STOP instruction. No paid-manual reseller expiry path exists; no endpoint/timer invented. Live paid-order/panel check requires owner-approved purchase and external account access.
 
 - [x] Phase 1 safe subset: retain cancelled in-house/manual failures, neutral HTTP 409, refunded projection and debit-race amounts; document API limits and explicit supplier exception; isolated reseller suites and preview docs verified without live purchases/deployment.
-- [ ] Phase 1 supplier-auto refund: blocked by non-idempotent reseller_adjust_balance and supplier Retry allowing refunded/cancelled orders; requires coordinated atomic refund and retry guards outside this phase. Supplier pending behaviour left unchanged under owner's STOP rule.
+- [x] Phase 1 supplier-auto refund safety superseded by owner-rule RPC/refund and terminal guards; explicit rejections refund, unknown outcomes remain pending for reconciliation.
 
 - [x] Audit Telegram Business documentation, existing @QORIX3_bot source/backend and safe product/order data integration; prepare an approval plan without changing tickets, shop or live connections.
 - [x] Receive plan approval, link Online's existing Telegram connection and verify live identity as @QORIX3_bot; getWebhookInfo confirms unchanged qorixlab.com webhook and four existing update subscriptions. No customer messages sent or webhook changed.
