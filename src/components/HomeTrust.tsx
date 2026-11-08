@@ -149,7 +149,7 @@ export function WeeklyOffers({ products }: { products: StoreProduct[] }) {
       <SectionHeader index="08" label="Offers" title={<>This week&apos;s offers</>} />
       <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
         {offers.map((p) => (
-          <ProductCard key={p.id} product={p} />
+          <ProductCard key={p.id} product={p} stockOnly />
         ))}
       </div>
     </section>
