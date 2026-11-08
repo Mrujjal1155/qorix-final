@@ -7,6 +7,7 @@ import { SectionHeader } from "@/components/SectionHeader";
 import { listStorefront, getPublicStats } from "@/lib/shop.functions";
 import { FaqTeaser, ResellerTeaser, StatsStrip, StayUpdated, Testimonials, WeeklyOffers } from "@/components/HomeTrust";
 import { duplicateNotes } from "@/lib/duplicate-products";
+import { availableStoreProducts } from "@/lib/available-store-products";
 
 const storefrontQuery = queryOptions({ queryKey: ["storefront"], queryFn: () => listStorefront() });
 import { StoreShell } from "@/components/StoreShell";
@@ -70,9 +71,9 @@ function useGridCols() {
 function Landing() {
   const t = useT();
   const fetchStore = useServerFn(listStorefront);
-  const { data } = useQuery({ ...storefrontQuery, queryFn: () => fetchStore() });
+  const { data } = useQuery({ ...storefrontQuery, queryFn: () => fetchStore(), refetchInterval: 10_000 });
 
-  const products = (data?.products ?? []) as StoreProduct[];
+  const products = availableStoreProducts((data?.products ?? []) as StoreProduct[]);
   // Same definition as /store: categories holding at least one listed product.
   const categories = categoriesWithProducts((data?.categories ?? []) as any[], products as any[]);
   const catIcons = distinctCategoryIcons(categories.map((c: any) => String(c.name ?? "")));
