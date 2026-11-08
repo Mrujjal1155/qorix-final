@@ -221,7 +221,7 @@ export async function sendResendEmail(input: SendEmailInput): Promise<SendEmailR
 
     if (!res.ok) {
       const body = await res.text();
-      console.error(`[email] Resend error [${res.status}] for ${input.to}: ${body}`);
+      console.error(`[email] Resend error [${res.status}] : ${body}`);
       return { ok: false, error: `Resend ${res.status}: ${body}` };
     }
 
