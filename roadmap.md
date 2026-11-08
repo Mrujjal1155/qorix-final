@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Full reseller API safety/compatibility: independent audits identify lock-order, legacy idempotency, stale completion, supplier replay/partial-delivery and docs risks; staged plan awaiting approval. Deep scan pending. No live purchases, data repair, key changes or publication.
+
 - [x] Owner-rule safe reseller purchase changes: pre-debit stock/balance checks, order-locked transfer/refund, retained terminal failed and no-refund cancelled/expired rows, explicit supplier rejection, docs and 27 reseller + 5 in-house tests; build OK, preview docs verified, no live orders/publish. Additive database migrations applied, old records untouched.
 - [ ] Owner-rule conflicts: unknown supplier outcomes need reconciliation rather than assumed refunds; legacy bot preorder/admin cancellation refunds and legacy reseller recovery retained under STOP instruction. No paid-manual reseller expiry path exists; no endpoint/timer invented. Live paid-order/panel check requires owner-approved purchase and external account access.
 
