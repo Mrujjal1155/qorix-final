@@ -25,6 +25,7 @@ import {
 } from "@/lib/admin.functions";
 
 import { AdminShell, money } from "@/components/AdminShell";
+import { sendStillAvailableAlert } from "@/lib/alerts.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -253,6 +254,12 @@ function ProductsPage() {
 
   const setActive = useServerFn(setProductActive);
   const setCustomerAlerts = useServerFn(setProductCustomerAlerts);
+  const sendStillAlert = useServerFn(sendStillAvailableAlert);
+  const stillMut = useMutation({
+    mutationFn: (productId: string) => sendStillAlert({ data: { productId } }),
+    onSuccess: (r) => toast.success(`Alert queued · ${r.stock} in stock`),
+    onError: (e: Error) => toast.error(e.message),
+  });
   const alertsMut = useMutation({
     mutationFn: (v: { id: string; enabled: boolean }) => setCustomerAlerts({ data: v }),
     onSuccess: () => { refresh(); toast.success("Customer alerts saved"); },
@@ -1165,6 +1172,25 @@ function ProductsPage() {
                         Take accounts
                       </Button>
                     )}
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="sm" variant="outline" disabled={p.is_active === false || Number(p.stock) <= 0 || stillMut.isPending}>
+                          Alert
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Send “STILL AVAILABLE” alert?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {p.name} · {money(p.price)} · {p.stock} in stock. This goes to every bot customer and every group/channel. It cannot be undone once sent.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => stillMut.mutate(p.id)}>Send alert</AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
                     <Button size="sm" variant="outline" onClick={() => setSalesFor({ id: p.id, name: p.name })}>
                       Sales
                     </Button>
