@@ -3433,6 +3433,30 @@ export async function announceNewProduct(
 }
 
 /**
+ * "STILL AVAILABLE" card — sent only when an admin presses Alert on a product.
+ * Same durable delivery as other cards (groups/channels + every bot customer).
+ */
+export async function announceStillAvailable(
+  product: any,
+  available: number,
+  delivery?: CardDelivery,
+) {
+  const s = await getSettings();
+  if (!product || product.is_active === false) return;
+  if (available <= 0) return;
+  const line = "━━━━━━━━━━━━━━━━";
+  const note = String(product?.important_note ?? "").replace(/<[^>]*>/g, "").trim();
+  const text =
+    `${alertIcon(s, "bell")} <b>STILL AVAILABLE</b>\n${line}\n\n` +
+    `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
+    `${alertIcon(s, "price")} <b>Price</b>  ${money(product?.price)}\n` +
+    `${alertIcon(s, "stock")} <b>Stock</b>  ${available} items\n` +
+    (note ? `\n<b>Note:</b> ${escapeHtml(note.slice(0, 600))}\n` : "") +
+    `\n${alertIcon(s, "delivery")} <i>In stock now — instant automatic delivery.</i>`;
+  return await deliverCard(s, text, await channelProductButton(s, product), null, product, delivery);
+}
+
+/**
  * "LOW STOCK" / "OUT OF STOCK" card — posted when a supplier's stock for a
  * listed product falls to (or below) the alert threshold. Toggle with the
  * `announce_low` setting (default ON), threshold `announce_low_threshold`.
