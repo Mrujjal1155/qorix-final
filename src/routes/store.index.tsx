@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { ChevronDown, Search, Sparkles } from "lucide-react";
 import { duplicateNotes } from "@/lib/duplicate-products";
+import { availableStoreProducts } from "@/lib/available-store-products";
 import { listStorefront } from "@/lib/shop.functions";
 
 const storefrontQuery = queryOptions({ queryKey: ["storefront"], queryFn: () => listStorefront() });
@@ -67,7 +68,7 @@ function StorePage() {
   const categories = data?.categories ?? [];
   const linked = c ? categories.find((x: any) => String(x.name).toLowerCase().includes(c.toLowerCase())) : undefined;
   const activeCat = cat === "all" && linked ? (linked as any).id : cat;
-  const all = (data?.products ?? []) as StoreProduct[];
+  const all = availableStoreProducts((data?.products ?? []) as StoreProduct[]);
   const notes = duplicateNotes(all as any[]);
   // Busiest categories first; the rest fold behind "More categories". Empty categories are
   // hidden so the chip total matches the homepage "Categories" count (one definition).
