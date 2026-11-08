@@ -9,7 +9,7 @@ beforeAll(async () => {
   await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role;
     CREATE SCHEMA auth; CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql AS $$ SELECT 'service_role'::text $$;
     CREATE TABLE public.resellers(id uuid PRIMARY KEY,balance numeric);
-    CREATE TABLE public.orders(id uuid PRIMARY KEY,reseller_id uuid,payment_method text,status text,meta jsonb,external_ref text,total numeric,quantity integer,product_name text,delivered_content text);
+    CREATE TABLE public.orders(id uuid PRIMARY KEY,reseller_id uuid,payment_method text,status text,meta jsonb,external_ref text,total numeric,quantity integer,product_name text,delivered_content text,product_id uuid,unit_price numeric);
     CREATE TABLE public.reseller_transactions(id bigserial PRIMARY KEY,reseller_id uuid,type text,amount numeric,balance_after numeric,reference text,note text);
     CREATE FUNCTION public.reseller_adjust_balance(_reseller_id uuid,_amount numeric,_type text,_reference text,_note text) RETURNS numeric LANGUAGE plpgsql AS $$ DECLARE b numeric; BEGIN
       UPDATE public.resellers SET balance=balance+_amount WHERE id=_reseller_id RETURNING balance INTO b;
@@ -18,12 +18,13 @@ beforeAll(async () => {
     INSERT INTO public.resellers VALUES('${rid}',100);`);
   for (const file of ["20261108051410_43024c77-d76d-4488-8633-223b73d7a213.sql", "20261108051456_497315cf-b9ea-43fb-9eed-bd9863dd33cc.sql"])
     await db.exec(await readFile(new URL(`../../supabase/migrations/${file}`, import.meta.url), "utf8"));
+  await db.exec(await readFile(new URL("./reseller-state-hardening.sql", import.meta.url), "utf8"));
 }, 30_000);
 afterAll(async () => { await db.close(); });
 
 async function order(n: number) {
   const id = `11111111-1111-4111-8111-${String(n).padStart(12, "0")}`;
-  await db.query(`INSERT INTO public.orders VALUES($1::uuid,$2::uuid,'reseller_balance','pending','{"reseller_owner_rule":true,"refunded":false}',$1::uuid::text,10,1,'Subscription',NULL)`, [id,rid]);
+  await db.query(`INSERT INTO public.orders(id,reseller_id,payment_method,status,meta,external_ref,total,quantity,product_name,delivered_content) VALUES($1::uuid,$2::uuid,'reseller_balance','pending','{"reseller_owner_rule":true,"refunded":false}',$1::uuid::text,10,1,'Subscription',NULL)`, [id,rid]);
   return id;
 }
 async function debit(id: string) {
@@ -75,9 +76,23 @@ test("actual SQL success is completed with original debit and zero refunds", asy
 });
 test("actual SQL insufficient balance does not create debit/refund ledger", async () => {
   const id=await order(5);
-  await db.query("UPDATE public.orders SET total=100 WHERE id=$1",[id]);
-  expect(await debit(id)).toMatchObject({ status:"insufficient_balance",balance:70,required:100 });
+  await db.query("UPDATE public.resellers SET balance=2 WHERE id=$1",[rid]);
+  expect(await debit(id)).toMatchObject({ status:"insufficient_balance",balance:2,required:10 });
   const result=await read(id); expect(result.refund_count).toBe(0);
   expect(result.meta).not.toHaveProperty("debit_amount");
   expect((await db.query<any>("SELECT count(*)::int n FROM public.reseller_transactions WHERE reference=$1",[id])).rows[0]?.n).toBe(0);
+});
+
+test("completed delivery and financial marker cannot be changed by stale writes", async () => {
+  await db.query("UPDATE public.resellers SET balance=100 WHERE id=$1",[rid]);
+  const id=await order(6); await debit(id);
+  const saved=(await db.query<any>("SELECT public.save_reseller_delivery($1,'credential',NULL) result",[id])).rows[0]?.result;
+  expect(saved.status).toBe("completed");
+  const before=await read(id);
+  const late=(await db.query<any>("SELECT public.save_reseller_delivery($1,NULL,'late error') result",[id])).rows[0]?.result;
+  expect(late.changed).toBe(false); expect(await read(id)).toEqual(before);
+  await expect(db.query("UPDATE public.orders SET status='cancelled' WHERE id=$1",[id])).rejects.toThrow("Terminal order delivery is immutable");
+  await expect(db.query("UPDATE public.orders SET meta=meta-'reseller_owner_rule' WHERE id=$1",[id])).rejects.toThrow("Order financial identity is immutable");
+  await expect(db.query("UPDATE public.orders SET external_ref='different' WHERE id=$1",[id])).rejects.toThrow("Order financial identity is immutable");
+  expect(await read(id)).toEqual(before);
 });
