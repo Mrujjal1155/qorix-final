@@ -7,7 +7,7 @@ export const Route = createFileRoute("/api/public/reseller/v1/products/$id")({
       GET: async ({ request, params }) => {
         const core = await import("@/lib/reseller/core.server");
         // Query params (incl. `_ts`) are ignored by this endpoint, so they never affect the cache key.
-        const auth = await core.authReseller(request, "all") // live check: a disabled reseller is refused immediately;
+        const auth = await core.authReseller(request, "all"); // live check: a disabled reseller is refused immediately
         if ("error" in auth) return auth.error;
         try {
         const product = await core.singleProductCached(auth.reseller, String(params.id));
