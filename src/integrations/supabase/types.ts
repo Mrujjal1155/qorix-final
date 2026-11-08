@@ -2363,6 +2363,10 @@ export type Database = {
         Args: { _product_id: string }
         Returns: boolean
       }
+      save_reseller_delivery: {
+        Args: { _content?: string; _order_id: string; _supplier_error?: string }
+        Returns: Json
+      }
       set_manual_stock: {
         Args: { _pid: string; _qty: number }
         Returns: undefined
