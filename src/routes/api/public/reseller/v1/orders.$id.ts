@@ -18,7 +18,8 @@ export const Route = createFileRoute("/api/public/reseller/v1/orders/$id")({
         // external_ref is caller-supplied text — never interpolate it into a PostgREST filter.
         else query = query.eq("external_ref", id);
 
-        const { data } = await query.maybeSingle();
+        const { data, error } = await query.maybeSingle();
+        if (error) return core.fail("Order is temporarily unavailable", 503);
         if (!data) return core.fail("Order not found", 404);
         return core.json({ ok: true, order: core.orderPayload(data) });
       },

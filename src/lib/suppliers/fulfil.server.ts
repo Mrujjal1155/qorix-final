@@ -63,11 +63,6 @@ export async function supplierPreflight(supplier: any, needed: number): Promise<
 
 export type RetryResult = { ok: boolean; reason?: string | undefined; items?: string[] | undefined };
 
-/** Ambiguous failures (timeout/network) may already be charged, so they are never retried automatically. */
-function isAmbiguousFailure(msg: string) {
-  return /timeout|timed out|abort|network|fetch failed|ECONN|socket|5\d\d/i.test(msg);
-}
-
 /**
  * Supplier purchase with one automatic retry a few seconds later. Both attempts
  * use the same reference, and only clear rejections are retried, so one order
@@ -86,8 +81,7 @@ export async function supplierOrderWithRetry(
     if (res.items.length) return res;
     throw new Error(`Supplier accepted the order but returned no items${res.code ? ` (ref ${res.code})` : ""}`);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (isAmbiguousFailure(msg) || /returned no items/.test(msg)) throw e;
+    if ((e as { deliveryOutcome?: string })?.deliveryOutcome !== "rejected") throw e;
     await new Promise((r) => setTimeout(r, 5000));
     return await supplierOrder(sup, externalId, qty, ref, opts as any);
   }
