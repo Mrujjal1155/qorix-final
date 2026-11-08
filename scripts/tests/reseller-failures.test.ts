@@ -11,6 +11,7 @@ let refundFails = false;
 let saveFails = false;
 let manualStock = false;
 let stockResult = "out_of_stock";
+let available = 10;
 let deleted = 0;
 let supplierCalls = 0;
 let supplierSuccess = false;
@@ -23,7 +24,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
     let values: any;
     const execute = () => {
       let row = table === "products" ? product : table === "orders" ? order : table === "resellers" ? { ...reseller, balance } : table === "suppliers" ? { id: "supplier", is_enabled: true } : null;
-      if (operation === "insert") { order = { ...values, id: orderId, order_no: 123, created_at: new Date().toISOString(), meta: {} }; row = order; }
+      if (operation === "insert") { order = { ...values, id: orderId, order_no: 123, created_at: new Date().toISOString(), meta: { ...values.meta } }; row = order; }
       else if (table === "orders" && operation === "update" && order) {
         if (saveFails && values.meta?.refunded) return { data: null, error: { message: "status save interrupted" } };
         Object.assign(order, values); row = order;
@@ -45,6 +46,22 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
     return query;
   },
   async rpc(name: string, args: any) {
+    if (name === "stock_counts") return { data: [{ available }], error: null };
+    if (name === "debit_reseller_order") {
+      if (debitFails) { balance = 2; return { data: { status: "insufficient_balance" }, error: null }; }
+      balance -= order.total; ledger.push({ _type: "order", _amount: -order.total });
+      order.meta = { ...order.meta, paid: true, debit_amount: order.total };
+      return { data: { status: "debited", balance }, error: null };
+    }
+    if (name === "refund_failed_reseller_order") {
+      if (refundFails || saveFails) return { data: null, error: { message: "atomic transaction failed" } };
+      if (order.meta.refunded) return { data: { status: "already_refunded" }, error: null };
+      if (order.status !== "pending") return { data: { status: "ineligible" }, error: null };
+      balance += order.total; ledger.push({ _type: "refund", _amount: order.total });
+      order.status = "failed"; order.delivered_content = null;
+      order.meta = { ...order.meta, refunded: true, refund_amount: order.total, ...(args._supplier_error ? { supplier_failed: true, supplier_error: args._supplier_error } : {}) };
+      return { data: { status: "refunded" }, error: null };
+    }
     if (name === "take_manual_stock") return { data: manualStock, error: null };
     if (name === "reseller_adjust_balance") {
       if (args._amount < 0 && debitFails) { balance = 2; return { data: null, error: { message: "private diagnostic" } }; }
@@ -58,7 +75,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
 } }));
 mock.module("@/lib/bulk-discount.server", () => ({ bulkTiersFor: async () => ({}), bulkUnit: (_p: any, unit: number) => unit }));
 mock.module("@/lib/reseller/charged-stock.server", () => ({ fulfillChargedResellerStock: async () => ({ status: stockResult }) }));
-mock.module("@/lib/suppliers/api.server", () => ({ supplierOrder: async () => { supplierCalls++; if (supplierSuccess) return { items: ["account:password"] }; throw new Error(privateReason); } }));
+mock.module("@/lib/suppliers/api.server", () => ({ supplierOrder: async () => { supplierCalls++; if (supplierSuccess) return { items: ["account:password"] }; throw Object.assign(new Error(privateReason), { deliveryOutcome: "rejected" }); } }));
 mock.module("@/lib/suppliers/fulfil.server", () => ({ supplierUnitCost: async () => null, supplierPreflight: async () => ({ ok: true }) }));
 mock.module("@/lib/bot/engine.server", () => ({ checkResellerLowBalance: async () => {}, notifyAdmins: async () => {}, announceOrderSale: async () => {} }));
 mock.module("@/lib/bg.server", () => ({ backgroundWaitUntil: () => false }));
@@ -70,8 +87,8 @@ const input = { product_id: "product", quantity: 1, channel: "website" as const,
 const deliveryFailure = { ok: false, code: "delivery_failed", refunded: true, error: "Delivery failed — please try again later." };
 
 beforeEach(() => {
-  product = { id: "product", name: "Subscription", price: 10, delivery_type: "auto", is_active: true, supplier_id: null, supplier_external_id: null };
-  order = null; balance = 100; debitFails = false; refundFails = false; saveFails = false; manualStock = false; stockResult = "out_of_stock"; deleted = 0; supplierCalls = 0; supplierSuccess = false; ledger = [];
+  product = { id: "product", name: "Subscription", price: 10, delivery_type: "auto", is_active: true, supplier_id: null, supplier_external_id: null, supplier_stock: 10 };
+  order = null; available = 10; balance = 100; debitFails = false; refundFails = false; saveFails = false; manualStock = false; stockResult = "out_of_stock"; deleted = 0; supplierCalls = 0; supplierSuccess = false; ledger = [];
 });
 
 async function post() {
@@ -87,13 +104,13 @@ test("in-house confirmed shortage returns the exact HTTP 409 failure and one ref
   expect(deleted).toBe(0);
 });
 
-test("cancelled refunded order reads back through actual GET handler by UUID, order_no and external_ref", async () => {
+test("terminal failed refunded order reads back through actual GET handler by UUID, order_no and external_ref", async () => {
   await post();
   for (const id of [orderId, "123", "test-order"]) {
     const response = await (getRoute as any).server.handlers.GET({ request: new Request("http://localhost/api/public/reseller/v1/orders/" + id, { headers: { authorization: "Bearer test-key" } }), params: { id } });
     expect(response.status).toBe(200);
     const result = await response.json();
-    expect(result.order).toMatchObject({ id: orderId, status: "cancelled", items: [], refunded: true });
+    expect(result.order).toMatchObject({ id: orderId, status: "failed", items: [], refunded: true });
     expect(result.order).not.toHaveProperty("meta");
   }
 });
@@ -103,7 +120,7 @@ test("limited manual shortage uses the same HTTP 409 shape and keeps its order",
   const response = await post();
   expect(response.status).toBe(409);
   expect(await response.json()).toEqual(deliveryFailure);
-  expect(order.status).toBe("cancelled");
+  expect(order.status).toBe("failed");
   expect(order.meta.refunded).toBe(true);
   expect(balance).toBe(100);
   expect(deleted).toBe(0);
@@ -112,7 +129,7 @@ test("limited manual shortage uses the same HTTP 409 shape and keeps its order",
 test("replaying a refunded external_ref never debits or refunds again", async () => {
   await core.purchase(reseller, input);
   const result = await core.purchase(reseller, input);
-  expect(result).toMatchObject({ ok: true, duplicate: true, order: { status: "cancelled", refunded: true, items: [] } });
+  expect(result).toMatchObject({ ok: true, duplicate: true, order: { status: "failed", refunded: true, items: [] } });
   expect(ledger.length).toBe(2);
   expect(balance).toBe(100);
 });
@@ -131,7 +148,7 @@ test("unconfirmed refund never falsely reports refunded true and retains the ord
   refundFails = true;
   const response = await post();
   expect(response.status).toBe(503);
-  expect(await response.json()).toEqual({ ok: false, error: "Refund could not be confirmed — please contact support." });
+  expect(await response.json()).toEqual({ ok: false, error: "Delivery status could not be confirmed — please contact support." });
   expect(deleted).toBe(0);
   expect(ledger.length).toBe(1);
 });
@@ -143,27 +160,24 @@ test("genuine manual processing keeps its successful paid pending behaviour", as
   expect(ledger.map(t => t._type)).toEqual(["order"]);
 });
 
-test("refund status-save failure is explicitly reported for auto and limited manual orders without another credit", async () => {
-  for (const type of ["auto", "manual"]) {
-    order = null; ledger = []; balance = 100; saveFails = true;
-    product.delivery_type = type; product.manual_stock_limited = true;
-    const response = await post();
-    expect(response.status).toBe(503);
-    expect(await response.json()).toEqual({ ok: false, refunded: true, error: "Refund issued but order status could not be saved — please contact support." });
-    expect(balance).toBe(100);
-    expect(ledger.filter(t => t._type === "refund").length).toBe(1);
-    expect(deleted).toBe(0);
-  }
+test("atomic refund failure cannot credit without saving terminal state", async () => {
+  saveFails = true;
+  const response = await post();
+  expect(response.status).toBe(503);
+  expect(balance).toBe(90);
+  expect(order.status).toBe("pending");
+  expect(ledger.map(t => t._type)).toEqual(["order"]);
 });
 
-test("blocked supplier-auto change preserves existing pending behaviour without exposing diagnostics", async () => {
+test("supplier rejection after debit refunds once and retains private diagnostics", async () => {
   product.supplier_id = "supplier"; product.supplier_external_id = "external";
-  const result = await core.purchase(reseller, input);
-  expect(result).toMatchObject({ ok: true, submitted: true, balance: 90, order: { status: "pending" } });
-  expect(supplierCalls).toBe(1);
-  expect(ledger.map(t => t._type)).toEqual(["order"]);
+  const response = await post();
+  expect(response.status).toBe(409);
+  expect(await response.json()).toEqual(deliveryFailure);
+  expect(order.status).toBe("failed");
   expect(order.meta.supplier_error).toBe(privateReason);
-  expect(JSON.stringify(result)).not.toContain(privateReason);
+  expect(balance).toBe(100);
+  expect(ledger.map(t => t._type)).toEqual(["order", "refund"]);
 });
 
 test("successful supplier purchase keeps price, delivery and exactly one original debit", async () => {
@@ -172,4 +186,30 @@ test("successful supplier purchase keeps price, delivery and exactly one origina
   expect(result).toMatchObject({ ok: true, balance: 90, order: { status: "completed", items: ["account:password"], unit_price: 10, total: 10 } });
   expect(ledger.map(t => [t._type, t._amount])).toEqual([["order", -10]]);
   expect(deleted).toBe(0);
+});
+test("insufficient balance pre-check has no reservation, debit or refund", async () => {
+  balance = 2;
+  const response = await post();
+  expect(response.status).toBe(402);
+  expect(await response.json()).toEqual({ ok: false, error: "Insufficient balance", balance: 2, required: 10 });
+  expect(order).toBeNull(); expect(ledger).toEqual([]);
+});
+test("zero stock pre-check never debits for own, supplier or limited manual", async () => {
+  for (const kind of ["own", "supplier", "manual"]) {
+    available = 0; product.supplier_stock = 0;
+    product.supplier_id = kind === "supplier" ? "supplier" : null;
+    product.delivery_type = kind === "manual" ? "manual" : "auto";
+    product.manual_stock_limited = kind === "manual";
+    const response = await post();
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ ok: false, code: "out_of_stock", error: "Product temporarily unavailable", refunded: false });
+    expect(order).toBeNull(); expect(ledger).toEqual([]);
+  }
+});
+test("direct refund path twice changes nothing on the second attempt", async () => {
+  await post();
+  const { refundResellerDeliveryFailure } = await import("../../src/lib/reseller/failure-refund.server");
+  expect(await refundResellerDeliveryFailure(orderId, "out_of_stock")).toMatchObject({ status: 409, refunded: true });
+  expect(ledger.filter(t => t._type === "refund")).toHaveLength(1);
+  expect(balance).toBe(100);
 });
