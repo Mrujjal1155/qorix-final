@@ -42,7 +42,8 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
   async rpc(name: string, args: any) {
     if (name === "take_manual_stock") return { data: manualStock, error: null };
     if (name === "reseller_adjust_balance") {
-      if ((args._amount < 0 && debitFails) || (args._type === "refund" && refundFails)) return { data: null, error: { message: "private diagnostic" } };
+      if (args._amount < 0 && debitFails) { balance = 2; return { data: null, error: { message: "private diagnostic" } }; }
+      if (args._type === "refund" && refundFails) return { data: null, error: { message: "private diagnostic" } };
       balance += args._amount;
       ledger.push({ ...args });
       return { data: balance, error: null };
@@ -112,7 +113,7 @@ test("replaying a refunded external_ref never debits or refunds again", async ()
 });
 
 test("debit race returns HTTP 402 with fresh balance and required without deleting the order", async () => {
-  debitFails = true; balance = 2;
+  debitFails = true;
   const response = await post();
   expect(response.status).toBe(402);
   expect(await response.json()).toMatchObject({ ok: false, balance: 2, required: 10 });
