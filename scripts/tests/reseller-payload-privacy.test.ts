@@ -27,7 +27,7 @@ mock.module("@/integrations/supabase/client.server", () => ({
     },
     rpc: async (name: string) => name === "stock_counts"
       ? { data: [{ product_id: product.id, available: 3 }], error: stockFails ? { message: privateError } : null }
-      : { data: null, error: debitFails ? { message: privateError } : null },
+      : { data: { status: "insufficient_balance" }, error: null },
   },
 }));
 mock.module("@/lib/bulk-discount.server", () => ({ bulkTiersFor: async () => ({}), bulkUnit: (_p: unknown, unit: number) => unit }));
@@ -59,7 +59,7 @@ describe("Reseller supplier payload privacy", () => {
     debitFails = true;
     const result = await purchase(reseller, { product_id: product.id, quantity: 1, channel: "website" });
     expect(result.ok).toBe(false);
-    expect(result).toMatchObject({ status: 402, error: "Unable to process balance. Please check your balance and try again." });
+    expect(result).toMatchObject({ status: 402, error: "Insufficient balance" });
     expect(JSON.stringify(result)).not.toContain(privateError);
   });
 });

@@ -2202,6 +2202,7 @@ export type Database = {
         }[]
       }
       cleanup_old_logs: { Args: never; Returns: Json }
+      debit_reseller_order: { Args: { _order_id: string }; Returns: Json }
       enqueue_bot_broadcast: {
         Args: { _event_key: string; _message: Json }
         Returns: Json
@@ -2338,6 +2339,14 @@ export type Database = {
       referral_setting: {
         Args: { _fallback: string; _key: string }
         Returns: string
+      }
+      refund_failed_reseller_order: {
+        Args: {
+          _failure_code: string
+          _order_id: string
+          _supplier_error?: string
+        }
+        Returns: Json
       }
       release_stock_notification: { Args: { _id: string }; Returns: undefined }
       reseller_adjust_balance: {

@@ -23,6 +23,14 @@ export async function recoverChargedResellerStock(onlyId?: string): Promise<numb
   for (const order of orders ?? []) {
     try {
       const result = await fulfillChargedResellerStock(order.id);
+      if (result.status === "out_of_stock") {
+        const { data: failed } = await db.from("orders").select("meta").eq("id", order.id).maybeSingle();
+        if (failed?.meta?.reseller_owner_rule) {
+          const { refundResellerDeliveryFailure } = await import("./failure-refund.server");
+          await refundResellerDeliveryFailure(order.id, "out_of_stock");
+        }
+        continue;
+      }
       if (result.status !== "completed" || !result.changed) continue;
       completed++;
       const { data: saved } = await db.from("orders").select("*").eq("id", order.id).maybeSingle();

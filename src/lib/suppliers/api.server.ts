@@ -546,6 +546,8 @@ async function call(
         // Rate-limit means the endpoint exists — don't let callAny fall through to wrong paths.
         if (rateLimited) (err as any).rateLimited = true;
         (err as any).rateLimitedFlag = rateLimited;
+        // Explicit rejection only; transport errors/5xx/empty delivery remain unknown.
+        (err as any).deliveryOutcome = ((res.status >= 400 && res.status < 500 && res.status !== 408) || (res.ok && (json?.ok === false || json?.success === false))) ? "rejected" : "unknown";
         throw err;
       }
       supplierLog("ok", {

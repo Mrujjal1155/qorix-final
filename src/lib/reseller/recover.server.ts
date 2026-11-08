@@ -23,6 +23,8 @@ export async function recoverUnchargedResellerOrders(onlyId?: string): Promise<n
   let done = 0;
   for (const o of (rows ?? []) as any[]) {
     const meta = o.meta ?? {};
+    // New purchases never debit later without their original pre-checks.
+    if (meta.reseller_owner_rule) continue;
     if (meta.supplier_failed || meta.recovered) continue;
     // Was it charged? Reference = external_ref when one was sent.
     const { data: tx } = await db
