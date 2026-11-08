@@ -1060,7 +1060,7 @@ async function tiersView(user: any) {
 
 /* -------------------------------------------------------------- support */
 
-const DEFAULT_SUPPORT_LINK = "https://t.me/QORIX3_bot";
+const DEFAULT_SUPPORT_LINK = "https://t.me/QORIXadmin";
 
 function supportHandle(link: string) {
   const m = link.match(/t\.me\/([A-Za-z0-9_]+)/);
