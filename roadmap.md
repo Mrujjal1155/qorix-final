@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Add a dedicated Telegram Bot Admin “Start & welcome emojis” screen covering welcome/header, menu and three community links through existing verified editors; 13 start/admin and 7 payment-icon regressions pass, latest build OK. Preview only; live Telegram appearance awaits approved deployment.
+
 - [x] Approved preview-only Telegram start: short welcome/menu explanations and three real community links, full account/wallet/referral tables and copy control in Profile, bot-admin editable Premium icons; ordinary HTML avoids rich-table negotiation on start, existing deferred payment sweep preserved. 28 focused mocked/regression tests pass; latest build OK. No publish, database changes or real Telegram send.
 - [x] Fold in Prime Labs reference: QORIX-branded welcome and bot/web-admin editable start description including the owner's “100% authentic” wording; other shop links and unsupported fully-automated/best-price claims not copied.
 - [ ] Verify this compact start and Profile tables visually and measure live opening speed in Telegram after owner-approved deployment; blocked by preview-only/no-real-message instruction. Bot-admin icon/description save and reset verified only through mocked real handlers; signed-in external admin page not verified.

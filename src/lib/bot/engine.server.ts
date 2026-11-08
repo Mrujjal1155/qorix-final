@@ -4808,6 +4808,7 @@ export function adminKeyboard(): Button[][] {
 
     ],
     [{ text: "⌨️ Bottom menu buttons", callback_data: "adm:bottommenu" }],
+    [{ text: "👋 Start & welcome emojis", callback_data: "adm:starticons" }],
 
     [
       { text: "💳 Payment icons", callback_data: "adm:paymenticons" },
@@ -5378,6 +5379,37 @@ async function admAnnounceView() {
 
 
 
+
+const START_UI_ICONS = [
+  ["home_greet", "Greeting"],
+  ["home_description", "Description"],
+  ["home_choose", "Continue prompt"],
+  ["home_community", "Join Community"],
+  ["home_group", "Community Group"],
+  ["home_channel", "Official Channel"],
+  ["home_updates", "Store Updates Channel"],
+] as const;
+
+/** One Bot Admin entry point; reuses authorized, verified emoji editors. */
+async function admStartIconView() {
+  const s = await getSettings();
+  const kb: Button[][] = [
+    [{ text: "🏠 Welcome title icon", callback_data: "adm:pi:home" }],
+    [{ text: "🔠 Welcome title / Premium letters", callback_data: "adm:hd:home" }],
+    ...START_UI_ICONS.map(([key, label]) => [uiBtn(s, key, `adm:uii:${key}`, `· ${label}`)]),
+    [{ text: "✏️ Welcome description text", callback_data: "adm:uit:home_description" }],
+    [{ text: "🧩 Menu & explanation emojis", callback_data: "adm:menuicons" }],
+    [{ text: "⌨️ Bottom menu emojis", callback_data: "adm:bottommenu" }],
+    ...ADM_BACK,
+  ];
+  return {
+    text: "👋 <b>Start &amp; welcome emojis</b>\n\n" +
+      "Choose an element below, then send the Premium emoji itself, a custom emoji ID, or a normal emoji. Send <code>-</code> to reset.\n\n" +
+      "Menu icons are shared by the menu buttons and their explanations in the welcome message. " +
+      "Greeting, description, continue prompt and all three community links have separate emoji settings.",
+    kb,
+  };
+}
 
 async function admMenuIconView() {
   const settings = await getSettings();
@@ -7838,6 +7870,9 @@ async function handleCallback(cq: any) {
 
     } else if (action === "ui") {
       const v = await admUiGroupView();
+      await edit(v.text, v.kb);
+    } else if (action === "starticons") {
+      const v = await admStartIconView();
       await edit(v.text, v.kb);
     } else if (action === "paymenticons") {
       const v = await admPaymentIconsView();
