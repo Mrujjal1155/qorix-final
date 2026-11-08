@@ -619,9 +619,9 @@ bot.on("callback_query", async (q) => {
               <code className="font-mono">price</code>; whatever you charge your customer is your profit.
             </p>
             <p>
-              <strong>What if delivery fails?</strong> If an in-stock item cannot be delivered, the order is voided and
-              your wallet is refunded automatically. Some products stay <code className="font-mono">pending</code>{" "}
-              (paid) while we retry, then complete with items — or are cancelled and refunded.
+              <strong>What if delivery fails?</strong> Confirmed in-house auto failures and limited manual-stock shortages
+              return HTTP 409 delivery_failed with a confirmed refund and a retained cancelled order.
+              Supplier-linked failures currently stay paid and pending for admin retry; manual processing and interrupted stock fulfilment also retain their existing pending behaviour.
             </p>
             <p>
               <strong>Can I use one key for a website and a bot?</strong> Yes, if both channels are enabled on your
@@ -642,6 +642,11 @@ bot.on("callback_query", async (q) => {
 
           <Section id="changelog" title="13. API changelog">
             <p>Every change to the API is listed here, newest first. Check it when something behaves differently.</p>
+            <p><strong>Preview-only Phase 1 — not yet published</strong></p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Confirmed in-house and limited manual-stock failures retain cancelled orders, expose refunded: true and share HTTP 409 delivery_failed. Atomic debit rejection includes balance and required.</li>
+              <li>Supplier-auto refund changes are blocked pending coordinated refund/retry safety; the existing paid pending behaviour remains unchanged.</li>
+            </ul>
             <p><strong>2026-10-18 — Charged stock-order recovery</strong></p>
             <ul className="list-disc space-y-1 pl-5">
               <li>Instant stock allocation and completion are saved together. Interrupted, already-charged stock orders are retried automatically without another wallet debit or duplicate stock allocation.</li>
@@ -651,7 +656,7 @@ bot.on("callback_query", async (q) => {
             <ul className="list-disc space-y-1 pl-5">
               <li>Use the documented QORIX product endpoints rather than querying underlying database tables. Internal connection settings and diagnostics are private. Product IDs, selling prices, stock, descriptions, images and order endpoints are unchanged.</li>
               <li>Webhook addresses must use public HTTPS on the default port, without embedded credentials. Private network destinations are rejected and redirects are not followed; use your final webhook URL.</li>
-              <li>Unsuccessful automatic delivery returns the neutral error code <code>delivery_failed</code>. Read the response's <code>refunded</code> flag rather than assuming a balance change from the error code.</li>
+              <li>Confirmed in-house automatic delivery failure returns the neutral error code <code>delivery_failed</code>. Read the response's <code>refunded</code> flag; supplier-linked failures currently use the pending exception above.</li>
             </ul>
             <p>
               <strong>2026-10-29</strong>
@@ -704,7 +709,7 @@ bot.on("callback_query", async (q) => {
                 <code className="font-mono">"submitted": true</code> and <code className="font-mono">status: "pending"</code>;
                 your balance is kept and items arrive once we deliver.
               </li>
-              <li>A temporarily unavailable product returns <code className="font-mono">code: "delivery_failed"</code> with a refund — never "Insufficient balance".</li>
+              <li>Confirmed in-house delivery unavailability returns <code className="font-mono">code: "delivery_failed"</code> with a refund; supplier-linked failures currently retain payment pending admin retry.</li>
             </ul>
           </Section>
         </div>
