@@ -5,6 +5,7 @@ const user: any = { telegram_id: 123, first_name: "Test", state: { co: { items: 
 let buttons: any[][] = [];
 let rendered = "";
 let reads: string[] = [];
+let profileCounts = 0;
 let enabled = true;
 const legacy = "5400280896311944999";
 mock.module("@/lib/bybit.server", () => ({ bybitSettings: async () => ({ bybit_enabled: enabled ? "1" : "0", bybit_api_verified: "1", bybit_uid: "98765", bybit_icon: legacy }), findBybitPayment: async () => { throw new Error("Unexpected payment verification"); } }));
@@ -17,7 +18,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
     let key = "";
     const result = () => ({ data: table === "bot_settings" ? (key ? { value: settings[key] } : Object.entries(settings).map(([key, value]) => ({ key, value }))) : table === "bot_users" ? user : table === "products" ? [{ id: "p1", name: "Test product", is_active: true, delivery_type: "manual", price: 2 }] : [], error: null, count: table === "orders" ? 7 : null });
     const chain: any = {
-      select: () => chain, order: () => chain, range: () => chain, in: () => chain, neq: () => chain, limit: () => chain, gte: () => chain, lt: () => chain, or: () => chain,
+      select: (_columns: string, options?: { head?: boolean; count?: string }) => { if (table === "orders" && options?.head && options.count === "exact") profileCounts++; return chain; }, order: () => chain, range: () => chain, in: () => chain, neq: () => chain, limit: () => chain, gte: () => chain, lt: () => chain, or: () => chain,
       eq: (field: string, value: string) => { if (field === "key") key = value; return chain; },
       update: (value: any) => { if (table === "bot_users" && value.state) user.state = value.state; return chain; },
       upsert: (value: any) => { if (table === "bot_settings") settings[value.key] = value.value; return chain; },
@@ -47,19 +48,21 @@ async function reply(text: string, emojiId?: string) {
 // All networking and writes are mocked: no live messages, orders or settings.
 test("start and return-home never read order details or include private referral controls", async () => {
   reads = [];
+  profileCounts = 0;
   await reply("/start");
-  expect(reads.filter(t => t === "orders")).toHaveLength(0);
+  expect(profileCounts).toBe(0);
   expect(buttons.flat().some(b => b.copy_text)).toBe(false);
   expect(rendered.includes(user.ref_code)).toBe(false);
   await click("home");
-  expect(reads.filter(t => t === "orders")).toHaveLength(0);
+  expect(profileCounts).toBe(0);
   expect(buttons.flat().some(b => b.copy_text)).toBe(false);
 });
 
 test("profile loads the customer's order aggregate and copies their exact referral link", async () => {
   reads = [];
+  profileCounts = 0;
   await click("profile");
-  expect(reads.filter(t => t === "orders")).toHaveLength(1);
+  expect(profileCounts).toBe(1);
   const copy = buttons.flat().find(b => b.copy_text);
   expect(copy?.copy_text.text).toBe("https://t.me/your_bot?start=ref_TESTREF");
   expect(copy?.callback_data).toBeUndefined();
