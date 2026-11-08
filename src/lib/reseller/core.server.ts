@@ -317,6 +317,7 @@ export function orderPayload(o: any) {
     status: o.status,
     delivery_type: o.delivery_type,
     items: o.delivered_content ? String(o.delivered_content).split("\n---\n") : [],
+    ...(o.meta?.refunded === true ? { refunded: true } : {}),
     customer_name: o.customer_name ?? null,
     customer_email: o.customer_email ?? null,
     created_at: o.created_at,
@@ -443,8 +444,9 @@ export async function purchase(
     _note: `${qty}× ${p.name}`,
   });
   if (debitError) {
-    await db.from("orders").delete().eq("id", reserved.id);
-    return { ok: false as const, status: 402, error: "Unable to process balance. Please check your balance and try again." };
+    await db.from("orders").update({ status: "cancelled", delivered_content: null, meta: { ...(reserved.meta ?? {}), debit_failed: true } }).eq("id", reserved.id);
+    const { data: current } = await db.from("resellers").select("balance").eq("id", reseller.id).maybeSingle();
+    return { ok: false as const, status: 402, error: "Unable to process balance. Please check your balance and try again.", balance: Number(current?.balance ?? reseller.balance), required: total };
   }
 
   // 2b) Limited manual stock: take the unit now. If none is left (or the
@@ -452,15 +454,20 @@ export async function purchase(
   if (p.delivery_type === "manual" && p.manual_stock_limited) {
     const { data: took, error: takeError } = await db.rpc("take_manual_stock", { _pid: p.id, _qty: qty });
     if (takeError || took === false) {
-      await db.rpc("reseller_adjust_balance", {
+      const { error: refundError } = await db.rpc("reseller_adjust_balance", {
         _reseller_id: reseller.id,
         _amount: total,
         _type: "refund",
         _reference: ref,
         _note: "Refund: out of stock",
       });
-      await db.from("orders").delete().eq("id", reserved.id);
-      return { ok: false as const, status: 409, error: "Out of stock. Your balance was refunded.", refunded: true };
+      if (refundError) {
+        console.error("reseller manual refund failed", reserved.id, refundError);
+        return { ok: false as const, status: 503, error: "Refund could not be confirmed — please contact support." };
+      }
+      const { error: saveError } = await db.from("orders").update({ status: "cancelled", delivered_content: null, meta: { ...(reserved.meta ?? {}), refunded: true } }).eq("id", reserved.id);
+      if (saveError) console.error("reseller refunded order save failed", reserved.id, saveError);
+      return { ok: false as const, status: 409, error: "Delivery failed — please try again later.", code: "delivery_failed", refunded: true };
     }
   }
 
@@ -570,20 +577,23 @@ export async function purchase(
 
   // 3) Nothing delivered on an instant product → refund and void the order.
   if (status !== "completed" && p.delivery_type === "auto") {
-    await db.rpc("reseller_adjust_balance", {
+    const { error: refundError } = await db.rpc("reseller_adjust_balance", {
       _reseller_id: reseller.id,
       _amount: total,
       _type: "refund",
       _reference: ref,
       _note: failReason === "Out of stock" ? "Refund: out of stock" : "Refund: delivery failed",
     });
-    await db.from("orders").delete().eq("id", reserved.id);
+    if (refundError) {
+      console.error("reseller auto refund failed", reserved.id, refundError);
+      return { ok: false as const, status: 503, error: "Refund could not be confirmed — please contact support." };
+    }
+    const { error: saveError } = await db.from("orders").update({ status: "cancelled", delivered_content: null, meta: { ...(reserved.meta ?? {}), refunded: true } }).eq("id", reserved.id);
+    if (saveError) console.error("reseller refunded order save failed", reserved.id, saveError);
     // Supplier-side errors (e.g. OUR supplier wallet is empty → "Insufficient balance")
     // must not look like the reseller's own balance problem.
     const fromSupplier = Boolean(p.supplier_id && p.supplier_external_id);
-    const error = fromSupplier
-      ? "Product temporarily unavailable — please try again later. Your balance was refunded."
-      : failReason === "Out of stock" ? "Out of stock. Your balance was refunded." : "Delivery failed — please try again later. Your balance was refunded.";
+    const error = "Delivery failed — please try again later.";
     if (fromSupplier) console.error("reseller supplier fulfilment failed", p.id, failReason);
     return { ok: false as const, status: 409, error, code: "delivery_failed", refunded: true };
   }
