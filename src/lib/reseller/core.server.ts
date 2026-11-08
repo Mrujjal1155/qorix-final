@@ -317,14 +317,16 @@ export function orderPayload(o: any) {
     status: o.status,
     delivery_type: o.delivery_type,
     items: o.delivered_content ? String(o.delivered_content).split("\n---\n") : [],
-    ...(o.meta?.refunded === true ? { refunded: true } : {}),
+    ...(o.meta?.reseller_owner_rule || o.meta?.refunded === true ? { refunded: o.meta?.refunded === true } : {}),
     customer_name: o.customer_name ?? null,
     customer_email: o.customer_email ?? null,
     created_at: o.created_at,
   };
 }
 
-/** Buy a product on behalf of a reseller: debit wallet, fulfil, refund on failure. */
+/** Pre-check stock/balance; refund only a persisted debit plus confirmed QORIX
+ * delivery failure. Refund is terminal failed: never retry/refund twice.
+ * Cancel/expiry never refunds. Unknown delivery outcomes require readback. */
 export async function purchase(
   reseller: Reseller,
   input: { product_id: string; quantity: number; external_ref?: string | null; customer_name?: string | null; customer_email?: string | null; channel: Channel },
@@ -354,16 +356,29 @@ export async function purchase(
   // A custom price (qty >= min_qty) is final: no discount percent, no bulk tiers.
   const customMap = ownProduct ? {} : await resellerCustomPrices(reseller.id, [String(p.id)]);
   const custom = customMap[String(p.id)];
-  const customApplies = Boolean(custom && qty >= custom!.min_qty);
-  let unit = ownProduct ? 0 : customApplies ? custom!.price : apiUnitPrice(p, reseller);
+  const customApplies = custom !== undefined && qty >= custom.min_qty;
+  let unit = ownProduct ? 0 : customApplies && custom ? custom.price : apiUnitPrice(p, reseller);
   if (!ownProduct && !customApplies) {
     const { bulkTiersFor, bulkUnit } = await import("@/lib/bulk-discount.server");
     const bulk = await bulkTiersFor([String(p.id)], "api");
     unit = bulkUnit(p, unit, qty, bulk[String(p.id)]);
   }
   const total = Math.round(unit * qty * 100) / 100;
-  if (Number(reseller.balance) + 1e-9 < total)
-    return { ok: false as const, status: 402, error: "Insufficient balance", balance: Number(reseller.balance), required: total };
+  // No reservation, debit or refund on a pre-check rejection. Unlimited manual
+  // products retain their existing availability; no channel/category allowlist.
+  if (p.delivery_type === "auto" || p.manual_stock_limited) {
+    const { data: stock, error: stockError } = p.supplier_id
+      ? { data: [{ available: p.supplier_stock }], error: null }
+      : await db.rpc("stock_counts", { _product_ids: [p.id] });
+    if (stockError) return { ok: false as const, status: 503, error: "Product temporarily unavailable" };
+    if (Number(stock?.[0]?.available ?? 0) < qty)
+      return { ok: false as const, status: 409, code: "out_of_stock", error: "Product temporarily unavailable", refunded: false };
+  }
+  const { data: liveBalance, error: balanceError } = await db.from("resellers").select("balance").eq("id", reseller.id).maybeSingle();
+  if (balanceError) return { ok: false as const, status: 503, error: "Balance temporarily unavailable" };
+  const balanceBefore = Number(liveBalance?.balance ?? reseller.balance);
+  if (balanceBefore + 1e-9 < total)
+    return { ok: false as const, status: 402, error: "Insufficient balance", balance: balanceBefore, required: total };
   // Limited manual stock is taken only after the order is recorded and paid
   // (step 2b below), so a dropped/duplicate/unpaid order never consumes a unit.
 
@@ -382,8 +397,8 @@ export async function purchase(
       quantity: qty,
       unit_price: unit,
       total,
-      // orders.status only allows pending | completed | cancelled — reserve as pending.
       status: "pending",
+      meta: { reseller_owner_rule: true, refunded: false },
       delivery_type: p.delivery_type,
       customer_name: input.customer_name ?? reseller.name,
       customer_email: input.customer_email ?? null,
@@ -422,7 +437,7 @@ export async function purchase(
       .neq("status", "cancelled")
       .neq("id", reserved.id)
       .gte("created_at", since);
-    if (hasEmail) q = q.ilike("customer_email", likeExact(input.customer_email!));
+    if (hasEmail && input.customer_email) q = q.ilike("customer_email", likeExact(input.customer_email));
     else {
       q = q.is("customer_email", null);
       q = input.customer_name ? q.eq("customer_name", input.customer_name) : q.eq("customer_name", reseller.name);
@@ -430,47 +445,31 @@ export async function purchase(
     const { data: twins } = await q.order("created_at", { ascending: true }).limit(1);
     const first = (twins ?? [])[0];
     if (first && (first.created_at < reserved.created_at || (first.created_at === reserved.created_at && first.id < reserved.id))) {
-      await db.from("orders").delete().eq("id", reserved.id);
+      await db.from("orders").update({ status: "cancelled", delivered_content: null, meta: { ...reserved.meta, refunded: false, duplicate_of: first.id } }).eq("id", reserved.id);
       return { ok: true as const, duplicate: true, order: orderPayload(first) };
     }
   }
 
   // 2) Debit the wallet atomically (the DB rejects a negative balance).
-  const { data: balanceAfter, error: debitError } = await db.rpc("reseller_adjust_balance", {
-    _reseller_id: reseller.id,
-    _amount: -total,
-    _type: "order",
-    _reference: ref,
-    _note: `${qty}× ${p.name}`,
-  });
-  if (debitError) {
-    await db.from("orders").update({ status: "cancelled", delivered_content: null, meta: { ...(reserved.meta ?? {}), debit_failed: true } }).eq("id", reserved.id);
+  // Wrapper still uses reseller_adjust_balance for the successful debit, but
+  // persists transfer success on the order and ledger in that same transaction.
+  const { data: debit, error: debitError } = await db.rpc("debit_reseller_order", { _order_id: reserved.id });
+  if (debitError) return { ok: false as const, status: 503, error: "Order payment could not be confirmed — check your existing order." };
+  if (debit?.status !== "debited") {
+    await db.from("orders").update({ status: "cancelled", delivered_content: null, meta: { ...(reserved.meta ?? {}), refunded: false, debit_failed: true } }).eq("id", reserved.id);
     const { data: current } = await db.from("resellers").select("balance").eq("id", reseller.id).maybeSingle();
-    return { ok: false as const, status: 402, error: "Unable to process balance. Please check your balance and try again.", balance: Number(current?.balance ?? reseller.balance), required: total };
+    return { ok: false as const, status: 402, error: "Insufficient balance", balance: Number(current?.balance ?? reseller.balance), required: total };
   }
+  const balanceAfter = debit.balance;
 
   // 2b) Limited manual stock: take the unit now. If none is left (or the
   //     check fails), refund the debit and void the order — nothing is lost.
   if (p.delivery_type === "manual" && p.manual_stock_limited) {
     const { data: took, error: takeError } = await db.rpc("take_manual_stock", { _pid: p.id, _qty: qty });
     if (takeError || took === false) {
-      const { error: refundError } = await db.rpc("reseller_adjust_balance", {
-        _reseller_id: reseller.id,
-        _amount: total,
-        _type: "refund",
-        _reference: ref,
-        _note: "Refund: out of stock",
-      });
-      if (refundError) {
-        console.error("reseller manual refund failed", reserved.id, refundError);
-        return { ok: false as const, status: 503, error: "Refund could not be confirmed — please contact support." };
-      }
-      const { error: saveError } = await db.from("orders").update({ status: "cancelled", delivered_content: null, meta: { ...(reserved.meta ?? {}), refunded: true } }).eq("id", reserved.id);
-      if (saveError) {
-        console.error("reseller refunded order save failed", reserved.id, saveError);
-        return { ok: false as const, status: 503, error: "Refund issued but order status could not be saved — please contact support.", refunded: true };
-      }
-      return { ok: false as const, status: 409, error: "Delivery failed — please try again later.", code: "delivery_failed", refunded: true };
+      if (takeError) return { ok: false as const, status: 503, error: "Delivery status could not be confirmed — please contact support." };
+      const { refundResellerDeliveryFailure } = await import("./failure-refund.server");
+      return refundResellerDeliveryFailure(reserved.id, "out_of_stock");
     }
   }
 
@@ -487,12 +486,13 @@ export async function purchase(
   let delivered: string | null = null;
   let status = "pending";
   let failReason: string | null = null;
+  let confirmedFailure = false;
 
   try {
-    if (p.supplier_id && p.supplier_external_id) {
+    if (p.delivery_type === "auto" && p.supplier_id && p.supplier_external_id) {
       const { data: sup } = await db.from("suppliers").select("*").eq("id", p.supplier_id).maybeSingle();
-      if (!sup) failReason = "Supplier record not found";
-      else if (!sup.is_enabled) failReason = "Supplier is temporarily unavailable";
+      if (!sup) { failReason = "Supplier record not found"; confirmedFailure = true; }
+      else if (!sup.is_enabled) { failReason = "Supplier is temporarily unavailable"; confirmedFailure = true; }
       else {
         const { supplierOrder } = await import("@/lib/suppliers/api.server");
         const { supplierPreflight, supplierUnitCost } = await import("@/lib/suppliers/fulfil.server");
@@ -523,6 +523,7 @@ export async function purchase(
         status = "completed";
       } else if (result.status === "out_of_stock") {
         failReason = "Out of stock";
+        confirmedFailure = true;
       } else {
         throw new Error("Stock delivery awaiting recovery");
       }
@@ -539,19 +540,20 @@ export async function purchase(
       };
     }
     failReason = e instanceof Error ? e.message : "Fulfilment failed";
+    confirmedFailure = (e as { deliveryOutcome?: string })?.deliveryOutcome === "rejected";
   }
 
   // 3a) Supplier-linked product failed on OUR side (e.g. our supplier wallet is
   // empty): keep the reseller's payment and park the order as pending so the
   // admin can top up and press "Retry API". The reseller gets "submitted".
   const fromSupplierLink = Boolean(p.supplier_id && p.supplier_external_id);
-  if (status !== "completed" && fromSupplierLink) {
+  if (status !== "completed" && fromSupplierLink && p.delivery_type === "auto" && !confirmedFailure) {
     console.error("reseller supplier fulfilment parked", p.id, failReason);
     const { data: parked } = await db
       .from("orders")
       .update({
         status: "pending",
-        meta: { ...((reserved as any).meta ?? {}), supplier_failed: true, supplier_error: String(failReason ?? "").slice(0, 300) },
+        meta: { ...((reserved as any).meta ?? {}), reseller_owner_rule: true, paid: true, debit_amount: total, refunded: false, supplier_outcome: "unknown", supplier_failed: true, supplier_error: String(failReason ?? "").slice(0, 300) },
       })
       .eq("id", reserved.id)
       .select("*")
@@ -563,8 +565,7 @@ export async function purchase(
         `⚠️ <b>API order #${(reserved as any).order_no}</b> waiting — supplier purchase failed.\n` +
           `Reseller: ${esc(reseller.name)}\n${qty}× ${esc(p.name)}\n` +
           `Reason: ${esc(String(failReason ?? "unknown"))}\n` +
-          `Top up the supplier, then press Retry.`,
-        [[{ text: "🔁 Retry API delivery", callback_data: `adm:ar:${reserved.id}` }]] as any,
+          `Reconcile the existing supplier order before any retry.`,
       );
     })().catch(() => {});
     const { backgroundWaitUntil } = await import("@/lib/bg.server");
@@ -580,28 +581,9 @@ export async function purchase(
 
   // 3) Nothing delivered on an instant product → refund and void the order.
   if (status !== "completed" && p.delivery_type === "auto") {
-    const { error: refundError } = await db.rpc("reseller_adjust_balance", {
-      _reseller_id: reseller.id,
-      _amount: total,
-      _type: "refund",
-      _reference: ref,
-      _note: failReason === "Out of stock" ? "Refund: out of stock" : "Refund: delivery failed",
-    });
-    if (refundError) {
-      console.error("reseller auto refund failed", reserved.id, refundError);
-      return { ok: false as const, status: 503, error: "Refund could not be confirmed — please contact support." };
-    }
-    const { error: saveError } = await db.from("orders").update({ status: "cancelled", delivered_content: null, meta: { ...(reserved.meta ?? {}), refunded: true } }).eq("id", reserved.id);
-    if (saveError) {
-      console.error("reseller refunded order save failed", reserved.id, saveError);
-      return { ok: false as const, status: 503, error: "Refund issued but order status could not be saved — please contact support.", refunded: true };
-    }
-    // Supplier-side errors (e.g. OUR supplier wallet is empty → "Insufficient balance")
-    // must not look like the reseller's own balance problem.
-    const fromSupplier = Boolean(p.supplier_id && p.supplier_external_id);
-    const error = "Delivery failed — please try again later.";
-    if (fromSupplier) console.error("reseller supplier fulfilment failed", p.id, failReason);
-    return { ok: false as const, status: 409, error, code: "delivery_failed", refunded: true };
+    const { refundResellerDeliveryFailure } = await import("./failure-refund.server");
+    if (fromSupplierLink) console.error("reseller supplier fulfilment failed", p.id, failReason);
+    return refundResellerDeliveryFailure(reserved.id, fromSupplierLink ? "delivery_rejected" : "out_of_stock", fromSupplierLink ? failReason : null);
   }
 
   const { data: order } = await db
