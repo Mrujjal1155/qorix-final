@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Owner-rule reseller fix: pre-debit stock/balance checks, atomic centrally persisted failure refund and terminal retry protection, retained no-refund cancellation/expiry, aligned docs and focused tests. Stop any conflicting shared production path; no publish or live order tests.
+
 - [x] Phase 1 safe subset: retain cancelled in-house/manual failures, neutral HTTP 409, refunded projection and debit-race amounts; document API limits and explicit supplier exception; isolated reseller suites and preview docs verified without live purchases/deployment.
 - [ ] Phase 1 supplier-auto refund: blocked by non-idempotent reseller_adjust_balance and supplier Retry allowing refunded/cancelled orders; requires coordinated atomic refund and retry guards outside this phase. Supplier pending behaviour left unchanged under owner's STOP rule.
 
