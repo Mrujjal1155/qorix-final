@@ -455,6 +455,8 @@ export async function purchase(
   // persists transfer success on the order and ledger in that same transaction.
   const { data: debit, error: debitError } = await db.rpc("debit_reseller_order", { _order_id: reserved.id });
   if (debitError) return { ok: false as const, status: 503, error: "Order payment could not be confirmed — check your existing order." };
+  if (debit?.status !== "debited" && debit?.status !== "insufficient_balance")
+    return { ok: false as const, status: 503, error: "Order payment could not be confirmed — check your existing order." };
   if (debit?.status !== "debited") {
     await db.from("orders").update({ status: "cancelled", delivered_content: null, meta: { ...(reserved.meta ?? {}), refunded: false, debit_failed: true } }).eq("id", reserved.id);
     const { data: current } = await db.from("resellers").select("balance").eq("id", reseller.id).maybeSingle();

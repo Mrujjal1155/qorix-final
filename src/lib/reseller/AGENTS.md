@@ -1,0 +1,2 @@
+- New reseller purchase transfers use order-locked RPCs that persist order metadata and ledger together; terminal refunds cannot retry, because separate balance/status writes can double-credit or deliver unpaid stock.
+- Unknown external delivery outcomes stay pending for reconciliation; never infer rejection from message text or race legacy retry against a new purchase.
