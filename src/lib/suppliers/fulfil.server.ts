@@ -112,6 +112,10 @@ export async function recordSupplierError(orderId: string, reason: string | null
 export async function retrySupplierDelivery(orderId: string): Promise<RetryResult> {
   const { data: order } = await db.from("orders").select("*").eq("id", orderId).maybeSingle();
   if (!order) return { ok: false, reason: "Order not found" };
+  if (order.reseller_id && (order.meta?.refunded === true || ["failed", "refunded", "cancelled", "expired"].includes(order.status)))
+    return { ok: false, reason: "Terminal orders cannot be retried for delivery" };
+  if (order.meta?.reseller_owner_rule && order.meta?.supplier_outcome === "unknown")
+    return { ok: false, reason: "Delivery outcome needs reconciliation before retry" };
 
   const { data: product } = await db
     .from("products")
