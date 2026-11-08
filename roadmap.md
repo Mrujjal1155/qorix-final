@@ -1,6 +1,7 @@
 # Roadmap
 
 - [ ] Approved preview-only Telegram start: short welcome/menu explanations and three real community links, full account/wallet/referral details in Profile, bot-admin editable Premium icons; remove start-only detail reads, verify mocked navigation and regressions. No publish or real Telegram send.
+- [ ] Fold in Prime Labs reference: QORIX-branded welcome and admin-editable start description including the owner's “100% authentic” wording; do not copy the other shop's links or unsupported delivery claims.
 
 - [x] Approved API safe hardening: controlled JSON/limit/read errors, no ambiguous supplier write fallback, explicit retry classification, confirmed order-locked completion/readback and immutable new-order terminal/financial state; docs updated. 36 reseller + 10 in-house/webhook tests pass; additive narrow SQL applied, no historical writes or publish.
 - [ ] Full API certification blocked: 10 historical duplicate reference/type groups need owner-approved reconciliation before legacy adjustment/unique rules; shared wallet lock-order changes need isolated multi-session validation (local PostgreSQL startup failed due missing runtime extension); supplier partial-unit contracts and old admin/retry compatibility need supplier evidence. Deep scan still running; signed-in paid end-to-end requires owner approval/external account access. No historical repair or live paid test.
