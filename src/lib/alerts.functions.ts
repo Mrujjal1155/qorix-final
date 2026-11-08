@@ -194,3 +194,28 @@ export const deletePendingAlert = createServerFn({ method: "POST" })
     }
     return result.data as unknown as { recipients: number; events: number };
   });
+
+/** Admin "Alert" button: queue one STILL AVAILABLE card for an in-stock product. */
+export const sendStillAvailableAlert = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { productId: string }) => {
+    if (!d || typeof d.productId !== "string" || !/^[0-9a-f-]{36}$/i.test(d.productId)) throw new Error("Invalid product");
+    return d;
+  })
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: p } = await supabaseAdmin.from("products").select("id,is_active,supplier_id,supplier_stock").eq("id", data.productId).maybeSingle();
+    if (!p || (p as any).is_active === false) throw new Error("Product is not active");
+    let stock = 0;
+    if ((p as any).supplier_id) stock = Number((p as any).supplier_stock ?? 0);
+    else {
+      const { count } = await supabaseAdmin.from("stock_items").select("id", { count: "exact", head: true }).eq("product_id", data.productId).eq("is_sold", false);
+      stock = count ?? 0;
+    }
+    if (stock <= 0) throw new Error("Out of stock — alert not sent");
+    const { enqueueStillAvailable, drainAllNotifications } = await import("@/lib/suppliers/sync.server");
+    await enqueueStillAvailable(supabaseAdmin, data.productId, stock);
+    void drainAllNotifications().catch(() => {});
+    return { ok: true, stock };
+  });
