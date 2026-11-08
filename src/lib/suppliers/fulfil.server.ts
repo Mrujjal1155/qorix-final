@@ -138,6 +138,10 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
   if (order.status === "completed") return { ok: false, reason: "Order is already completed" };
   if (!product?.supplier_id || !product.supplier_external_id)
     return { ok: false, reason: "This product is not linked to a supplier API — deliver it manually." };
+  // New supplier purchases own their attempt. Never race a pending initial
+  // purchase/refund with this legacy timestamp-reference retry path.
+  if (order.meta?.reseller_owner_rule)
+    return { ok: false, reason: "Delivery outcome needs reconciliation before retry" };
 
   // Always order against the supplier's live id/stock/cost, never a stale snapshot.
   let liveCost: number | undefined;
