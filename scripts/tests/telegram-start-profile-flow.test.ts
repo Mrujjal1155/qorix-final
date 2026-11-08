@@ -98,3 +98,29 @@ for (const slot of ["home_greet", "home_description", "home_choose", "home_commu
     expect(settings[`ui_icon_${slot}`]).toBe("");
   });
 }
+
+test("dedicated Bot Admin start editor routes each icon to the existing save handler", async () => {
+  await click("adm:starticons");
+  const actions = buttons.flat().map(b => b.callback_data);
+  for (const slot of ["home_greet", "home_description", "home_choose", "home_community", "home_group", "home_channel", "home_updates"]) {
+    expect(actions.includes(`adm:uii:${slot}`)).toBe(true);
+  }
+  expect(actions.includes("adm:pi:home")).toBe(true);
+  expect(actions.includes("adm:hd:home")).toBe(true);
+  expect(actions.includes("adm:menuicons")).toBe(true);
+  expect(actions.includes("adm:bottommenu")).toBe(true);
+  for (const data of actions) {
+    expect(new TextEncoder().encode(data).length).toBeLessThanOrEqual(64);
+  }
+});
+
+test("non-admin cannot open the dedicated start emoji editor or save a welcome emoji", async () => {
+  await click("adm:stats");
+  const previous = JSON.stringify(buttons);
+  const icon = settings.ui_icon_home_greet;
+  await click("adm:starticons", 456);
+  expect(JSON.stringify(buttons)).toBe(previous);
+  await click("adm:uii:home_greet", 456);
+  expect(settings.ui_icon_home_greet).toBe(icon);
+  expect(user.state.awaiting).not.toBe("adm_ui_icon");
+});
