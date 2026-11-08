@@ -15,8 +15,10 @@ export async function recoverUnchargedResellerOrders(onlyId?: string): Promise<n
     .not("reseller_id", "is", null)
     .not("external_ref", "is", null)
     .is("delivered_content", null)
+    .or("meta->>reseller_owner_rule.is.null,meta->>reseller_owner_rule.neq.true")
     .lt("created_at", new Date(Date.now() - MIN_AGE_MS).toISOString())
     .gt("created_at", new Date(Date.now() - 7 * 86400_000).toISOString())
+    .order("created_at", { ascending: true })
     .limit(20);
   if (onlyId) q = q.eq("id", onlyId);
   const { data: rows } = await q;
