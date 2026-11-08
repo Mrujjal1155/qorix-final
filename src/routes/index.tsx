@@ -223,7 +223,7 @@ function Landing() {
             />
             <div className="grid gap-x-5 gap-y-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {products.slice(0, 12).map((p, i) => (
-                <ProductCard key={p.id} product={p} priority={i < 4} variantNote={notes.get(p.id)} />
+                <ProductCard key={p.id} product={p} priority={i < 4} variantNote={notes.get(p.id)} stockOnly />
               ))}
             </div>
           </div>

@@ -32,11 +32,14 @@ export function ProductCard({
   product,
   priority = false,
   variantNote,
+  stockOnly = false,
 }: {
   product: StoreProduct;
   priority?: boolean;
   /** Shown when another listing has the same name, so buyers can tell them apart. */
   variantNote?: string | undefined;
+  /** Landing cards keep delivery and warranty information on the details page. */
+  stockOnly?: boolean;
 }) {
   const t = useT();
   const off = discountPct(product);
@@ -48,6 +51,8 @@ export function ProductCard({
   const badgeNoWarranty = /no\s*warranty/i.test(product.badge ?? "");
   // Only an explicit "not in stock" disables buying; unknown keeps the old behaviour.
   const soldOut = product.in_stock === false;
+  const visibleVariantNote = stockOnly ? variantNote?.split(" · ").slice(0, 2).join(" · ") : variantNote;
+  const stockLabel = soldOut ? t("Out of stock") : t("In stock");
 
   return (
     <article className="group relative flex flex-col">
@@ -74,7 +79,7 @@ export function ProductCard({
           ) : (
             <span />
           )}
-          {product.badge ? (
+          {!stockOnly && product.badge ? (
             <span
               className={`rounded-sm border px-2 py-0.5 font-mono text-[10px] font-medium uppercase tracking-wider backdrop-blur ${
                 badgeNoWarranty
@@ -90,9 +95,9 @@ export function ProductCard({
 
       <div className="flex flex-1 flex-col gap-2 pt-4">
         <h3 className="line-clamp-2 text-[15px] font-semibold leading-snug tracking-tight">{product.name}</h3>
-        {variantNote ? (
+        {visibleVariantNote ? (
           <p className="border-l-2 border-primary pl-2 font-mono text-[11px] text-primary">
-            {variantNote}
+            {visibleVariantNote}
           </p>
         ) : null}
 
@@ -101,11 +106,18 @@ export function ProductCard({
 
         <p
           className={`inline-flex items-center gap-1.5 text-xs ${
-            noWarranty ? "text-warning" : "text-success"
+            stockOnly ? (soldOut ? "text-destructive" : "text-success") : noWarranty ? "text-warning" : "text-success"
           }`}
         >
-          <ShieldCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
-          {deliveryText}
+          {stockOnly ? (
+            <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
+          ) : (
+            <ShieldCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
+          )}
+          {stockOnly ? stockLabel : deliveryText}
+          {stockOnly && !soldOut && Number(product.stock) > 0 ? (
+            <span className="font-mono tabular-nums text-muted-foreground">· {product.stock}</span>
+          ) : null}
         </p>
 
         <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 border-t border-[color-mix(in_oklab,var(--foreground)_10%,transparent)] pt-3">
