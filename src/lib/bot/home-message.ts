@@ -12,6 +12,7 @@ export type StartMessageContent = {
   header: string;
   greeting: string;
   choose: string;
+  description: string;
   menu: Array<{ label: string; description: string }>;
   community: string;
   groupIcon: string;
@@ -22,6 +23,7 @@ export type StartMessageContent = {
 /** Lightweight ordinary HTML: no account tables or private referral links. */
 export function buildStartMessage(content: StartMessageContent): string {
   return `${content.header}\n\n${content.greeting}\n\n` +
+    `${content.description}\n\n` +
     `<blockquote>${content.menu.map(({ label, description }) => `${label} — ${description}`).join("\n")}</blockquote>\n\n` +
     `<b>${content.community}</b>\nJoin for stock alerts and updates.\n` +
     `${content.groupIcon} <a href="https://t.me/QORIXCHAT">Community Group</a>\n` +

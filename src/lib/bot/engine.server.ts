@@ -884,9 +884,10 @@ async function homeText(user: any) {
     ["clear", "Remove tracked bot chat messages"],
   ] as const;
   return buildStartMessage({
-    header: sectionHead(s, "home", `<b>${escapeHtml(botName)}</b>`),
+    header: sectionHead(s, "home", `<b>Welcome to ${escapeHtml(botName)}!</b>`),
     greeting: `${uiIconHtml(s, "home_greet")} ${escapeHtml(uiText(s, "home_greet"))}, <b>${escapeHtml(user.first_name ?? "friend")}</b>!`,
     choose: uiTag(s, "home_choose"),
+    description: uiTag(s, "home_description"),
     menu: menu.map(([key, description]) => {
       const { customId, glyph } = menuButtonText(s, key);
       const icon = customId ? `<tg-emoji emoji-id="${customId}">${escapeHtml(glyph)}</tg-emoji>` : escapeHtml(glyph);
@@ -956,17 +957,21 @@ async function profileView(chatId: number, user: any) {
     `──────────────\n` +
     (next
       ? `${uiTag(s, "tier_next")}: <b>${escapeHtml(next.name)}</b> — spend ${money(remaining)} more\n`
-      : `${uiTag(s, "tier_current")}: highest tier reached 🎉\n`) +
-    `${uiTag(s, "prof_since")} ${fmtDate(user.created_at)}`;
+      : `${uiTag(s, "tier_current")}: highest tier reached\n`);
 
   const kb: Button[][] = [
     [uiBtn(s, "prof_orders_btn", "orders"), uiBtn(s, "prof_refer_btn", "refstore")],
-    ...(user.ref_code ? [[{ ...referralCopyButton(link), ...uiBtn(s, "ref_copy_btn", "refcopy"), callback_data: undefined }]] : []),
+    ...(user.ref_code ? [[profileCopyButton(s, link)]] : []),
     [uiUrlBtn(s, "prof_share_btn", shareUrl(s, user))],
     [uiBtn(s, "prof_tiers_btn", "tiers")],
     [uiBtn(s, "prof_back_btn", "home")],
   ];
   return { text, kb };
+}
+
+function profileCopyButton(settings: Record<string, string>, link: string): Button {
+  const { callback_data: _callback, ...icon } = uiBtn(settings, "ref_copy_btn", "refcopy");
+  return { ...referralCopyButton(link), ...icon };
 }
 
 function shareUrl(settings: Record<string, string>, user: any) {
@@ -3802,7 +3807,7 @@ async function handleMessage(msg: any) {
       }
     }
     const settings = await getSettings();
-    await sayWithBottomMenu(chatId, await homeText(user), settings, homeKeyboard(settings, homeCopyLink(settings, user)));
+    await sayWithBottomMenu(chatId, await homeText(user), settings, homeKeyboard(settings));
     return;
   }
 
@@ -3832,7 +3837,7 @@ async function handleMessage(msg: any) {
       await say(chatId, v.text, v.kb);
     } else if (cmd === "menu") {
       const settings = await getSettings();
-      await sayWithBottomMenu(chatId, await homeText(fresh), settings, homeKeyboard(settings, homeCopyLink(settings, fresh)));
+      await sayWithBottomMenu(chatId, await homeText(fresh), settings, homeKeyboard(settings));
     } else if (cmd === "products") {
       const v = await shopView(0, chatId);
       await say(chatId, v.text, v.kb);
@@ -6741,7 +6746,7 @@ async function handleCallback(cq: any) {
       return;
     }
     const okUser = await getUser(chatId);
-    await edit(`${joinSuccessText(s)}\n\n${await homeText(okUser)}`, homeKeyboard(s, homeCopyLink(s, okUser)));
+    await edit(`${joinSuccessText(s)}\n\n${await homeText(okUser)}`, homeKeyboard(s));
     return;
   }
 
@@ -6762,7 +6767,7 @@ async function handleCallback(cq: any) {
   if (data === "home") {
     // `user` was just loaded by upsertUser — no second read needed.
     const s = await getSettings();
-    await edit(await homeText(user), homeKeyboard(s, homeCopyLink(s, user)));
+    await edit(await homeText(user), homeKeyboard(s));
     return;
   }
 
@@ -7510,7 +7515,7 @@ async function handleCallback(cq: any) {
     msgsCache.set(chatId, []);
     await setState(chatId, { ...state, msgs: [] });
     const fresh = await getUser(chatId);
-    await say(chatId, await homeText(fresh), homeKeyboard(await getSettings(), homeCopyLink(await getSettings(), fresh)));
+    await say(chatId, await homeText(fresh), homeKeyboard(await getSettings()));
     return;
   }
 

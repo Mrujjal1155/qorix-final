@@ -179,6 +179,7 @@ export const UI_ELEMENTS = {
 
   /* ---- profile / referral ---- */
   home_greet: { icon: "👋", label: "Welcome back", group: "profile" },
+  home_description: { icon: "", label: "We offer 100% authentic premium digital products. Browse the shop for prices and delivery details.", group: "profile" },
   home_choose: { icon: "", label: "Choose an option below to get started.", group: "profile" },
   home_community: { icon: "🌐", label: "Join Community", group: "profile" },
   home_group: { icon: "👥", label: "Community Group", group: "profile" },
