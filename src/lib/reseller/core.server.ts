@@ -466,7 +466,10 @@ export async function purchase(
         return { ok: false as const, status: 503, error: "Refund could not be confirmed — please contact support." };
       }
       const { error: saveError } = await db.from("orders").update({ status: "cancelled", delivered_content: null, meta: { ...(reserved.meta ?? {}), refunded: true } }).eq("id", reserved.id);
-      if (saveError) console.error("reseller refunded order save failed", reserved.id, saveError);
+      if (saveError) {
+        console.error("reseller refunded order save failed", reserved.id, saveError);
+        return { ok: false as const, status: 503, error: "Refund issued but order status could not be saved — please contact support.", refunded: true };
+      }
       return { ok: false as const, status: 409, error: "Delivery failed — please try again later.", code: "delivery_failed", refunded: true };
     }
   }
@@ -589,7 +592,10 @@ export async function purchase(
       return { ok: false as const, status: 503, error: "Refund could not be confirmed — please contact support." };
     }
     const { error: saveError } = await db.from("orders").update({ status: "cancelled", delivered_content: null, meta: { ...(reserved.meta ?? {}), refunded: true } }).eq("id", reserved.id);
-    if (saveError) console.error("reseller refunded order save failed", reserved.id, saveError);
+    if (saveError) {
+      console.error("reseller refunded order save failed", reserved.id, saveError);
+      return { ok: false as const, status: 503, error: "Refund issued but order status could not be saved — please contact support.", refunded: true };
+    }
     // Supplier-side errors (e.g. OUR supplier wallet is empty → "Insufficient balance")
     // must not look like the reseller's own balance problem.
     const fromSupplier = Boolean(p.supplier_id && p.supplier_external_id);

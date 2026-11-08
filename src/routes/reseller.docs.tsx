@@ -329,6 +329,7 @@ x-api-key: YOUR_API_KEY`}</Code>
             <p>
               In-house confirmed automatic delivery failures and limited manual-stock shortages return HTTP 409 with <code className="font-mono">code: "delivery_failed"</code> and <code className="font-mono">refunded: true</code>.
               The cancelled order remains available with empty items and a refund transaction. If a refund cannot be confirmed, HTTP 503 is returned without claiming it was refunded; contact support rather than creating another order.
+              If the refund succeeds but saving the order status fails, HTTP 503 explicitly reports refunded: true and asks you to contact support; GET may still show the earlier status.
             </p>
             <p>
               Current exception: supplier-linked unsuccessful fulfilment remains pending with <code className="font-mono">submitted: true</code> and payment retained for admin retry. This behaviour has not yet been changed.

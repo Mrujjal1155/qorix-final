@@ -8,6 +8,7 @@ let order: any;
 let balance = 100;
 let debitFails = false;
 let refundFails = false;
+let saveFails = false;
 let manualStock = false;
 let stockResult = "out_of_stock";
 let deleted = 0;
@@ -22,7 +23,10 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
     const execute = () => {
       let row = table === "products" ? product : table === "orders" ? order : table === "resellers" ? { ...reseller, balance } : table === "suppliers" ? { id: "supplier", is_enabled: true } : null;
       if (operation === "insert") { order = { ...values, id: orderId, order_no: 123, created_at: new Date().toISOString(), meta: {} }; row = order; }
-      else if (table === "orders" && operation === "update" && order) { Object.assign(order, values); row = order; }
+      else if (table === "orders" && operation === "update" && order) {
+        if (saveFails && values.meta?.refunded) return { data: null, error: { message: "status save interrupted" } };
+        Object.assign(order, values); row = order;
+      }
       else if (operation === "delete") { deleted++; order = null; row = null; }
       else if (filters.some(([key, value]) => row?.[key] !== value)) row = null;
       return { data: row, error: null };
@@ -66,7 +70,7 @@ const deliveryFailure = { ok: false, code: "delivery_failed", refunded: true, er
 
 beforeEach(() => {
   product = { id: "product", name: "Subscription", price: 10, delivery_type: "auto", is_active: true, supplier_id: null, supplier_external_id: null };
-  order = null; balance = 100; debitFails = false; refundFails = false; manualStock = false; stockResult = "out_of_stock"; deleted = 0; supplierCalls = 0; ledger = [];
+  order = null; balance = 100; debitFails = false; refundFails = false; saveFails = false; manualStock = false; stockResult = "out_of_stock"; deleted = 0; supplierCalls = 0; ledger = [];
 });
 
 async function post() {
@@ -136,6 +140,19 @@ test("genuine manual processing keeps its successful paid pending behaviour", as
   const result = await core.purchase(reseller, input);
   expect(result).toMatchObject({ ok: true, balance: 90, order: { status: "pending", items: [] } });
   expect(ledger.map(t => t._type)).toEqual(["order"]);
+});
+
+test("refund status-save failure is explicitly reported for auto and limited manual orders without another credit", async () => {
+  for (const type of ["auto", "manual"]) {
+    order = null; ledger = []; balance = 100; saveFails = true;
+    product.delivery_type = type; product.manual_stock_limited = true;
+    const response = await post();
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ ok: false, refunded: true, error: "Refund issued but order status could not be saved — please contact support." });
+    expect(balance).toBe(100);
+    expect(ledger.filter(t => t._type === "refund").length).toBe(1);
+    expect(deleted).toBe(0);
+  }
 });
 
 test("blocked supplier-auto change preserves existing pending behaviour without exposing diagnostics", async () => {
