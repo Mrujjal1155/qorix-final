@@ -8152,6 +8152,7 @@ async function apiPanelView(user: any) {
       kb: [
         [styled(apiBtn(s, "key", "Create API Account", "api:new"), btnColor(s, "api"))],
         [styled({ text: "📖 API Docs", url: `${siteUrl(s)}/reseller/docs` }, btnColor(s, "api"))],
+        [styled({ text: "🔗 Quick start guide", callback_data: "api:guide" }, btnColor(s, "api"))],
         [uiBtn(s, "com_home", "home")],
       ] as Button[][],
     };
@@ -8184,6 +8185,7 @@ async function apiPanelView(user: any) {
     [aBtn(apiBtn(s, "topup", "Top Up Balance", "wallet"))],
     [aBtn(apiBtn(s, "prices", "My Prices", "api:prices")), aBtn(apiBtn(s, "orders", "API Orders", "api:orders"))],
     [aBtn({ text: "📖 API Docs", url: `${siteUrl(s)}/reseller/docs` })],
+    [aBtn({ text: "🔗 Quick start guide", callback_data: "api:guide" })],
     [aBtn(apiBtn(s, "regen", "Regenerate Key", "api:regen")), aBtn(apiBtn(s, "revoke", r.is_active ? "Revoke Key" : "Re-activate Key", "api:revoke"))],
     [aBtn(apiBtn(s, "alert", `Low Balance Alert (${alert > 0 ? money(alert) : "off"})`, "api:alert"))],
     [aBtn(apiBtn(s, "key", "Show Full Key", "api:key"))],
@@ -8345,6 +8347,15 @@ export async function handleApiCallback(
       await edit(`❌ ${escapeHtml(e instanceof Error ? e.message : "Could not create the account")}`, back);
       return true;
     }
+  }
+
+  if (action === "guide") {
+    const { apiQuickGuideText } = await import("./api-quick-guide");
+    await edit(apiQuickGuideText(), [
+      [{ text: "📖 Full documentation", url: "https://qorixlab.com/reseller/docs" }],
+      ...back,
+    ]);
+    return true;
   }
 
   if (action === "key") {
