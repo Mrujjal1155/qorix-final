@@ -45,7 +45,8 @@ export const Route = createFileRoute("/admin/settings")({
 
 const FIELDS: { key: string; label: string; long?: boolean; help?: string }[] = [
   { key: "bot_name", label: "Bot name" },
-  { key: "welcome_text", label: "Welcome text", long: true },
+  { key: "welcome_text", label: "Legacy welcome text (not used on the compact start screen)", long: true },
+  { key: "ui_text_home_description", label: "Start welcome description", long: true, help: "Default: We offer 100% authentic premium digital products. Browse the shop for prices and delivery details." },
   // USDT addresses live in the Binance Setup card above
 
   { key: "bkash_number", label: "bKash number (manual fallback)" },

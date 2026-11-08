@@ -1,5 +1,9 @@
 # Roadmap
 
+- [x] Approved preview-only Telegram start: short welcome/menu explanations and three real community links, full account/wallet/referral tables and copy control in Profile, bot-admin editable Premium icons; ordinary HTML avoids rich-table negotiation on start, existing deferred payment sweep preserved. 28 focused mocked/regression tests pass; latest build OK. No publish, database changes or real Telegram send.
+- [x] Fold in Prime Labs reference: QORIX-branded welcome and bot/web-admin editable start description including the owner's “100% authentic” wording; other shop links and unsupported fully-automated/best-price claims not copied.
+- [ ] Verify this compact start and Profile tables visually and measure live opening speed in Telegram after owner-approved deployment; blocked by preview-only/no-real-message instruction. Bot-admin icon/description save and reset verified only through mocked real handlers; signed-in external admin page not verified.
+
 - [x] Approved API safe hardening: controlled JSON/limit/read errors, no ambiguous supplier write fallback, explicit retry classification, confirmed order-locked completion/readback and immutable new-order terminal/financial state; docs updated. 36 reseller + 10 in-house/webhook tests pass; additive narrow SQL applied, no historical writes or publish.
 - [ ] Full API certification blocked: 10 historical duplicate reference/type groups need owner-approved reconciliation before legacy adjustment/unique rules; shared wallet lock-order changes need isolated multi-session validation (local PostgreSQL startup failed due missing runtime extension); supplier partial-unit contracts and old admin/retry compatibility need supplier evidence. Deep scan still running; signed-in paid end-to-end requires owner approval/external account access. No historical repair or live paid test.
 
