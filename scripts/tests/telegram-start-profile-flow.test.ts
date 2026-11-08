@@ -77,6 +77,17 @@ test("bot admin menu Premium icon save is reused by the actual start menu", asyn
   expect(buttons.flat().find(b => b.callback_data === "shop:0")?.icon_custom_emoji_id).toBe("5400280896311944960");
 });
 
+test("bot-admin start description edit persists and reset keeps other settings intact", async () => {
+  const originalName = settings.bot_name;
+  await click("adm:uit:home_description");
+  await reply("100% authentic digital products.");
+  expect(settings.ui_text_home_description).toBe("100% authentic digital products.");
+  expect(settings.bot_name).toBe(originalName);
+  await click("adm:uit:home_description");
+  await reply("-");
+  expect(settings.ui_text_home_description).toBe("");
+});
+
 for (const slot of ["home_greet", "home_description", "home_choose", "home_community", "home_group", "home_channel", "home_updates"]) {
   test(`${slot}: bot-admin Premium icon persists and reset removes the override`, async () => {
     await click(`adm:uii:${slot}`);
