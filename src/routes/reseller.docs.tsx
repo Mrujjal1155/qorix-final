@@ -144,7 +144,7 @@ function DocsPage() {
               <li>Base URL: <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs break-all">{base}</code></li>
               <li>All responses are JSON and always contain an <code className="font-mono">ok</code> field.</li>
               <li>Prices are in USD and already include your reseller discount.</li>
-              <li>Orders are paid instantly from your wallet balance; a failed auto-delivery is refunded automatically.</li>
+              <li>Orders are paid instantly from your wallet balance. In-house automatic delivery failures and limited manual-stock failures are refunded; see the supplier-processing exception below.</li>
               <li>CORS is open, but never expose your API key in browser code — always call from your server.</li>
             </ul>
             <p>Quick smoke test from your terminal:</p>
@@ -203,7 +203,7 @@ x-api-key: YOUR_API_KEY`}</Code>
               </table>
             </div>
             <p>
-              The <code className="font-mono">channel</code> parameter accepts <code className="font-mono">website</code>,{" "}
+              For <code className="font-mono">GET /products</code>, the <code className="font-mono">channel</code> parameter accepts <code className="font-mono">website</code>,{" "}
               <code className="font-mono">bot</code> or <code className="font-mono">all</code> and filters the catalogue
               to the categories allowed for that channel.
             </p>
@@ -264,6 +264,10 @@ x-api-key: YOUR_API_KEY`}</Code>
               <code className="font-mono">in_stock</code> is false. Query filters:{" "}
               <code className="font-mono">search</code>, <code className="font-mono">category_id</code>.
             </p>
+            <p>
+              Catalogue and single-product responses may also include <code className="font-mono">own, emoji, important_note, quick_guide, delivery_time, badge, flash_sale_ends_at, old_price, custom_price, custom_min_qty</code>.
+              Clients should tolerate additional fields. A temporarily unavailable catalogue returns HTTP 503 with <code className="font-mono">error: "Product catalogue is temporarily unavailable"</code>.
+            </p>
           </Section>
 
           <Section id="order" title="5. Place an order">
@@ -296,6 +300,9 @@ x-api-key: YOUR_API_KEY`}</Code>
   "balance": 124.16
 }`}</Code>
             <ul className="list-disc space-y-1 pl-5">
+              <li>Quantity is rounded down and clamped to 1–50 (missing, zero or invalid values default to 1).</li>
+              <li>POST /orders accepts website or bot as channel; any other value, including all, is treated as website.</li>
+              <li>Different references can still be treated as a double submit for the same reseller, customer, product and quantity: 60 seconds with a matching email, or 5 seconds without an email match (customer name is matched instead).</li>
               <li>
                 <strong>Always send <code className="font-mono">external_ref</code></strong> — your own order id. If the
                 same ref is sent twice you get the original order back with{" "}
@@ -319,6 +326,15 @@ x-api-key: YOUR_API_KEY`}</Code>
               </li>
               <li>Insufficient balance returns HTTP 402 with the required amount.</li>
             </ul>
+            <p>
+              In-house confirmed automatic delivery failures and limited manual-stock shortages return HTTP 409 with <code className="font-mono">code: "delivery_failed"</code> and <code className="font-mono">refunded: true</code>.
+              The cancelled order remains available with empty items and a refund transaction. If a refund cannot be confirmed, HTTP 503 is returned without claiming it was refunded; contact support rather than creating another order.
+              If the refund succeeds but saving the order status fails, HTTP 503 explicitly reports refunded: true and asks you to contact support; GET may still show the earlier status.
+            </p>
+            <p>
+              Current exception: supplier-linked unsuccessful fulfilment remains pending with <code className="font-mono">submitted: true</code> and payment retained for admin retry. This behaviour has not yet been changed.
+              Genuine manual processing and interrupted in-house automatic fulfilment also keep their existing pending/readback behaviour.
+            </p>
           </Section>
 
           <Section id="status" title="6. Order status & history">
@@ -331,6 +347,10 @@ curl -H "Authorization: Bearer YOUR_API_KEY" "${base}/orders?limit=50"`}</Code>
               For pending orders, poll every 30–60 seconds until{" "}
               <code className="font-mono">status</code> becomes <code className="font-mono">completed</code>, then show{" "}
               <code className="font-mono">items</code> to your customer.
+            </p>
+            <p>
+              GET /orders/&#123;id&#125; accepts the UUID, numeric order_no, or external_ref and only returns your orders.
+              GET /orders defaults to the latest 50 orders; limit is clamped to 1–100. Cancelled refunded orders have empty items and refunded: true; stop polling them for delivery.
             </p>
             <p>
               <strong>Recommended:</strong> set an order webhook URL in your reseller panel. When a pending order is
@@ -353,6 +373,8 @@ curl -H "Authorization: Bearer YOUR_API_KEY" "${base}/orders?limit=50"`}</Code>
 
           <Section id="errors" title="8. Errors">
             <Code>{`{ "ok": false, "error": "Insufficient balance", "balance": 1.20, "required": 4.24 }`}</Code>
+            <p>Both initial insufficient balance and a rejected atomic debit return HTTP 402 with balance and required.</p>
+            <Code>{`{ "ok": false, "code": "delivery_failed", "refunded": true, "error": "Delivery failed — please try again later." }`}</Code>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <tbody className="text-xs">
@@ -361,6 +383,8 @@ curl -H "Authorization: Bearer YOUR_API_KEY" "${base}/orders?limit=50"`}</Code>
                     ["403", "Account disabled, or that channel is not enabled for you"],
                     ["402", "Not enough wallet balance"],
                     ["404", "Product or order not found"],
+                    ["409", "Confirmed delivery failure: delivery_failed, refunded: true (see supplier exception)"],
+                    ["503", "Product catalogue is temporarily unavailable, or refund could not be confirmed"],
                     ["400", "Bad request — check the JSON body and product_id"],
                   ].map((r) => (
                     <tr key={r[0]} className="border-b border-border/40">
@@ -596,9 +620,9 @@ bot.on("callback_query", async (q) => {
               <code className="font-mono">price</code>; whatever you charge your customer is your profit.
             </p>
             <p>
-              <strong>What if delivery fails?</strong> If an in-stock item cannot be delivered, the order is voided and
-              your wallet is refunded automatically. Some products stay <code className="font-mono">pending</code>{" "}
-              (paid) while we retry, then complete with items — or are cancelled and refunded.
+              <strong>What if delivery fails?</strong> Confirmed in-house auto failures and limited manual-stock shortages
+              return HTTP 409 delivery_failed with a confirmed refund and a retained cancelled order.
+              Supplier-linked failures currently stay paid and pending for admin retry; manual processing and interrupted stock fulfilment also retain their existing pending behaviour.
             </p>
             <p>
               <strong>Can I use one key for a website and a bot?</strong> Yes, if both channels are enabled on your
@@ -619,6 +643,11 @@ bot.on("callback_query", async (q) => {
 
           <Section id="changelog" title="13. API changelog">
             <p>Every change to the API is listed here, newest first. Check it when something behaves differently.</p>
+            <p><strong>Preview-only Phase 1 — not yet published</strong></p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Confirmed in-house and limited manual-stock failures retain cancelled orders, expose refunded: true and share HTTP 409 delivery_failed. Atomic debit rejection includes balance and required.</li>
+              <li>Supplier-auto refund changes are blocked pending coordinated refund/retry safety; the existing paid pending behaviour remains unchanged.</li>
+            </ul>
             <p><strong>2026-10-18 — Charged stock-order recovery</strong></p>
             <ul className="list-disc space-y-1 pl-5">
               <li>Instant stock allocation and completion are saved together. Interrupted, already-charged stock orders are retried automatically without another wallet debit or duplicate stock allocation.</li>
@@ -628,7 +657,7 @@ bot.on("callback_query", async (q) => {
             <ul className="list-disc space-y-1 pl-5">
               <li>Use the documented QORIX product endpoints rather than querying underlying database tables. Internal connection settings and diagnostics are private. Product IDs, selling prices, stock, descriptions, images and order endpoints are unchanged.</li>
               <li>Webhook addresses must use public HTTPS on the default port, without embedded credentials. Private network destinations are rejected and redirects are not followed; use your final webhook URL.</li>
-              <li>Unsuccessful automatic delivery returns the neutral error code <code>delivery_failed</code>. Read the response's <code>refunded</code> flag rather than assuming a balance change from the error code.</li>
+              <li>Confirmed in-house automatic delivery failure returns the neutral error code <code>delivery_failed</code>. Read the response's <code>refunded</code> flag; supplier-linked failures currently use the pending exception above.</li>
             </ul>
             <p>
               <strong>2026-10-29</strong>
@@ -681,7 +710,7 @@ bot.on("callback_query", async (q) => {
                 <code className="font-mono">"submitted": true</code> and <code className="font-mono">status: "pending"</code>;
                 your balance is kept and items arrive once we deliver.
               </li>
-              <li>A temporarily unavailable product returns <code className="font-mono">code: "delivery_failed"</code> with a refund — never "Insufficient balance".</li>
+              <li>Confirmed in-house delivery unavailability returns <code className="font-mono">code: "delivery_failed"</code> with a refund; supplier-linked failures currently retain payment pending admin retry.</li>
             </ul>
           </Section>
         </div>

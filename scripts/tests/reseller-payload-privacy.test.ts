@@ -16,7 +16,7 @@ mock.module("@/integrations/supabase/client.server", () => ({
       const query: any = {
         select: () => query, eq: () => query, or: () => query, order: () => query,
         in: () => query, neq: () => query, gte: () => query, is: () => query,
-        limit: () => query, delete: () => query,
+        limit: () => query, delete: () => query, update: () => query,
         insert: () => { inserting = true; return query; },
         maybeSingle: async () => ({ data: table === "products" ? product : inserting ? { id: "reserved", created_at: "2026-10-22" } : null, error: null }),
         then(resolve: (value: unknown) => unknown) {

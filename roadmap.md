@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Phase 1 safe subset: retain cancelled in-house/manual failures, neutral HTTP 409, refunded projection and debit-race amounts; document API limits and explicit supplier exception; isolated reseller suites and preview docs verified without live purchases/deployment.
+- [ ] Phase 1 supplier-auto refund: blocked by non-idempotent reseller_adjust_balance and supplier Retry allowing refunded/cancelled orders; requires coordinated atomic refund and retry guards outside this phase. Supplier pending behaviour left unchanged under owner's STOP rule.
+
 - [x] Audit Telegram Business documentation, existing @QORIX3_bot source/backend and safe product/order data integration; prepare an approval plan without changing tickets, shop or live connections.
 - [x] Receive plan approval, link Online's existing Telegram connection and verify live identity as @QORIX3_bot; getWebhookInfo confirms unchanged qorixlab.com webhook and four existing update subscriptions. No customer messages sent or webhook changed.
 - [ ] Implement personal-inbox Business AI, human takeover and per-chat controls; compatibility gate blocked: live getMe reports can_connect_to_business=false. Owner must enable Business Mode in BotFather, then verify account Business connection/rights. Backend hosted settings and AI validity remain unverified; no app code or schema changed.
