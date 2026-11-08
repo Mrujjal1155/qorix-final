@@ -1,6 +1,7 @@
 # Roadmap
 
-- [ ] Phase 1 reseller failures: audit refund/retry safety, retain cancelled failures, standardise neutral responses and debit-race amounts, document existing API limits; run isolated reseller suites without live purchases or deployment.
+- [x] Phase 1 safe subset: retain cancelled in-house/manual failures, neutral HTTP 409, refunded projection and debit-race amounts; document API limits and explicit supplier exception; isolated reseller suites and preview docs verified without live purchases/deployment.
+- [ ] Phase 1 supplier-auto refund: blocked by non-idempotent reseller_adjust_balance and supplier Retry allowing refunded/cancelled orders; requires coordinated atomic refund and retry guards outside this phase. Supplier pending behaviour left unchanged under owner's STOP rule.
 
 - [x] Audit Telegram Business documentation, existing @QORIX3_bot source/backend and safe product/order data integration; prepare an approval plan without changing tickets, shop or live connections.
 - [x] Receive plan approval, link Online's existing Telegram connection and verify live identity as @QORIX3_bot; getWebhookInfo confirms unchanged qorixlab.com webhook and four existing update subscriptions. No customer messages sent or webhook changed.

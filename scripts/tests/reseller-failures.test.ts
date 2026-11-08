@@ -13,6 +13,7 @@ let manualStock = false;
 let stockResult = "out_of_stock";
 let deleted = 0;
 let supplierCalls = 0;
+let supplierSuccess = false;
 let ledger: any[] = [];
 
 mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
@@ -57,7 +58,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
 } }));
 mock.module("@/lib/bulk-discount.server", () => ({ bulkTiersFor: async () => ({}), bulkUnit: (_p: any, unit: number) => unit }));
 mock.module("@/lib/reseller/charged-stock.server", () => ({ fulfillChargedResellerStock: async () => ({ status: stockResult }) }));
-mock.module("@/lib/suppliers/api.server", () => ({ supplierOrder: async () => { supplierCalls++; throw new Error(privateReason); } }));
+mock.module("@/lib/suppliers/api.server", () => ({ supplierOrder: async () => { supplierCalls++; if (supplierSuccess) return { items: ["account:password"] }; throw new Error(privateReason); } }));
 mock.module("@/lib/suppliers/fulfil.server", () => ({ supplierUnitCost: async () => null, supplierPreflight: async () => ({ ok: true }) }));
 mock.module("@/lib/bot/engine.server", () => ({ checkResellerLowBalance: async () => {}, notifyAdmins: async () => {}, announceOrderSale: async () => {} }));
 mock.module("@/lib/bg.server", () => ({ backgroundWaitUntil: () => false }));
@@ -70,7 +71,7 @@ const deliveryFailure = { ok: false, code: "delivery_failed", refunded: true, er
 
 beforeEach(() => {
   product = { id: "product", name: "Subscription", price: 10, delivery_type: "auto", is_active: true, supplier_id: null, supplier_external_id: null };
-  order = null; balance = 100; debitFails = false; refundFails = false; saveFails = false; manualStock = false; stockResult = "out_of_stock"; deleted = 0; supplierCalls = 0; ledger = [];
+  order = null; balance = 100; debitFails = false; refundFails = false; saveFails = false; manualStock = false; stockResult = "out_of_stock"; deleted = 0; supplierCalls = 0; supplierSuccess = false; ledger = [];
 });
 
 async function post() {
@@ -163,4 +164,12 @@ test("blocked supplier-auto change preserves existing pending behaviour without 
   expect(ledger.map(t => t._type)).toEqual(["order"]);
   expect(order.meta.supplier_error).toBe(privateReason);
   expect(JSON.stringify(result)).not.toContain(privateReason);
+});
+
+test("successful supplier purchase keeps price, delivery and exactly one original debit", async () => {
+  supplierSuccess = true; product.supplier_id = "supplier"; product.supplier_external_id = "external";
+  const result = await core.purchase(reseller, input);
+  expect(result).toMatchObject({ ok: true, balance: 90, order: { status: "completed", items: ["account:password"], unit_price: 10, total: 10 } });
+  expect(ledger.map(t => [t._type, t._amount])).toEqual([["order", -10]]);
+  expect(deleted).toBe(0);
 });
