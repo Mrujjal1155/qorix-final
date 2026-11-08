@@ -23,7 +23,7 @@ afterAll(async () => { await db.close(); });
 
 async function order(n: number) {
   const id = `11111111-1111-4111-8111-${String(n).padStart(12, "0")}`;
-  await db.query(`INSERT INTO public.orders VALUES($1,$2,'reseller_balance','pending','{"reseller_owner_rule":true,"refunded":false}',$1,10,1,'Subscription',NULL)`, [id,rid]);
+  await db.query(`INSERT INTO public.orders VALUES($1::uuid,$2::uuid,'reseller_balance','pending','{"reseller_owner_rule":true,"refunded":false}',$1::uuid::text,10,1,'Subscription',NULL)`, [id,rid]);
   return id;
 }
 async function debit(id: string) {
