@@ -62,7 +62,7 @@ import { binancePaymentAmount, exactBinanceAmount } from "@/lib/binance-payment"
 import { epsWalletCredit } from "@/lib/eps-payment";
 import { orderTimezone } from "@/lib/order-time";
 import { reservedCheckout } from "@/lib/bot/paid-checkout";
-import { buildHomeMessage, referralCopyButton, referralShareAnchor } from "@/lib/bot/home-message";
+import { buildStartMessage, buildProfileDetails, referralCopyButton, referralShareAnchor } from "@/lib/bot/home-message";
 import { buildWalletHistory, historyOwner, historyPage } from "@/lib/bot/wallet-history";
 import { readWalletHistory } from "@/lib/bot/wallet-history.server";
 import { bybitEnabled, bybitTransactionKey } from "@/lib/bybit-payment";
@@ -836,7 +836,7 @@ async function getUser(telegramId: number) {
 
 /* ------------------------------------------------------------------ views */
 
-function homeKeyboard(settings: Record<string, string>, copyLink?: string): Button[][] {
+function homeKeyboard(settings: Record<string, string>): Button[][] {
   const mBtn = (b: Button) => styled(b, btnColor(settings, "menu"));
   return [
     [
@@ -864,42 +864,38 @@ function homeKeyboard(settings: Record<string, string>, copyLink?: string): Butt
       iconButton(settings, "api", "api"),
       iconButton(settings, "clear", "clear"),
     ],
-    ...(copyLink ? [[referralCopyButton(copyLink)]] : []),
   ];
-}
-
-/** Referral copy link for the home screen; absent when the user has no ref code. */
-function homeCopyLink(settings: Record<string, string>, user: any): string | undefined {
-  return user?.ref_code ? refLink(settings, user) : undefined;
 }
 
 async function homeText(user: any) {
   const s = await getSettings();
-  const botName = (s["bot_name"] || "SHOP").toUpperCase().split("").join(" ");
-  const link = `https://t.me/${s["bot_username"] || "your_bot"}?start=ref_${user.ref_code}`;
-  return buildHomeMessage({
+  const botName = s["bot_name"] || "QORIX STORE";
+  const menu = [
+    ["shop", "Browse products & buy"],
+    ["cart", "Review items added to your cart"],
+    ["orders", "View order status & delivery"],
+    ["wallet", "Check balance & add funds"],
+    ["freebies", "View available free offers"],
+    ["profile", "Account, wallet, orders & referral details"],
+    ["referral", "Invite friends & view rewards"],
+    ["support", "Contact support for help"],
+    ["emails", "Open the Emails & Trials page"],
+    ["api", "Access the reseller API & guide"],
+    ["clear", "Remove tracked bot chat messages"],
+  ] as const;
+  return buildStartMessage({
     header: sectionHead(s, "home", `<b>${escapeHtml(botName)}</b>`),
     greeting: `${uiIconHtml(s, "home_greet")} ${escapeHtml(uiText(s, "home_greet"))}, <b>${escapeHtml(user.first_name ?? "friend")}</b>!`,
-    welcome: renderRich(s["welcome_text"] ?? ""),
-    choose: escapeHtml(uiText(s, "home_choose")),
-    account: [
-      [uiTag(s, "prof_member"), `<b>${escapeHtml(String(user.membership ?? ""))}</b>`],
-      [uiTag(s, "prof_userid"), `<code>${user.telegram_id}</code>`],
-      [uiTag(s, "prof_username"), user.username ? "@" + escapeHtml(user.username) : "—"],
-    ],
-    wallet: [
-      [uiTag(s, "prof_balance"), `<b>${money(user.balance)}</b>`],
-      [uiTag(s, "prof_spent"), money(user.total_spent)],
-    ],
-    referrals: [
-      [uiTag(s, "prof_refs"), String(user.referral_count ?? 0)],
-      [uiTag(s, "prof_earning"), money(user.referral_earnings)],
-      [uiTag(s, "prof_link"), referralShareAnchor(
-        link,
-        s["referral_share_text"] || `Join ${s["bot_name"] || "our shop"} — AI & SaaS products with wallet checkout.`,
-        "Invite & earn",
-      )],
-    ],
+    choose: uiTag(s, "home_choose"),
+    menu: menu.map(([key, description]) => {
+      const { customId, glyph } = menuButtonText(s, key);
+      const icon = customId ? `<tg-emoji emoji-id="${customId}">${escapeHtml(glyph)}</tg-emoji>` : escapeHtml(glyph);
+      return { label: `${icon} <b>${escapeHtml(MENU_ICONS[key][1])}</b>`, description };
+    }),
+    community: uiTag(s, "home_community"),
+    groupIcon: uiIconHtml(s, "home_group"),
+    channelIcon: uiIconHtml(s, "home_channel"),
+    updatesIcon: uiIconHtml(s, "home_updates"),
   });
 }
 
@@ -942,16 +938,21 @@ async function profileView(chatId: number, user: any) {
 
   const text =
     `${sectionHead(s, "profile", `<b>${escapeHtml(uiText(s, "prof_title").toUpperCase().split("").join(" "))}</b>`)}\n` +
-    `──────────────\n` +
-    `${uiTag(s, "prof_username")}: ${user.username ? "@" + escapeHtml(user.username) : "—"}\n` +
-    `${uiTag(s, "prof_userid")}: <code>${user.telegram_id}</code>\n` +
-    `${uiTag(s, "prof_member")}: <b>${escapeHtml(current.name)}</b> <i>(${escapeHtml(current.perk)})</i>\n` +
-    `${uiTag(s, "prof_balance")}: <b>${money(user.balance)}</b>\n` +
-    `${uiTag(s, "prof_spent")}: ${money(user.total_spent)}\n` +
-    `📦 Orders: <b>${count ?? 0}</b>\n` +
-    `${uiTag(s, "prof_refs")}: ${user.referral_count ?? 0}\n` +
-    `${uiTag(s, "prof_earning")}: ${money(user.referral_earnings)}\n` +
-    `${uiTag(s, "prof_link")}: <code>${escapeHtml(link)}</code>\n` +
+    buildProfileDetails({
+      account: [
+        [uiTag(s, "prof_username"), user.username ? "@" + escapeHtml(user.username) : "—"],
+        [uiTag(s, "prof_userid"), `<code>${user.telegram_id}</code>`],
+        [uiTag(s, "prof_member"), `<b>${escapeHtml(current.name)}</b> <i>(${escapeHtml(current.perk)})</i>`],
+        [uiTag(s, "prof_orders_btn"), `<b>${count ?? 0}</b>`],
+        [uiTag(s, "prof_since"), fmtDate(user.created_at)],
+      ],
+      wallet: [[uiTag(s, "prof_balance"), `<b>${money(user.balance)}</b>`], [uiTag(s, "prof_spent"), money(user.total_spent)]],
+      referrals: [
+        [uiTag(s, "prof_refs"), String(user.referral_count ?? 0)],
+        [uiTag(s, "prof_earning"), money(user.referral_earnings)],
+        [uiTag(s, "prof_link"), `<code>${escapeHtml(link)}</code>`],
+      ],
+    }) +
     `──────────────\n` +
     (next
       ? `${uiTag(s, "tier_next")}: <b>${escapeHtml(next.name)}</b> — spend ${money(remaining)} more\n`
@@ -960,6 +961,7 @@ async function profileView(chatId: number, user: any) {
 
   const kb: Button[][] = [
     [uiBtn(s, "prof_orders_btn", "orders"), uiBtn(s, "prof_refer_btn", "refstore")],
+    ...(user.ref_code ? [[{ ...referralCopyButton(link), ...uiBtn(s, "ref_copy_btn", "refcopy"), callback_data: undefined }]] : []),
     [uiUrlBtn(s, "prof_share_btn", shareUrl(s, user))],
     [uiBtn(s, "prof_tiers_btn", "tiers")],
     [uiBtn(s, "prof_back_btn", "home")],

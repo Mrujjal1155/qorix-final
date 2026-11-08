@@ -8,6 +8,36 @@ export type HomeMessageContent = {
   referrals: Array<[string, string]>;
 };
 
+export type StartMessageContent = {
+  header: string;
+  greeting: string;
+  choose: string;
+  menu: Array<{ label: string; description: string }>;
+  community: string;
+  groupIcon: string;
+  channelIcon: string;
+  updatesIcon: string;
+};
+
+/** Lightweight ordinary HTML: no account tables or private referral links. */
+export function buildStartMessage(content: StartMessageContent): string {
+  return `${content.header}\n\n${content.greeting}\n\n` +
+    `<blockquote>${content.menu.map(({ label, description }) => `${label} — ${description}`).join("\n")}</blockquote>\n\n` +
+    `<b>${content.community}</b>\nJoin for stock alerts and updates.\n` +
+    `${content.groupIcon} <a href="https://t.me/QORIXCHAT">Community Group</a>\n` +
+    `${content.channelIcon} <a href="https://t.me/qorixlab">Official Channel</a>\n` +
+    `${content.updatesIcon} <a href="https://t.me/qorixstoreupdate">Store Updates Channel</a>\n\n` +
+    content.choose;
+}
+
+/** Profile cells are escaped by the caller, preserving configured Premium icons. */
+export function buildProfileDetails(content: Pick<HomeMessageContent, "account" | "wallet" | "referrals">): string {
+  const table = (heading: string, rows: Array<[string, string]>) =>
+    `<h3>${heading}</h3><table bordered striped compact>${rows.map(([label, value]) =>
+      `<tr><td>${label}</td><td align="right">${value}</td></tr>`).join("")}</table>`;
+  return table("ACCOUNT", content.account) + table("WALLET", content.wallet) + table("REFERRALS", content.referrals);
+}
+
 /** Cells contain already-escaped inline HTML, including configured custom emojis. */
 export function buildHomeMessage(content: HomeMessageContent): string {
   const table = (heading: string, rows: Array<[string, string]>) =>
