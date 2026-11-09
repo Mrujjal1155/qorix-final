@@ -88,7 +88,7 @@ test("bot-admin start description edit persists and reset keeps other settings i
   expect(settings.ui_text_home_description).toBe("");
 });
 
-for (const slot of ["home_greet", "home_description", "home_choose", "home_community", "home_group", "home_channel", "home_updates"]) {
+for (const slot of ["home_greet", "home_description", "home_choose", "home_menu_title", "home_menu_subtitle", "home_community", "home_group", "home_channel", "home_updates"]) {
   test(`${slot}: bot-admin Premium icon persists and reset removes the override`, async () => {
     await click(`adm:uii:${slot}`);
     await reply("⭐", "5400280896311944961");
@@ -102,7 +102,7 @@ for (const slot of ["home_greet", "home_description", "home_choose", "home_commu
 test("dedicated Bot Admin start editor routes each icon to the existing save handler", async () => {
   await click("adm:starticons");
   const actions = buttons.flat().map(b => b.callback_data);
-  for (const slot of ["home_greet", "home_description", "home_choose", "home_community", "home_group", "home_channel", "home_updates"]) {
+  for (const slot of ["home_greet", "home_description", "home_choose", "home_menu_title", "home_menu_subtitle", "home_community", "home_group", "home_channel", "home_updates"]) {
     expect(actions.includes(`adm:uii:${slot}`)).toBe(true);
   }
   expect(actions.includes("adm:pi:home")).toBe(true);
