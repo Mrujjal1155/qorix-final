@@ -117,7 +117,12 @@ export const Route = createFileRoute("/api/public/telegram/webhook")({
           console.error("Supplier auto-sync ping failed:", error);
         }
 
-        await Promise.allSettled([handle, track]);
+        // Telegram delivers updates in order and retries one that times out, so a
+        // single hung update would block every later click. Answer within 25s.
+        await Promise.race([
+          Promise.allSettled([handle, track]),
+          new Promise((resolve) => setTimeout(resolve, 25_000)),
+        ]);
         return Response.json({ ok: true });
       },
     },
