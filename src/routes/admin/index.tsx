@@ -45,7 +45,9 @@ function OverviewPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["overview"],
     queryFn: () => fetchOverview(),
-    refetchInterval: 15_000,
+    // Full sales totals are heavy; refreshing less often keeps the bot's database fast.
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
     refetchOnWindowFocus: true,
   });
 

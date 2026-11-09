@@ -3719,6 +3719,12 @@ export async function handleUpdate(update: any) {
     if (evidence) await recordContact(evidence.id, evidence.status, evidence.at);
     return;
   }
+  // A fresh worker must load every bot setting before it can reply. Stop the
+  // button's loading spinner right away instead of after that load.
+  const earlyAck = Boolean(
+    update.callback_query?.id && !(settingsCache && Date.now() - settingsCache.at < SETTINGS_TTL_MS),
+  );
+  if (earlyAck) defer(() => answerCallback(update.callback_query.id));
   // Warm the settings cache while the rest of the handler starts.
   void getSettings();
   // Payment sweep + all bookkeeping run after the user already got a reply.
@@ -3735,7 +3741,10 @@ export async function handleUpdate(update: any) {
           const note =
             (ms["bot_maintenance_message"] ?? "").trim() ||
             "🛠 The bot is under maintenance right now. Please try again a little later.";
-          if (cq) {
+          if (cq && earlyAck) {
+            // Already acknowledged, so show the notice as a chat message.
+            if (cq.message?.chat?.id) await sendMessage(cq.message.chat.id, escapeHtml(note)).catch(() => {});
+          } else if (cq) {
             await answerCallback(cq.id, note.slice(0, 190), true).catch(() => {});
           } else if (m && m.chat?.type === "private") {
             await sendMessage(m.chat.id, escapeHtml(note)).catch(() => {});
