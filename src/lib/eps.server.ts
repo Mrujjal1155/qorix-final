@@ -118,7 +118,9 @@ export function decryptIpn(data: string, secretKey: string): EpsIpnPayload | nul
 }
 
 export function usdToBdt(usd: number, rate: number) {
-  return Math.round(usd * rate * 100) / 100;
+  // BDT gateway charges whole taka only: any paisa rounds UP to the next taka (৳683.70 → ৳684).
+  const exact = Math.round(usd * rate * 100) / 100;
+  return Math.ceil(exact - 1e-9);
 }
 
 export function bdtToUsd(bdt: number, rate: number) {
