@@ -63,6 +63,7 @@ import { epsWalletCredit } from "@/lib/eps-payment";
 import { orderTimezone } from "@/lib/order-time";
 import { reservedCheckout } from "@/lib/bot/paid-checkout";
 import { buildStartMessage, buildProfileDetails, referralCopyButton, referralShareAnchor } from "@/lib/bot/home-message";
+import { homeMenuColor, type HomeMenuKey } from "@/lib/bot/home-menu-colors";
 import { buildWalletHistory, historyOwner, historyPage } from "@/lib/bot/wallet-history";
 import { readWalletHistory } from "@/lib/bot/wallet-history.server";
 import { bybitEnabled, bybitTransactionKey } from "@/lib/bybit-payment";
@@ -837,35 +838,36 @@ async function getUser(telegramId: number) {
 /* ------------------------------------------------------------------ views */
 
 function homeKeyboard(settings: Record<string, string>): Button[][] {
-  const mBtn = (b: Button) => styled(b, btnColor(settings, "menu"));
+  const topColor = btnColor(settings, "menu");
+  const btn = (key: HomeMenuKey, b: Button) => styled(b, homeMenuColor(key, topColor));
   return [
     [
-      mBtn(iconButton(settings, "shop", "shop:0")),
-      mBtn(iconButton(settings, "cart", "cart")),
-      mBtn(iconButton(settings, "orders", "orders")),
+      btn("shop", iconButton(settings, "shop", "shop:0")),
+      btn("cart", iconButton(settings, "cart", "cart")),
+      btn("orders", iconButton(settings, "orders", "orders")),
     ],
 
 
     [
-      mBtn(iconButton(settings, "wallet", "wallet")),
-      mBtn(iconButton(settings, "freebies", "freebies")),
-      mBtn(iconButton(settings, "profile", "profile")),
+      btn("wallet", iconButton(settings, "wallet", "wallet")),
+      btn("freebies", iconButton(settings, "freebies", "freebies")),
+      btn("profile", iconButton(settings, "profile", "profile")),
     ],
-    [iconButton(settings, "referral", "refstore")],
+    [btn("referral", iconButton(settings, "referral", "refstore"))],
     [
-      styled(iconButton(settings, "support", "support"), "success"),
-      styled(
+      btn("support", iconButton(settings, "support", "support")),
+      btn(
+        "emails",
         iconUrlButton(
           settings,
           "emails",
           (settings["emails_trials_link"] || "").trim() || DEFAULT_EMAILS_LINK,
         ),
-        "success",
       ),
     ],
     [
-      styled(iconButton(settings, "api", "api"), "success"),
-      styled(iconButton(settings, "clear", "clear"), "success"),
+      btn("api", iconButton(settings, "api", "api")),
+      btn("clear", iconButton(settings, "clear", "clear")),
     ],
   ];
 }
