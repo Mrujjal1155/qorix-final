@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { usdToBdt } from "./eps.server";
+import { usdToBdt } from "../../src/lib/eps.server";
 
 describe("BDT gateway whole-taka rounding", () => {
   it("rounds 50 paisa up to the next taka", () => expect(usdToBdt(5.3, 129)).toBe(684));
