@@ -170,7 +170,7 @@ function bottomMenuMarkup(settings: Record<string, string>) {
 async function sayWithBottomMenu(chatId: number, text: string, settings: Record<string, string>, kb?: Button[][]) {
   const res = await sendMessage(chatId, text, undefined, { reply_markup: bottomMenuMarkup(settings) });
   defer(() => trackMessage(chatId, res?.result?.message_id));
-  if (kb) await say(chatId, "<b>Quick actions</b>", kb);
+  if (kb) await say(chatId, `<b>${uiTag(settings, "home_menu_title")}</b>\n${uiTag(settings, "home_menu_subtitle")}`, kb);
   return res;
 }
 
@@ -5384,6 +5384,8 @@ const START_UI_ICONS = [
   ["home_greet", "Greeting"],
   ["home_description", "Description"],
   ["home_choose", "Continue prompt"],
+  ["home_menu_title", "Menu heading"],
+  ["home_menu_subtitle", "Menu subtitle"],
   ["home_community", "Join Community"],
   ["home_group", "Community Group"],
   ["home_channel", "Official Channel"],
