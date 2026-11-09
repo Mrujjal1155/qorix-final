@@ -847,22 +847,25 @@ function homeKeyboard(settings: Record<string, string>): Button[][] {
 
 
     [
-      styled(iconButton(settings, "wallet", "wallet"), "default"),
-      styled(iconButton(settings, "freebies", "freebies"), "default"),
-      styled(iconButton(settings, "profile", "profile"), "default"),
+      mBtn(iconButton(settings, "wallet", "wallet")),
+      mBtn(iconButton(settings, "freebies", "freebies")),
+      mBtn(iconButton(settings, "profile", "profile")),
     ],
     [iconButton(settings, "referral", "refstore")],
     [
-      iconButton(settings, "support", "support"),
-      iconUrlButton(
-        settings,
-        "emails",
-        (settings["emails_trials_link"] || "").trim() || DEFAULT_EMAILS_LINK,
+      styled(iconButton(settings, "support", "support"), "success"),
+      styled(
+        iconUrlButton(
+          settings,
+          "emails",
+          (settings["emails_trials_link"] || "").trim() || DEFAULT_EMAILS_LINK,
+        ),
+        "success",
       ),
     ],
     [
-      iconButton(settings, "api", "api"),
-      iconButton(settings, "clear", "clear"),
+      styled(iconButton(settings, "api", "api"), "success"),
+      styled(iconButton(settings, "clear", "clear"), "success"),
     ],
   ];
 }
