@@ -11,6 +11,8 @@ export type UiEntry = { icon: string; label: string; group: string };
 
 export const UI_ELEMENTS = {
   special_title: { icon: "🔥", label: "A GIFT JUST FOR YOU", group: "specialprice" },
+  special_removed_title: { icon: "🔔", label: "SPECIAL PRICE REMOVED", group: "specialprice" },
+  special_removed: { icon: "❌", label: "Special price removed", group: "specialprice" },
   special_gift: { icon: "🎁", label: "Your own price", group: "specialprice" },
   special_price: { icon: "💰", label: "Price", group: "specialprice" },
   special_applied: { icon: "⚡", label: "Applied", group: "specialprice" },

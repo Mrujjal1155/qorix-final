@@ -128,7 +128,7 @@ test("non-admin cannot open the dedicated start emoji editor or save a welcome e
 test("special-price Bot Admin editor saves and resets Premium icons through the real handlers", async () => {
   await click("adm:specialicons");
   expect(buttons.flat().some(b => b.callback_data === "adm:uie:special_gift")).toBe(true);
-  for (const key of ["special_title", "special_gift", "special_price", "special_applied", "special_product", "special_buy", "special_api", "special_profile", "special_home"]) {
+  for (const key of ["special_title", "special_removed_title", "special_removed", "special_gift", "special_price", "special_applied", "special_product", "special_buy", "special_api", "special_profile", "special_home"]) {
     await click(`adm:uii:${key}`);
     await reply("⭐", "5400280896311944962");
     expect(settings[`ui_icon_${key}`]).toBe("5400280896311944962|⭐");

@@ -2349,6 +2349,19 @@ export type Database = {
         Returns: Json
       }
       release_stock_notification: { Args: { _id: string }; Returns: undefined }
+      remove_special_price_notice: {
+        Args: {
+          _admin_id: string
+          _expected_min_qty: number
+          _expected_price: number
+          _id: string
+          _kind: string
+          _message: Json
+          _product_id: string
+          _target: string
+        }
+        Returns: Json
+      }
       reseller_adjust_balance: {
         Args: {
           _amount: number

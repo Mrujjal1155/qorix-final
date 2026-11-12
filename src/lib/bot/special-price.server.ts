@@ -32,6 +32,48 @@ export function buildSpecialPriceNotice(kind: SpecialPriceKind, product: Product
 }
 
 /** Called only after the server function verifies the authenticated admin role. */
+export function buildSpecialPriceRemovalNotice(kind: SpecialPriceKind, product: Product, settings: Record<string, string>) {
+  const parsed = parseIconValue(product.telegram_custom_emoji_id || product.emoji || "", "📦");
+  const productIcon = parsed.customId
+    ? `<tg-emoji emoji-id="${escape(parsed.customId)}">${escape(parsed.glyph)}</tg-emoji>`
+    : uiIconHtml(settings, "special_product");
+  const text = `<b>${uiTag(settings, "special_removed_title")}</b>\n━━━━━━━━━━━━━━━━━━━━\n\n` +
+    `${uiIconHtml(settings, "special_removed")} The admin has removed your special price for this product.\n\n` +
+    `<blockquote>${productIcon} <b>${escape(product.name)}</b></blockquote>\n\n` +
+    `${uiIconHtml(settings, "special_applied")} <i>Your normal eligible ${kind === "reseller" ? "reseller API" : "bot"} pricing now applies to new purchases. Check the current price before ordering.</i>`;
+  if (text.length > 4096) throw new Error("Special price notice is too long");
+  return {
+    kind: "special_price_removed",
+    text,
+    keyboard: [
+      [kind === "reseller" ? uiBtn(settings, "special_api", "api:prices") : uiBtn(settings, "special_buy", `qty:${product.id}`)],
+      [uiBtn(settings, "special_profile", "profile"), uiBtn(settings, "special_home", "home")],
+    ],
+  };
+}
+
+/** Removal and its personal recipient are committed together; no Telegram send here. */
+export async function removeSpecialPrice(db: any, kind: SpecialPriceKind, id: string, adminId: string) {
+  const table = kind === "user" ? "user_product_prices" : "reseller_product_prices";
+  const { data: row, error: readError } = await db.from(table).select("*").eq("id", id).maybeSingle();
+  if (readError) throw new Error("Could not read the special price; nothing was removed.");
+  if (!row) return { ok: true as const, notice: "unchanged" as const };
+  const keys = uiKeysOf("specialprice").flatMap(key => [`ui_icon_${key}`, `ui_text_${key}`]);
+  const [product, config] = await Promise.all([
+    db.from("products").select("id,name,price,emoji,telegram_custom_emoji_id").eq("id", row.product_id).maybeSingle(),
+    db.from("bot_settings").select("key,value").in("key", keys),
+  ]);
+  if (product.error || config.error || !product.data) throw new Error("Could not prepare the removal notice; nothing was removed.");
+  const settings = Object.fromEntries((config.data ?? []).map((r: { key: string; value: string | null }) => [r.key, r.value ?? ""]));
+  const { data, error } = await db.rpc("remove_special_price_notice", {
+    _kind: kind, _id: id, _target: String(kind === "user" ? row.telegram_id : row.reseller_id),
+    _product_id: row.product_id, _expected_price: Number(row.price), _expected_min_qty: row.min_qty,
+    _message: buildSpecialPriceRemovalNotice(kind, product.data, settings), _admin_id: adminId,
+  });
+  if (error || !data?.ok) throw new Error("Could not remove the special price and notice. Please refresh before retrying.");
+  return data as { ok: true; notice: SpecialPriceNoticeStatus };
+}
+
 export async function saveSpecialPrice(db: any, kind: SpecialPriceKind, target: string, productId: string, price: number, minQty: number, adminId: string) {
   const keys = uiKeysOf("specialprice").flatMap(key => [`ui_icon_${key}`, `ui_text_${key}`]);
   const [product, config] = await Promise.all([

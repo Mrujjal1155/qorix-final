@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Add personal special-price removal alerts for users and linked resellers with atomic admin-only removal/queue, shared save lock, snapshot recheck and Bot Admin configurable removal icons. Isolated SQL validates selected recipient, duplicate prevention, stale/unauthorized rejection and rollback; helper regressions pass. Additive RPC applied; no real prices removed, Telegram send or publish.
+- [ ] Verify removal notices in the signed-in admin and live Telegram after approved deployment; blocked by external unmanaged authentication and no-real-send instruction.
+
 - [x] Add approved personal special-price notices for bot users and Telegram-linked resellers with atomic save/queue, existing paced retry ledger and Bot Admin Premium emoji setup. 33 focused/regression tests pass; latest build OK. Additive service-only RPC applied; no existing prices/balances changed, real send or publish.
 - [ ] Verify special-price notices visually in Telegram and through signed-in admin save after approved deployment; blocked by no-real-send instruction and external unmanaged authentication. Atomic SQL concurrency/rollback not live exercised; mocked save and all nine real emoji handlers verified.
 
