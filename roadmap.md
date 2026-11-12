@@ -1,6 +1,7 @@
 # Roadmap
 
-- [ ] Add approved personal special-price notices for bot users and Telegram-linked resellers, atomic save/queue, Bot Admin Premium emoji setup and focused mocked verification; no real send or publish.
+- [x] Add approved personal special-price notices for bot users and Telegram-linked resellers with atomic save/queue, existing paced retry ledger and Bot Admin Premium emoji setup. 33 focused/regression tests pass; latest build OK. Additive service-only RPC applied; no existing prices/balances changed, real send or publish.
+- [ ] Verify special-price notices visually in Telegram and through signed-in admin save after approved deployment; blocked by no-real-send instruction and external unmanaged authentication. Atomic SQL concurrency/rollback not live exercised; mocked save and all nine real emoji handlers verified.
 
 - [x] Replace Quick actions with the approved bold QORIX STORE MENU and Shop • Wallet • Orders • Support subtitle; expose both icons in Bot Admin. 21 focused/regression tests pass; latest build OK. Preview only; actual Telegram appearance remains unverified without approved deployment/send.
 
