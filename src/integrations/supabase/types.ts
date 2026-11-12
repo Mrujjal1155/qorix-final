@@ -2367,6 +2367,18 @@ export type Database = {
         Args: { _content?: string; _order_id: string; _supplier_error?: string }
         Returns: Json
       }
+      save_special_price_notice: {
+        Args: {
+          _admin_id: string
+          _kind: string
+          _message: Json
+          _min_qty: number
+          _price: number
+          _product_id: string
+          _target: string
+        }
+        Returns: Json
+      }
       set_manual_stock: {
         Args: { _pid: string; _qty: number }
         Returns: undefined
