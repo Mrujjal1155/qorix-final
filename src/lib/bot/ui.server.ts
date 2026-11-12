@@ -10,6 +10,15 @@ function esc(s: string) {
 export type UiEntry = { icon: string; label: string; group: string };
 
 export const UI_ELEMENTS = {
+  special_title: { icon: "🔥", label: "A GIFT JUST FOR YOU", group: "specialprice" },
+  special_gift: { icon: "🎁", label: "Your own price", group: "specialprice" },
+  special_price: { icon: "💰", label: "Price", group: "specialprice" },
+  special_applied: { icon: "⚡", label: "Applied", group: "specialprice" },
+  special_product: { icon: "📦", label: "Product", group: "specialprice" },
+  special_buy: { icon: "🛒", label: "Buy now", group: "specialprice" },
+  special_api: { icon: "🔌", label: "My API Prices", group: "specialprice" },
+  special_profile: { icon: "👤", label: "My Profile", group: "specialprice" },
+  special_home: { icon: "🏠", label: "Home", group: "specialprice" },
   /* ---- shop page ---- */
   shop_flash: { icon: "🎁", label: "Flash Deals", group: "shop" },
   shop_vault: { icon: "🔐", label: "Reseller Vault", group: "shop" },
@@ -297,7 +306,7 @@ const BACK_UI_KEYS = new Set<UiKey>([
   "com_back",
 ]);
 
-export const UI_GROUPS = ["shop", "plist", "product", "cart", "checkout", "payment", "wallet", "orders", "deposit", "quantity", "profile", "refstore", "freebies", "support", "history", "common"] as const;
+export const UI_GROUPS = ["shop", "plist", "specialprice", "product", "cart", "checkout", "payment", "wallet", "orders", "deposit", "quantity", "profile", "refstore", "freebies", "support", "history", "common"] as const;
 export type UiGroup = (typeof UI_GROUPS)[number];
 
 export function uiKeysOf(group: string): UiKey[] {

@@ -35,11 +35,9 @@ export const saveResellerPrice = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const { error } = await (context as any).supabase
-      .from("reseller_product_prices")
-      .upsert(data, { onConflict: "reseller_id,product_id" });
-    if (error) throw new Error(error.message);
-    return { ok: true };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { saveSpecialPrice } = await import("@/lib/bot/special-price.server");
+    return saveSpecialPrice(supabaseAdmin, "reseller", data.reseller_id, data.product_id, data.price, data.min_qty, context.userId);
   });
 
 export const deleteResellerPrice = createServerFn({ method: "POST" })

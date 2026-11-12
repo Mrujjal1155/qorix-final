@@ -68,8 +68,10 @@ function ResellerPricesPage() {
     if (!(mq >= 1)) { toast.error("Minimum quantity must be at least 1"); return; }
     setBusy(true);
     try {
-      await save({ data: { reseller_id: reseller.id, product_id: product.id, price: pr, min_qty: mq } });
+      const result = await save({ data: { reseller_id: reseller.id, product_id: product.id, price: pr, min_qty: mq } });
       toast.success("Custom price saved");
+      if (result.notice === "queued") toast.success("Personal special-price notice queued");
+      if (result.notice === "unreachable") toast.warning("Price saved; this reseller has no active, contactable linked bot account.");
       qc.invalidateQueries({ queryKey: ["reseller-prices"] });
     } catch (e: any) {
       toast.error(e.message);

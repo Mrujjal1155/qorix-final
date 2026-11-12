@@ -72,8 +72,11 @@ function UserPricesPage() {
     if (!(mq >= 1)) { toast.error("Minimum quantity must be at least 1"); return; }
     setBusy(true);
     try {
-      await save({ data: { telegram_id: Number(user.telegram_id), product_id: product.id, price: pr, min_qty: mq } });
+      const result = await save({ data: { telegram_id: Number(user.telegram_id), product_id: product.id, price: pr, min_qty: mq } });
       toast.success("Custom price saved");
+      if (result.notice === "queued") toast.success("Personal special-price notice queued");
+      if (result.notice === "unreachable") toast.warning("Price saved; this user cannot currently receive bot messages.");
+      if (result.notice === "not_applicable") toast.warning("Price saved; no notice sent because this price does not qualify as a lower bot price.");
       qc.invalidateQueries({ queryKey: ["user-prices"] });
     } catch (e: any) {
       toast.error(e.message);
