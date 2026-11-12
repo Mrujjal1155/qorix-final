@@ -4823,6 +4823,7 @@ export function adminKeyboard(): Button[][] {
     ],
     [{ text: "⌨️ Bottom menu buttons", callback_data: "adm:bottommenu" }],
     [{ text: "👋 Start & welcome emojis", callback_data: "adm:starticons" }],
+    [{ text: "🎁 Special price emojis", callback_data: "adm:specialicons" }],
 
     [
       { text: "💳 Payment icons", callback_data: "adm:paymenticons" },
@@ -7889,6 +7890,9 @@ async function handleCallback(cq: any) {
       await edit(v.text, v.kb);
     } else if (action === "starticons") {
       const v = await admStartIconView();
+      await edit(v.text, v.kb);
+    } else if (action === "specialicons") {
+      const v = await admUiListView("specialprice");
       await edit(v.text, v.kb);
     } else if (action === "paymenticons") {
       const v = await admPaymentIconsView();
