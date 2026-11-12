@@ -88,8 +88,10 @@ function UserPricesPage() {
   async function remove(id: string) {
     if (!confirm("Remove this custom price?")) return;
     try {
-      await del({ data: { id } });
+      const result = await del({ data: { id } });
       toast.success("Removed");
+      if (result.notice === "queued") toast.success("Personal special-price removal notice queued");
+      if (result.notice === "unreachable") toast.warning("Price removed; this user cannot currently receive bot messages.");
       qc.invalidateQueries({ queryKey: ["user-prices"] });
     } catch (e: any) {
       toast.error(e.message);

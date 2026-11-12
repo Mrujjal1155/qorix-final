@@ -64,7 +64,7 @@ export const deleteUserPrice = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const { error } = await (context as any).supabase.from("user_product_prices").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
-    return { ok: true };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { removeSpecialPrice } = await import("@/lib/bot/special-price.server");
+    return removeSpecialPrice(supabaseAdmin, "user", data.id, context.userId);
   });
