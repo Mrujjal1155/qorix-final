@@ -124,3 +124,23 @@ test("non-admin cannot open the dedicated start emoji editor or save a welcome e
   expect(settings.ui_icon_home_greet).toBe(icon);
   expect(user.state.awaiting).not.toBe("adm_ui_icon");
 });
+
+test("special-price Bot Admin editor saves and resets Premium icons through the real handlers", async () => {
+  await click("adm:specialicons");
+  expect(buttons.flat().some(b => b.callback_data === "adm:uie:special_gift")).toBe(true);
+  for (const key of ["special_title", "special_gift", "special_price", "special_applied", "special_product", "special_buy", "special_api", "special_profile", "special_home"]) {
+    await click(`adm:uii:${key}`);
+    await reply("⭐", "5400280896311944962");
+    expect(settings[`ui_icon_${key}`]).toBe("5400280896311944962|⭐");
+    await click(`adm:uii:${key}`);
+    await reply("-");
+    expect(settings[`ui_icon_${key}`]).toBe("");
+  }
+});
+
+test("non-admin cannot open special-price emoji settings", async () => {
+  await click("adm:stats");
+  const previous = JSON.stringify(buttons);
+  await click("adm:specialicons", 456);
+  expect(JSON.stringify(buttons)).toBe(previous);
+});

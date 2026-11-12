@@ -5657,6 +5657,7 @@ const UI_GROUP_LABEL: Record<string, string> = {
   history: "🧾 Transactions page",
   common: "🧩 Shared buttons",
   plist: "📋 Product list post",
+  specialprice: "🎁 Special price notices",
 };
 
 
