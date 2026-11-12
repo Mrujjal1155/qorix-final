@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Add approved personal special-price notices for bot users and Telegram-linked resellers, atomic save/queue, Bot Admin Premium emoji setup and focused mocked verification; no real send or publish.
+
 - [x] Replace Quick actions with the approved bold QORIX STORE MENU and Shop • Wallet • Orders • Support subtitle; expose both icons in Bot Admin. 21 focused/regression tests pass; latest build OK. Preview only; actual Telegram appearance remains unverified without approved deployment/send.
 
 - [x] Add a dedicated Telegram Bot Admin “Start & welcome emojis” screen covering welcome/header, menu and three community links through existing verified editors; 13 start/admin and 7 payment-icon regressions pass, latest build OK. Preview only; live Telegram appearance awaits approved deployment.
