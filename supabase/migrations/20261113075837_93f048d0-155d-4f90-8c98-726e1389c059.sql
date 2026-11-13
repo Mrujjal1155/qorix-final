@@ -1,0 +1,1 @@
+ALTER FUNCTION public.manual_payment_reserved(text) SECURITY INVOKER;
