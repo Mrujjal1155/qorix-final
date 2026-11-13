@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Block all 718 distinct known TXIDs on Binance Pay, Bybit and blockchain USDT records through 2026-11-13 08:04 UTC, without wallet credit or deposit/order completion changes; 665 Binance, 38 Bybit, 15 BEP20, no submitted TRC20 IDs. Historical register preserves cutoff and prevents Binance case-variant reuse; EPS/OxaPay and TXID-less records unchanged. Wallet totals read back unchanged.
+- [ ] Unsubmitted TXIDs and Binance alternate payment IDs cannot be blocked without provider/customer evidence; no blanket time cutoff or false verified/completed status was applied.
+
 - [x] Inspect existing Binance/Bybit/blockchain payment history and duplicate-TXID protection without changing payments or balances.
 - [x] Add approved paginated submitted-attempt visibility and audited no-credit manual reconciliation for Binance Pay, Bybit and TRC20/BEP20. Admin-authorized deposit lock/unique ID reservation, Binance alias/case handling and legacy deposit-credit guard; other gateways unchanged. Isolated SQL and gateway regressions pass; no real credit, manual verification, Telegram send or deployment.
 - [ ] Verify signed-in admin review/confirmation and real deployed payment reconciliation; blocked by external unmanaged authentication and no-real-payment/deployment permission. Full blockchain wallet history and the cause of reported missed payments remain unverified.
