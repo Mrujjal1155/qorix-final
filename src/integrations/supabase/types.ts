@@ -451,6 +451,33 @@ export type Database = {
         }
         Relationships: []
       }
+      historical_payment_txid_blocks: {
+        Row: {
+          created_at: string
+          cutoff_at: string
+          gateway: string
+          reason: string
+          transaction_key: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cutoff_at: string
+          gateway: string
+          reason: string
+          transaction_key: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cutoff_at?: string
+          gateway?: string
+          reason?: string
+          transaction_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       live_update_events: {
         Row: {
           attempts: number
