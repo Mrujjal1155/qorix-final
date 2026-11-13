@@ -66,7 +66,7 @@ export function depositPaidButton(row: DepositPresentation, settings: Record<str
 }
 
 export function depositQrControls(row: DepositPresentation, settings: Record<string, string> = {}): Button[][] {
-  const copy = depositControls(row, settings)[0].filter(button => button.copy_text);
+  const copy = depositControls(row, settings).flat().filter(button => button.copy_text);
   return [
     ...(copy.length ? [copy] : []),
     [depositPaidButton(row, settings)],
