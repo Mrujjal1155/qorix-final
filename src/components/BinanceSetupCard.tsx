@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { DepositQrField } from "@/components/DepositQrField";
+import { DEPOSIT_QR_KEYS } from "@/lib/bot/deposit-controls";
 import {
   Select,
   SelectContent,
@@ -129,6 +131,7 @@ export function BinanceSetupCard({
               value={values["binance_pay"] ?? ""}
               onChange={(e) => set("binance_pay", e.target.value)}
             />
+            <DepositQrField label="Binance Pay" address={values["binance_pay"] ?? ""} value={values[DEPOSIT_QR_KEYS.payid] ?? ""} onChange={v => set(DEPOSIT_QR_KEYS.payid, v)} />
           </div>
 
           <div className="space-y-1 sm:col-span-2">
@@ -139,6 +142,7 @@ export function BinanceSetupCard({
               value={values["usdt_bep20"] ?? ""}
               onChange={(e) => set("usdt_bep20", e.target.value)}
             />
+            <DepositQrField label="Binance USDT BEP20" address={values["usdt_bep20"] ?? ""} value={values[DEPOSIT_QR_KEYS.BSC] ?? ""} onChange={v => set(DEPOSIT_QR_KEYS.BSC, v)} />
           </div>
 
           <div className="space-y-1 sm:col-span-2">
@@ -149,6 +153,7 @@ export function BinanceSetupCard({
               value={values["usdt_trc20"] ?? ""}
               onChange={(e) => set("usdt_trc20", e.target.value)}
             />
+            <DepositQrField label="Binance USDT TRC20" address={values["usdt_trc20"] ?? ""} value={values[DEPOSIT_QR_KEYS.TRX] ?? ""} onChange={v => set(DEPOSIT_QR_KEYS.TRX, v)} />
           </div>
         </div>
 

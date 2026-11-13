@@ -880,7 +880,7 @@ function SettingsPage() {
     },
     {
       id: "blockchain", title: "Blockchain USDT", description: "Self-custody TRC20 and BEP20 · free verification.", icon: Network,
-      render: () => <BlockchainSetupCard />,
+      render: () => <BlockchainSetupCard values={values} setValues={setValues} onSave={onSave} />,
     },
     {
       id: "eps",
