@@ -1325,9 +1325,9 @@ export const decidePayment = createServerFn({ method: "POST" })
     if (!req) throw new Error("Request not found");
     if (req.status === "manual_reconciled") throw new Error("This payment was already reconciled manually. No additional credit is allowed.");
     if (data.approve && req.txid) {
-      const { data: receipts, error: receiptError } = await sb.from("payment_manual_reconciliations").select("gateway,transaction_keys");
+      const { data: reserved, error: receiptError } = await sb.rpc("manual_payment_reserved", { _txid: String(req.txid) });
       if (receiptError) throw new Error("Could not check manual payment reconciliation.");
-      if ((receipts ?? []).some((r: any) => (r.transaction_keys ?? []).some((key: string) => r.gateway === "payid" ? key.toLowerCase() === String(req.txid).toLowerCase() : key === req.txid || key.endsWith(`:${req.txid}`)))) {
+      if (reserved) {
         throw new Error("This transaction was already reconciled manually. No additional credit is allowed.");
       }
     }

@@ -15,11 +15,12 @@ beforeAll(async () => {
     CREATE TABLE binance_used_txs(tx_id text PRIMARY KEY);
     CREATE TABLE payment_requests(telegram_id bigint,status text,txid text,admin_note text);
     CREATE TABLE bot_users(telegram_id bigint PRIMARY KEY,balance numeric);
+    CREATE TABLE transactions(type text,reference text);
     INSERT INTO bot_users VALUES(123,50);`);
   const folder = new URL("../../supabase/migrations/",import.meta.url);
   for (const name of (await readdir(folder)).sort()) {
     const sql = await readFile(new URL(name,folder),"utf8");
-    if (sql.includes("CREATE TABLE public.payment_manual_reconciliations") || sql.includes("CREATE FUNCTION public.guard_manual_payment_reuse")) await db.exec(sql);
+    if (sql.includes("CREATE TABLE public.payment_manual_reconciliations") || sql.includes("CREATE FUNCTION public.guard_manual_payment_reuse") || sql.includes("CREATE FUNCTION public.manual_payment_reserved") || sql.includes("ALTER FUNCTION public.manual_payment_reserved")) await db.exec(sql);
   }
 },30000);
 afterAll(async () => db.close());
@@ -78,4 +79,10 @@ test("gateway keys and states distinguish manual verification from missing or us
   expect(reconciliationState({status:"pending",tx_id:"transfer"},false)).toBe("unverified");
   expect(reconciliationState({status:"pending",tx_id:"transfer"},true)).toBe("used");
   expect(reconciliationState({status:"credited"},true,{reason:"manual",admin_id:admin,created_at:"today"})).toBe("manual_verified");
+});
+test("legacy deposit credit cannot reuse manually reconciled raw or prefixed IDs",async()=>{
+  await expect(db.exec("INSERT INTO transactions VALUES('deposit','transfer_1')")).rejects.toThrow("cannot credit again");
+  await expect(db.exec("INSERT INTO transactions VALUES('deposit','bybit:transfer_1')")).rejects.toThrow("cannot credit again");
+  await expect(db.exec("INSERT INTO transactions VALUES('deposit','txalias')")).rejects.toThrow("cannot credit again");
+  expect((await db.query<any>("SELECT manual_payment_reserved('TXALIAS') reserved")).rows[0]?.reserved).toBe(true);
 });
