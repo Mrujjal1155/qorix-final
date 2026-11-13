@@ -52,7 +52,7 @@ const NAV_GROUPS = [
       { to: "/admin/reseller-prices", label: "Reseller Prices", icon: Tag },
       { to: "/admin/payments", label: "Payments", icon: CreditCard },
       { to: "/admin/binance", label: "Binance Transactions", icon: Wallet },
-      { to: "/admin/gateway-payments", label: "Bybit, EPS & OxaPay", icon: CreditCard },
+      { to: "/admin/gateway-payments", label: "USDT & Gateways", icon: CreditCard },
       { to: "/admin/alerts", label: "Alert health", icon: BellRing },
     ],
   },
