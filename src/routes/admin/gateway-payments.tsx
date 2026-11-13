@@ -8,12 +8,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PaymentReconciliationList } from "@/components/PaymentReconciliationList";
+import { BinancePaymentHistory } from "@/components/BinancePaymentHistory";
 
 export const Route = createFileRoute("/admin/gateway-payments")({
   head: () => ({
     meta: [
       { title: "USDT & Gateway Payments — QORIX Admin" },
-      { name: "description", content: "Review QORIX Bybit, TRC20, BEP20, EPS and OxaPay payment attempts and manual reconciliation." },
+      { name: "description", content: "Review QORIX Binance, Bybit, TRC20, BEP20, EPS and OxaPay payments and manual reconciliation." },
       { property: "og:title", content: "USDT & Gateway Payments — QORIX Admin" },
       { property: "og:description", content: "QORIX payment history and verified or unverified deposit review." },
       { property: "og:type", content: "website" },
@@ -28,7 +29,7 @@ const OK = new Set(["credited", "completed", "paid"]);
 const BAD = new Set(["failed", "cancelled", "expired", "refunded"]);
 
 function GatewayPaymentsPage() {
-  const [gateway, setGateway] = useState<"bybit" | "eps" | "oxapay" | "chain_trc20" | "chain_bep20">("bybit");
+  const [gateway, setGateway] = useState<"binance" | "bybit" | "eps" | "oxapay" | "chain_trc20" | "chain_bep20">("binance");
   const standardGateway = gateway === "eps" || gateway === "oxapay" ? gateway : "bybit";
   const [days, setDays] = useState(7);
   const [status, setStatus] = useState<"all" | "ok" | "pending" | "bad">("all");
@@ -37,7 +38,7 @@ function GatewayPaymentsPage() {
   const { data, error, isFetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["gateway-payments", gateway, days],
     queryFn: () => fetchRows({ data: { gateway: standardGateway, days } }),
-    enabled: !gateway.startsWith("chain_"),
+    enabled: gateway !== "binance" && !gateway.startsWith("chain_"),
     refetchInterval: 30000,
     staleTime: 20_000,
     placeholderData: keepPreviousData,
@@ -55,24 +56,25 @@ function GatewayPaymentsPage() {
   return (
     <AdminShell
       title="USDT & Gateway Payments"
-      subtitle="Bybit, blockchain USDT, EPS and OxaPay payment history."
-      actions={<Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>{isFetching ? "Refreshing…" : "Refresh"}</Button>}
+      subtitle="Binance, Bybit, blockchain USDT, EPS and OxaPay payment history."
+      actions={gateway !== "binance" && <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>{isFetching ? "Refreshing…" : "Refresh"}</Button>}
     >
       <div className="mb-3 flex flex-wrap gap-2">
-        {(["bybit", "chain_bep20", "chain_trc20", "eps", "oxapay"] as const).map((g) => (
-          <Button key={g} variant={gateway === g ? "default" : "outline"} onClick={() => setGateway(g)}>{g === "bybit" ? "Bybit Pay" : g === "chain_bep20" ? "USDT BEP20" : g === "chain_trc20" ? "USDT TRC20" : g === "eps" ? "EPS" : "OxaPay (Crypto)"}</Button>
+        {(["binance", "bybit", "chain_bep20", "chain_trc20", "eps", "oxapay"] as const).map((g) => (
+          <Button key={g} variant={gateway === g ? "default" : "outline"} onClick={() => { setGateway(g); setQ(""); setStatus("all"); }}>{g === "binance" ? "Binance" : g === "bybit" ? "Bybit Pay" : g === "chain_bep20" ? "USDT BEP20" : g === "chain_trc20" ? "USDT TRC20" : g === "eps" ? "EPS" : "OxaPay (Crypto)"}</Button>
         ))}
       </div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        {DAYS.map((d) => (
+        {(gateway === "binance" ? DAYS.filter(d => d <= 30) : DAYS).map((d) => (
           <Button key={d} size="sm" variant={days === d ? "default" : "outline"} onClick={() => setDays(d)}>{d === 1 ? "24 hours" : `${d} days`}</Button>
         ))}
         <Input className="max-w-xs" placeholder="Search ID, user, amount, Tx…" value={q} onChange={(e) => setQ(e.target.value)} />
-        {dataUpdatedAt > 0 && <span className="text-xs text-muted-foreground">Updated {new Date(dataUpdatedAt).toLocaleTimeString()}</span>}
+        {gateway !== "binance" && dataUpdatedAt > 0 && <span className="text-xs text-muted-foreground">Updated {new Date(dataUpdatedAt).toLocaleTimeString()}</span>}
       </div>
 
       {(gateway === "bybit" || gateway === "chain_trc20" || gateway === "chain_bep20") && <div className="mb-6"><PaymentReconciliationList key={`${gateway}:${days}`} gateway={gateway} days={days} /></div>}
-      {!gateway.startsWith("chain_") && <>
+      {gateway === "binance" && <BinancePaymentHistory days={Math.min(days, 30)} search={q} />}
+      {gateway !== "binance" && !gateway.startsWith("chain_") && <>
       <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4">
         <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Received (USD)</div><div className="text-lg font-semibold text-success">${received.toFixed(2)}</div></CardContent></Card>
         {([["ok", "Completed"], ["pending", "Pending"], ["bad", "Failed / expired"]] as const).map(([k, l]) => (

@@ -30,7 +30,6 @@ import {
   BellRing,
   LifeBuoy,
   Percent,
-  Wallet,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -51,7 +50,6 @@ const NAV_GROUPS = [
       { to: "/admin/user-prices", label: "User Prices", icon: Tag },
       { to: "/admin/reseller-prices", label: "Reseller Prices", icon: Tag },
       { to: "/admin/payments", label: "Payments", icon: CreditCard },
-      { to: "/admin/binance", label: "Binance Transactions", icon: Wallet },
       { to: "/admin/gateway-payments", label: "USDT & Gateways", icon: CreditCard },
       { to: "/admin/alerts", label: "Alert health", icon: BellRing },
     ],

@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Merge Binance history and reconciliation into the first USDT & Gateways tab, followed by Bybit and existing gateways; remove standalone navigation and preserve old link via redirect. Presentation only, no payment or balance changes.
+
 - [x] Enforce approved 30-minute deadlines with database guards, atomic wallet settlement, no submission extension and derived admin Expired states; close existing unfinished attempts through 08:18 UTC. Screenshot attempt reads expired; no old Pending remains, balances unchanged. Existing minutely verification schedule now runs SQL expiry without another schedule.
 - [x] Reserve 1,564 historical keys including known submitted IDs, stored confirmed chain transfers, EPS/OxaPay references and incoming provider evidence (178 Binance keys, 34 Bybit keys read). No fabricated IDs or false payment verification.
 - [x] Validate 63 focused/regression tests, latest build OK, six deadline/atomic-credit SQL tests; existing minutely schedule reports succeeded with zero overdue Pending. No real credit or publication.
