@@ -2292,6 +2292,7 @@ export type Database = {
         Args: { _kind: string; _payload: Json; _ref: string }
         Returns: undefined
       }
+      manual_payment_reserved: { Args: { _txid: string }; Returns: boolean }
       product_list_progress: { Args: { _admin_id: string }; Returns: Json }
       product_slugify: { Args: { _name: string }; Returns: string }
       profile_wallet_credit: {
