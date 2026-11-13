@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Add approved Telegram deposit Copy Address/ID, admin-uploaded address-bound QR and Change Gateway for Binance, Bybit, BEP20/TRC20; show 1 USDT example without changing payment rules. Test isolated bot flows; no live sends or deployment.
+
 - [x] Merge Binance history and reconciliation into the default first USDT & Gateways tab, followed by Bybit and existing gateways; remove standalone navigation and redirect old Binance link. Existing reads/search/refresh/history retained, no payment/balance changes; latest build OK. Signed-in live tab checks unavailable with external unmanaged authentication.
 
 - [x] Enforce approved 30-minute deadlines with database guards, atomic wallet settlement, no submission extension and derived admin Expired states; close existing unfinished attempts through 08:18 UTC. Screenshot attempt reads expired; no old Pending remains, balances unchanged. Existing minutely verification schedule now runs SQL expiry without another schedule.
