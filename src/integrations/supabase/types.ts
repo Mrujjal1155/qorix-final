@@ -586,6 +586,53 @@ export type Database = {
           },
         ]
       }
+      payment_manual_reconciliations: {
+        Row: {
+          admin_id: string
+          amount: number
+          created_at: string
+          deposit_id: string
+          gateway: string
+          reason: string
+          telegram_id: number
+          transaction_keys: string[]
+          txid: string
+          updated_at: string
+        }
+        Insert: {
+          admin_id: string
+          amount: number
+          created_at?: string
+          deposit_id: string
+          gateway: string
+          reason: string
+          telegram_id: number
+          transaction_keys: string[]
+          txid: string
+          updated_at?: string
+        }
+        Update: {
+          admin_id?: string
+          amount?: number
+          created_at?: string
+          deposit_id?: string
+          gateway?: string
+          reason?: string
+          telegram_id?: number
+          transaction_keys?: string[]
+          txid?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_manual_reconciliations_deposit_id_fkey"
+            columns: ["deposit_id"]
+            isOneToOne: true
+            referencedRelation: "binance_deposits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payment_requests: {
         Row: {
           admin_note: string | null
@@ -2245,6 +2292,7 @@ export type Database = {
         Args: { _kind: string; _payload: Json; _ref: string }
         Returns: undefined
       }
+      manual_payment_reserved: { Args: { _txid: string }; Returns: boolean }
       product_list_progress: { Args: { _admin_id: string }; Returns: Json }
       product_slugify: { Args: { _name: string }; Returns: string }
       profile_wallet_credit: {
@@ -2300,6 +2348,16 @@ export type Database = {
           stock: number
           updated_at: string
         }[]
+      }
+      reconcile_manual_deposit: {
+        Args: {
+          _admin_id: string
+          _deposit_id: string
+          _expected_txid: string
+          _keys: string[]
+          _reason: string
+        }
+        Returns: Json
       }
       record_blockchain_website_check: {
         Args: { _note: string; _order_id: string }

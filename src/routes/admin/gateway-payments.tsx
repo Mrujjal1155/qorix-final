@@ -7,14 +7,15 @@ import { AdminShell } from "@/components/AdminShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PaymentReconciliationList } from "@/components/PaymentReconciliationList";
 
 export const Route = createFileRoute("/admin/gateway-payments")({
   head: () => ({
     meta: [
-      { title: "Bybit, EPS & OxaPay Payments — Shop Bot Admin" },
-      { name: "description", content: "Every Bybit Pay, EPS and OxaPay payment received by the shop, bot and website." },
-      { property: "og:title", content: "Bybit, EPS & OxaPay Payments — Shop Bot Admin" },
-      { property: "og:description", content: "See all Bybit, EPS and OxaPay payments in one place." },
+      { title: "USDT & Gateway Payments — QORIX Admin" },
+      { name: "description", content: "Review QORIX Bybit, TRC20, BEP20, EPS and OxaPay payment attempts and manual reconciliation." },
+      { property: "og:title", content: "USDT & Gateway Payments — QORIX Admin" },
+      { property: "og:description", content: "QORIX payment history and verified or unverified deposit review." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
     ],
@@ -27,14 +28,16 @@ const OK = new Set(["credited", "completed", "paid"]);
 const BAD = new Set(["failed", "cancelled", "expired", "refunded"]);
 
 function GatewayPaymentsPage() {
-  const [gateway, setGateway] = useState<"bybit" | "eps" | "oxapay">("bybit");
+  const [gateway, setGateway] = useState<"bybit" | "eps" | "oxapay" | "chain_trc20" | "chain_bep20">("bybit");
+  const standardGateway = gateway === "eps" || gateway === "oxapay" ? gateway : "bybit";
   const [days, setDays] = useState(7);
   const [status, setStatus] = useState<"all" | "ok" | "pending" | "bad">("all");
   const [q, setQ] = useState("");
   const fetchRows = useServerFn(listGatewayPayments);
   const { data, error, isFetching, refetch, dataUpdatedAt } = useQuery({
     queryKey: ["gateway-payments", gateway, days],
-    queryFn: () => fetchRows({ data: { gateway, days } }),
+    queryFn: () => fetchRows({ data: { gateway: standardGateway, days } }),
+    enabled: !gateway.startsWith("chain_"),
     refetchInterval: 30000,
     staleTime: 20_000,
     placeholderData: keepPreviousData,
@@ -51,13 +54,13 @@ function GatewayPaymentsPage() {
 
   return (
     <AdminShell
-      title="Bybit, EPS & OxaPay Payments"
-      subtitle="Every Bybit Pay, EPS and OxaPay payment from the bot and website — refreshes every 30 seconds."
+      title="USDT & Gateway Payments"
+      subtitle="Bybit, blockchain USDT, EPS and OxaPay payment history."
       actions={<Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>{isFetching ? "Refreshing…" : "Refresh"}</Button>}
     >
       <div className="mb-3 flex flex-wrap gap-2">
-        {(["bybit", "eps", "oxapay"] as const).map((g) => (
-          <Button key={g} variant={gateway === g ? "default" : "outline"} onClick={() => setGateway(g)}>{g === "bybit" ? "Bybit Pay" : g === "eps" ? "EPS" : "OxaPay (Crypto)"}</Button>
+        {(["bybit", "chain_bep20", "chain_trc20", "eps", "oxapay"] as const).map((g) => (
+          <Button key={g} variant={gateway === g ? "default" : "outline"} onClick={() => setGateway(g)}>{g === "bybit" ? "Bybit Pay" : g === "chain_bep20" ? "USDT BEP20" : g === "chain_trc20" ? "USDT TRC20" : g === "eps" ? "EPS" : "OxaPay (Crypto)"}</Button>
         ))}
       </div>
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -68,6 +71,8 @@ function GatewayPaymentsPage() {
         {dataUpdatedAt > 0 && <span className="text-xs text-muted-foreground">Updated {new Date(dataUpdatedAt).toLocaleTimeString()}</span>}
       </div>
 
+      {(gateway === "bybit" || gateway === "chain_trc20" || gateway === "chain_bep20") && <div className="mb-6"><PaymentReconciliationList key={`${gateway}:${days}`} gateway={gateway} days={days} /></div>}
+      {!gateway.startsWith("chain_") && <>
       <div className="mb-4 grid grid-cols-2 gap-2 md:grid-cols-4">
         <Card><CardContent className="p-3"><div className="text-xs text-muted-foreground">Received (USD)</div><div className="text-lg font-semibold text-success">${received.toFixed(2)}</div></CardContent></Card>
         {([["ok", "Completed"], ["pending", "Pending"], ["bad", "Failed / expired"]] as const).map(([k, l]) => (
@@ -104,6 +109,7 @@ function GatewayPaymentsPage() {
           </div>
         </CardContent>
       </Card>
+      </>}
     </AdminShell>
   );
 }

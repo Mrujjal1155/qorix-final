@@ -7,11 +7,12 @@ import { AdminShell } from "@/components/AdminShell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PaymentReconciliationList } from "@/components/PaymentReconciliationList";
 
 export const Route = createFileRoute("/admin/binance")({
   head: () => ({
     meta: [
-      { title: "Binance Transactions — Shop Bot Admin" },
+      { title: "Binance Transactions & Verification — QORIX Admin" },
       { name: "description", content: "Live list of every Binance Pay transfer and coin deposit received on your Binance account." },
       { property: "og:title", content: "Binance Transactions — Shop Bot Admin" },
       { property: "og:description", content: "See every incoming Binance payment without opening Binance." },
@@ -110,6 +111,7 @@ function BinancePage() {
           </div>
         </CardContent>
       </Card>
+      <div className="mt-6"><PaymentReconciliationList key={days} gateway="payid" days={days} /></div>
     </AdminShell>
   );
 }

@@ -1323,6 +1323,14 @@ export const decidePayment = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { data: req } = await sb.from("payment_requests").select("*").eq("id", data.id).maybeSingle();
     if (!req) throw new Error("Request not found");
+    if (req.status === "manual_reconciled") throw new Error("This payment was already reconciled manually. No additional credit is allowed.");
+    if (data.approve && req.txid) {
+      const { data: reserved, error: receiptError } = await sb.rpc("manual_payment_reserved", { _txid: String(req.txid) });
+      if (receiptError) throw new Error("Could not check manual payment reconciliation.");
+      if (reserved) {
+        throw new Error("This transaction was already reconciled manually. No additional credit is allowed.");
+      }
+    }
 
     await sb
       .from("payment_requests")
