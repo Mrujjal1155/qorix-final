@@ -60,6 +60,7 @@ import { backgroundWaitUntil } from "@/lib/bg.server";
 import { enqueueAdminBroadcast } from "@/lib/bot/admin-broadcast.server";
 import { binancePaymentAmount, exactBinanceAmount } from "@/lib/binance-payment";
 import { epsWalletCredit } from "@/lib/eps-payment";
+import { PAYMENT_WINDOW_MS, paymentAttemptOpen } from "@/lib/payment-deadline";
 import { orderTimezone } from "@/lib/order-time";
 import { reservedCheckout } from "@/lib/bot/paid-checkout";
 import { buildStartMessage, buildProfileDetails, referralCopyButton, referralShareAnchor } from "@/lib/bot/home-message";
@@ -2395,7 +2396,7 @@ async function startBinanceDeposit(
       address,
       amount_usdt: amountUsdt,
       meta,
-      expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+      expires_at: new Date(Date.now() + PAYMENT_WINDOW_MS).toISOString(),
     })
     .select("*")
     .single();
@@ -2471,13 +2472,14 @@ async function confirmByTxId(
   const txId = String(rawId || "").trim();
   if (String(row.kind).startsWith("chain_")) return confirmBlockchainBotDeposit(row, txId);
   if (row.kind === "bybit") return confirmBybitBotDeposit(row, txId);
+  if (!paymentAttemptOpen(row)) return { ok: false, message: "Payment expired. Contact support if funds were sent." };
   if (txId.length < 6) return { ok: false, message: row.kind === "payid" ? "Please send the Binance Order ID of your payment." : "Please send the Transaction ID (TXID) of your USDT transfer." };
   if (await txUsed(txId)) return { ok: false, message: "❌ This Order ID / Transaction ID was already used." };
   const expected = Number(row.amount_usdt);
   const { findByTxId } = await import("@/lib/binance.server");
   let m: Awaited<ReturnType<typeof findByTxId>>;
   try {
-    m = await findByTxId(txId, row.kind === "payid" ? "pay" : "crypto");
+    m = await findByTxId(txId, row.kind === "payid" ? "pay" : "crypto", Date.parse(row.created_at));
   } catch (e) {
     console.error("Binance verify failed", e);
     m = { ok: false, error: "network" };
@@ -2491,10 +2493,6 @@ async function confirmByTxId(
   if (m.currency !== "USDT") return { ok: false, message: `❌ Payment must be sent in USDT. Received: ${escapeHtml(m.currency)}.` };
   if (!exactBinanceAmount(expected, m.amount)) {
     return { ok: false, message: `❌ Amount mismatch. Expected <b>${expected} USDT</b>, received <b>${m.amount} USDT</b>. Contact support.` };
-  }
-  if (!Array.isArray(row.meta?.items) || !row.meta.items.length || row.meta.reseller_id) {
-    const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: txId });
-    if (usedErr) return { ok: false, message: "❌ This Order ID / Transaction ID was already used." };
   }
   return { ok: true, amount: m.amount, txId };
 }
@@ -2521,7 +2519,7 @@ async function verifyBinanceDeposit(chatId: number, id: string) {
     .maybeSingle();
   if (!row) return { message: "❌ Deposit not found." };
   if (row.status === "credited") return { message: await alreadyPaidMessage(chatId, id, "✅ This deposit was already added to your wallet.") };
-  if (new Date(row.expires_at).getTime() < Date.now()) {
+  if (!paymentAttemptOpen(row)) {
     await db.from("binance_deposits").update({ status: "expired" }).eq("id", id);
     return { message: "⌛ This deposit request expired. Please start a new one." };
   }
@@ -2531,6 +2529,7 @@ async function verifyBinanceDeposit(chatId: number, id: string) {
 
 /** Credit a wallet deposit, or fulfil a direct checkout attached to the deposit row. */
 async function settlePayment(chatId: number, row: any, amount: number, txid: string, note: string) {
+  if (!paymentAttemptOpen(row)) throw new Error("Payment expired. Contact support if funds were sent.");
   if (String(row.kind).startsWith("chain_")) {
     const network = chainSchema.parse(String(row.kind).replace("chain_", ""));
     if (Array.isArray(row.meta?.items) && row.meta.items.length) {
@@ -2579,61 +2578,12 @@ async function settlePayment(chatId: number, row: any, amount: number, txid: str
     return { message: res.text, keyboard: res.kb };
   }
 
-  await db.from("binance_deposits").update({ status: "credited", tx_id: txid }).eq("id", row.id);
-
-  // Reseller wallet top-up — same gateways, different wallet.
-  if (meta.reseller_id) {
-    await db.rpc("reseller_adjust_balance", {
-      _reseller_id: String(meta.reseller_id),
-      _amount: amount,
-      _type: "topup",
-      _reference: txid,
-      _note: `${methodLabel} — ${note}`,
-    });
-    await db.from("reseller_topups").insert({
-      reseller_id: String(meta.reseller_id),
-      amount,
-      method: methodKey,
-      txid,
-      status: "approved",
-      admin_note: `Auto-verified — ${methodLabel}`,
-    });
-    return {
-      message: `🎉 Top-up confirmed: ${money(amount)} (${methodLabel})`,
-      keyboard: [] as Button[][],
-    };
-  }
-  await db.from("payment_requests").insert({
-    telegram_id: chatId,
-    method: methodLabel,
-    amount,
-    txid,
-    status: "approved",
-    admin_note: note,
+  const { data: settlement, error: settlementError } = await db.rpc("settle_payment_wallet", {
+    _deposit_id: row.id, _txid: txid, _amount: amount, _method: methodKey, _note: note,
   });
-
-  if (Array.isArray(meta.items) && meta.items.length) {
-    // Row-locked, idempotent by txid: one deposit per transaction id.
-    await db.rpc("bot_user_credit", {
-      _telegram_id: chatId,
-      _amount: amount,
-      _type: "deposit",
-      _method: methodKey,
-      _reference: txid,
-      _note: "Direct checkout payment",
-    });
-    const res = await fulfillCheckout(chatId, meta, methodKey, txid, row.id);
-    return { message: res.text, keyboard: res.kb };
-  }
-
-  await db.rpc("bot_user_credit", {
-    _telegram_id: chatId,
-    _amount: amount,
-    _type: "deposit",
-    _method: methodKey,
-    _reference: txid,
-    _note: note,
-  });
+  if (settlementError) throw new Error("Payment could not be settled. Contact support; no automatic credit was added.");
+  if (!settlement?.changed) return { message: "This payment was already processed.", keyboard: [] as Button[][] };
+  if (meta.reseller_id) return { message: `🎉 Top-up confirmed: ${money(amount)} (${methodLabel})`, keyboard: [] as Button[][] };
 
   const after = await getUser(chatId);
   return {
@@ -2698,7 +2648,7 @@ async function startEpsDeposit(
       address: null,
       amount_usdt: amountUsd,
       meta: { ...meta, gateway: "eps", channel, bdt: amountBdt, rate: cfg.rate, mtid },
-      expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+      expires_at: new Date(Date.now() + PAYMENT_WINDOW_MS).toISOString(),
     })
     .select("*")
     .single();
@@ -2755,6 +2705,7 @@ function epsView(row: any, settings: Record<string, string>) {
 }
 
 async function creditEpsRow(row: any) {
+  if (!paymentAttemptOpen(row)) return { credited: false as const, message: "Payment expired. Contact support if funds were sent." };
   const { cfg } = await epsCfg();
   const { verifyTransaction, isPaid } = await import("@/lib/eps.server");
   const meta = (row.meta ?? {}) as any;
@@ -2779,11 +2730,6 @@ async function creditEpsRow(row: any) {
     };
   }
 
-  const txKey = `eps:${info.epsTransactionId || info.merchantTransactionId || mtid}`;
-  if (!Array.isArray(meta.items) || !meta.items.length || meta.reseller_id) {
-    const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: txKey });
-    if (usedErr) return { credited: false as const, message: "✅ This payment was already processed." };
-  }
 
   const usd = epsWalletCredit(Number(row.amount_usdt), info.amount, expectedBdt);
   const r = await settlePayment(
@@ -2848,7 +2794,7 @@ async function startOxapayDeposit(chatId: number, usd: number, meta: Record<stri
       address: null,
       amount_usdt: usd,
       meta: oxapayDepositMeta(meta),
-      expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      expires_at: new Date(Date.now() + PAYMENT_WINDOW_MS).toISOString(),
     })
     .select("*")
     .single();
@@ -2879,7 +2825,7 @@ async function startOxapayDeposit(chatId: number, usd: number, meta: Record<stri
     (directCheckout
       ? `Your order is processed automatically after payment confirmation. If stock is unavailable, the payment stays in your wallet.\n`
       : `Your wallet is credited automatically once the network confirms it.\n`) +
-    `⏳ The payment link is valid for 60 minutes.`;
+    `⏳ The payment link is valid for 30 minutes.`;
   const kb: Button[][] = [
     [{ text: `💳 Pay now — ${money(usd)}`, url: created.url } as any],
     [uiBtn(s, "dep_verify", `oxachk:${row.id}`)],
@@ -2890,6 +2836,7 @@ async function startOxapayDeposit(chatId: number, usd: number, meta: Record<stri
 }
 
 async function creditOxapayRow(row: any, info: import("@/lib/oxapay.server").OxapayInfo) {
+  if (!paymentAttemptOpen(row)) return { credited: false as const, message: "Payment expired. Contact support if funds were sent." };
   const { oxapayIsPaid, oxapayCovers } = await import("@/lib/oxapay");
   const meta = (row.meta ?? {}) as any;
   if (meta.track_id !== info.trackId || info.orderId !== `D-${row.id}`)
@@ -2903,10 +2850,7 @@ async function creditOxapayRow(row: any, info: import("@/lib/oxapay.server").Oxa
     await notifyAdmins(`⚠️ <b>OxaPay amount mismatch</b>\nDeposit <code>${row.id}</code>\nExpected ${money(row.amount_usdt)} · invoice ${info.amount} ${escapeHtml(info.currency)}`);
     return { credited: false as const, message: "❌ The paid amount does not match. Please contact support." };
   }
-  if (!Array.isArray(meta.items) || !meta.items.length || meta.reseller_id) {
-    const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: `oxapay:${info.trackId}` });
-    if (usedErr) return { credited: false as const, message: "✅ This payment was already processed." };
-  }
+
   const r = await settlePayment(
     Number(row.telegram_id),
     row,
@@ -3013,7 +2957,7 @@ async function submitBinanceTxid(chatId: number, depId: string, txid: string, us
     .maybeSingle();
   if (!row) return { message: "❌ Deposit request not found. Please start again.", keyboard: back };
   if (row.status === "credited") return { message: await alreadyPaidMessage(chatId, depId, "✅ This deposit was already added to your wallet."), keyboard: back };
-  if (new Date(row.expires_at).getTime() < Date.now()) {
+  if (!paymentAttemptOpen(row)) {
     await db.from("binance_deposits").update({ status: "expired" }).eq("id", depId);
     return { message: "⌛ This deposit request expired. Please start a new one.", keyboard: back };
   }
@@ -3043,12 +2987,10 @@ async function submitBinanceTxid(chatId: number, depId: string, txid: string, us
   const isOrder = Array.isArray(meta.items) && meta.items.length;
   // Keep the ID so the background checker can retry it; tell the admin once per ID.
   if (row.tx_id !== txid && !r.message.includes("already used")) {
-    // Keep the request open at least 15 minutes after the ID arrives so the
-    // background checker can still confirm a slow Binance history update.
-    const keepUntil = Math.max(new Date(row.expires_at).getTime(), Date.now() + 15 * 60_000);
+    // A submitted ID never extends the original 30-minute deadline.
     await db
       .from("binance_deposits")
-      .update({ tx_id: txid, expires_at: new Date(keepUntil).toISOString() })
+      .update({ tx_id: txid })
       .eq("id", depId);
     await db.from("payment_requests").insert({
       telegram_id: chatId,
@@ -3088,7 +3030,9 @@ export async function sweepBinanceDeposits(force = false) {
   if (!force && Date.now() - lastSweep < 45_000) return { skipped: true, settled: 0 };
   lastSweep = Date.now();
 
-  // Verify hosted payments before the expiry pass; also recover late callbacks.
+  // Expire all attempt types before checking payments, never recover late credit.
+  const { error: expiryError } = await db.rpc("expire_payment_attempts");
+  if (expiryError) throw new Error("Payment expiry will retry.");
   await sweepEpsDeposits().catch((error) => console.error("EPS recheck will retry", error));
   await sweepBybitWebsiteOrders().catch(() => {});
   // Unpaid / underpaid checkouts stop hanging forever.
@@ -3098,7 +3042,7 @@ export async function sweepBinanceDeposits(force = false) {
   const { data: rows } = await db
     .from("binance_deposits")
     .select("*")
-    .neq("status", "credited")
+    .eq("status", "pending")
     .in("kind", ["payid", "crypto", "bybit"])
     .not("tx_id", "is", null)
     .gt("expires_at", nowIso)
@@ -6066,7 +6010,7 @@ export async function sweepEpsDeposits() {
   const now = new Date().toISOString();
   const since = new Date(Date.now() - 24 * 60 * 60_000).toISOString();
   const { data: rows } = await db.from("binance_deposits").select("*").eq("kind", "eps")
-    .neq("status", "credited").gte("created_at", since)
+    .eq("status", "pending").gt("expires_at", now).gte("created_at", since)
     .or(`meta->>next_check_at.is.null,meta->>next_check_at.lt.${now}`)
     .order("created_at", { ascending: true }).limit(5);
   for (const row of rows ?? []) {
@@ -8164,7 +8108,7 @@ export async function verifyResellerTopup(resellerId: string, depositId: string,
     .maybeSingle();
   if (!row) return { ok: false as const, message: "Payment request not found." };
   if (row.status === "credited") return { ok: true as const, message: "This payment was already credited." };
-  if (new Date(row.expires_at).getTime() < Date.now()) {
+  if (!paymentAttemptOpen(row)) {
     await db.from("binance_deposits").update({ status: "expired" }).eq("id", row.id);
     return { ok: false as const, message: "This payment request expired. Please start a new one." };
   }
