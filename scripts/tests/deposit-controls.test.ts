@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { DEPOSIT_QR_KEYS, depositControls, depositQrUrl, encodeDepositQr, readDepositQr } from "../../src/lib/bot/deposit-controls";
+import { DEPOSIT_QR_KEYS, depositControls, depositPaidButton, depositQrControls, depositQrUrl, encodeDepositQr, readDepositQr } from "../../src/lib/bot/deposit-controls";
 
 test("each gateway uses its own address-bound admin QR", () => {
   for (const [kind, network, key] of [
@@ -35,4 +35,19 @@ test("copy action carries the exact receiving address, never a callback or URL",
 test("copy payload never exceeds Telegram's 256-character maximum", () => {
   expect(depositControls({ id: "123", kind: "payid", address: "a".repeat(256) })[0][0].copy_text?.text.length).toBe(256);
   expect(depositControls({ id: "123", kind: "payid", address: "a".repeat(257) }).flat().some(button => button.copy_text)).toBe(false);
+});
+
+test("QR and main view route submission to the same deposit without mutation", () => {
+  for (const kind of ["payid", "bybit", "chain_bep20", "chain_trc20", "crypto"]) {
+    const row = Object.freeze({ id: "00000000-0000-0000-0000-000000000123", kind, address: "recipient" });
+    const qr = depositQrControls(row);
+    expect(qr[1][0].callback_data).toBe(depositPaidButton(row).callback_data);
+    expect(qr[0][0].copy_text).toEqual({ text: "recipient" });
+    expect(qr[2][0].callback_data).toBe(`bview:${row.id}`);
+    expect(qr[2][1].callback_data).toBe("depchange");
+    for (const button of qr.flat()) {
+      expect(Number(Boolean(button.copy_text)) + Number(Boolean(button.callback_data))).toBe(1);
+      if (button.callback_data) expect(new TextEncoder().encode(button.callback_data).length).toBeLessThanOrEqual(64);
+    }
+  }
 });
