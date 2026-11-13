@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Update approved deposit/QR controls: blue copy/QR/change/cancel/back, green gateway-specific submit ID action in both views; Bot Admin Payment icons now exposes nine shared control emoji editors. Twenty focused/regression tests pass; latest build OK. QR submit invokes the existing TXID prompt without credit or deadline changes. Bybit retains UID/internal Transfer ID, not unsupported Merchant Pay Order ID. No real sends, payments or deployment; actual Telegram appearance remains unverified pending approved deployment.
+
 - [x] Add approved Telegram deposit Copy Address/ID, admin-uploaded address-bound QR and Change Gateway for Binance, Bybit, BEP20/TRC20; show 1 USDT example without changing payment rules. Preserve original QR upload pixels, reject stale address-bound images, verify no credit/deadline mutation in mocked real handlers. 28 focused/regression tests pass; latest build OK. No live sends or deployment.
 - [ ] Verify signed-in QR upload/save and actual Telegram appearance after approved deployment; external unmanaged authentication blocks signed-in preview checks and no live-send/deployment approval exists. Admin sign-in screen loads with zero browser runtime errors.
 

@@ -1,5 +1,5 @@
 import { expect, mock, test } from "bun:test";
-import { encodeDepositQr } from "../../src/lib/bot/deposit-controls";
+import { DEPOSIT_CONTROL_ICON_KEYS, encodeDepositQr } from "../../src/lib/bot/deposit-controls";
 
 const user: any = { telegram_id: 123, first_name: "Test", state: {}, balance: 0, total_spent: 0 };
 let deposit: any;
@@ -8,16 +8,18 @@ let credits = 0;
 let chainEnabled = true;
 let photos: string[] = [];
 let qrValue = encodeDepositQr("https://example.com/bep20.png", "0x1111111111111111111111111111111111111111");
+const settings: Record<string, string> = { admin_telegram_ids: "123" };
 const chainId = `0x${"a".repeat(64)}`;
 mock.module("@/lib/blockchain.server", () => ({ blockchainGateways: async () => [{ network: "bep20", address: "0x1111111111111111111111111111111111111111", enabled: chainEnabled, verified: true }], findChainPayment: async () => ({ ok: true, txid: chainId, amount: 10.25 }) }));
 mock.module("@/lib/bybit.server", () => ({ bybitSettings: async () => ({ bybit_enabled: "1", bybit_api_verified: "1", bybit_uid: "98765" }), findBybitPayment: async () => ({ ok: true, txid: chainId, amount: 10.25 }) }));
 mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
   from: (table: string) => {
-    const result = () => ({ data: table === "bot_settings" ? [{ key: "deposit_qr_chain_bep20", value: qrValue }] : table === "bot_users" ? user : table === "binance_deposits" ? deposit : table === "binance_used_txs" ? null : [], error: null });
+    const result = () => ({ data: table === "bot_settings" ? [{ key: "deposit_qr_chain_bep20", value: qrValue }, ...Object.entries(settings).map(([key, value]) => ({ key, value }))] : table === "bot_users" ? user : table === "binance_deposits" ? deposit : table === "binance_used_txs" ? null : [], error: null });
     const chain: any = {
       select: () => chain, eq: () => chain, neq: () => chain, in: () => chain, not: () => chain, gt: () => chain, gte: () => chain, lt: () => chain, or: () => chain, order: () => chain, range: () => chain, limit: () => chain,
       insert: (value: any) => { if (table === "binance_deposits") deposit = { ...value, id: "00000000-0000-0000-0000-000000000123", status: "pending", created_at: new Date(Date.now() - 1000).toISOString() }; return chain; },
       update: (value: any) => { if (table === "bot_users" && value.state) user.state = value.state; if (table === "binance_deposits") Object.assign(deposit, value); return chain; },
+      upsert: (value: any) => { if (table === "bot_settings") settings[value.key] = value.value; return chain; },
       maybeSingle: async () => result(), single: async () => result(), then: (resolve: any) => Promise.resolve(result()).then(resolve),
     };
     return chain;
@@ -39,7 +41,7 @@ mock.module("@/lib/telegram.server", () => ({
   editMessage: async (chat: number, _id: number, text: string, kb: any[][]) => show(chat, text, kb),
   styled: (button: object, style: string) => ({ ...button, style }), styleRows: (rows: any) => rows,
   deleteMessage: async () => ({}), getMe: async () => ({}), tg: async () => ({}), isCustomEmojiBlocked: () => false,
-  sendDocument: async () => ({}), sendDocumentUpload: async () => ({}), sendAlertMessage: async () => ({}), sendPhoto: async (_chat: number, url: string) => { photos.push(url); return { ok: true }; }, sendAnimation: async () => ({}), COMMAND_LIST: [],
+  sendDocument: async () => ({}), sendDocumentUpload: async () => ({}), sendAlertMessage: async () => ({}), sendPhoto: async (_chat: number, url: string, _text: string, kb: any[][]) => { photos.push(url); buttons = kb; return { ok: true }; }, sendAnimation: async () => ({}), COMMAND_LIST: [],
 }));
 mock.module("@/lib/bg.server", () => ({ backgroundWaitUntil: () => true }));
 const { handleUpdate, invalidateSettings } = await import("../../src/lib/bot/engine.server");
@@ -78,6 +80,11 @@ test("QR displays the uploaded matching image without crediting or extending a p
   expect(deposit.status).toBe("pending");
   expect(deposit.expires_at).toBe(deadline);
   expect(user.balance).toBe(balance);
+  expect(buttons[1][0].callback_data).toBe(`bchk:${deposit.id}`);
+  await click(buttons[1][0].callback_data);
+  expect(user.state.awaiting).toBe("bin_txid");
+  expect(deposit.expires_at).toBe(deadline);
+  expect(user.balance).toBe(balance);
   await click(`bview:${deposit.id}`);
   expect(buttons.flat().some(b => b.callback_data === `bchk:${deposit.id}`)).toBe(true);
 });
@@ -111,3 +118,21 @@ test("Change Gateway clears input only and retains amount, deadline and wallet",
   expect(user.balance).toBe(balance);
 });
 test("disabled chain cannot start a new deposit", async () => { chainEnabled = false; user.state = {}; await click("dep:chain_bep20"); expect(user.state.awaiting).toBeUndefined(); });
+
+test("Bot Admin saves and resets every payment-control Premium icon without changing a payment", async () => {
+  const snapshot = JSON.stringify(deposit), balance = user.balance;
+  for (const [i, key] of DEPOSIT_CONTROL_ICON_KEYS.entries()) {
+    await click("adm:paymenticons");
+    expect(buttons.flat().some(b => b.callback_data === `adm:uii:${key}`)).toBe(true);
+    await click(`adm:uii:${key}`);
+    expect(user.state.awaiting).toBe("adm_ui_icon");
+    const emojiId = `54002808963119449${i}`;
+    await handleUpdate({ message: { message_id: 3, text: "⭐", entities: [{ type: "custom_emoji", offset: 0, length: 1, custom_emoji_id: emojiId }], from: { id: 123 }, chat: { id: 123, type: "private" } } });
+    expect(settings[`ui_icon_${key}`]).toBe(`${emojiId}|⭐`);
+    await click(`adm:uii:${key}`);
+    await reply("-");
+    expect(settings[`ui_icon_${key}`]).toBe("");
+  }
+  expect(JSON.stringify(deposit)).toBe(snapshot);
+  expect(user.balance).toBe(balance);
+});
