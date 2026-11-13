@@ -16,6 +16,12 @@ beforeAll(async () => {
  CREATE TABLE payment_requests(status text,admin_note text,created_at timestamptz DEFAULT now());`);
  await db.exec(await readFile(new URL('../../supabase/migrations/20261113081533_ff6308e5-3f7d-485b-b27d-598b0b9624de.sql',import.meta.url),'utf8'));
  await db.exec(`CREATE FUNCTION guard_history() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF EXISTS(SELECT 1 FROM historical_payment_txid_blocks WHERE lower(transaction_key)=lower(NEW.tx_id)) THEN RAISE EXCEPTION 'already used'; END IF; RETURN NEW; END $$; CREATE TRIGGER history BEFORE INSERT ON binance_used_txs FOR EACH ROW EXECUTE FUNCTION guard_history();`);
+ await db.exec(`CREATE TABLE bot_users(telegram_id bigint PRIMARY KEY,balance numeric); INSERT INTO bot_users VALUES(123,50);
+ ALTER TABLE payment_requests ADD COLUMN telegram_id bigint,ADD COLUMN method text,ADD COLUMN amount numeric,ADD COLUMN txid text;
+ CREATE TABLE reseller_topups(reseller_id uuid,amount numeric,method text,txid text,status text,admin_note text);
+ CREATE FUNCTION bot_user_credit(t bigint,a numeric,ty text,m text,r text,n text) RETURNS jsonb LANGUAGE plpgsql AS $$ BEGIN INSERT INTO transactions VALUES(ty,r); UPDATE bot_users SET balance=balance+a WHERE telegram_id=t; RETURN '{"ok":true}'::jsonb; END $$;
+ CREATE FUNCTION reseller_adjust_balance(uuid,numeric,text,text,text) RETURNS numeric LANGUAGE sql AS $$ SELECT 0::numeric $$;`);
+ await db.exec(await readFile(new URL('../../supabase/migrations/20261113081644_f5398b41-809a-4b01-aee8-b130dd1c6522.sql',import.meta.url),'utf8'));
 },30000);
 afterAll(async()=>db.close());
 test('maximum open time is exactly 30 minutes, not two hours',()=>{
@@ -54,4 +60,14 @@ test('late website settlement rejects paid flags and preserves existing paid ord
  await expect(db.query(`UPDATE orders SET meta='{"oxapay_paid":true}' WHERE id=$1`,[row.id])).rejects.toThrow('automatic settlement forbidden');
  await db.exec(`INSERT INTO orders(source,status,payment_method,created_at,meta) VALUES('website','pending','eps',now()-interval '3 days','{"eps_paid":true}'); SELECT expire_payment_attempts();`);
  expect((await db.query<any>(`SELECT status FROM orders WHERE meta->>'eps_paid'='true'`)).rows[0]?.status).toBe('pending');
+});
+test('wallet settlement credits once and duplicate or expired requests never change balance',async()=>{
+ const row=(await db.query<any>(`INSERT INTO binance_deposits(kind) VALUES('payid') RETURNING id`)).rows[0];
+ const call=()=>db.query<any>(`SELECT settle_payment_wallet($1,'FRESH_PAYMENT',10,'binance_pay','Verified evidence') result`,[row.id]);
+ expect((await call()).rows[0]?.result.changed).toBe(true);
+ expect((await call()).rows[0]?.result.changed).toBe(false);
+ expect((await db.query<any>('SELECT balance::text balance FROM bot_users')).rows[0]?.balance).toBe('60');
+ const old=(await db.query<any>(`INSERT INTO binance_deposits(kind,created_at) VALUES('eps',now()-interval '31 minutes') RETURNING id`)).rows[0];
+ await expect(db.query(`SELECT settle_payment_wallet($1,'LATE_PAYMENT',10,'eps','Late')`,[old.id])).rejects.toThrow('expired');
+ expect((await db.query<any>('SELECT balance::text balance FROM bot_users')).rows[0]?.balance).toBe('60');
 });

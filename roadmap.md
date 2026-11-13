@@ -1,11 +1,12 @@
 # Roadmap
 
-- [ ] Enforce approved 30-minute deadlines across payment attempts, reject expired settlement and remove extensions; expire all currently unfinished attempts without changing paid records or balances.
-- [ ] Reserve historical received/submitted transaction IDs with gateway-safe keys and evidence; unsubmitted provider IDs require authenticated provider history, never invented IDs.
-- [ ] Validate expiry/duplicate guards in isolated SQL tests and inspect live expiry/readback; no real credit or publication.
+- [x] Enforce approved 30-minute deadlines with database guards, atomic wallet settlement, no submission extension and derived admin Expired states; close existing unfinished attempts through 08:18 UTC. Screenshot attempt reads expired; no old Pending remains, balances unchanged. Existing minutely verification schedule now runs SQL expiry without another schedule.
+- [x] Reserve 1,564 historical keys including known submitted IDs, stored confirmed chain transfers, EPS/OxaPay references and incoming provider evidence (178 Binance keys, 34 Bybit keys read). No fabricated IDs or false payment verification.
+- [x] Validate 63 focused/regression tests, latest build OK, six deadline/atomic-credit SQL tests; existing minutely schedule reports succeeded with zero overdue Pending. No real credit or publication.
+- [ ] Full external history completeness and deployed end-to-end verification: Binance history helper returns only first 100 Pay/1000 deposit rows; unsubmitted self-custody transfers absent from stored ledger require complete provider history. Signed-in admin requires external unmanaged session; new application safeguards await approved deployment. Pre-existing no-policy RLS info is unrelated and unchanged.
 
 - [x] Block all 718 distinct known TXIDs on Binance Pay, Bybit and blockchain USDT records through 2026-11-13 08:04 UTC, without wallet credit or deposit/order completion changes; 665 Binance, 38 Bybit, 15 BEP20, no submitted TRC20 IDs. Historical register preserves cutoff and prevents Binance case-variant reuse; EPS/OxaPay and TXID-less records unchanged. Wallet totals read back unchanged.
-- [ ] Unsubmitted TXIDs and Binance alternate payment IDs cannot be blocked without provider/customer evidence; no blanket time cutoff or false verified/completed status was applied.
+- [x] Superseded by approved closure and receiving-provider evidence import above; no fabricated IDs or false verified/completed status applied.
 
 - [x] Inspect existing Binance/Bybit/blockchain payment history and duplicate-TXID protection without changing payments or balances.
 - [x] Add approved paginated submitted-attempt visibility and audited no-credit manual reconciliation for Binance Pay, Bybit and TRC20/BEP20. Admin-authorized deposit lock/unique ID reservation, Binance alias/case handling and legacy deposit-credit guard; other gateways unchanged. Isolated SQL and gateway regressions pass; no real credit, manual verification, Telegram send or deployment.
