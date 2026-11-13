@@ -8,6 +8,7 @@ const id = (n: number) => `11111111-1111-4111-8111-${String(n).padStart(12,"0")}
 beforeAll(async () => {
   await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role; CREATE SCHEMA auth;
     CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql AS $$ SELECT coalesce(current_setting('test.role',true),'service_role') $$;
+    CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT '${admin}'::uuid $$;
     CREATE FUNCTION has_role(u uuid,r text) RETURNS boolean LANGUAGE sql AS $$ SELECT u='${admin}'::uuid AND r='admin' $$;
     CREATE FUNCTION set_updated_at() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN NEW.updated_at=now(); RETURN NEW; END $$;
     CREATE TABLE binance_deposits(id uuid PRIMARY KEY,kind text,telegram_id bigint,amount_usdt numeric,status text,tx_id text,meta jsonb DEFAULT '{}');
