@@ -2427,13 +2427,24 @@ function chainDepositNotice(settings: Record<string, string>, network: string) {
     `${i("dep_note_final")} Only <b>finalized, successful</b> transfers are credited.</blockquote>`;
 }
 
+/** Highlighted notice for Bybit internal-transfer deposits; wording only. */
+function bybitDepositNotice(settings: Record<string, string>) {
+  const i = (k: any) => uiIconHtml(settings, k);
+  return `${i("dep_note_important")} <b>IMPORTANT — read before sending</b>\n` +
+    `<blockquote>${i("dep_note_network")} Send <b>USDT</b> via <b>Bybit internal transfer</b> to the UID above.\n` +
+    `${i("dep_note_exact")} Send the <b>exact amount</b> shown — no more, no less.\n` +
+    `${i("dep_note_txid")} Then tap the green <b>I paid</b> button and submit the <b>Internal Transfer Transaction ID</b>.\n` +
+    `${i("dep_note_final")} Merchant Pay order IDs and blockchain TXIDs are <b>not accepted</b> here.\n` +
+    `${i("dep_note_time")} Complete payment within <b>30 minutes</b>, or it expires.</blockquote>`;
+}
+
 function binanceView(row: any, settings: Record<string, string> = {}) {
   if (String(row.kind).startsWith("chain_")) return {
     text: `<b>USDT · ${String(row.kind).replace("chain_", "").toUpperCase()}</b>\n\nSelf-custody receiving address:\n<code>${escapeHtml(row.address)}</code>\n\nExact amount: <code>${Number(row.amount_usdt)}</code> USDT\n\n${chainDepositNotice(settings, String(row.kind).replace("chain_", "").toUpperCase())}`,
     kb: [...depositControls(row, settings), [depositPaidButton(row, settings)], [changeGatewayButton(settings), depositNavigationButton(settings, "dep_cancel", "wallet")]] as Button[][],
   };
   if (row.kind === "bybit") return {
-    text: `<b>Bybit Pay · USDT internal transfer</b>\n\nReceiving Bybit UID:\n<code>${escapeHtml(row.address)}</code>\n\nExact amount:\n<code>${Number(row.amount_usdt)}</code> USDT\n\nSend USDT through a Bybit internal transfer to this UID, then tap Verify payment and submit the <b>Internal Transfer Transaction ID</b>. Merchant Pay order IDs and blockchain TXIDs are not accepted here.`,
+    text: `<b>Bybit Pay · USDT internal transfer</b>\n\nReceiving Bybit UID:\n<code>${escapeHtml(row.address)}</code>\n\nExact amount:\n<code>${Number(row.amount_usdt)}</code> USDT\n\n${bybitDepositNotice(settings)}`,
     kb: [...depositControls(row, settings), [depositPaidButton(row, settings)], [changeGatewayButton(settings), depositNavigationButton(settings, "dep_cancel", "wallet")]] as Button[][],
   };
   const head =
@@ -2443,13 +2454,14 @@ function binanceView(row: any, settings: Record<string, string> = {}) {
   const text =
     `${head}\n\n` +
     `${uiTag(settings, "dep_amount")}:\n<code>${Number(row.amount_usdt).toFixed(4)}</code>\n\n` +
-    `${uiIconHtml(settings, "dep_warn")} ${escapeHtml(uiText(settings, "dep_warn"))} — send exactly this amount in USDT.\n` +
+    `${uiIconHtml(settings, "dep_note_important")} <b>IMPORTANT — read before sending</b>\n<blockquote>` +
+    `${uiIconHtml(settings, "dep_warn")} ${escapeHtml(uiText(settings, "dep_warn"))} — send <b>exactly</b> this amount in USDT.\n` +
     `${uiIconHtml(settings, "dep_timer")} ${escapeHtml(uiText(settings, "dep_timer"))}. After paying, tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b> and send the ${
       row.kind === "payid"
         ? "<b>Binance Order ID</b> (Binance app → Pay → History → copy the Order ID)"
         : "<b>Transaction ID (TXID)</b> of your USDT network transfer"
     } — we confirm it directly with Binance.\n` +
-    `⏳ <b>Important:</b> you must tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b> after you pay. If it is not tapped within 30 minutes, the pending order can be cancelled automatically.`;
+    `${uiIconHtml(settings, "dep_note_time")} <b>Important:</b> you must tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b> after you pay. If it is not tapped within 30 minutes, the pending order can be cancelled automatically.</blockquote>`;
   const kb: Button[][] = [
     ...depositControls(row, settings),
     [depositPaidButton(row, settings)],
