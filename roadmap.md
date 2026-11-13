@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Update approved deposit/QR controls: blue copy/QR/change/cancel/back, green gateway-specific submit ID action in both views; Bot Admin Premium emoji editors. Preserve verification, availability, deadlines and balances; validate mocked real flows, no live sends/deployment.
+
 - [x] Add approved Telegram deposit Copy Address/ID, admin-uploaded address-bound QR and Change Gateway for Binance, Bybit, BEP20/TRC20; show 1 USDT example without changing payment rules. Preserve original QR upload pixels, reject stale address-bound images, verify no credit/deadline mutation in mocked real handlers. 28 focused/regression tests pass; latest build OK. No live sends or deployment.
 - [ ] Verify signed-in QR upload/save and actual Telegram appearance after approved deployment; external unmanaged authentication blocks signed-in preview checks and no live-send/deployment approval exists. Admin sign-in screen loads with zero browser runtime errors.
 

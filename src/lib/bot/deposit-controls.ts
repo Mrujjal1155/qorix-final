@@ -1,4 +1,10 @@
 import type { Button } from "@/lib/telegram.server";
+import { uiBtn, type UiKey } from "@/lib/bot/ui.server";
+
+export const DEPOSIT_CONTROL_ICON_KEYS = [
+  "dep_copy_address", "dep_copy_id", "dep_show_qr", "dep_change_gateway",
+  "dep_cancel", "dep_qr_back", "dep_paid_payid", "dep_paid_bybit", "dep_paid_txid",
+] as const;
 
 export const DEPOSIT_QR_KEYS = {
   payid: "deposit_qr_binance",
@@ -36,11 +42,34 @@ export function depositQrUrl(row: DepositPresentation, settings: Record<string, 
   return qr && qr.address === row.address.trim() ? qr.url : null;
 }
 
-export function depositControls(row: DepositPresentation): Button[][] {
+export function depositControls(row: DepositPresentation, settings: Record<string, string> = {}): Button[][] {
   const copy: Button[] = [];
-  if (row.address.length >= 1 && row.address.length <= 256) copy.push({ text: row.kind === "payid" || row.kind === "bybit" ? "📋 Copy ID" : "📋 Copy Address", copy_text: { text: row.address } });
-  copy.push({ text: "▦ Show QR", callback_data: `bqr:${row.id}` });
+  if (row.address.length >= 1 && row.address.length <= 256) {
+    const { callback_data: _callback, ...appearance } = depositNavigationButton(settings, row.kind === "payid" || row.kind === "bybit" ? "dep_copy_id" : "dep_copy_address", "");
+    copy.push({ ...appearance, copy_text: { text: row.address } });
+  }
+  copy.push(depositNavigationButton(settings, "dep_show_qr", `bqr:${row.id}`));
   return [copy];
 }
 
-export const changeGatewayButton: Button = { text: "🔄 Change Gateway", callback_data: "depchange" };
+export function depositNavigationButton(settings: Record<string, string>, key: UiKey, callback: string): Button {
+  return { ...uiBtn(settings, key, callback), style: "primary" };
+}
+
+export function changeGatewayButton(settings: Record<string, string> = {}): Button {
+  return depositNavigationButton(settings, "dep_change_gateway", "depchange");
+}
+
+export function depositPaidButton(row: DepositPresentation, settings: Record<string, string> = {}): Button {
+  const key = row.kind === "payid" ? "dep_paid_payid" : row.kind === "bybit" ? "dep_paid_bybit" : "dep_paid_txid";
+  return { ...uiBtn(settings, key, `bchk:${row.id}`), style: "success" };
+}
+
+export function depositQrControls(row: DepositPresentation, settings: Record<string, string> = {}): Button[][] {
+  const copy = depositControls(row, settings)[0].filter(button => button.copy_text);
+  return [
+    ...(copy.length ? [copy] : []),
+    [depositPaidButton(row, settings)],
+    [depositNavigationButton(settings, "dep_qr_back", `bview:${row.id}`), changeGatewayButton(settings)],
+  ];
+}
