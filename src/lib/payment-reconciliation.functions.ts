@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { paymentTransactionKey, reconciliationState, reconciliationGateways } from "@/lib/payment-reconciliation";
+import { paymentAttemptOpen } from "@/lib/payment-deadline";
 
 export const listReconciliationPayments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -11,7 +12,7 @@ export const listReconciliationPayments = createServerFn({ method: "GET" })
     if (!admin) throw new Error("Forbidden");
     const sb = context.supabase as any;
     const { data: rows, error, count } = await sb.from("binance_deposits")
-      .select("id,telegram_id,kind,amount_usdt,status,tx_id,created_at,meta", { count: "exact" })
+      .select("id,telegram_id,kind,amount_usdt,status,tx_id,created_at,expires_at,meta", { count: "exact" })
       .eq("kind", data.gateway).gte("created_at", new Date(Date.now() - data.days * 86400000).toISOString())
       .order("created_at", { ascending: false }).order("id").range(data.page * 100, data.page * 100 + 99);
     if (error) throw new Error("Could not load payment attempts.");
@@ -29,9 +30,10 @@ export const listReconciliationPayments = createServerFn({ method: "GET" })
       let key: string | null = null;
       try { if (row.tx_id) key = paymentTransactionKey(row.kind, row.tx_id); } catch { /* Invalid submitted ID stays visible for review. */ }
       const receipt: any = manual.get(row.id);
-      const state = reconciliationState(row, key != null && used.has(key), receipt);
+      const status = row.status === "pending" && !paymentAttemptOpen(row) ? "expired" : row.status;
+      const state = reconciliationState({ ...row, status }, key != null && used.has(key), receipt);
       return { id: String(row.id), who: String(row.telegram_id), amount: Number(row.amount_usdt), txid: row.tx_id ? String(row.tx_id) : null,
-        time: String(row.created_at), status: String(row.status), state,
+        time: String(row.created_at), status: String(status), state,
         canReconcile: state === "unverified" && key != null && Number(row.telegram_id) > 0 && !row.meta?.reseller_id,
         checkout: Array.isArray(row.meta?.items) && row.meta.items.length > 0,
         audit: receipt ? { admin: String(receipt.admin_id), reason: String(receipt.reason), time: String(receipt.created_at) } : null };

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 
-const labels = { verified: "Verified", manual_verified: "Verified · manual", used: "Already used · review", unverified: "Unverified", no_id: "No TXID submitted" };
+const labels = { verified: "Verified", manual_verified: "Verified · manual", used: "Already used · review", unverified: "Unverified", no_id: "No TXID submitted", expired: "Expired · no automatic credit" };
 export function PaymentReconciliationList({ gateway, days }: { gateway: ReconciliationGateway; days: number }) {
   const [page, setPage] = useState(0);
   const [filter, setFilter] = useState("");

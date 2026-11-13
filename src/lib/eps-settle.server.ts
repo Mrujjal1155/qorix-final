@@ -6,6 +6,7 @@
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { resolveSiteOrigin } from "@/lib/site-url";
+import { paymentAttemptOpen } from "@/lib/payment-deadline";
 
 const db = supabaseAdmin as any;
 
@@ -48,6 +49,7 @@ export async function settleEpsPayment(
   if (order.status === "completed" || (order.meta as any)?.eps_paid) {
     return { ok: true, orderNo: order.order_no, email: order.customer_email };
   }
+  if (!paymentAttemptOpen(order)) return { ok: false, reason: "Payment expired. Contact support if funds were sent." };
 
   const settings = await epsSettings();
   const { epsConfig, verifyTransaction, isPaid, usdToBdt } = await import("@/lib/eps.server");
@@ -85,7 +87,7 @@ export async function settleEpsPayment(
     if (txErr) return { ok: false, orderNo: order.order_no, email: order.customer_email, reason: "This payment was already used for another order." };
   }
 
-  await db
+  const { error: paidError } = await db
     .from("orders")
     .update({
       payment_method: `EPS${info.financialEntity ? ` · ${info.financialEntity}` : ""}`,
@@ -99,6 +101,8 @@ export async function settleEpsPayment(
       },
     })
     .eq("id", order.id);
+
+  if (paidError) return { ok: false, reason: "Payment could not be settled. Contact support." };
 
   await autoDeliver(order);
   await sendPaidEmails(order, settings, info.financialEntity);

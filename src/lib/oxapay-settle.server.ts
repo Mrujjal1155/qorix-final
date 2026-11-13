@@ -4,6 +4,7 @@
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { oxapayCovers, oxapayIsPaid } from "@/lib/oxapay";
+import { paymentAttemptOpen } from "@/lib/payment-deadline";
 
 const db = supabaseAdmin as any;
 
@@ -46,6 +47,7 @@ async function settleWebsite(info: import("@/lib/oxapay.server").OxapayInfo, set
   if ((order.meta as any)?.oxapay_track_id !== info.trackId)
     return { ok: false, kind: "website", orderNo: order.order_no, reason: "Payment does not belong to this order." };
   if ((order.meta as any)?.oxapay_paid) return { ok: true, kind: "website", orderNo: order.order_no };
+  if (!paymentAttemptOpen(order)) return { ok: false, kind: "website", reason: "Payment expired. Contact support if funds were sent." };
   if (!oxapayIsPaid(info.status))
     return { ok: false, kind: "website", orderNo: order.order_no, reason: `Payment not confirmed yet (status: ${info.status || "pending"}).` };
   if (info.currency && info.currency !== "USD")
@@ -57,7 +59,8 @@ async function settleWebsite(info: import("@/lib/oxapay.server").OxapayInfo, set
   if (usedErr) return { ok: true, kind: "website", orderNo: order.order_no };
 
   const meta = { ...((order.meta as any) ?? {}), oxapay_paid: true, oxapay_coin: info.coin, oxapay_tx: info.txHash, paid_at: new Date().toISOString() };
-  await db.from("orders").update({ meta }).eq("id", order.id);
+  const { error: paidError } = await db.from("orders").update({ meta }).eq("id", order.id);
+  if (paidError) return { ok: false, kind: "website", reason: "Payment could not be settled. Contact support." };
 
   const { autoDeliver, sendPaidEmails } = await import("@/lib/eps-settle.server");
   await autoDeliver({ ...order, meta });

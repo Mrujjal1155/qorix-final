@@ -17,6 +17,7 @@ export function paymentTransactionKey(kind: string, raw: string): string {
 export function reconciliationState(row: { status: string; tx_id?: string | null; meta?: any }, used: boolean, receipt?: { reason: string; admin_id: string; created_at: string } | null) {
   if (receipt) return "manual_verified" as const;
   if (row.status === "credited") return "verified" as const;
+  if (["expired", "cancelled", "failed"].includes(row.status)) return "expired" as const;
   if (used) return "used" as const;
   return row.tx_id ? "unverified" as const : "no_id" as const;
 }
