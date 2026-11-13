@@ -9,8 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { RefreshCw, Save, Network } from "lucide-react";
 import { toast } from "sonner";
+import { DepositQrField } from "@/components/DepositQrField";
+import { DEPOSIT_QR_KEYS } from "@/lib/bot/deposit-controls";
 
-export function BlockchainSetupCard() {
+export function BlockchainSetupCard({ values, setValues, onSave }: { values: Record<string, string>; setValues: (values: Record<string, string>) => void; onSave: () => void }) {
   const fetchData = useServerFn(getBlockchainAdmin), save = useServerFn(saveBlockchainGateway);
   const { data, refetch } = useQuery({ queryKey: ["blockchain-admin"], queryFn: () => fetchData() });
   const [drafts, setDrafts] = useState<Partial<Record<Chain, { address: string; enabled: boolean }>>>({});
@@ -36,6 +38,8 @@ export function BlockchainSetupCard() {
         <div className="flex items-center justify-between gap-4"><h3 className="font-semibold">USDT · {network.toUpperCase()}</h3><Switch aria-label={`Enable ${network.toUpperCase()}`} checked={draft.enabled} disabled={!saved?.verified || draft.address !== saved.address} onCheckedChange={enabled => setDrafts(prev => ({ ...prev, [network]: { ...draft, enabled } }))} /></div>
         <Label htmlFor={`${network}-address`}>Self-custody receiving address</Label>
         <Input id={`${network}-address`} value={draft.address} onChange={event => setDrafts(prev => ({ ...prev, [network]: { address: event.target.value, enabled: false } }))} />
+        <DepositQrField label={`USDT ${network.toUpperCase()}`} address={draft.address} value={values[DEPOSIT_QR_KEYS[`chain_${network}`]] ?? ""} onChange={value => setValues({ ...values, [DEPOSIT_QR_KEYS[`chain_${network}`]]: value })} />
+        <Button variant="outline" onClick={onSave}><Save className="h-4 w-4" />Save QR images</Button>
         <p className="text-sm text-muted-foreground">{network === "trc20" ? "TronGrid secure connection · free plan: quota depends on your account." : "BNB Chain public RPC · free · 10,000 requests per 5 minutes. No Etherscan paid plan required."}</p>
         <p className={saved?.verified ? "text-success text-sm" : "text-muted-foreground text-sm"}>{saved?.message || "Not verified · disabled"}</p>
         {saved?.checked_at && <p className="text-xs text-muted-foreground">Last checked: {saved.checked_at}</p>}

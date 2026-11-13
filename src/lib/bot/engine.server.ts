@@ -73,6 +73,7 @@ import { confirmBybitBotDeposit, sweepBybitWebsiteOrders } from "@/lib/bybit-set
 import { blockchainGateways } from "@/lib/blockchain.server";
 import { chainSchema, chainTxid, chainTransactionKey } from "@/lib/blockchain-payment";
 import { confirmBlockchainBotDeposit, sweepBlockchainWebsiteOrders } from "@/lib/blockchain-settle.server";
+import { changeGatewayButton, depositControls, depositQrUrl } from "@/lib/bot/deposit-controls";
 
 
 const db = supabaseAdmin as any;
@@ -2408,11 +2409,11 @@ async function startBinanceDeposit(
 function binanceView(row: any, settings: Record<string, string> = {}) {
   if (String(row.kind).startsWith("chain_")) return {
     text: `<b>USDT · ${String(row.kind).replace("chain_", "").toUpperCase()}</b>\n\nSelf-custody receiving address:\n<code>${escapeHtml(row.address)}</code>\n\nExact amount: <code>${Number(row.amount_usdt)}</code> USDT\n\nUse this network and USDT only. Network fees are separate; the full amount must arrive. After sending, tap Verify payment and submit your blockchain TXID. Only finalized successful transfers qualify.`,
-    kb: [[{ text: "Verify payment", callback_data: `bchk:${row.id}` }], [uiBtn(settings, "dep_cancel", "wallet")]] as Button[][],
+    kb: [...depositControls(row), [{ text: "Verify payment", callback_data: `bchk:${row.id}` }], [changeGatewayButton, uiBtn(settings, "dep_cancel", "wallet")]] as Button[][],
   };
   if (row.kind === "bybit") return {
     text: `<b>Bybit Pay · USDT internal transfer</b>\n\nReceiving Bybit UID:\n<code>${escapeHtml(row.address)}</code>\n\nExact amount:\n<code>${Number(row.amount_usdt)}</code> USDT\n\nSend USDT through a Bybit internal transfer to this UID, then tap Verify payment and submit the <b>Internal Transfer Transaction ID</b>. Merchant Pay order IDs and blockchain TXIDs are not accepted here.`,
-    kb: [[{ text: "Verify payment", callback_data: `bchk:${row.id}` }], [uiBtn(settings, "dep_cancel", "wallet")]] as Button[][],
+    kb: [...depositControls(row), [{ text: "Verify payment", callback_data: `bchk:${row.id}` }], [changeGatewayButton, uiBtn(settings, "dep_cancel", "wallet")]] as Button[][],
   };
   const head =
     row.kind === "payid"
@@ -2429,9 +2430,10 @@ function binanceView(row: any, settings: Record<string, string> = {}) {
     } — we confirm it directly with Binance.\n` +
     `⏳ <b>Important:</b> you must tap <b>${escapeHtml(uiText(settings, "dep_verify"))}</b> after you pay. If it is not tapped within 30 minutes, the pending order can be cancelled automatically.`;
   const kb: Button[][] = [
+    ...depositControls(row),
     [uiBtn(settings, "dep_verify", `bchk:${row.id}`)],
     [uiUrlBtn(settings, "dep_support", (settings["support_link"] || "").trim() || DEFAULT_SUPPORT_LINK)],
-    [uiBtn(settings, "dep_cancel", "wallet")],
+    [changeGatewayButton, uiBtn(settings, "dep_cancel", "wallet")],
   ];
 
   return { text, kb };
@@ -7260,7 +7262,7 @@ async function handleCallback(cq: any) {
       return;
     }
     await setState(chatId, { ...(user.state ?? {}), awaiting: "bin_amount", bin_kind: "bybit" });
-    await edit("<b>Bybit Pay</b>\n\nHow much USDT do you want to add?", [[uiBtn(await getSettings(), "com_wallet", "wallet")]]);
+    await edit("<b>Bybit Pay</b>\n\nHow much USDT do you want to add?\nReply with the amount, e.g. <code>1</code> USDT.", [[changeGatewayButton, uiBtn(await getSettings(), "com_wallet", "wallet")]]);
     return;
   }
 
@@ -7269,7 +7271,7 @@ async function handleCallback(cq: any) {
     const gateway = (await blockchainGateways()).find(g => `chain_${g.network}` === kind);
     if (!gateway?.enabled || !gateway.verified) { await edit("This blockchain payment is unavailable.", [[uiBtn(await getSettings(), "com_wallet", "wallet")]]); return; }
     await setState(chatId, { ...(user.state ?? {}), awaiting: "bin_amount", bin_kind: kind });
-    await edit(`<b>USDT · ${gateway.network.toUpperCase()}</b>\n\nHow much USDT do you want to add?`, [[uiBtn(await getSettings(), "com_wallet", "wallet")]]);
+    await edit(`<b>USDT · ${gateway.network.toUpperCase()}</b>\n\nHow much USDT do you want to add?\nReply with the amount, e.g. <code>1</code> USDT.`, [[changeGatewayButton, uiBtn(await getSettings(), "com_wallet", "wallet")]]);
     return;
   }
 
@@ -7292,8 +7294,8 @@ async function handleCallback(cq: any) {
     }
     await setState(chatId, { ...(user.state ?? {}), awaiting: "bin_amount", bin_kind: "payid" });
     await edit(
-      `${uiIconHtml(await getSettings(), "dep_binance_title")} <b>${escapeHtml(uiText(await getSettings(), "dep_binance_title"))}</b>\n\nHow much <b>USDT</b> do you want to add?\nReply with the amount, e.g. <code>10</code>.`,
-      [[uiBtn(await getSettings(), "com_back", "wallet")]],
+      `${uiIconHtml(await getSettings(), "dep_binance_title")} <b>${escapeHtml(uiText(await getSettings(), "dep_binance_title"))}</b>\n\nHow much <b>USDT</b> do you want to add?\nReply with the amount, e.g. <code>1</code> USDT.`,
+      [[changeGatewayButton, uiBtn(await getSettings(), "com_back", "wallet")]],
     );
     return;
   }
@@ -7323,9 +7325,45 @@ async function handleCallback(cq: any) {
     if (!NETWORKS[network]) return;
     await setState(chatId, { ...(user.state ?? {}), awaiting: "bin_amount", bin_kind: "crypto", bin_network: network });
     await edit(
-      `${uiIconHtml(await getSettings(), "dep_net_title")} <b>${NETWORKS[network]}</b>\n\nHow much <b>USDT</b> do you want to add?\nReply with the amount, e.g. <code>10</code>.`,
-      [[uiBtn(await getSettings(), "com_back", "dep:usdt")]],
+      `${uiIconHtml(await getSettings(), "dep_net_title")} <b>${NETWORKS[network]}</b>\n\nHow much <b>USDT</b> do you want to add?\nReply with the amount, e.g. <code>1</code> USDT.`,
+      [[changeGatewayButton, uiBtn(await getSettings(), "com_back", "dep:usdt")]],
     );
+    return;
+  }
+
+  if (data === "depchange") {
+    if (cq.message?.chat?.type !== "private" || cq.from?.id !== chatId) return;
+    await setState(chatId, { ...(user.state ?? {}), awaiting: null, bin_kind: null, bin_network: null, bin_dep_id: null });
+    const view = await walletView(user);
+    await edit(view.text, view.kb);
+    return;
+  }
+
+  if (data.startsWith("bqr:") || data.startsWith("bview:")) {
+    if (cq.message?.chat?.type !== "private" || cq.from?.id !== chatId) return;
+    const id = data.slice(data.indexOf(":") + 1);
+    const { data: row } = await db.from("binance_deposits").select("*").eq("id", id).eq("telegram_id", chatId).maybeSingle();
+    if (!row || Number(row.telegram_id) !== chatId) return;
+    const settings = await getSettings();
+    if (!paymentAttemptOpen(row)) {
+      await say(chatId, "This payment is closed. Please choose a payment method to start again.", [[changeGatewayButton]]);
+      return;
+    }
+    if (data.startsWith("bview:")) {
+      const view = binanceView(row, settings);
+      await edit(view.text, view.kb);
+      return;
+    }
+    const qr = depositQrUrl(row, settings);
+    if (!qr) {
+      await say(chatId, "QR is not available for this receiving address yet. Please copy the address / ID from the payment message.");
+      return;
+    }
+    const result = await sendPhoto(chatId, qr, `<b>Payment QR</b>\n\nReceiving address / ID:\n<code>${escapeHtml(row.address)}</code>\n\nExact amount: <code>${Number(row.amount_usdt)}</code> USDT\nUse the selected payment method only.`, [
+      ...depositControls(row).map(buttons => buttons.filter(button => !button.callback_data?.startsWith("bqr:"))),
+      [{ text: "⬅️ Back", callback_data: `bview:${row.id}` }, changeGatewayButton],
+    ]);
+    if (!result.ok) await say(chatId, "QR could not be displayed. Please copy the address / ID from the payment message.");
     return;
   }
 

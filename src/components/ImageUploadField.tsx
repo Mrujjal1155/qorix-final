@@ -65,9 +65,11 @@ type Props = {
   compact?: boolean;
   /** Bot GIF mode: accepts GIF/MP4 up to 10MB, uploaded as-is. */
   animation?: boolean;
+  /** Keep QR pixels intact instead of lossy resizing/compression. */
+  preserveOriginal?: boolean;
 };
 
-export function ImageUploadField({ value, onChange, placeholder = "Image URL", compact, animation }: Props) {
+export function ImageUploadField({ value, onChange, placeholder = "Image URL", compact, animation, preserveOriginal }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
@@ -83,7 +85,7 @@ export function ImageUploadField({ value, onChange, placeholder = "Image URL", c
     }
     setBusy(true);
     try {
-      const { file, compressed } = animation ? { file: raw, compressed: false } : await compressImage(raw);
+      const { file, compressed } = animation || preserveOriginal ? { file: raw, compressed: false } : await compressImage(raw);
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
       if (!token) throw new Error("Please sign in again");
