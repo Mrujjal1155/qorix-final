@@ -1,0 +1,1 @@
+DO $$ DECLARE j record; BEGIN SELECT jobid,command INTO j FROM cron.job WHERE jobname='qorix-binance-auto-verify'; IF NOT FOUND THEN RAISE EXCEPTION 'Existing payment verifier schedule not found'; END IF; IF position('expire_payment_attempts' in j.command)=0 THEN PERFORM cron.alter_job(j.jobid,command := 'SELECT public.expire_payment_attempts(); '||j.command); END IF; END $$;
