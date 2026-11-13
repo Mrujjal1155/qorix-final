@@ -4,6 +4,7 @@ import { MANUAL_NOTE_PREFIX, parseStock, type StockFormat } from "@/lib/stock-fo
 import { botUserRequest } from "@/lib/bot-users";
 import { categorySaveSchema, categoryOrderSchema } from "@/lib/category-edit";
 import { customerAlertSettingSchema } from "@/lib/customer-alerts";
+import { paymentAttemptOpen } from "@/lib/payment-deadline";
 
 async function assertAdmin(context: any) {
   const { data } = await context.supabase.rpc("has_role", {
@@ -2460,7 +2461,7 @@ export const listGatewayPayments = createServerFn({ method: "GET" })
     const since = new Date(Date.now() - data.days * 86400_000).toISOString();
     const sb = supabaseAdmin as any;
     const [dep, ord] = await Promise.all([
-      sb.from("binance_deposits").select("id,telegram_id,kind,network,amount_usdt,status,tx_id,created_at,meta")
+      sb.from("binance_deposits").select("id,telegram_id,kind,network,amount_usdt,status,tx_id,created_at,expires_at,meta")
         .eq("kind", data.gateway).gte("created_at", since).order("created_at", { ascending: false }).limit(1000),
       sb.from("orders").select("id,order_no,source,customer_email,customer_name,telegram_id,product_name,quantity,total,status,txid,payment_method,created_at")
         .ilike("payment_method", data.gateway === "eps" ? "eps%" : data.gateway === "oxapay" ? "oxapay%" : "bybit%").neq("source", "telegram")
@@ -2473,7 +2474,7 @@ export const listGatewayPayments = createServerFn({ method: "GET" })
         who: d.telegram_id ? String(d.telegram_id) : "—",
         what: d.meta?.order_id ? "Order checkout" : "Wallet deposit",
         method: d.network ? String(d.network).toUpperCase() : null,
-        amount: Number(d.amount_usdt ?? 0), status: String(d.status), tx: d.tx_id ?? null, time: d.created_at,
+        amount: Number(d.amount_usdt ?? 0), status: d.status === "pending" && !paymentAttemptOpen(d) ? "expired" : String(d.status), tx: d.tx_id ?? null, time: d.created_at,
       })),
       ...(ord.data ?? []).map((o: any) => ({
         key: `o-${o.id}`, source: o.source === "reseller" ? "Reseller" : "Website", ref: `#${o.order_no ?? o.id}`,
