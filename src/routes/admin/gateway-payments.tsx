@@ -61,7 +61,7 @@ function GatewayPaymentsPage() {
     >
       <div className="mb-3 flex flex-wrap gap-2">
         {(["binance", "bybit", "chain_bep20", "chain_trc20", "eps", "oxapay"] as const).map((g) => (
-          <Button key={g} variant={gateway === g ? "default" : "outline"} onClick={() => { setGateway(g); setQ(""); setStatus("all"); }}>{g === "binance" ? "Binance" : g === "bybit" ? "Bybit Pay" : g === "chain_bep20" ? "USDT BEP20" : g === "chain_trc20" ? "USDT TRC20" : g === "eps" ? "EPS" : "OxaPay (Crypto)"}</Button>
+          <Button key={g} variant={gateway === g ? "default" : "outline"} onClick={() => { setGateway(g); setQ(""); setStatus("all"); if (g === "binance") setDays(d => Math.min(d, 30)); }}>{g === "binance" ? "Binance" : g === "bybit" ? "Bybit Pay" : g === "chain_bep20" ? "USDT BEP20" : g === "chain_trc20" ? "USDT TRC20" : g === "eps" ? "EPS" : "OxaPay (Crypto)"}</Button>
         ))}
       </div>
       <div className="mb-4 flex flex-wrap items-center gap-2">

@@ -7,7 +7,7 @@ import { PaymentReconciliationList } from "@/components/PaymentReconciliationLis
 
 export function BinancePaymentHistory({ days, search }: { days: number; search: string }) {
   const fetchTx = useServerFn(listBinanceTransactions);
-  const { data, error, refetch } = useQuery({
+  const { data, error, refetch, isFetching, dataUpdatedAt } = useQuery({
     queryKey: ["binance-tx", days],
     queryFn: () => fetchTx({ data: { days } }),
     refetchInterval: 30000,
@@ -27,6 +27,10 @@ export function BinancePaymentHistory({ days, search }: { days: number; search: 
 
   return (
     <section>
+      <div className="mb-3 flex items-center justify-end gap-3">
+        {dataUpdatedAt > 0 && <span className="text-xs text-muted-foreground">Updated {new Date(dataUpdatedAt).toLocaleTimeString()}</span>}
+        <Button variant="outline" size="sm" disabled={isFetching} onClick={() => refetch()}>{isFetching ? "Refreshing…" : "Refresh"}</Button>
+      </div>
       {data && !data.ok && (
         <Card className="mb-4 border-destructive/40"><CardContent className="p-4 text-sm text-destructive">{data.error}</CardContent></Card>
       )}
