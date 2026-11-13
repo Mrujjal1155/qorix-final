@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Inspect existing Binance/Bybit/blockchain payment history and duplicate-TXID protection without changing payments or balances.
+- [ ] Add submitted-attempt visibility and audited manual reconciliation for Binance Pay, Bybit and TRC20/BEP20 only; awaiting owner approval of no-second-credit handling and atomic used-ID reservation. Other gateways stay unchanged; no live credit or deployment.
+
 - [x] Add personal special-price removal alerts for users and linked resellers with atomic admin-only removal/queue, shared save lock, snapshot recheck and Bot Admin configurable removal icons. Isolated SQL validates selected recipient, duplicate prevention, stale/unauthorized rejection and rollback; helper regressions pass. Additive RPC applied; no real prices removed, Telegram send or publish.
 - [ ] Verify removal notices in the signed-in admin and live Telegram after approved deployment; blocked by external unmanaged authentication and no-real-send instruction.
 
