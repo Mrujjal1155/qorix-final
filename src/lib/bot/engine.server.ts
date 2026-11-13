@@ -2406,9 +2406,30 @@ async function startBinanceDeposit(
 }
 
 
+/** Highlighted, admin-iconed notice shown when asking for a deposit amount. */
+function depositAmountPrompt(settings: Record<string, string>) {
+  const i = (k: any) => uiIconHtml(settings, k);
+  return `${i("dep_note_amount")} <b>How much USDT do you want to add?</b>\n\n` +
+    `<blockquote>${i("dep_note_example")} Reply with the amount only, e.g. <code>1</code> or <code>10.5</code> USDT.\n` +
+    `${i("dep_note_exact")} Next you'll get the <b>exact amount</b> to send — pay that amount precisely.\n` +
+    `${i("dep_note_time")} Each deposit stays open for <b>30 minutes</b>.</blockquote>`;
+}
+
+/** Highlighted notice for self-custody USDT deposits; wording only, rules unchanged. */
+function chainDepositNotice(settings: Record<string, string>, network: string) {
+  const i = (k: any) => uiIconHtml(settings, k);
+  return `${i("dep_note_important")} <b>IMPORTANT — read before sending</b>\n` +
+    `<blockquote>${i("dep_note_network")} Send <b>USDT only</b> on the <b>${escapeHtml(network)}</b> network. Other coins or networks can be lost.\n` +
+    `${i("dep_note_exact")} The <b>exact amount</b> above must arrive — no more, no less.\n` +
+    `${i("dep_note_fee")} Network fees are <b>separate</b>; add them on your side.\n` +
+    `${i("dep_note_txid")} After sending, tap the green <b>I paid</b> button and submit your blockchain <b>TXID</b>.\n` +
+    `${i("dep_note_time")} Complete payment within <b>30 minutes</b>, or it expires.\n` +
+    `${i("dep_note_final")} Only <b>finalized, successful</b> transfers are credited.</blockquote>`;
+}
+
 function binanceView(row: any, settings: Record<string, string> = {}) {
   if (String(row.kind).startsWith("chain_")) return {
-    text: `<b>USDT · ${String(row.kind).replace("chain_", "").toUpperCase()}</b>\n\nSelf-custody receiving address:\n<code>${escapeHtml(row.address)}</code>\n\nExact amount: <code>${Number(row.amount_usdt)}</code> USDT\n\nUse this network and USDT only. Network fees are separate; the full amount must arrive. After sending, tap Verify payment and submit your blockchain TXID. Only finalized successful transfers qualify.`,
+    text: `<b>USDT · ${String(row.kind).replace("chain_", "").toUpperCase()}</b>\n\nSelf-custody receiving address:\n<code>${escapeHtml(row.address)}</code>\n\nExact amount: <code>${Number(row.amount_usdt)}</code> USDT\n\n${chainDepositNotice(settings, String(row.kind).replace("chain_", "").toUpperCase())}`,
     kb: [...depositControls(row, settings), [depositPaidButton(row, settings)], [changeGatewayButton(settings), depositNavigationButton(settings, "dep_cancel", "wallet")]] as Button[][],
   };
   if (row.kind === "bybit") return {
@@ -7263,7 +7284,7 @@ async function handleCallback(cq: any) {
       return;
     }
     await setState(chatId, { ...(user.state ?? {}), awaiting: "bin_amount", bin_kind: "bybit" });
-    await edit("<b>Bybit Pay</b>\n\nHow much USDT do you want to add?\nReply with the amount, e.g. <code>1</code> USDT.", [[changeGatewayButton(await getSettings()), uiBtn(await getSettings(), "com_wallet", "wallet")]]);
+    await edit(`<b>Bybit Pay</b>\n\n${depositAmountPrompt(await getSettings())}`, [[changeGatewayButton(await getSettings()), uiBtn(await getSettings(), "com_wallet", "wallet")]]);
     return;
   }
 
@@ -7272,7 +7293,7 @@ async function handleCallback(cq: any) {
     const gateway = (await blockchainGateways()).find(g => `chain_${g.network}` === kind);
     if (!gateway?.enabled || !gateway.verified) { await edit("This blockchain payment is unavailable.", [[uiBtn(await getSettings(), "com_wallet", "wallet")]]); return; }
     await setState(chatId, { ...(user.state ?? {}), awaiting: "bin_amount", bin_kind: kind });
-    await edit(`<b>USDT · ${gateway.network.toUpperCase()}</b>\n\nHow much USDT do you want to add?\nReply with the amount, e.g. <code>1</code> USDT.`, [[changeGatewayButton(await getSettings()), uiBtn(await getSettings(), "com_wallet", "wallet")]]);
+    await edit(`<b>USDT · ${gateway.network.toUpperCase()}</b>\n\n${depositAmountPrompt(await getSettings())}`, [[changeGatewayButton(await getSettings()), uiBtn(await getSettings(), "com_wallet", "wallet")]]);
     return;
   }
 
@@ -7295,7 +7316,7 @@ async function handleCallback(cq: any) {
     }
     await setState(chatId, { ...(user.state ?? {}), awaiting: "bin_amount", bin_kind: "payid" });
     await edit(
-      `${uiIconHtml(await getSettings(), "dep_binance_title")} <b>${escapeHtml(uiText(await getSettings(), "dep_binance_title"))}</b>\n\nHow much <b>USDT</b> do you want to add?\nReply with the amount, e.g. <code>1</code> USDT.`,
+      `${uiIconHtml(await getSettings(), "dep_binance_title")} <b>${escapeHtml(uiText(await getSettings(), "dep_binance_title"))}</b>\n\n${depositAmountPrompt(await getSettings())}`,
       [[changeGatewayButton(await getSettings()), uiBtn(await getSettings(), "com_back", "wallet")]],
     );
     return;
@@ -7326,7 +7347,7 @@ async function handleCallback(cq: any) {
     if (!NETWORKS[network]) return;
     await setState(chatId, { ...(user.state ?? {}), awaiting: "bin_amount", bin_kind: "crypto", bin_network: network });
     await edit(
-      `${uiIconHtml(await getSettings(), "dep_net_title")} <b>${NETWORKS[network]}</b>\n\nHow much <b>USDT</b> do you want to add?\nReply with the amount, e.g. <code>1</code> USDT.`,
+      `${uiIconHtml(await getSettings(), "dep_net_title")} <b>${NETWORKS[network]}</b>\n\n${depositAmountPrompt(await getSettings())}`,
       [[changeGatewayButton(await getSettings()), uiBtn(await getSettings(), "com_back", "dep:usdt")]],
     );
     return;
