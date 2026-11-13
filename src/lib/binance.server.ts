@@ -169,6 +169,7 @@ export async function checkBinanceKeys() {
 export async function findByTxId(
   txId: string,
   kind: "pay" | "crypto" | "any" = "any",
+  createdAt?: number,
 ): Promise<{ ok: true; amount: number; currency: string } | { ok: false; error?: string }> {
   const creds = await getCreds();
   if (!creds) return { ok: false, error: "Binance API keys are not configured." };
@@ -188,7 +189,8 @@ export async function findByTxId(
       for (const t of r.data.data) {
         const ids = [t.orderId, t.transactionId].map((x: unknown) => String(x ?? "").trim().toLowerCase());
         const amount = Number(t.amount);
-        if (ids.includes(needle) && amount > 0) {
+        const paymentTime = Number(t.transactionTime ?? 0);
+        if (ids.includes(needle) && amount > 0 && (createdAt === undefined || paymentTime >= createdAt && paymentTime < createdAt + 30 * 60_000)) {
           return { ok: true, amount, currency: String(t.currency || "USDT").toUpperCase() };
         }
         const ts = Number(t.transactionTime ?? 0);
@@ -204,7 +206,8 @@ export async function findByTxId(
       if (!dep || r.ok) dep = r;
       if (!r.ok || !Array.isArray(r.data)) break;
       for (const d of r.data) {
-        if (String(d.txId ?? d.id ?? "").trim().toLowerCase() === needle && [1, 6].includes(Number(d.status))) {
+        const paymentTime = Number(d.insertTime ?? 0);
+        if (String(d.txId ?? d.id ?? "").trim().toLowerCase() === needle && [1, 6].includes(Number(d.status)) && (createdAt === undefined || paymentTime >= createdAt && paymentTime < createdAt + 30 * 60_000)) {
           return { ok: true, amount: Number(d.amount), currency: String(d.coin || "USDT").toUpperCase() };
         }
       }

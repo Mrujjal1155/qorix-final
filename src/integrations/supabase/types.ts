@@ -2299,6 +2299,7 @@ export type Database = {
         Returns: string
       }
       expire_bot_checkouts: { Args: { _cutoff: string }; Returns: number }
+      expire_payment_attempts: { Args: never; Returns: number }
       finish_stock_notification: {
         Args: { _delivered: boolean; _error?: string; _id: string }
         Returns: undefined
@@ -2320,6 +2321,11 @@ export type Database = {
         Returns: undefined
       }
       manual_payment_reserved: { Args: { _txid: string }; Returns: boolean }
+      payment_order_is_paid: { Args: { _meta: Json }; Returns: boolean }
+      payment_reservation_key: {
+        Args: { _kind: string; _tx: string }
+        Returns: string
+      }
       product_list_progress: { Args: { _admin_id: string }; Returns: Json }
       product_slugify: { Args: { _name: string }; Returns: string }
       profile_wallet_credit: {
@@ -2457,6 +2463,10 @@ export type Database = {
         }
         Returns: number
       }
+      reserve_closed_payment: {
+        Args: { _cutoff: string; _kind: string; _tx: string }
+        Returns: undefined
+      }
       retry_latest_stock_notification: {
         Args: { _product_id: string }
         Returns: boolean
@@ -2515,6 +2525,16 @@ export type Database = {
       }
       settle_bybit_website: {
         Args: { _amount: number; _order_id: string; _txid: string }
+        Returns: Json
+      }
+      settle_payment_wallet: {
+        Args: {
+          _amount: number
+          _deposit_id: string
+          _method: string
+          _note: string
+          _txid: string
+        }
         Returns: Json
       }
       stock_counter_bump: {

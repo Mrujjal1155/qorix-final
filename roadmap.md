@@ -1,5 +1,9 @@
 # Roadmap
 
+- [ ] Enforce approved 30-minute deadlines across payment attempts, reject expired settlement and remove extensions; expire all currently unfinished attempts without changing paid records or balances.
+- [ ] Reserve historical received/submitted transaction IDs with gateway-safe keys and evidence; unsubmitted provider IDs require authenticated provider history, never invented IDs.
+- [ ] Validate expiry/duplicate guards in isolated SQL tests and inspect live expiry/readback; no real credit or publication.
+
 - [x] Block all 718 distinct known TXIDs on Binance Pay, Bybit and blockchain USDT records through 2026-11-13 08:04 UTC, without wallet credit or deposit/order completion changes; 665 Binance, 38 Bybit, 15 BEP20, no submitted TRC20 IDs. Historical register preserves cutoff and prevents Binance case-variant reuse; EPS/OxaPay and TXID-less records unchanged. Wallet totals read back unchanged.
 - [ ] Unsubmitted TXIDs and Binance alternate payment IDs cannot be blocked without provider/customer evidence; no blanket time cutoff or false verified/completed status was applied.
 

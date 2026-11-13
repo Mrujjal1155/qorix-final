@@ -4,6 +4,7 @@
 
 import { createHmac, timingSafeEqual } from "crypto";
 import { oxapayIsOn } from "@/lib/oxapay";
+import { PAYMENT_WINDOW_MS } from "@/lib/payment-deadline";
 
 const BASE = "https://api.oxapay.com/v1";
 type Json = Record<string, any>;
@@ -52,7 +53,7 @@ export async function oxapayCreateInvoice(
   const r = await call(apiKey, "POST", "/payment/invoice", {
     amount: Number(input.amountUsd.toFixed(2)),
     currency: "USD",
-    lifetime: 60,
+    lifetime: PAYMENT_WINDOW_MS / 60_000,
     fee_paid_by_payer: 0,
     under_paid_coverage: 0,
     mixed_payment: false,
