@@ -3176,7 +3176,7 @@ async function productDeepLink(settings: Record<string, string>, productId: stri
   return `https://t.me/${uname}?start=p_${productId}`;
 }
 
-/** Big green "open product" button under every channel post. */
+/** Big blue "open product" button under every channel post. */
 async function channelProductButton(
   settings: Record<string, string>,
   product: any,
@@ -3190,6 +3190,7 @@ async function channelProductButton(
       {
         text: `Buy ${label}`,
         url,
+        style: "primary" as const,
         ...(customId ? { icon_custom_emoji_id: customId } : {}),
       },
     ],

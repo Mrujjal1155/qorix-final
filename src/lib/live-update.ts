@@ -87,7 +87,7 @@ export function buildLivePost(
 }
 
 /** Minimal inline button shape shared with the Telegram keyboard type. */
-export type LiveButton = { text: string; url: string; icon_custom_emoji_id?: string };
+export type LiveButton = { text: string; url: string; style?: "primary" | "success" | "danger" | "default"; icon_custom_emoji_id?: string };
 
 /**
  * Purchase posts get one tappable Buy Now button that opens the bot;
@@ -104,6 +104,7 @@ export function livePostKeyboard(
   return [[{
     text: "Buy Now",
     url: `https://t.me/${bot}`,
+    style: "primary",
     ...(/^\d{5,25}$/.test(icon) ? { icon_custom_emoji_id: icon } : {}),
   }]];
 }
