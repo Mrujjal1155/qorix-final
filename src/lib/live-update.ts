@@ -73,9 +73,11 @@ export function buildLivePost(
   when: Date,
   emojiIds: Record<string, string> = {},
 ): string {
+  // New per-card title slots reuse an already-saved generic Title emoji until set.
+  const fallback: Record<string, string> = { buy_title: "title", topup_title: "title", member_title: "member" };
   const e = (slot: string) => {
     const glyph = LIVE_EMOJI_SLOTS.find((s) => s.slot === slot)?.glyph ?? "🔹";
-    const id = String(emojiIds[slot] ?? "").trim();
+    const id = String(emojiIds[slot] || emojiIds[fallback[slot] ?? ""] || "").trim();
     return /^\d{5,25}$/.test(id) ? `<tg-emoji emoji-id="${id}">${glyph}</tg-emoji>` : glyph;
   };
   // Native Telegram rich table (same style as stock notices); the sender
