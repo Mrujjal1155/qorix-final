@@ -271,20 +271,6 @@ function VisibilityAlertBanner() {
         </div>
       )}
 
-      {pendingCount > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-primary/40 bg-primary/10 p-4">
-          <ShieldAlert className="size-5 shrink-0 text-primary" />
-          <p className="min-w-0 flex-1 text-sm font-medium">
-            {pendingCount} new supplier product(s) arrived. They are Off — view them and turn On the ones you want to sell.
-          </p>
-          <Link to="/admin/suppliers">
-            <Button size="sm" variant="secondary">
-              View new products
-            </Button>
-          </Link>
-        </div>
-      )}
-
       {supplierRows.length > 0 && (
         <div className="rounded-2xl border border-warning/60 bg-warning/10 p-4">
           <div className="flex flex-wrap items-center gap-3">
