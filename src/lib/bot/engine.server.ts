@@ -1379,7 +1379,7 @@ async function currentReferralMode() {
   const { data, error } = await db.from("bot_settings").select("value").eq("key", "referral_mode").maybeSingle();
   return referralMode(error ? "off" : data?.value);
 }
-async function refRewards() {
+async function refRewards(): Promise<{ id: string; name: string; credits: number }[]> {
   const { data, error } = await db.from("referral_product_rewards")
     .select("id,credits,products(name,is_active,supplier_id,owner_reseller_id,delivery_type)")
     .eq("is_active", true).order("created_at").limit(30);
@@ -6728,7 +6728,7 @@ function escapeHtml(s: string) {
 async function handleCallback(cq: any) {
   const chatId = cq.message?.chat?.id as number;
   const messageId = cq.message?.message_id as number;
-  const data: string = cq.data ?? "";
+  let data: string = cq.data ?? "";
   // Fire the spinner-stopping ack without waiting for Telegram's round trip.
   defer(() => answerCallback(cq.id));
   if (!chatId) return;

@@ -77,8 +77,10 @@ function ReferralsPage() {
     { label: "People referred", value: data?.referral_count ?? 0, icon: Users },
   ];
 
+  if (!data || data.mode !== 'commission') return <AccountShell title="Referrals"><p className="py-8 text-muted-foreground">{!data ? 'Loading…' : data.mode === 'points' ? 'Product rewards are available in our Telegram bot.' : 'Referral is temporarily unavailable.'}</p></AccountShell>;
+
   return (
-    <AccountShell title="Referrals & wallet" subtitle={`Earn ${data?.percent ?? 2}% of every order your friends complete`}>
+    <AccountShell title="Referrals & wallet" subtitle={`Earn ${data?.percent ?? 5}% of the profit from your friends’ completed orders`}>
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
         {cards.map((c) => (
           <div key={c.label} className="admin-panel rounded-2xl p-4 lg:p-5">

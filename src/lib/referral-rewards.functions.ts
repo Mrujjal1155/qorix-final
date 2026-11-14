@@ -28,7 +28,8 @@ export const saveReferralReward = createServerFn({ method: 'POST' }).middleware(
   .inputValidator((d) => z.object({ id: z.string().uuid().optional(), product_id: z.string().uuid(), credits: z.number().int().min(1).max(1000000), is_active: z.boolean() }).parse(d))
   .handler(async ({ data, context }) => {
     await admin(context);
-    const { error } = await context.supabase.from('referral_product_rewards').upsert(data);
+    const row = { product_id: data.product_id, credits: data.credits, is_active: data.is_active, ...(data.id ? { id: data.id } : {}) };
+    const { error } = await context.supabase.from('referral_product_rewards').upsert(row);
     if (error) throw new Error('Could not save reward. Select an in-house automatic product.');
     return { ok: true };
   });
@@ -42,7 +43,8 @@ export const reviewReferralReward = createServerFn({ method: 'POST' }).middlewar
     if (r.ok && r.status === 'approved') {
       const { backgroundWaitUntil } = await import('@/lib/bg.server');
       const { drainReferralRewards } = await import('@/lib/referral-rewards.server');
-      backgroundWaitUntil(drainReferralRewards().catch(() => ({ sent: 0 })));
+      const work = drainReferralRewards().catch(() => ({ sent: 0 }));
+      if (!backgroundWaitUntil(work)) await work;
     }
     return r;
   });

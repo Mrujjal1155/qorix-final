@@ -802,7 +802,7 @@ function SettingsPage() {
             <p className="text-xs text-muted-foreground">Enabling this starts new commission distribution. Points rewards will be disabled.</p>
           </div>
           <Switch
-            checked={values.referral_mode === 'commission'}
+            checked={values['referral_mode'] === 'commission'}
             onCheckedChange={(c) => { if (!c || window.confirm('Start distributing profit commissions on new completed orders?')) setValues(prev => ({ ...prev, referral_mode: c ? 'commission' : 'off' })); }}
             aria-label="Profit Commission"
           />
@@ -810,9 +810,9 @@ function SettingsPage() {
 
         <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
           <Label>Points &amp; Product Rewards</Label>
-          <Switch aria-label="Points & Product Rewards" checked={values.referral_mode === 'points'} onCheckedChange={c => setValues(prev => ({ ...prev, referral_mode: c ? 'points' : 'off' }))} />
+          <Switch aria-label="Points & Product Rewards" checked={values['referral_mode'] === 'points'} onCheckedChange={c => setValues(prev => ({ ...prev, referral_mode: c ? 'points' : 'off' }))} />
         </div>
-        <p className="text-sm text-muted-foreground">Active model: {values.referral_mode === 'commission' ? 'Profit Commission' : values.referral_mode === 'points' ? 'Points & Product Rewards' : 'Both off'}</p>
+        <p className="text-sm text-muted-foreground">Active model: {values['referral_mode'] === 'commission' ? 'Profit Commission' : values['referral_mode'] === 'points' ? 'Points & Product Rewards' : 'Both off'}</p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1">
             <Label>Commission percent (%)</Label>
