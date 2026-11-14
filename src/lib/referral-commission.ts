@@ -26,7 +26,7 @@ export type ReferralCommissionIcons = Partial<
 
 /** Cost per unit locked on the order at purchase time; unknown cost counts as 0. */
 export function unitCostOf(order: { meta?: Record<string, unknown> | null }): number {
-  const saved = order?.meta?.unit_cost;
+  const saved = order?.meta?.["unit_cost"];
   const n = Number(saved);
   return saved != null && Number.isFinite(n) && n >= 0 ? n : 0;
 }
