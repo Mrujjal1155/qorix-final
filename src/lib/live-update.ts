@@ -22,6 +22,16 @@ export const LIVE_EMOJI_SLOTS: { slot: string; glyph: string; label: string }[] 
   { slot: "paid", glyph: "💳", label: "Paid" },
   { slot: "ok", glyph: "✅", label: "Success" },
   { slot: "member", glyph: "👋", label: "New member" },
+  { slot: "member_title", glyph: "🎊", label: "Member: title" },
+  { slot: "member_heart", glyph: "💖", label: "Member: welcome line" },
+  { slot: "member_spark", glyph: "✨", label: "Member: sparkle" },
+  { slot: "member_join", glyph: "🤖", label: "Member: joined via" },
+  { slot: "topup_title", glyph: "💰", label: "Top-up: title" },
+  { slot: "topup_status", glyph: "🟢", label: "Top-up: status" },
+  { slot: "topup_shield", glyph: "🛡️", label: "Top-up: secure line" },
+  { slot: "buy_title", glyph: "🛍️", label: "Purchase: title" },
+  { slot: "buy_thanks", glyph: "🙏", label: "Purchase: thank-you line" },
+  { slot: "buy_rocket", glyph: "🚀", label: "Purchase: delivered" },
 ];
 
 /** 2808123968 → 2808***968; short ids keep only the edges. */
@@ -70,20 +80,43 @@ export function buildLivePost(
   };
   // Native Telegram rich table (same style as stock notices); the sender
   // falls back to "Label: value" lines if Telegram rejects the table format.
-  const rows: Array<[string, string]> = [];
-  const title = kind === "purchase" ? "New Purchase!" : kind === "topup" ? "Wallet Top-up!" : "New Member Joined!";
-  rows.push([`${e("id")} ID`, maskId(p.uid)]);
-  rows.push([`${e("customer")} Customer`, maskName(p.name)]);
-  if (kind === "purchase") {
-    rows.push([`${e("product")} Product`, `<b>${escapeHtml(String(p.product ?? ""))}</b>`]);
-    rows.push([`${e("qty")} Quantity`, `<b>${Math.max(1, Number(p.qty ?? 1))}</b>`]);
+  // Each kind has its own heading, table and closing lines so the three cards look distinct.
+  const table = (rows: Array<[string, string]>) =>
+    `<table bordered striped compact>${rows.map(([l, v]) => `<tr><td>${l}</td><td align="right">${v}</td></tr>`).join("")}</table>`;
+  const name = maskName(p.name);
+  if (kind === "member") {
+    const via = p.source === "website" ? "Website" : "Bot";
+    return `<h3>${e("member_title")} Welcome to the Family!</h3>` +
+      `<p>${e("member")} A warm welcome, <b>${name}</b>! ${e("member_heart")}</p>` +
+      table([
+        [`${e("id")} Member ID`, maskId(p.uid)],
+        [`${e("member_join")} Joined via`, `<b>${via}</b>`],
+        [`${e("time")} Joined`, formatLiveTime(when)],
+      ]) +
+      `<p>${e("member_spark")} <i>We're glad to have you — explore, shop and enjoy!</i></p>`;
   }
-  rows.push([`${e("time")} Time`, formatLiveTime(when)]);
-  if (kind !== "member") rows.push([`${e("paid")} Paid`, paymentLabel(p.method)]);
-  const okText = kind === "purchase" ? "Successfully delivered" : kind === "topup" ? "Wallet credited" : `Welcome via ${p.source === "website" ? "Website" : "Bot"}`;
-  return `<h3>${kind === "member" ? e("member") : e("title")} ${title}</h3>` +
-    `<table bordered striped compact>${rows.map(([l, v]) => `<tr><td>${l}</td><td align="right">${v}</td></tr>`).join("")}</table>` +
-    `<p>${e("ok")} ${okText}</p>`;
+  if (kind === "topup") {
+    return `<h3>${e("topup_title")} Balance Top-up Confirmed</h3>` +
+      table([
+        [`${e("id")} Account`, maskId(p.uid)],
+        [`${e("customer")} Customer`, name],
+        [`${e("paid")} Method`, paymentLabel(p.method)],
+        [`${e("topup_status")} Status`, `<b>Credited</b>`],
+        [`${e("time")} Time`, formatLiveTime(when)],
+      ]) +
+      `<p>${e("ok")} Wallet credited successfully</p>` +
+      `<p>${e("topup_shield")} <i>Secure &amp; verified payment</i></p>`;
+  }
+  return `<h3>${e("buy_title")} Thank You for Your Purchase!</h3>` +
+    `<p>${e("buy_thanks")} <b>${name}</b>, thanks for shopping with us!</p>` +
+    table([
+      [`${e("id")} ID`, maskId(p.uid)],
+      [`${e("product")} Product`, `<b>${escapeHtml(String(p.product ?? ""))}</b>`],
+      [`${e("qty")} Quantity`, `<b>${Math.max(1, Number(p.qty ?? 1))}</b>`],
+      [`${e("paid")} Paid`, paymentLabel(p.method)],
+      [`${e("time")} Time`, formatLiveTime(when)],
+    ]) +
+    `<p>${e("buy_rocket")} Successfully delivered ${e("ok")}</p>`;
 }
 
 /** Minimal inline button shape shared with the Telegram keyboard type. */
