@@ -335,13 +335,14 @@ const BACK_UI_KEYS = new Set<UiKey>([
   "qty_back",
   "prof_back_btn",
   "ref_profile_btn",
+  "refcomm_back",
   "tier_back",
   "sup_back",
   "free_back",
   "com_back",
 ]);
 
-export const UI_GROUPS = ["shop", "plist", "specialprice", "product", "cart", "checkout", "payment", "wallet", "orders", "deposit", "quantity", "profile", "refstore", "freebies", "support", "history", "common"] as const;
+export const UI_GROUPS = ["shop", "plist", "specialprice", "product", "cart", "checkout", "payment", "wallet", "orders", "deposit", "quantity", "profile", "refstore", "refcomm", "freebies", "support", "history", "common"] as const;
 export type UiGroup = (typeof UI_GROUPS)[number];
 
 export function uiKeysOf(group: string): UiKey[] {
