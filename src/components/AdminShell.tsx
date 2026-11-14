@@ -30,6 +30,7 @@ import {
   BellRing,
   LifeBuoy,
   Percent,
+  HandCoins,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
@@ -58,6 +59,7 @@ const NAV_GROUPS = [
     label: "Pages",
     items: [
       { to: "/admin/users", label: "Users", icon: Users },
+      { to: "/admin/referrals", label: "Referral Commissions", icon: HandCoins },
       { to: "/admin/resellers", label: "Resellers", icon: KeyRound },
       { to: "/admin/codes", label: "Codes", icon: Ticket },
       { to: "/admin/bulk", label: "Bulk Discount", icon: Percent },
