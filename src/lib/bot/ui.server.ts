@@ -305,6 +305,22 @@ export const UI_ELEMENTS = {
   hist_st_expired: { icon: "⌛", label: "Status · Expired", group: "history" },
   hist_st_cancelled: { icon: "🚫", label: "Status · Cancelled", group: "history" },
   hist_st_refunded: { icon: "↩️", label: "Status · Refunded", group: "history" },
+
+  /* ---- referral commission history ---- */
+  refcomm_title: { icon: "💸", label: "R E F E R R A L   C O M M I S S I O N S", group: "refcomm" },
+  refcomm_btn: { icon: "💸", label: "Referral Commission History", group: "refcomm" },
+  refcomm_product: { icon: "📦", label: "Row · product", group: "refcomm" },
+  refcomm_earned: { icon: "💸", label: "Row · commission earned", group: "refcomm" },
+  refcomm_profit: { icon: "💹", label: "Row · admin profit & rate", group: "refcomm" },
+  refcomm_customer: { icon: "🆔", label: "Row · order, customer, transaction id", group: "refcomm" },
+  refcomm_date: { icon: "📅", label: "Row · date & time", group: "refcomm" },
+  refcomm_credited: { icon: "✅", label: "Status · Credited", group: "refcomm" },
+  refcomm_reversed: { icon: "↩️", label: "Status · Reversed", group: "refcomm" },
+  refcomm_prev: { icon: "⬅️", label: "Prev", group: "refcomm" },
+  refcomm_next: { icon: "➡️", label: "Next", group: "refcomm" },
+  refcomm_page: { icon: "📄", label: "Page line", group: "refcomm" },
+  refcomm_refresh: { icon: "🔄", label: "Refresh", group: "refcomm" },
+  refcomm_back: { icon: "◀️", label: "Back to Referral", group: "refcomm" },
 } as const satisfies Record<string, UiEntry>;
 
 
