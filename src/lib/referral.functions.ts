@@ -103,6 +103,9 @@ export const applyReferralCode = createServerFn({ method: "POST" })
     if (!data.code) return { ok: false, reason: "empty" as const };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    const { data: mode } = await supabaseAdmin.from('bot_settings').select('value').eq('key', 'referral_mode').maybeSingle();
+    if (mode?.value !== 'commission') return { ok: false, reason: 'disabled' as const };
+
     const { data: me } = await supabaseAdmin
       .from("profiles")
       .select("id,ref_code,referred_by")

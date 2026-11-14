@@ -794,7 +794,7 @@ export async function upsertUser(from: any, startPayload?: string) {
   }
 
   let referred_by: number | null = null;
-  if (startPayload && startPayload.startsWith("ref_")) {
+  if (startPayload && startPayload.startsWith("ref_") && await currentReferralMode() !== 'off') {
     const code = startPayload.slice(4);
     const { data: ref } = await db
       .from("bot_users")
@@ -1488,12 +1488,12 @@ async function refPurchasesView(user: any) {
   const { data: requests } = await db.from("referral_reward_requests")
     .select("product_name,credits,status").eq("telegram_id", Number(user.telegram_id))
     .order("created_at", { ascending: false }).limit(10);
-  const requestText = (requests ?? []).map((r: any) => `• <b>${escapeHtml(r.product_name)}</b> — ${r.credits} points · <b>${escapeHtml(r.status)}</b>`).join("\n");
+  const requestText = (requests ?? []).map((r: any) => `• <b>${escapeHtml(String(r.product_name).slice(0, 80))}</b> — ${r.credits} points · <b>${escapeHtml(r.status)}</b>`).join("\n");
   const list = purchases.length
-    ? purchases
+    ? purchases.slice(0, 10)
         .map(
           (p, i) =>
-            `${i + 1}. <b>${escapeHtml(p.name)}</b> — ${p.credits} ${uiIconHtml(s, "ref_credits")} <i>(${fmtDate(p.created_at)})</i>`,
+            `${i + 1}. <b>${escapeHtml(p.name.slice(0, 80))}</b> — ${p.credits} ${uiIconHtml(s, "ref_credits")} <i>(${fmtDate(p.created_at)})</i>`,
         )
         .join("\n")
     : "No reward claimed yet.";

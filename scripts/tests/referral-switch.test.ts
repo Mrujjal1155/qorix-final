@@ -9,7 +9,7 @@ beforeAll(async () => {
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT '00000000-0000-0000-0000-000000000001'::uuid $$;
     CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql AS $$ SELECT 'service_role' $$;
     CREATE TABLE test_admin(allowed boolean); INSERT INTO test_admin VALUES(true);
-    CREATE FUNCTION has_role(uuid,text) RETURNS boolean LANGUAGE sql AS $$ SELECT allowed FROM test_admin $$;
+    CREATE FUNCTION has_role(uuid,text) RETURNS boolean LANGUAGE sql SECURITY DEFINER SET search_path=public AS $$ SELECT allowed FROM test_admin $$;
     CREATE FUNCTION set_updated_at() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN NEW.updated_at=now(); RETURN NEW; END $$;
     CREATE TABLE bot_settings(key text PRIMARY KEY,value text,updated_at timestamptz DEFAULT now());
     CREATE TABLE products(id uuid PRIMARY KEY,name text,is_active boolean DEFAULT true,supplier_id uuid,owner_reseller_id uuid,delivery_type text DEFAULT 'auto');
