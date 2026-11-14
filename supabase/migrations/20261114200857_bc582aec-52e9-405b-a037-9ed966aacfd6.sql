@@ -1,0 +1,3 @@
+CREATE OR REPLACE FUNCTION public.sync_referral_switch() RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$ BEGIN IF NEW.key='referral_mode' THEN INSERT INTO public.bot_settings(key,value) VALUES('referral_enabled',CASE WHEN NEW.value='commission' THEN 'on' ELSE 'off' END),('web_referral_enabled',CASE WHEN NEW.value='commission' THEN 'on' ELSE 'off' END) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=now(); END IF; RETURN NEW; END $$;
+CREATE TRIGGER sync_referral_switch AFTER INSERT OR UPDATE OF value ON public.bot_settings FOR EACH ROW WHEN (NEW.key='referral_mode') EXECUTE FUNCTION public.sync_referral_switch();
+REVOKE ALL ON FUNCTION public.sync_referral_switch() FROM PUBLIC,anon,authenticated;
