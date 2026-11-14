@@ -996,7 +996,7 @@ async function referralView(user: any) {
   const text =
     `${sectionHead(s, "referral", `<b>${escapeHtml(uiText(s, "ref_title").toUpperCase().split("").join(" "))}</b>`)}\n` +
     `──────────────\n` +
-    `${uiTag(s, "ref_rate")}: you earn <b>${pct}%</b> of every purchase your friends make, added to your balance once the order is completed.\n\n` +
+    `${uiTag(s, "ref_rate")}: you earn <b>${pct}%</b> of the profit each purchase your friends make brings the shop, added to your balance once the order is completed.\n\n` +
     `${uiTag(s, "prof_refs")}: <b>${user.referral_count ?? 0}</b>\n` +
     `${uiTag(s, "prof_earning")}: <b>${money(user.referral_earnings)}</b>\n\n` +
     `${uiTag(s, "prof_link")}\n<code>${escapeHtml(link)}</code>\n` +
@@ -1025,13 +1025,14 @@ async function referralListView(user: any) {
           (r: any, i: number) =>
             `${i + 1}. <b>${escapeHtml(maskUsername(r.username, r.first_name))}</b> — spent ${money(
               r.total_spent,
-            )} → earned you ${money((Number(r.total_spent || 0) * pct) / 100)} <i>(${fmtDate(r.created_at)})</i>`,
+            )} <i>(${fmtDate(r.created_at)})</i>`,
         )
         .join("\n")
     : "No referrals yet — share your link to start earning.";
   const text =
     `<b>M Y   R E F E R R A L S</b>\n──────────────\n${list}\n──────────────\n` +
-    `${uiTag(s, "prof_earning")}: <b>${money(user.referral_earnings)}</b>`;
+    `${uiTag(s, "prof_earning")}: <b>${money(user.referral_earnings)}</b>\n` +
+    `<i>Open Referral Commission History to see what each purchase paid you.</i>`;
   const kb: Button[][] = [
     [uiUrlBtn(s, "ref_share_btn", shareUrl(s, user))],
     [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")],
