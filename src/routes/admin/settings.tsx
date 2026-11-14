@@ -19,6 +19,8 @@ import { SettingsHub, type HubSection } from "@/components/SettingsHub";
 import { Bot, Wallet, SlidersHorizontal, Smile, Images, Megaphone, Smartphone, Mail, MailOpen, Gift, Coins, Network, ShieldCheck, BellRing } from "lucide-react";
 import { JoinGateCard } from "@/components/JoinGateCard";
 import { ReferralRewardsSettings } from "@/components/ReferralRewardsSettings";
+import { saveReferralSwitch } from "@/lib/referral-rewards.functions";
+import { referralMode } from "@/lib/referral-mode";
 
 import { CurrencyRatesCard } from "@/components/CurrencyRatesCard";
 import { SupplierKeysCard } from "@/components/SupplierKeysCard";
@@ -117,6 +119,13 @@ const MENU_ICON_FIELDS = [
 function SettingsPage() {
   const fetchSettings = useServerFn(getBotSettings);
   const save = useServerFn(saveBotSettings);
+  const saveReferral = useServerFn(saveReferralSwitch);
+  async function onSaveReferral() {
+    try {
+      await saveReferral({ data: { mode: referralMode(values['referral_mode']), percent: Number(values['referral_percent'] || 5), min_order: Number(values['referral_min_order'] || 0), max_commission: Number(values['referral_max_commission'] || 0) } });
+      toast.success('Referral switch saved'); await refetchSettings();
+    } catch (e) { toast.error(e instanceof Error ? e.message : 'Could not save referral switch'); }
+  }
   const hook = useServerFn(registerWebhook);
   const checkToken = useServerFn(checkBotToken);
   const checkBinance = useServerFn(checkBinanceStatus);
@@ -849,7 +858,7 @@ function SettingsPage() {
         </div>
 
 
-        <Button onClick={onSave}>Save referral settings</Button>
+        <Button onClick={onSaveReferral}>Save referral settings</Button>
         <ReferralRewardsSettings />
       </CardContent>
     </Card>

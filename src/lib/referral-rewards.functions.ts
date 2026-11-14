@@ -6,6 +6,17 @@ async function admin(context: any) {
   const { data, error } = await context.supabase.rpc('has_role', { _user_id: context.userId, _role: 'admin' });
   if (error || !data) throw new Error('Forbidden');
 }
+export const saveReferralSwitch = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth])
+  .inputValidator(d => z.object({ mode: z.enum(['off', 'points', 'commission']), percent: z.coerce.number().min(0).max(100), min_order: z.coerce.number().min(0), max_commission: z.coerce.number().min(0) }).parse(d))
+  .handler(async ({ data, context }) => {
+    await admin(context);
+    const { error } = await context.supabase.from('bot_settings').upsert([
+      { key: 'referral_mode', value: data.mode }, { key: 'referral_percent', value: String(data.percent) },
+      { key: 'referral_min_order', value: String(data.min_order) }, { key: 'referral_max_commission', value: String(data.max_commission) },
+    ], { onConflict: 'key' });
+    if (error) throw new Error('Could not save referral switch.');
+    return { ok: true };
+  });
 export const getReferralRewardsAdmin = createServerFn({ method: 'GET' })
   .middleware([requireSupabaseAuth]).handler(async ({ context }) => {
     await admin(context);

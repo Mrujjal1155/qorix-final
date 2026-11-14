@@ -31,7 +31,7 @@ export function ReferralRewardsSettings() {
       <Button className="self-end" disabled={busy || !product || !Number.isInteger(Number(points)) || Number(points) < 1} onClick={() => persist({ product_id: product, credits: Number(points), is_active: true })}>Add reward</Button>
     </div>
     {data?.rewards.map(r => <div key={r.id} className="flex items-center justify-between gap-4 border-b border-border py-3">
-      <div><p className="font-medium">{(r.products as { name: string } | null)?.name ?? 'Product'}</p><p className="text-sm text-muted-foreground">{r.credits} points</p></div>
+      <div className="min-w-0"><p className="font-medium break-words">{(r.products as { name: string } | null)?.name ?? 'Product'}</p><div className="mt-2 flex items-center gap-2"><Input className="w-24" aria-label={`Points for reward ${r.id}`} type="number" min="1" step="1" defaultValue={r.credits} key={`${r.id}-${r.credits}`} disabled={busy} onBlur={e => { const credits = Number(e.target.value); if (credits !== Number(r.credits) && Number.isInteger(credits) && credits > 0) void persist({ id: r.id, product_id: r.product_id, credits, is_active: r.is_active }); }} /><span className="text-sm text-muted-foreground">points</span></div></div>
       <Switch aria-label={`Enable reward ${r.id}`} checked={r.is_active} disabled={busy} onCheckedChange={checked => persist({ id: r.id, product_id: r.product_id, credits: Number(r.credits), is_active: checked })} />
     </div>)}
   </section>;
