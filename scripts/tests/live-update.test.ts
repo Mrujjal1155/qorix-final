@@ -39,19 +39,25 @@ describe("live update channel posts", () => {
     const t = buildLivePost("purchase", { uid: "7f3c9d21-55ab-4c88-90e1-2b6f4a77c3d4", name: "Rahim", product: "Netflix 1M", qty: 2, method: "reseller_balance" }, new Date("2026-10-24T17:32:00Z"));
     expect(t).not.toContain("7f3c9d21");
     expect(t).not.toContain("Rahim");
-    expect(t).toContain("Product: <b>Netflix 1M</b>");
-    expect(t).toContain("Paid: Reseller Balance");
+    expect(t).toContain("<td>🛒 Product</td><td align=\"right\"><b>Netflix 1M</b>");
+    expect(t).toContain("Reseller Balance");
     expect(t).toContain("Successfully delivered");
   });
   test("purchase post never contains the full id or name", () => {
     const t = buildLivePost("purchase", { uid: "2808123968", name: "Ahmed", product: "Gemini", qty: 3, method: "balance" }, new Date("2026-10-24T17:32:00Z"));
     expect(t).not.toContain("2808123968");
     expect(t).not.toContain("Ahmed");
-    expect(t).toContain("Quantity: <b>3</b>");
+    expect(t).toContain("<td>⭐ Quantity</td><td align=\"right\"><b>3</b>");
     expect(t).toContain("24-Oct-2026 05:32 PM UTC");
   });
   test("premium emoji id becomes a tg-emoji tag", () => {
     const t = buildLivePost("topup", { uid: "1", method: "oxapay" }, new Date(), { title: "5204116184986844054" });
-    expect(t).toContain('<tg-emoji emoji-id="5204116184986844054">🎉</tg-emoji>');
+    expect(t).toContain('<tg-emoji emoji-id="5204116184986844054">💰</tg-emoji>');
+  });
+  test("each card has its own heading", () => {
+    const d = new Date();
+    expect(buildLivePost("purchase", { uid: "1" }, d)).toContain("Thank You for Your Purchase!");
+    expect(buildLivePost("topup", { uid: "1" }, d)).toContain("Balance Top-up Confirmed");
+    expect(buildLivePost("member", { uid: "1" }, d)).toContain("Welcome to the Family!");
   });
 });
