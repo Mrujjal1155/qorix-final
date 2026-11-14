@@ -1018,7 +1018,6 @@ async function referralListView(user: any) {
     .eq("referred_by", user.telegram_id)
     .order("created_at", { ascending: false })
     .limit(20);
-  const pct = Number(s["referral_percent"] || 0);
   const list = (rows ?? []).length
     ? (rows ?? [])
         .map(
@@ -1035,6 +1034,7 @@ async function referralListView(user: any) {
     `<i>Open Referral Commission History to see what each purchase paid you.</i>`;
   const kb: Button[][] = [
     [uiUrlBtn(s, "ref_share_btn", shareUrl(s, user))],
+    [uiBtn(s, "refcomm_btn", "refcomm:0")],
     [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")],
   ];
   return { text, kb };
