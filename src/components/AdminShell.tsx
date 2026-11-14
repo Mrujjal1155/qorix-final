@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { countPendingOrders, countUnreadTickets } from "@/lib/admin.functions";
+import { countPendingApprovals, countPendingOrders, countUnreadTickets } from "@/lib/admin.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -112,8 +112,19 @@ export function AdminShell({
     }
     prevTickets.current = tickets.count;
   }, [tickets]);
+  const fetchApprovals = useServerFn(countPendingApprovals);
+  const { data: approvals } = useQuery({
+    queryKey: ["pending-approvals-count"],
+    queryFn: () => fetchApprovals(),
+    refetchInterval: 30000,
+  });
   const badgeFor = (to: string) =>
-    to === "/admin/orders" ? pendingCount : to === "/admin/support" ? ticketCount : 0;
+    to === "/admin/orders" ? pendingCount
+    : to === "/admin/support" ? ticketCount
+    : to === "/admin/resellers" ? approvals?.resellers ?? 0
+    : to === "/admin/payments" ? approvals?.payments ?? 0
+    : to === "/admin/gateway-payments" ? approvals?.gateways ?? 0
+    : 0;
 
   // Any page other than the dashboard hides the menu entirely; a back arrow returns to it.
   const pathname = useRouterState({ select: (s) => s.location.pathname });
