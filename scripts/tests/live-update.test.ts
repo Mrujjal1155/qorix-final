@@ -5,6 +5,7 @@ describe("live update channel posts", () => {
   test("purchase posts get a Buy Now button that opens the bot", () => {
     const kb = livePostKeyboard("purchase", "QORIX3_bot");
     expect(kb?.[0]?.[0]?.url).toBe("https://t.me/QORIX3_bot");
+    expect(kb?.[0]?.[0]?.style).toBe("primary");
     expect(kb?.[0]?.[0]?.icon_custom_emoji_id).toBeUndefined();
     expect(livePostKeyboard("purchase", "@QORIX3_bot")).toEqual(kb);
   });
