@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Add admin Settings Referral Switch (points rewards / profit commission / both off), preserve balances/history, gate all earning and old callbacks, admin-selected product rewards with pending approval and atomic stock delivery. Await owner approval; commission distribution remains off until explicitly authorized.
+
 - [x] Switch lifetime referral commission to 5% of admin net profit (selling price − purchase-time cost × quantity), exact decimals in the ledger and whole cents in the wallet, no commission on zero/negative profit, clawback of exactly what was credited; add bot Referral Commission History (10/page, Prev/Next, page number, empty state) and an admin Referral Commissions screen. 14 focused tests pass, latest build OK; live DB reads rate 5, three ledger columns present, history RPC reachable only by the bot server. Old 298 commissions untouched; no real credit, Telegram send or publish.
 - [ ] Verify the new bot screen and admin screen after approved deployment/send: external unmanaged Supabase blocks signed-in preview checks, and no live Telegram send was approved.
 
