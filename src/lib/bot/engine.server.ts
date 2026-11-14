@@ -1,3 +1,4 @@
+import { referralMode, referralCallbackAllowed } from "@/lib/referral-mode";
 import { cardToTable, saleTable } from "@/lib/bot/alert-table";
 // Server-only Telegram shop bot engine.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -793,7 +794,7 @@ export async function upsertUser(from: any, startPayload?: string) {
   }
 
   let referred_by: number | null = null;
-  if (startPayload && startPayload.startsWith("ref_")) {
+  if (startPayload && startPayload.startsWith("ref_") && await currentReferralMode() !== 'off') {
     const code = startPayload.slice(4);
     const { data: ref } = await db
       .from("bot_users")
@@ -1374,17 +1375,17 @@ async function refPurchases(telegramId: number) {
   return (data ?? []) as { name: string; credits: number; created_at: string }[];
 }
 
-/** Rewards catalog: one per line — `Name|credits` */
-function refRewards(settings: Record<string, string>) {
-  return (settings["referral_rewards"] || "Gemini AI Pro 18 Month|10")
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((l, i) => {
-      const [name, credits] = l.split("|");
-      return { id: String(i), name: (name ?? "").trim(), credits: Math.max(1, Number(credits ?? 10)) };
-    })
-    .filter((r) => r.name);
+async function currentReferralMode() {
+  const { data, error } = await db.from("bot_settings").select("value").eq("key", "referral_mode").maybeSingle();
+  return referralMode(error ? "off" : data?.value);
+}
+async function refRewards(): Promise<{ id: string; name: string; credits: number }[]> {
+  const { data, error } = await db.from("referral_product_rewards")
+    .select("id,credits,products(name,is_active,supplier_id,owner_reseller_id,delivery_type)")
+    .eq("is_active", true).order("created_at").limit(30);
+  if (error) return [];
+  return (data ?? []).filter((r: any) => r.products?.is_active && !r.products.supplier_id && !r.products.owner_reseller_id && r.products.delivery_type === "auto")
+    .map((r: any) => ({ id: r.id, name: r.products.name, credits: Number(r.credits) }));
 }
 
 /**
@@ -1392,7 +1393,7 @@ function refRewards(settings: Record<string, string>) {
  * Over the daily cap the credit is queued (never lost) and lands the next day.
  */
 async function awardReferralCredit(user: any) {
-  if (!user?.referred_by) return;
+  if (!user?.referred_by || await currentReferralMode() !== "points") return;
 
   const s = await getSettings();
   const per = Math.max(1, Number(s["referral_credit_per_invite"] || 1));
@@ -1436,8 +1437,8 @@ async function refStoreView(user: any) {
     .eq("status", "pending");
   const per = Math.max(1, Number(s["referral_credit_per_invite"] || 1));
   const cap = Math.max(1, Number(s["referral_daily_cap"] || 10));
-  const rate = Number(s["referral_redeem_rate"] || 0);
-  const rewards = refRewards(s);
+  const rate = 0;
+  const rewards = await refRewards();
   const link = refLink(s, user);
 
   const text =
@@ -1456,7 +1457,7 @@ async function refStoreView(user: any) {
     (Number(queued ?? 0) > 0 ? `  <i>(+${queued} waiting for tomorrow)</i>` : "") +
     `\n\n` +
     (rewards.some((r) => credits >= r.credits)
-      ? `<i>Tap a reward below to claim it instantly.</i>`
+      ? `<i>Tap a reward below to request admin approval.</i>`
       : `<i>Not enough credits for any reward yet — invite more friends${rate > 0 ? " or redeem your credits to your wallet" : ""}.</i>`);
 
   const kb: Button[][] = rewards.map((r) => {
@@ -1476,7 +1477,6 @@ async function refStoreView(user: any) {
   ]);
   kb.push([
     uiBtn(s, "ref_purch_btn", "refbought", `(${purchases.length})`),
-    uiBtn(s, "ref_earn_btn", "refearn"),
   ]);
   kb.push([styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")]);
   return { text, kb };
@@ -1485,15 +1485,19 @@ async function refStoreView(user: any) {
 async function refPurchasesView(user: any) {
   const s = await getSettings();
   const purchases = await refPurchases(Number(user.telegram_id));
+  const { data: requests } = await db.from("referral_reward_requests")
+    .select("product_name,credits,status").eq("telegram_id", Number(user.telegram_id))
+    .order("created_at", { ascending: false }).limit(10);
+  const requestText = (requests ?? []).map((r: any) => `• <b>${escapeHtml(String(r.product_name).slice(0, 80))}</b> — ${r.credits} points · <b>${escapeHtml(r.status)}</b>`).join("\n");
   const list = purchases.length
-    ? purchases
+    ? purchases.slice(0, 10)
         .map(
           (p, i) =>
-            `${i + 1}. <b>${escapeHtml(p.name)}</b> — ${p.credits} ${uiIconHtml(s, "ref_credits")} <i>(${fmtDate(p.created_at)})</i>`,
+            `${i + 1}. <b>${escapeHtml(p.name.slice(0, 80))}</b> — ${p.credits} ${uiIconHtml(s, "ref_credits")} <i>(${fmtDate(p.created_at)})</i>`,
         )
         .join("\n")
     : "No reward claimed yet.";
-  const text = `<b>${escapeHtml(uiText(s, "ref_purch_title"))}</b>\n──────────────\n${list}\n──────────────\n${uiIconHtml(
+  const text = `<b>${escapeHtml(uiText(s, "ref_purch_title"))}</b>\n──────────────\n${requestText ? requestText + "\n──────────────\n" : ""}${list}\n──────────────\n${uiIconHtml(
     s,
     "ref_credits",
   )} Credits left: <b>${await refCredits(Number(user.telegram_id))}</b>`;
@@ -1501,44 +1505,14 @@ async function refPurchasesView(user: any) {
 }
 
 
-/** Claim a reward with credits — admins get a manual delivery ping. */
+/** Reserve points and create a persistent admin request, never deliver at claim time. */
 async function claimRefReward(user: any, rewardId: string) {
   const s = await getSettings();
-  const reward = refRewards(s).find((r) => r.id === rewardId);
-  if (!reward) return { text: "That reward is no longer available.", kb: [[uiBtn(s, "prof_refer_btn", "refstore")]] };
-  const credits = await refCredits(Number(user.telegram_id));
-  if (credits < reward.credits) {
-    return {
-      text: `🔒 You need <b>${reward.credits - credits}</b> more credit(s) for <b>${escapeHtml(reward.name)}</b>.`,
-      kb: [[uiBtn(s, "prof_refer_btn", "refstore")]],
-    };
-  }
-  // Atomic spend: the DB refuses to go below zero, so double taps cannot overspend.
-  const { data: ok } = await db.rpc("referral_credit_spend", {
-    _tid: Number(user.telegram_id),
-    _credits: reward.credits,
-    _name: reward.name,
-  });
-  if (!ok) {
-    return {
-      text: "That claim could not be completed — your credit balance changed. Please try again.",
-      kb: [[uiBtn(s, "prof_refer_btn", "refstore")]],
-    };
-  }
-  for (const adminId of adminIds(s)) {
-    await sendMessage(
-      Number(adminId),
-      `🎯 <b>Referral reward claimed</b>\nUser: ${user.username ? "@" + user.username : user.telegram_id} (<code>${
-        user.telegram_id
-      }</code>)\nReward: <b>${escapeHtml(reward.name)}</b> (${reward.credits} credits)\nPlease deliver it manually.`,
-    ).catch(() => undefined);
-  }
-  return {
-    text:
-      `✅ <b>${escapeHtml(reward.name)}</b> claimed for <b>${reward.credits}</b> credits!\n\n` +
-      `Our team will deliver it to you shortly right here in this chat.`,
-    kb: [[uiBtn(s, "prof_refer_btn", "refstore")], [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")]],
-  };
+  const kb = [[uiBtn(s, "prof_refer_btn", "refstore")]];
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rewardId)) return { text: "Please reopen Referral to select a current reward.", kb };
+  const { data: result, error } = await db.rpc("request_referral_reward", { _tid: Number(user.telegram_id), _reward: rewardId });
+  if (error || !result?.ok) return { text: result?.reason === "points" ? "Not enough points for this reward." : "This reward is currently unavailable. Please reopen Referral.", kb };
+  return { text: "✅ <b>Reward request submitted</b>\nYour points are reserved. The admin will review your request before delivery. If rejected, your points are returned.", kb };
 }
 
 /** Convert credits into wallet balance at the configured rate. */
@@ -6754,7 +6728,7 @@ function escapeHtml(s: string) {
 async function handleCallback(cq: any) {
   const chatId = cq.message?.chat?.id as number;
   const messageId = cq.message?.message_id as number;
-  const data: string = cq.data ?? "";
+  let data: string = cq.data ?? "";
   // Fire the spinner-stopping ack without waiting for Telegram's round trip.
   defer(() => answerCallback(cq.id));
   if (!chatId) return;
@@ -7498,9 +7472,18 @@ async function handleCallback(cq: any) {
     return;
   }
 
+  if (data === "refstore" || data === "refearn" || data === "refbought" || data === "refcash" || data.startsWith("refbuy:") || data === "ref:list" || data.startsWith("refcomm:")) {
+    const mode = await currentReferralMode();
+    if (!referralCallbackAllowed(mode, data)) {
+      await edit("Referral is temporarily unavailable.", [[{ text: "Back", callback_data: "home", style: "primary" }]]);
+      return;
+    }
+    if (data === "refearn" && mode === "points") data = "refstore";
+  }
+
   if (data === "refstore") {
     const fresh = await getUser(chatId);
-    const v = await refStoreView(fresh);
+    const v = await currentReferralMode() === "commission" ? await referralView(fresh) : await refStoreView(fresh);
     await edit(v.text, v.kb);
     return;
   }

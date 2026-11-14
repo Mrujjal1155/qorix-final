@@ -1,0 +1,2 @@
+REVOKE ALL ON FUNCTION public.guard_referral_mode(),public.snapshot_referral_mode(),public.validate_referral_reward(),public.current_referral_mode() FROM PUBLIC,anon,authenticated; GRANT EXECUTE ON FUNCTION public.current_referral_mode() TO service_role;
+CREATE POLICY delivery_service_only ON public.referral_reward_deliveries FOR ALL TO service_role USING(true) WITH CHECK(true);

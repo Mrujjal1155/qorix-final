@@ -8,6 +8,9 @@ export const getMyReferral = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+    const { data: modeRow } = await supabaseAdmin.from('bot_settings').select('value').eq('key', 'referral_mode').maybeSingle();
+    if (modeRow?.value !== 'commission') return { mode: modeRow?.value === 'points' ? 'points' : 'off', ref_code: '', referred_by: null, wallet_balance: 0, referral_earnings: 0, referral_count: 0, percent: 0, min_order: 0, max_commission: 0, telegram_id: null, telegram_referrals: 0, transactions: [] as any[] };
+
     const [{ data: profile }, { data: txs }, { data: settings }, { count: refCount }] = await Promise.all([
       supabaseAdmin
         .from("profiles")
@@ -46,6 +49,7 @@ export const getMyReferral = createServerFn({ method: "GET" })
     }
 
     return {
+      mode: 'commission',
       ref_code: (profile as any)?.ref_code ?? "",
       referred_by: (profile as any)?.referred_by ?? null,
       wallet_balance: Number((profile as any)?.wallet_balance ?? 0),
@@ -98,6 +102,9 @@ export const applyReferralCode = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     if (!data.code) return { ok: false, reason: "empty" as const };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { data: mode } = await supabaseAdmin.from('bot_settings').select('value').eq('key', 'referral_mode').maybeSingle();
+    if (mode?.value !== 'commission') return { ok: false, reason: 'disabled' as const };
 
     const { data: me } = await supabaseAdmin
       .from("profiles")

@@ -532,6 +532,7 @@ export type Database = {
           product_name: string
           quantity: number
           referral_credited: boolean
+          referral_mode_at_completion: string | null
           reseller_id: string | null
           source: string
           status: string
@@ -559,6 +560,7 @@ export type Database = {
           product_name: string
           quantity?: number
           referral_credited?: boolean
+          referral_mode_at_completion?: string | null
           reseller_id?: string | null
           source?: string
           status?: string
@@ -586,6 +588,7 @@ export type Database = {
           product_name?: string
           quantity?: number
           referral_credited?: boolean
+          referral_mode_at_completion?: string | null
           reseller_id?: string | null
           source?: string
           status?: string
@@ -1123,6 +1126,145 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      referral_product_rewards: {
+        Row: {
+          created_at: string
+          credits: number
+          id: string
+          is_active: boolean
+          product_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credits: number
+          id?: string
+          is_active?: boolean
+          product_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          id?: string
+          is_active?: boolean
+          product_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_product_rewards_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_reward_deliveries: {
+        Row: {
+          attempts: number
+          claim_token: string | null
+          content: string
+          created_at: string
+          delivered_at: string | null
+          lease_until: string | null
+          next_attempt_at: string
+          request_id: string
+          stock_id: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          claim_token?: string | null
+          content: string
+          created_at?: string
+          delivered_at?: string | null
+          lease_until?: string | null
+          next_attempt_at?: string
+          request_id: string
+          stock_id: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          claim_token?: string | null
+          content?: string
+          created_at?: string
+          delivered_at?: string | null
+          lease_until?: string | null
+          next_attempt_at?: string
+          request_id?: string
+          stock_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_reward_deliveries_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "referral_reward_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      referral_reward_requests: {
+        Row: {
+          created_at: string
+          credits: number
+          id: string
+          product_id: string
+          product_name: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reward_id: string
+          status: string
+          telegram_id: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credits: number
+          id?: string
+          product_id: string
+          product_name: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reward_id: string
+          status?: string
+          telegram_id: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credits?: number
+          id?: string
+          product_id?: string
+          product_name?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reward_id?: string
+          status?: string
+          telegram_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "referral_reward_requests_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "referral_reward_requests_reward_id_fkey"
+            columns: ["reward_id"]
+            isOneToOne: false
+            referencedRelation: "referral_product_rewards"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reseller_applications: {
         Row: {
@@ -2218,6 +2360,7 @@ export type Database = {
         }
         Returns: Json
       }
+      claim_referral_deliveries: { Args: never; Returns: Json[] }
       claim_stock_items: {
         Args: { _product_id: string; _qty: number; _sold_to?: number }
         Returns: {
@@ -2285,6 +2428,7 @@ export type Database = {
         }[]
       }
       cleanup_old_logs: { Args: never; Returns: Json }
+      current_referral_mode: { Args: never; Returns: string }
       debit_reseller_order: { Args: { _order_id: string }; Returns: Json }
       enqueue_bot_broadcast: {
         Args: { _event_key: string; _message: Json }
@@ -2309,6 +2453,10 @@ export type Database = {
       }
       expire_bot_checkouts: { Args: { _cutoff: string }; Returns: number }
       expire_payment_attempts: { Args: never; Returns: number }
+      finish_referral_delivery: {
+        Args: { _request: string; _success: boolean; _token: string }
+        Returns: boolean
+      }
       finish_stock_notification: {
         Args: { _delivered: boolean; _error?: string; _id: string }
         Returns: undefined
@@ -2466,6 +2614,10 @@ export type Database = {
         }
         Returns: Json
       }
+      request_referral_reward: {
+        Args: { _reward: string; _tid: number }
+        Returns: Json
+      }
       reseller_adjust_balance: {
         Args: {
           _amount: number
@@ -2483,6 +2635,10 @@ export type Database = {
       retry_latest_stock_notification: {
         Args: { _product_id: string }
         Returns: boolean
+      }
+      review_referral_reward: {
+        Args: { _approve: boolean; _request: string }
+        Returns: Json
       }
       save_reseller_delivery: {
         Args: { _content?: string; _order_id: string; _supplier_error?: string }

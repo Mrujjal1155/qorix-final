@@ -1551,7 +1551,8 @@ export const saveBotSettings = createServerFn({ method: "POST" })
     const sb = (context as any).supabase;
     await assertAdmin(context);
     // Verification flags are written only after a trusted Bybit account/API check.
-    const rows = Object.entries(data.values).filter(([key]) => !["bybit_api_verified", "bybit_api_key", "bybit_api_secret"].includes(key)).map(([key, value]) => ({ key, value }));
+    if (data.values['referral_mode'] && !['off', 'points', 'commission'].includes(data.values['referral_mode'])) throw new Error('Invalid referral mode');
+    const rows = Object.entries(data.values).filter(([key]) => !["bybit_api_verified", "bybit_api_key", "bybit_api_secret", "referral_mode", "referral_enabled", "web_referral_enabled"].includes(key)).map(([key, value]) => ({ key, value }));
     const { error } = await sb.from("bot_settings").upsert(rows, { onConflict: "key" });
     if (error) throw new Error(error.message);
     return { ok: true };
@@ -2521,12 +2522,13 @@ export const countPendingApprovals = createServerFn({ method: "GET" })
     await assertAdmin(context);
     const sb = (context as any).supabase;
     const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-    const [apps, pays, deps] = await Promise.all([
+    const [apps, pays, deps, refs] = await Promise.all([
       sb.from("reseller_applications").select("id", { count: "exact", head: true }).eq("status", "pending"),
       sb.from("payment_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
       sb.from("binance_deposits").select("id", { count: "exact", head: true }).eq("status", "pending").gte("created_at", since),
+      sb.from("referral_reward_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
     ]);
-    return { resellers: apps.count ?? 0, payments: pays.count ?? 0, gateways: deps.count ?? 0 };
+    return { resellers: apps.count ?? 0, payments: pays.count ?? 0, gateways: deps.count ?? 0, referralRequests: refs.count ?? 0 };
   });
 
 /* --------------------------------------------------- referral commissions */

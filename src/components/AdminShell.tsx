@@ -60,6 +60,7 @@ const NAV_GROUPS = [
     items: [
       { to: "/admin/users", label: "Users", icon: Users },
       { to: "/admin/referrals", label: "Referral Commissions", icon: HandCoins },
+      { to: "/admin/referral-requests", label: "Referral Requests", icon: HandCoins },
       { to: "/admin/resellers", label: "Resellers", icon: KeyRound },
       { to: "/admin/codes", label: "Codes", icon: Ticket },
       { to: "/admin/bulk", label: "Bulk Discount", icon: Percent },
@@ -126,6 +127,7 @@ export function AdminShell({
     : to === "/admin/resellers" ? approvals?.resellers ?? 0
     : to === "/admin/payments" ? approvals?.payments ?? 0
     : to === "/admin/gateway-payments" ? approvals?.gateways ?? 0
+    : to === "/admin/referral-requests" ? approvals?.referralRequests ?? 0
     : 0;
 
   // Any page other than the dashboard hides the menu entirely; a back arrow returns to it.

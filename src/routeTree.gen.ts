@@ -36,6 +36,7 @@ import { Route as AdminGatewayPaymentsRouteImport } from './routes/admin/gateway
 import { Route as AdminOrdersRouteImport } from './routes/admin/orders'
 import { Route as AdminPaymentsRouteImport } from './routes/admin/payments'
 import { Route as AdminProductsRouteImport } from './routes/admin/products'
+import { Route as AdminReferralRequestsRouteImport } from './routes/admin/referral-requests'
 import { Route as AdminReferralsRouteImport } from './routes/admin/referrals'
 import { Route as AdminResellerPricesRouteImport } from './routes/admin/reseller-prices'
 import { Route as AdminResellersRouteImport } from './routes/admin/resellers'
@@ -210,6 +211,11 @@ const AdminPaymentsRoute = AdminPaymentsRouteImport.update({
 const AdminProductsRoute = AdminProductsRouteImport.update({
   id: '/products',
   path: '/products',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminReferralRequestsRoute = AdminReferralRequestsRouteImport.update({
+  id: '/referral-requests',
+  path: '/referral-requests',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminReferralsRoute = AdminReferralsRouteImport.update({
@@ -460,6 +466,7 @@ export interface FileRoutesByFullPath {
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/products': typeof AdminProductsRoute
+  '/admin/referral-requests': typeof AdminReferralRequestsRoute
   '/admin/referrals': typeof AdminReferralsRoute
   '/admin/reseller-prices': typeof AdminResellerPricesRoute
   '/admin/resellers': typeof AdminResellersRoute
@@ -528,6 +535,7 @@ export interface FileRoutesByTo {
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/products': typeof AdminProductsRoute
+  '/admin/referral-requests': typeof AdminReferralRequestsRoute
   '/admin/referrals': typeof AdminReferralsRoute
   '/admin/reseller-prices': typeof AdminResellerPricesRoute
   '/admin/resellers': typeof AdminResellersRoute
@@ -599,6 +607,7 @@ export interface FileRoutesById {
   '/admin/orders': typeof AdminOrdersRoute
   '/admin/payments': typeof AdminPaymentsRoute
   '/admin/products': typeof AdminProductsRoute
+  '/admin/referral-requests': typeof AdminReferralRequestsRoute
   '/admin/referrals': typeof AdminReferralsRoute
   '/admin/reseller-prices': typeof AdminResellerPricesRoute
   '/admin/resellers': typeof AdminResellersRoute
@@ -670,6 +679,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/payments'
     | '/admin/products'
+    | '/admin/referral-requests'
     | '/admin/referrals'
     | '/admin/reseller-prices'
     | '/admin/resellers'
@@ -738,6 +748,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/payments'
     | '/admin/products'
+    | '/admin/referral-requests'
     | '/admin/referrals'
     | '/admin/reseller-prices'
     | '/admin/resellers'
@@ -808,6 +819,7 @@ export interface FileRouteTypes {
     | '/admin/orders'
     | '/admin/payments'
     | '/admin/products'
+    | '/admin/referral-requests'
     | '/admin/referrals'
     | '/admin/reseller-prices'
     | '/admin/resellers'
@@ -1085,6 +1097,13 @@ declare module '@tanstack/react-router' {
       path: '/products'
       fullPath: '/admin/products'
       preLoaderRoute: typeof AdminProductsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/referral-requests': {
+      id: '/admin/referral-requests'
+      path: '/referral-requests'
+      fullPath: '/admin/referral-requests'
+      preLoaderRoute: typeof AdminReferralRequestsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/referrals': {
@@ -1406,6 +1425,7 @@ interface AdminRouteRouteChildren {
   AdminOrdersRoute: typeof AdminOrdersRoute
   AdminPaymentsRoute: typeof AdminPaymentsRoute
   AdminProductsRoute: typeof AdminProductsRoute
+  AdminReferralRequestsRoute: typeof AdminReferralRequestsRoute
   AdminReferralsRoute: typeof AdminReferralsRoute
   AdminResellerPricesRoute: typeof AdminResellerPricesRoute
   AdminResellersRoute: typeof AdminResellersRoute
@@ -1429,6 +1449,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminOrdersRoute: AdminOrdersRoute,
   AdminPaymentsRoute: AdminPaymentsRoute,
   AdminProductsRoute: AdminProductsRoute,
+  AdminReferralRequestsRoute: AdminReferralRequestsRoute,
   AdminReferralsRoute: AdminReferralsRoute,
   AdminResellerPricesRoute: AdminResellerPricesRoute,
   AdminResellersRoute: AdminResellersRoute,
