@@ -67,6 +67,8 @@ import { buildStartMessage, buildProfileDetails, referralCopyButton, referralSha
 import { homeMenuColor, type HomeMenuKey } from "@/lib/bot/home-menu-colors";
 import { buildWalletHistory, historyOwner, historyPage } from "@/lib/bot/wallet-history";
 import { readWalletHistory } from "@/lib/bot/wallet-history.server";
+import { buildReferralCommissionHistory } from "@/lib/referral-commission";
+import { readReferralCommissions } from "@/lib/bot/referral-commission.server";
 import { bybitEnabled, bybitTransactionKey } from "@/lib/bybit-payment";
 import { bybitSettings } from "@/lib/bybit.server";
 import { confirmBybitBotDeposit, sweepBybitWebsiteOrders } from "@/lib/bybit-settle.server";
@@ -1002,6 +1004,7 @@ async function referralView(user: any) {
   const kb: Button[][] = [
     [uiUrlBtn(s, "ref_share_btn", shareUrl(s, user))],
     [uiBtn(s, "ref_list_btn", "ref:list"), uiBtn(s, "prof_tiers_btn", "tiers")],
+    [uiBtn(s, "refcomm_btn", "refcomm:0")],
     [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")],
   ];
   return { text, kb };
@@ -7543,6 +7546,48 @@ async function handleCallback(cq: any) {
     const fresh = await getUser(chatId);
     const v = await referralListView(fresh);
     await edit(v.text, v.kb);
+    return;
+  }
+
+  if (data.startsWith("refcomm:")) {
+    const ownerId = historyOwner(cq.message?.chat ?? {}, cq.from?.id);
+    if (ownerId === null) {
+      await answerCallback(cq.id, "Open your referral page in a private chat with the bot.", true);
+      return;
+    }
+    const page = historyPage(data.split(":")[1] ?? "0");
+    if (page === null || page > 200) {
+      await answerCallback(cq.id, "Invalid commission page.", true);
+      return;
+    }
+    const result = await readReferralCommissions(db, ownerId, page);
+    const s = await getSettings();
+    const nav: Button[] = [];
+    if (page > 0) nav.push(uiBtn(s, "refcomm_prev", `refcomm:${page - 1}`));
+    if (result.hasNext && page < 200) nav.push(uiBtn(s, "refcomm_next", `refcomm:${page + 1}`));
+    const kb: Button[][] = [];
+    if (nav.length) kb.push(nav);
+    kb.push([uiBtn(s, "refcomm_refresh", `refcomm:${page}`)]);
+    kb.push([uiBtn(s, "refcomm_back", "refearn")]);
+    const title = `${uiIconHtml(s, "refcomm_title")} ${escapeHtml(uiText(s, "refcomm_title"))}`;
+    const pageLine = result.total
+      ? `\n${uiIconHtml(s, "refcomm_page")} Page <b>${page + 1}</b> of ${Math.max(1, Math.ceil(result.total / 10))} · ${result.total} commission${result.total === 1 ? "" : "s"}`
+      : "";
+    const icons = {
+      product: uiIconHtml(s, "refcomm_product"),
+      earned: uiIconHtml(s, "refcomm_earned"),
+      profit: uiIconHtml(s, "refcomm_profit"),
+      customer: uiIconHtml(s, "refcomm_customer"),
+      date: uiIconHtml(s, "refcomm_date"),
+      credited: uiIconHtml(s, "refcomm_credited"),
+      reversed: uiIconHtml(s, "refcomm_reversed"),
+    };
+    await edit(
+      result.error
+        ? "Commission history is temporarily unavailable. Please try Refresh."
+        : buildReferralCommissionHistory(result.rows, title, s["order_timezone"], icons) + pageLine,
+      kb,
+    );
     return;
   }
 
