@@ -67,6 +67,8 @@ import { buildStartMessage, buildProfileDetails, referralCopyButton, referralSha
 import { homeMenuColor, type HomeMenuKey } from "@/lib/bot/home-menu-colors";
 import { buildWalletHistory, historyOwner, historyPage } from "@/lib/bot/wallet-history";
 import { readWalletHistory } from "@/lib/bot/wallet-history.server";
+import { buildReferralCommissionHistory } from "@/lib/referral-commission";
+import { readReferralCommissions } from "@/lib/bot/referral-commission.server";
 import { bybitEnabled, bybitTransactionKey } from "@/lib/bybit-payment";
 import { bybitSettings } from "@/lib/bybit.server";
 import { confirmBybitBotDeposit, sweepBybitWebsiteOrders } from "@/lib/bybit-settle.server";
@@ -994,7 +996,7 @@ async function referralView(user: any) {
   const text =
     `${sectionHead(s, "referral", `<b>${escapeHtml(uiText(s, "ref_title").toUpperCase().split("").join(" "))}</b>`)}\n` +
     `──────────────\n` +
-    `${uiTag(s, "ref_rate")}: you earn <b>${pct}%</b> of every purchase your friends make, added to your balance once the order is completed.\n\n` +
+    `${uiTag(s, "ref_rate")}: you earn <b>${pct}%</b> of the profit each purchase your friends make brings the shop, added to your balance once the order is completed.\n\n` +
     `${uiTag(s, "prof_refs")}: <b>${user.referral_count ?? 0}</b>\n` +
     `${uiTag(s, "prof_earning")}: <b>${money(user.referral_earnings)}</b>\n\n` +
     `${uiTag(s, "prof_link")}\n<code>${escapeHtml(link)}</code>\n` +
@@ -1002,6 +1004,7 @@ async function referralView(user: any) {
   const kb: Button[][] = [
     [uiUrlBtn(s, "ref_share_btn", shareUrl(s, user))],
     [uiBtn(s, "ref_list_btn", "ref:list"), uiBtn(s, "prof_tiers_btn", "tiers")],
+    [uiBtn(s, "refcomm_btn", "refcomm:0")],
     [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")],
   ];
   return { text, kb };
@@ -1015,22 +1018,23 @@ async function referralListView(user: any) {
     .eq("referred_by", user.telegram_id)
     .order("created_at", { ascending: false })
     .limit(20);
-  const pct = Number(s["referral_percent"] || 0);
   const list = (rows ?? []).length
     ? (rows ?? [])
         .map(
           (r: any, i: number) =>
             `${i + 1}. <b>${escapeHtml(maskUsername(r.username, r.first_name))}</b> — spent ${money(
               r.total_spent,
-            )} → earned you ${money((Number(r.total_spent || 0) * pct) / 100)} <i>(${fmtDate(r.created_at)})</i>`,
+            )} <i>(${fmtDate(r.created_at)})</i>`,
         )
         .join("\n")
     : "No referrals yet — share your link to start earning.";
   const text =
     `<b>M Y   R E F E R R A L S</b>\n──────────────\n${list}\n──────────────\n` +
-    `${uiTag(s, "prof_earning")}: <b>${money(user.referral_earnings)}</b>`;
+    `${uiTag(s, "prof_earning")}: <b>${money(user.referral_earnings)}</b>\n` +
+    `<i>Open Referral Commission History to see what each purchase paid you.</i>`;
   const kb: Button[][] = [
     [uiUrlBtn(s, "ref_share_btn", shareUrl(s, user))],
+    [uiBtn(s, "refcomm_btn", "refcomm:0")],
     [styled(uiBtn(s, "ref_profile_btn", "profile"), "danger")],
   ];
   return { text, kb };
@@ -7543,6 +7547,48 @@ async function handleCallback(cq: any) {
     const fresh = await getUser(chatId);
     const v = await referralListView(fresh);
     await edit(v.text, v.kb);
+    return;
+  }
+
+  if (data.startsWith("refcomm:")) {
+    const ownerId = historyOwner(cq.message?.chat ?? {}, cq.from?.id);
+    if (ownerId === null) {
+      await answerCallback(cq.id, "Open your referral page in a private chat with the bot.", true);
+      return;
+    }
+    const page = historyPage(data.split(":")[1] ?? "0");
+    if (page === null || page > 200) {
+      await answerCallback(cq.id, "Invalid commission page.", true);
+      return;
+    }
+    const result = await readReferralCommissions(db, ownerId, page);
+    const s = await getSettings();
+    const nav: Button[] = [];
+    if (page > 0) nav.push(uiBtn(s, "refcomm_prev", `refcomm:${page - 1}`));
+    if (result.hasNext && page < 200) nav.push(uiBtn(s, "refcomm_next", `refcomm:${page + 1}`));
+    const kb: Button[][] = [];
+    if (nav.length) kb.push(nav);
+    kb.push([uiBtn(s, "refcomm_refresh", `refcomm:${page}`)]);
+    kb.push([uiBtn(s, "refcomm_back", "refearn")]);
+    const title = `${uiIconHtml(s, "refcomm_title")} ${escapeHtml(uiText(s, "refcomm_title"))}`;
+    const pageLine = result.total
+      ? `\n${uiIconHtml(s, "refcomm_page")} Page <b>${page + 1}</b> of ${Math.max(1, Math.ceil(result.total / 10))} · ${result.total} commission${result.total === 1 ? "" : "s"}`
+      : "";
+    const icons = {
+      product: uiIconHtml(s, "refcomm_product"),
+      earned: uiIconHtml(s, "refcomm_earned"),
+      profit: uiIconHtml(s, "refcomm_profit"),
+      customer: uiIconHtml(s, "refcomm_customer"),
+      date: uiIconHtml(s, "refcomm_date"),
+      credited: uiIconHtml(s, "refcomm_credited"),
+      reversed: uiIconHtml(s, "refcomm_reversed"),
+    };
+    await edit(
+      result.error
+        ? "Commission history is temporarily unavailable. Please try Refresh."
+        : buildReferralCommissionHistory(result.rows, title, s["order_timezone"], icons) + pageLine,
+      kb,
+    );
     return;
   }
 

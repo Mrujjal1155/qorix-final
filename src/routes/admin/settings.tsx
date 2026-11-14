@@ -790,8 +790,11 @@ function SettingsPage() {
       <CardContent className="space-y-5">
         <p className="text-sm text-muted-foreground">
           One set of rules for both channels. When a referred buyer completes an order, commission is credited
-          automatically to the referrer's wallet. If that order is later cancelled or refunded, the commission is taken
-          back automatically. Banned users never earn commission.
+          automatically to the referrer's wallet. Commission is a share of the shop's <b>actual net profit</b> (selling
+          price minus the cost recorded at purchase time) — never of the selling price itself. Orders that made no
+          profit pay nothing. If an order is later cancelled or refunded, the commission is taken back automatically.
+          Banned users never earn commission. The commission ledger keeps full decimals (for example $0.005); the
+          wallet itself receives whole cents.
         </p>
 
         <div className="flex items-start justify-between gap-4 rounded-xl border border-border/70 bg-card/50 p-4">
@@ -813,9 +816,11 @@ function SettingsPage() {
               inputMode="decimal"
               value={values["referral_percent"] ?? ""}
               onChange={(e) => setValues({ ...values, referral_percent: e.target.value.trim() })}
-              placeholder="2"
+              placeholder="5"
             />
-            <p className="text-xs text-muted-foreground">The referrer gets this % of every completed order (default 2).</p>
+            <p className="text-xs text-muted-foreground">
+              The referrer gets this % of the shop's net profit on every completed order (default 5).
+            </p>
           </div>
           <div className="space-y-1">
             <Label>Minimum order amount (USD)</Label>

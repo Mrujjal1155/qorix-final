@@ -977,6 +977,7 @@ export type Database = {
       }
       referral_commissions: {
         Row: {
+          admin_profit: number | null
           amount: number
           buyer_telegram_id: number | null
           buyer_user_id: string | null
@@ -986,14 +987,17 @@ export type Database = {
           order_id: string | null
           order_no: number | null
           percent: number
+          product_name: string | null
           reason: string | null
           referrer_telegram_id: number | null
           referrer_user_id: string | null
           reversed_amount: number
           reversed_at: string | null
           status: string
+          wallet_amount: number | null
         }
         Insert: {
+          admin_profit?: number | null
           amount?: number
           buyer_telegram_id?: number | null
           buyer_user_id?: string | null
@@ -1003,14 +1007,17 @@ export type Database = {
           order_id?: string | null
           order_no?: number | null
           percent?: number
+          product_name?: string | null
           reason?: string | null
           referrer_telegram_id?: number | null
           referrer_user_id?: string | null
           reversed_amount?: number
           reversed_at?: string | null
           status?: string
+          wallet_amount?: number | null
         }
         Update: {
+          admin_profit?: number | null
           amount?: number
           buyer_telegram_id?: number | null
           buyer_user_id?: string | null
@@ -1020,12 +1027,14 @@ export type Database = {
           order_id?: string | null
           order_no?: number | null
           percent?: number
+          product_name?: string | null
           reason?: string | null
           referrer_telegram_id?: number | null
           referrer_user_id?: string | null
           reversed_amount?: number
           reversed_at?: string | null
           status?: string
+          wallet_amount?: number | null
         }
         Relationships: [
           {
@@ -2409,6 +2418,10 @@ export type Database = {
         Returns: Json
       }
       referral_award: { Args: { _order_id: string }; Returns: Json }
+      referral_commission_history: {
+        Args: { _page: number; _page_size?: number; _telegram_id: number }
+        Returns: Json
+      }
       referral_credit_award: {
         Args: {
           _cap: number

@@ -2528,3 +2528,91 @@ export const countPendingApprovals = createServerFn({ method: "GET" })
     ]);
     return { resellers: apps.count ?? 0, payments: pays.count ?? 0, gateways: deps.count ?? 0 };
   });
+
+/* --------------------------------------------------- referral commissions */
+
+const REFCOMM_PAGE = 25;
+
+/** Admin view of every referral commission: who referred whom, the profit it came from and what was paid. */
+export const listReferralCommissions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { q?: string; status?: string; page?: number }) => ({
+    q: String(d.q ?? "").trim().slice(0, 60),
+    status: ["all", "credited", "reversed", "skipped"].includes(String(d.status ?? "all"))
+      ? String(d.status ?? "all")
+      : "all",
+    page: Math.max(0, Math.min(200, Math.floor(Number(d.page ?? 0)) || 0)),
+  }))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const sb = (context as any).supabase;
+    const from = data.page * REFCOMM_PAGE;
+
+    let query = sb
+      .from("referral_commissions")
+      .select(
+        "id, order_id, order_no, channel, referrer_user_id, referrer_telegram_id, buyer_user_id, buyer_telegram_id, percent, amount, wallet_amount, admin_profit, product_name, status, reason, reversed_amount, created_at, reversed_at, orders(product_name)",
+        { count: "exact" },
+      )
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: false });
+
+    if (data.status !== "all") query = query.eq("status", data.status);
+    if (data.q) {
+      const term = data.q.replace(/[,()]/g, "");
+      query = /^\d+$/.test(term)
+        ? query.or(`referrer_telegram_id.eq.${term},buyer_telegram_id.eq.${term},order_no.eq.${term}`)
+        : query.ilike("product_name", `%${term}%`);
+    }
+
+    const [pageRes, credited, reversed, skipped] = await Promise.all([
+      query.range(from, from + REFCOMM_PAGE - 1),
+      sb.from("referral_commissions").select("id", { count: "exact", head: true }).eq("status", "credited"),
+      sb.from("referral_commissions").select("id", { count: "exact", head: true }).eq("status", "reversed"),
+      sb.from("referral_commissions").select("id", { count: "exact", head: true }).eq("status", "skipped"),
+    ]);
+    if (pageRes.error) throw new Error("Could not load referral commissions.");
+
+    const rows = (pageRes.data ?? []) as any[];
+    const telegramIds = Array.from(
+      new Set(rows.flatMap((r) => [r.referrer_telegram_id, r.buyer_telegram_id]).filter((v: any) => v != null && Number(v) > 0)),
+    );
+    const profileIds = Array.from(
+      new Set(rows.flatMap((r) => [r.referrer_user_id, r.buyer_user_id]).filter(Boolean)),
+    );
+
+    const [bots, people] = await Promise.all([
+      telegramIds.length
+        ? sb.from("bot_users").select("telegram_id, username, first_name").in("telegram_id", telegramIds.slice(0, 100))
+        : Promise.resolve({ data: [] as any[] }),
+      profileIds.length
+        ? sb.from("profiles").select("id, full_name, email").in("id", profileIds.slice(0, 100))
+        : Promise.resolve({ data: [] as any[] }),
+    ]);
+
+    const botMap: Record<string, string> = {};
+    for (const b of (bots.data ?? []) as any[]) {
+      botMap[String(b.telegram_id)] = b.username ? `@${b.username}` : String(b.first_name || b.telegram_id);
+    }
+    const personMap: Record<string, string> = {};
+    for (const p of (people.data ?? []) as any[]) {
+      personMap[String(p.id)] = p.full_name || p.email || String(p.id).slice(0, 8);
+    }
+    const label = (userId: any, telegramId: any) =>
+      (userId && personMap[String(userId)]) ||
+      (telegramId != null && botMap[String(telegramId)]) ||
+      "—";
+
+    return {
+      rows: rows.map((r) => ({
+        ...r,
+        product_name: r.product_name ?? r.orders?.product_name ?? null,
+        referrer_label: label(r.referrer_user_id, r.referrer_telegram_id),
+        buyer_label: label(r.buyer_user_id, r.buyer_telegram_id),
+      })),
+      total: pageRes.count ?? rows.length,
+      page: data.page,
+      pageSize: REFCOMM_PAGE,
+      stats: { credited: credited.count ?? 0, reversed: reversed.count ?? 0, skipped: skipped.count ?? 0 },
+    };
+  });

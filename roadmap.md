@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Switch lifetime referral commission to 5% of admin net profit (selling price − purchase-time cost × quantity), exact decimals in the ledger and whole cents in the wallet, no commission on zero/negative profit, clawback of exactly what was credited; add bot Referral Commission History (10/page, Prev/Next, page number, empty state) and an admin Referral Commissions screen. 14 focused tests pass, latest build OK; live DB reads rate 5, three ledger columns present, history RPC reachable only by the bot server. Old 298 commissions untouched; no real credit, Telegram send or publish.
+- [ ] Verify the new bot screen and admin screen after approved deployment/send: external unmanaged Supabase blocks signed-in preview checks, and no live Telegram send was approved.
+
 - [x] Update approved deposit/QR controls: blue copy/QR/change/cancel/back, green gateway-specific submit ID action in both views; Bot Admin Payment icons now exposes nine shared control emoji editors. Twenty focused/regression tests pass; latest build OK. QR submit invokes the existing TXID prompt without credit or deadline changes. Bybit retains UID/internal Transfer ID, not unsupported Merchant Pay Order ID. No real sends, payments or deployment; actual Telegram appearance remains unverified pending approved deployment.
 
 - [x] Add approved Telegram deposit Copy Address/ID, admin-uploaded address-bound QR and Change Gateway for Binance, Bybit, BEP20/TRC20; show 1 USDT example without changing payment rules. Preserve original QR upload pixels, reject stale address-bound images, verify no credit/deadline mutation in mocked real handlers. 28 focused/regression tests pass; latest build OK. No live sends or deployment.
