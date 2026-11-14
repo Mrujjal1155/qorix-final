@@ -2513,3 +2513,18 @@ export const sendLiveUpdateTest = createServerFn({ method: "POST" })
     const { sendLiveTestPost } = await import("@/lib/live-update.server");
     return sendLiveTestPost(data.kind);
   });
+
+/** Sidebar badges: reseller applications awaiting approval, pending manual payments, open gateway deposits. */
+export const countPendingApprovals = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const sb = (context as any).supabase;
+    const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const [apps, pays, deps] = await Promise.all([
+      sb.from("reseller_applications").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      sb.from("payment_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      sb.from("binance_deposits").select("id", { count: "exact", head: true }).eq("status", "pending").gte("created_at", since),
+    ]);
+    return { resellers: apps.count ?? 0, payments: pays.count ?? 0, gateways: deps.count ?? 0 };
+  });
