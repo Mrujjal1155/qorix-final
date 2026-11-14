@@ -18,6 +18,7 @@ import { HeroItemsCard } from "@/components/HeroItemsCard";
 import { SettingsHub, type HubSection } from "@/components/SettingsHub";
 import { Bot, Wallet, SlidersHorizontal, Smile, Images, Megaphone, Smartphone, Mail, MailOpen, Gift, Coins, Network, ShieldCheck, BellRing } from "lucide-react";
 import { JoinGateCard } from "@/components/JoinGateCard";
+import { ReferralRewardsSettings } from "@/components/ReferralRewardsSettings";
 
 import { CurrencyRatesCard } from "@/components/CurrencyRatesCard";
 import { SupplierKeysCard } from "@/components/SupplierKeysCard";
@@ -70,8 +71,6 @@ const FIELDS: { key: string; label: string; long?: boolean; help?: string }[] = 
   { key: "support_text", label: "Support page text", long: true },
   { key: "referral_credit_per_invite", label: "Referral credits per invite (default 1)" },
   { key: "referral_daily_cap", label: "Counted invites per day (default 10)" },
-  { key: "referral_redeem_rate", label: "Wallet value per credit (0 = disable redeem)" },
-  { key: "referral_rewards", label: "Referral store rewards — one per line: Name|credits", long: true },
   { key: "flash_ends_at", label: "Flash sale ends at (ISO date, e.g. 2026-09-01T18:00:00Z)" },
   { key: "quick_guide_text", label: "Quick Guide text (shown on product pages)", long: true },
   { key: "freebies_text", label: "Freebies page", long: true },
@@ -799,16 +798,21 @@ function SettingsPage() {
 
         <div className="flex items-start justify-between gap-4 rounded-xl border border-border/70 bg-card/50 p-4">
           <div className="space-y-0.5">
-            <Label className="text-sm font-semibold">Referral program enabled</Label>
-            <p className="text-xs text-muted-foreground">When turned off, no new commission is credited.</p>
+            <Label className="text-sm font-semibold">Profit Commission</Label>
+            <p className="text-xs text-muted-foreground">Enabling this starts new commission distribution. Points rewards will be disabled.</p>
           </div>
           <Switch
-            checked={isOn(values["referral_enabled"] ?? values["web_referral_enabled"] ?? "on")}
-            onCheckedChange={(c) => setToggle("referral_enabled", c)}
-            aria-label="Referral program enabled"
+            checked={values.referral_mode === 'commission'}
+            onCheckedChange={(c) => { if (!c || window.confirm('Start distributing profit commissions on new completed orders?')) setValues(prev => ({ ...prev, referral_mode: c ? 'commission' : 'off' })); }}
+            aria-label="Profit Commission"
           />
         </div>
 
+        <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
+          <Label>Points &amp; Product Rewards</Label>
+          <Switch aria-label="Points & Product Rewards" checked={values.referral_mode === 'points'} onCheckedChange={c => setValues(prev => ({ ...prev, referral_mode: c ? 'points' : 'off' }))} />
+        </div>
+        <p className="text-sm text-muted-foreground">Active model: {values.referral_mode === 'commission' ? 'Profit Commission' : values.referral_mode === 'points' ? 'Points & Product Rewards' : 'Both off'}</p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1">
             <Label>Commission percent (%)</Label>
@@ -846,6 +850,7 @@ function SettingsPage() {
 
 
         <Button onClick={onSave}>Save referral settings</Button>
+        <ReferralRewardsSettings />
       </CardContent>
     </Card>
   );
@@ -982,7 +987,7 @@ function SettingsPage() {
     },
     {
       id: "referral",
-      title: "Referral program",
+      title: "Referral Switch",
       description: "Website referral commission %, minimum order and per-order cap.",
       icon: Gift,
       render: () => referralCard,

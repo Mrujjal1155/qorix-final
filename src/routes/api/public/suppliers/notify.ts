@@ -17,6 +17,7 @@ async function run({ request }: { request: Request }) {
   const { sweepBlockchainDeposits } = await import("@/lib/bot/engine.server");
   const { drainLiveUpdates } = await import("@/lib/live-update.server");
   const { drainStockAudience } = await import("@/lib/bot/stock-audience.server");
+  const { drainReferralRewards } = await import("@/lib/referral-rewards.server");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   try {
     const [res, recovered, resellerRecovered, , , customerNotifications] = await Promise.all([
@@ -28,6 +29,7 @@ async function run({ request }: { request: Request }) {
       drainStockAudience(supabaseAdmin),
       sweepBybitDeposits().catch(() => ({ error: "Bybit verification will retry" })),
       sweepBlockchainDeposits().catch(() => ({ error: "Blockchain verification will retry" })),
+      drainReferralRewards().catch(() => ({ sent: 0 })),
     ]);
     return Response.json({ ok: true, ...res, recovered, resellerRecovered, customerNotifications });
   } catch (e) {
