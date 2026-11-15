@@ -179,7 +179,7 @@ function DocsPage() {
               <div className="mt-1 overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <tbody className="font-mono">
-                    {[
+                    {([
                       ["GET", "/me", "Account & balance"],
                       ["GET", "/products", "Product list"],
                       ["GET", "/products/{id}", "One product"],
@@ -187,7 +187,7 @@ function DocsPage() {
                       ["GET", "/orders", "Order history"],
                       ["GET", "/orders/{id}", "One order"],
                       ["GET", "/transactions", "Wallet history"],
-                    ].map(([m, path, d]) => (
+                    ] as const).map(([m, path, d]) => (
                       <tr key={m + path} className="border-t border-border/50">
                         <td className="py-1 pr-2 font-semibold">{m}</td>
                         <td className="py-1 pr-3 break-all">{base}{path}</td>
