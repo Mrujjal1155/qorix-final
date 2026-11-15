@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Check, Copy } from "lucide-react";
 import { StoreShell } from "@/components/StoreShell";
 import { Button } from "@/components/ui/button";
-import { RESELLER_API_BASE, productionUrlFor } from "@/lib/site-url";
+import { RESELLER_API_BASE_PRODUCTION, productionUrlFor } from "@/lib/site-url";
 
 export const Route = createFileRoute("/reseller/docs")({
   head: () => ({
@@ -80,7 +80,7 @@ const NAV = [
 ];
 
 function DocsPage() {
-  const base = RESELLER_API_BASE;
+  const base = RESELLER_API_BASE_PRODUCTION;
 
   return (
     <StoreShell>
@@ -151,12 +151,53 @@ function DocsPage() {
                 <b>Paste the address and key</b> into your panel:
                 <ul className="mt-1 list-disc pl-5">
                   <li>API base URL: <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs break-all">{base}</code></li>
-                  <li>If your panel says “no /v1 at the end”, use: <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs break-all">{base.replace(/\/v1$/, "")}</code></li>
                   <li>API key: the key from step 1 (sent as <code className="font-mono">Authorization: Bearer KEY</code> or <code className="font-mono">x-api-key</code>).</li>
                 </ul>
               </li>
               <li><b>Add wallet balance</b> (Telegram bot deposit or reseller panel top-up). Products appear, and every sale is paid from this balance automatically.</li>
             </ol>
+            <div className="rounded-xl border-2 border-primary/50 bg-primary/5 p-4">
+              <p className="font-semibold text-foreground">✅ Correct API base URL (copy exactly)</p>
+              <Code>{base}</Code>
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-xs">
+                <li>Must start with <code className="font-mono">https://qorixlab.com</code> — no <code className="font-mono">www</code>.</li>
+                <li>Must end with <code className="font-mono">/api/public/reseller/v1</code> — keep the <code className="font-mono">/v1</code>.</li>
+                <li>No slash <code className="font-mono">/</code> at the end. Do not add <code className="font-mono">/products</code> here — your panel adds it.</li>
+              </ul>
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead><tr className="text-muted-foreground"><th className="py-1 pr-3">❌ Wrong</th><th className="py-1">Why</th></tr></thead>
+                  <tbody className="font-mono">
+                    <tr><td className="py-1 pr-3 break-all">https://www.qorixlab.com/api/public/reseller/v1</td><td className="font-sans">www causes a redirect</td></tr>
+                    <tr><td className="py-1 pr-3 break-all">https://qorixlab.com/api/public/reseller</td><td className="font-sans">missing /v1 → 404</td></tr>
+                    <tr><td className="py-1 pr-3 break-all">https://qorixlab.com/api/public/reseller/v1/</td><td className="font-sans">trailing slash</td></tr>
+                    <tr><td className="py-1 pr-3 break-all">https://qorixlab.com/v1</td><td className="font-sans">wrong path</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-3 font-semibold text-foreground">Full endpoint addresses</p>
+              <div className="mt-1 overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <tbody className="font-mono">
+                    {[
+                      ["GET", "/me", "Account & balance"],
+                      ["GET", "/products", "Product list"],
+                      ["GET", "/products/{id}", "One product"],
+                      ["POST", "/orders", "Place an order"],
+                      ["GET", "/orders", "Order history"],
+                      ["GET", "/orders/{id}", "One order"],
+                      ["GET", "/transactions", "Wallet history"],
+                    ].map(([m, path, d]) => (
+                      <tr key={m + path} className="border-t border-border/50">
+                        <td className="py-1 pr-2 font-semibold">{m}</td>
+                        <td className="py-1 pr-3 break-all">{base}{path}</td>
+                        <td className="py-1 font-sans text-muted-foreground">{d}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
             <p>That’s it — our shop shows on your site/bot, you set your own selling price, and orders deliver instantly.</p>
             <p>Test it from any terminal (should answer <code className="font-mono">"ok": true</code>):</p>
             <Code>{`curl -H "x-api-key: YOUR_API_KEY" ${base}/me`}</Code>
