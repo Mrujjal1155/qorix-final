@@ -62,6 +62,8 @@ function Section({ id, title, children }: { id: string; title: string; children:
 
 
 const NAV = [
+  ["quick", "⚡ Connect in 3 steps"],
+  ["fix", "🛠 Connection problems"],
   ["start", "1. Getting started"],
   ["auth", "2. Authentication"],
   ["endpoints", "3. Endpoints"],
@@ -86,8 +88,7 @@ function DocsPage() {
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
           <h1 className="text-2xl font-extrabold tracking-tight sm:text-4xl">Reseller API documentation</h1>
           <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
-            Everything you need to resell our catalogue from your own website or Telegram bot. Follow the guide top to
-            bottom — no prior API experience needed.
+            Everything you need to resell our catalogue from your own website or Telegram bot. Most panels connect in 3 steps: paste URL, paste key, add balance.
           </p>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Button asChild variant="outline" className="w-full sm:w-auto">
@@ -130,6 +131,66 @@ function DocsPage() {
         </nav>
 
         <div className="min-w-0">
+
+          <div className="mb-6 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm">
+            <p className="font-semibold text-foreground">⚠️ Notice — “Invalid redirect value … use "manual"” / “fetch failed”</p>
+            <p className="mt-2 text-muted-foreground">
+              Some reseller panels send requests with <code className="font-mono">redirect: "error"</code>. Edge hosting
+              (Cloudflare Workers, Supabase Edge, Lovable) refuses that option, so the request fails before it ever
+              reaches QORIX. Fix: replace it with <code className="font-mono">redirect: "manual"</code> (or remove it), use
+              the exact URL below <b>without www</b> and <b>without a trailing slash</b>, then test again. We fixed the same
+              issue on our side on 2026-11-15.
+            </p>
+          </div>
+
+          <Section id="quick" title="⚡ Connect in 3 steps">
+            <p>No coding knowledge needed. If your panel has a “Supplier / API” settings page, this is all you do:</p>
+            <ol className="list-decimal space-y-2 pl-5">
+              <li><b>Get your API key</b> — after approval it is in your reseller panel.</li>
+              <li>
+                <b>Paste the address and key</b> into your panel:
+                <ul className="mt-1 list-disc pl-5">
+                  <li>API base URL: <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs break-all">{base}</code></li>
+                  <li>If your panel says “no /v1 at the end”, use: <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs break-all">{base.replace(/\/v1$/, "")}</code></li>
+                  <li>API key: the key from step 1 (sent as <code className="font-mono">Authorization: Bearer KEY</code> or <code className="font-mono">x-api-key</code>).</li>
+                </ul>
+              </li>
+              <li><b>Add wallet balance</b> (Telegram bot deposit or reseller panel top-up). Products appear, and every sale is paid from this balance automatically.</li>
+            </ol>
+            <p>That’s it — our shop shows on your site/bot, you set your own selling price, and orders deliver instantly.</p>
+            <p>Test it from any terminal (should answer <code className="font-mono">"ok": true</code>):</p>
+            <Code>{`curl -H "x-api-key: YOUR_API_KEY" ${base}/me`}</Code>
+          </Section>
+
+          <Section id="fix" title="🛠 Connection problems — quick fixes">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <tbody className="text-xs">
+                  {[
+                    ["Invalid redirect value / fetch failed", "Your panel’s code uses redirect: \"error\". Change it to redirect: \"manual\" (or remove it)."],
+                    ["Works in browser, fails in panel", "Remove www and any trailing “/” from the URL. Redirects are not followed by edge servers."],
+                    ["401 Invalid API key", "Key copied wrong or with spaces. Paste it again; check the header name."],
+                    ["403", "Your account or the website/bot channel is disabled — contact support."],
+                    ["402 Insufficient balance", "Top up your wallet; sales resume immediately."],
+                    ["404 on every path", "Wrong base URL — copy it exactly from step 2 above."],
+                    ["Product missing", "It is out of stock or switched off; it reappears automatically."],
+                  ].map((r) => (
+                    <tr key={r[0]} className="border-b border-border/40">
+                      <td className="py-2 pr-4 font-semibold text-foreground">{r[0]}</td>
+                      <td className="py-2">{r[1]}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p>Correct fetch for any server or edge runtime:</p>
+            <Code>{`const res = await fetch("${base}/products", {
+  headers: { "x-api-key": process.env.QORIX_KEY },
+  redirect: "manual",   // never "error"
+});
+const data = await res.json();`}</Code>
+            <p>The detailed reference below is only needed if you build your own site or bot from scratch.</p>
+          </Section>
 
           <Section id="start" title="1. Getting started">
             <p>
@@ -648,6 +709,11 @@ bot.on("callback_query", async (q) => {
 
           <Section id="changelog" title="13. API changelog">
             <p>Every change to the API is listed here, newest first. Check it when something behaves differently.</p>
+            <p><strong>2026-11-15 — Connection fix</strong></p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Fixed an internal request that used redirect: "error", which edge servers reject. Reseller panels must use redirect: "manual" (or omit it), the URL without www and without a trailing slash.</li>
+              <li>Added “Connect in 3 steps” and a quick-fix table to these docs.</li>
+            </ul>
             <p><strong>Preview-only Phase 1 — not yet published</strong></p>
             <ul className="list-disc space-y-1 pl-5">
               <li>Owner-rule preview: stock and balance pre-checks before reservation/debit; atomic original-debit refund with terminal failed order and ledger; debit-race 402 includes balance and required; duplicate reservations are retained cancelled, never deleted.</li>
