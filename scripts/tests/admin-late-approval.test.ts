@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { canAdminDecide, lateApprovalGateway, lateApprovalReference } from "./admin-late-approval";
+import { describe, expect, it } from "bun:test";
+import { canAdminDecide, lateApprovalGateway, lateApprovalReference } from "../../src/lib/admin-late-approval";
 
 describe("admin late approval", () => {
   it("covers only Binance Pay, Bybit, BEP20, TRC20", () => {
