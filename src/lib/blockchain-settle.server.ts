@@ -1,3 +1,4 @@
+import { PAYMENT_EARLY_GRACE_MS } from "@/lib/payment-deadline";
 import { chainSchema, chainTxid } from "@/lib/blockchain-payment";
 import { findChainPayment } from "@/lib/blockchain.server";
 
@@ -6,7 +7,7 @@ export async function confirmBlockchainBotDeposit(row: any, rawTxid: string) {
   const network = chainSchema.parse(String(row.kind).replace("chain_", ""));
   let txid: string;
   try { txid = chainTxid(network, rawTxid); } catch { return { ok: false as const, message: "Enter a valid blockchain TXID." }; }
-  const result = await findChainPayment(network, { txid, amount: String(row.amount_usdt), address: row.address, since: Date.parse(row.created_at), until: Math.min(Date.now(), Date.parse(row.expires_at)) });
+  const result = await findChainPayment(network, { txid, amount: String(row.amount_usdt), address: row.address, since: Date.parse(row.created_at) - PAYMENT_EARLY_GRACE_MS, until: Math.min(Date.now(), Date.parse(row.expires_at)) });
   return result.ok ? { ok: true as const, amount: result.amount, txId: result.txid } : { ok: false as const, notFound: true, message: result.reason };
 }
 export async function verifyBlockchainWebsiteOrder(orderId: string) {
@@ -17,7 +18,7 @@ export async function verifyBlockchainWebsiteOrder(orderId: string) {
   if (meta["paid"] === true) return { status: "verified" as const, checked_at: new Date().toISOString() };
   const network = chainSchema.parse(String(order.payment_method).replace("chain_", ""));
   const created = Date.parse(order.created_at);
-  const result = await findChainPayment(network, { txid: order.txid, address: meta["chain_address"] ?? "", amount: String(order.total), since: created - 30 * 60_000, until: Math.min(Date.now(), created + 30 * 60_000) });
+  const result = await findChainPayment(network, { txid: order.txid, address: meta["chain_address"] ?? "", amount: String(order.total), since: created - PAYMENT_EARLY_GRACE_MS, until: Math.min(Date.now(), created + 30 * 60_000) });
   if (!result.ok) {
     await db.rpc("record_blockchain_website_check", { _order_id: order.id, _note: result.reason });
     return { status: "not_found" as const, checked_at: new Date().toISOString(), note: result.reason };

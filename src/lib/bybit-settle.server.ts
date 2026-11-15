@@ -1,3 +1,4 @@
+import { PAYMENT_EARLY_GRACE_MS } from "@/lib/payment-deadline";
 import { bybitTransactionKey } from "@/lib/bybit-payment";
 import { findBybitPayment } from "@/lib/bybit.server";
 
@@ -9,7 +10,7 @@ export async function verifyBybitWebsiteOrder(orderId: string) {
   if (meta["paid"] === true) return { status: "verified" as const, checked_at: new Date().toISOString() };
   const created = Date.parse(order.created_at);
   // Website payment occurs before order submission: bounded 30-minute grace, never arbitrary historical payments.
-  const match = await findBybitPayment({ txid: order.txid, amount: Number(order.total), since: created - 30 * 60_000, until: Math.min(Date.now(), created + 30 * 60_000), recipientUid: meta["bybit_uid"] });
+  const match = await findBybitPayment({ txid: order.txid, amount: Number(order.total), since: created - PAYMENT_EARLY_GRACE_MS, until: Math.min(Date.now(), created + 30 * 60_000), recipientUid: meta["bybit_uid"] });
   if (!match.ok) {
     const result = { status: "not_found" as const, checked_at: new Date().toISOString(), note: match.reason };
     await db.rpc("record_bybit_website_check", { _order_id: order.id, _note: match.reason });
@@ -40,6 +41,6 @@ export async function confirmBybitBotDeposit(row: any, txid: string) {
   const { data: used, error } = await db.from("binance_used_txs").select("tx_id").eq("tx_id", bybitTransactionKey(txid)).maybeSingle();
   if (error) return { ok: false as const, message: "Payment verification unavailable. Please retry." };
   if (used) return { ok: false as const, message: "This Bybit transaction was already used." };
-  const match = await findBybitPayment({ txid, amount: Number(row.amount_usdt), since: Math.floor(Date.parse(row.created_at) / 1000) * 1000, until: Math.min(Date.now(), Date.parse(row.expires_at)), recipientUid: row.address });
+  const match = await findBybitPayment({ txid, amount: Number(row.amount_usdt), since: Math.floor((Date.parse(row.created_at) - PAYMENT_EARLY_GRACE_MS) / 1000) * 1000, until: Math.min(Date.now(), Date.parse(row.expires_at)), recipientUid: row.address });
   return match.ok ? { ok: true as const, amount: match.amount, txId: match.txid } : { ok: false as const, notFound: true, message: match.reason };
 }
