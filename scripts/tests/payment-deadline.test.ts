@@ -71,3 +71,8 @@ test('wallet settlement credits once and duplicate or expired requests never cha
  await expect(db.query(`SELECT settle_payment_wallet($1,'LATE_PAYMENT',10,'eps','Late')`,[old.id])).rejects.toThrow('expired');
  expect((await db.query<any>('SELECT balance::text balance FROM bot_users')).rows[0]?.balance).toBe('60');
 });
+import { PAYMENT_EARLY_GRACE_MS as EARLY } from "../../src/lib/payment-deadline";
+import { test as t2, expect as e2 } from "bun:test";
+t2("payment up to 10 minutes before the order still counts", () => {
+  e2(EARLY).toBe(10 * 60_000);
+});
