@@ -1333,36 +1333,78 @@ export const decidePayment = createServerFn({ method: "POST" })
       }
     }
 
-    await sb
-      .from("payment_requests")
-      .update({ status: data.approve ? "approved" : "rejected", admin_note: data.note ?? null })
-      .eq("id", data.id);
-
+    const { canAdminDecide, lateApprovalGateway, lateApprovalReference } = await import("@/lib/admin-late-approval");
+    if (!canAdminDecide(req.status)) throw new Error("This request was already decided.");
     const { sendMessage } = await import("@/lib/telegram.server");
-    if (data.approve) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: credit } = await (supabaseAdmin as any).rpc("bot_user_credit", {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+
+    if (!data.approve) {
+      const { data: rows } = await sb.from("payment_requests")
+        .update({ status: "rejected", admin_note: data.note ?? null })
+        .eq("id", data.id).in("status", ["pending", "expired"]).select("id");
+      if (!rows?.length) throw new Error("This request was already decided.");
+      await sendMessage(req.telegram_id, `❌ Your deposit request was rejected.${data.note ? `\nReason: ${data.note}` : ""}`);
+      return { ok: true };
+    }
+
+    const gateway = lateApprovalGateway(req.method);
+    const txid = req.txid ? String(req.txid).trim() : "";
+    let closed = req.status === "expired";
+    if (!closed && txid && gateway) {
+      const { data: blk } = await admin.from("historical_payment_txid_blocks")
+        .select("transaction_key").ilike("transaction_key", txid).limit(1);
+      closed = !!blk?.length;
+    }
+    if (closed && !gateway) throw new Error("Late approval is only available for Binance Pay, Bybit, BEP20 and TRC20.");
+
+    const amount = Number(req.amount);
+    let res: { ok?: boolean; duplicate?: boolean; reason?: string };
+    if (closed && gateway) {
+      // Admin-added credit (like a profile balance add); TXID stays permanently booked.
+      const { data: credit } = await admin.rpc("bot_user_credit", {
         _telegram_id: req.telegram_id,
-        _amount: Number(req.amount),
-        _type: "deposit",
-        _method: req.method,
-        _reference: req.txid || `deposit-${req.id}`,
-        _note: null,
+        _amount: amount,
+        _type: "admin",
+        _method: "wallet",
+        _reference: lateApprovalReference(gateway, txid, req.id),
+        _note: `Late deposit approved by admin (${req.method}${txid ? `, TXID ${txid}` : ""})`,
       });
-      const res = (credit ?? {}) as { ok?: boolean; duplicate?: boolean };
-      if (res.ok) {
-        await sendMessage(
-          req.telegram_id,
-          `✅ Your deposit of $${Number(req.amount).toFixed(2)} has been approved and added to your balance.`,
-        );
-      } else if (!res.duplicate) {
-        throw new Error("Could not add the deposit to the user's balance");
+      res = (credit ?? {}) as typeof res;
+      if (res.duplicate) throw new Error("This transaction was already credited by an admin. No additional credit is allowed.");
+      if (!res.ok) throw new Error("Could not add the balance to the user's wallet.");
+      if (txid) {
+        await admin.from("historical_payment_txid_blocks").upsert({
+          transaction_key: gateway === "payid" ? txid.toLowerCase() : txid,
+          gateway, cutoff_at: new Date().toISOString(),
+          reason: "Late deposit approved by admin; transaction permanently used",
+        }, { onConflict: "transaction_key", ignoreDuplicates: true });
       }
-    } else {
+      await sb.from("payment_requests")
+        .update({ status: "approved", admin_note: data.note ?? "Expired deposit approved by admin; added as admin credit" })
+        .eq("id", data.id);
       await sendMessage(
         req.telegram_id,
-        `❌ Your deposit request was rejected.${data.note ? `\nReason: ${data.note}` : ""}`,
+        `✅ An admin verified your payment and added $${amount.toFixed(2)} to your balance.`,
       );
+      return { ok: true, late: true };
+    }
+
+    const { data: credit } = await admin.rpc("bot_user_credit", {
+      _telegram_id: req.telegram_id,
+      _amount: amount,
+      _type: "deposit",
+      _method: req.method,
+      _reference: req.txid || `deposit-${req.id}`,
+      _note: null,
+    });
+    res = (credit ?? {}) as typeof res;
+    if (!res.ok && !res.duplicate) throw new Error("Could not add the deposit to the user's balance");
+    await sb.from("payment_requests")
+      .update({ status: "approved", admin_note: data.note ?? null })
+      .eq("id", data.id);
+    if (res.ok) {
+      await sendMessage(req.telegram_id, `✅ Your deposit of $${amount.toFixed(2)} has been approved and added to your balance.`);
     }
     return { ok: true };
   });

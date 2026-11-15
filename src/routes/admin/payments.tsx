@@ -87,7 +87,7 @@ function PaymentsPage() {
                     <Badge variant={p.status === "approved" ? "default" : "secondary"}>{p.status}</Badge>
                   </td>
                   <td className="space-x-1 text-right">
-                    {p.status === "pending" && (
+                    {(p.status === "pending" || p.status === "expired") && (
                       <>
                         <Button size="sm" onClick={() => act(p.id, true)}>
                           Approve
