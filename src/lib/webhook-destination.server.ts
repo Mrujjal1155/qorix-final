@@ -26,7 +26,7 @@ export async function checkedWebhookUrl(raw: string, resolveFetch: typeof fetch 
     lookup.searchParams.set("name", url.hostname);
     lookup.searchParams.set("type", type);
     const response = await resolveFetch(lookup, {
-      headers: { accept: "application/dns-json" }, redirect: "error", signal: AbortSignal.timeout(3000),
+      headers: { accept: "application/dns-json" }, redirect: "manual", signal: AbortSignal.timeout(3000),
     });
     if (!response.ok) throw new Error("Webhook destination could not be verified");
     const result = await response.json() as { Status?: number; Answer?: { type: number; data: string }[] };
