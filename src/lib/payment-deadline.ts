@@ -7,4 +7,5 @@ export function paymentDeadline(createdAt: string, expiresAt?: string | null): n
 export function paymentAttemptOpen(row: { status: string; created_at: string; expires_at?: string | null }, now = Date.now()): boolean {
   const deadline = paymentDeadline(row.created_at, row.expires_at);
   return row.status === "pending" && Number.isFinite(deadline) && now < deadline;
-}
+}/** A payment made up to this long BEFORE the order/deposit was created still counts (customer paid first). */
+export const PAYMENT_EARLY_GRACE_MS = 10 * 60_000;

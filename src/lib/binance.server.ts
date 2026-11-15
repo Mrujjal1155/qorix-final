@@ -1,3 +1,4 @@
+import { PAYMENT_EARLY_GRACE_MS } from "@/lib/payment-deadline";
 // Server-only Binance API helper (Pay ID + on-chain USDT deposits).
 // Signed SAPI requests with HMAC-SHA256.
 import { createHmac } from "crypto";
@@ -190,7 +191,7 @@ export async function findByTxId(
         const ids = [t.orderId, t.transactionId].map((x: unknown) => String(x ?? "").trim().toLowerCase());
         const amount = Number(t.amount);
         const paymentTime = Number(t.transactionTime ?? 0);
-        if (ids.includes(needle) && amount > 0 && (createdAt === undefined || paymentTime >= createdAt && paymentTime < createdAt + 30 * 60_000)) {
+        if (ids.includes(needle) && amount > 0 && (createdAt === undefined || paymentTime >= createdAt - PAYMENT_EARLY_GRACE_MS && paymentTime < createdAt + 30 * 60_000)) {
           return { ok: true, amount, currency: String(t.currency || "USDT").toUpperCase() };
         }
         const ts = Number(t.transactionTime ?? 0);
@@ -207,7 +208,7 @@ export async function findByTxId(
       if (!r.ok || !Array.isArray(r.data)) break;
       for (const d of r.data) {
         const paymentTime = Number(d.insertTime ?? 0);
-        if (String(d.txId ?? d.id ?? "").trim().toLowerCase() === needle && [1, 6].includes(Number(d.status)) && (createdAt === undefined || paymentTime >= createdAt && paymentTime < createdAt + 30 * 60_000)) {
+        if (String(d.txId ?? d.id ?? "").trim().toLowerCase() === needle && [1, 6].includes(Number(d.status)) && (createdAt === undefined || paymentTime >= createdAt - PAYMENT_EARLY_GRACE_MS && paymentTime < createdAt + 30 * 60_000)) {
           return { ok: true, amount: Number(d.amount), currency: String(d.coin || "USDT").toUpperCase() };
         }
       }
