@@ -1,0 +1,1 @@
+- Supplier buy orders use separate durable admin-only batches and atomic claims; uncertain non-idempotent purchases never retry and activation requires provider-verified fast scheduling, preventing duplicate supplier-wallet spending.
