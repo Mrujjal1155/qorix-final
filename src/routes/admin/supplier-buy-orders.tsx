@@ -16,7 +16,7 @@ import { changeBuyOrder, createBuyOrder, listBuyOrders, listBuyProducts, readBuy
 import { validBuyChoices } from '@/lib/supplier-buy-rules';
 import { colorIndexesFor, supplierBadgeStyle } from '@/lib/supplier-colors';
 
-const buyQuery = queryOptions({queryKey:['supplier-buy-orders'],queryFn:()=>listBuyOrders(),refetchInterval:15000});
+const buyQuery = queryOptions({queryKey:['supplier-buy-orders'],queryFn:()=>listBuyOrders(),refetchInterval:5000});
 export const Route = createFileRoute('/admin/supplier-buy-orders')({
   loader:({context})=>context.queryClient.ensureQueryData(buyQuery),
   head:()=>({meta:[{title:'Supplier Buy Orders — QORIX Admin'},{name:'description',content:'Private supplier stock watches, quantity-limited purchases and account downloads.'},{property:'og:title',content:'Supplier Buy Orders — QORIX Admin'},{property:'og:description',content:'Private supplier purchasing and delivery management.'},{property:'og:type',content:'website'},{name:'twitter:card',content:'summary'},{name:'robots',content:'noindex, nofollow'}]}),
@@ -54,7 +54,7 @@ function BuyOrdersPage() {
     try{const result=await read({data:{id}});download(result.text,`supplier-buy-${id}.txt`);}catch{toast.error('Download unavailable');}
   }
   return <AdminShell title="Supplier Buy Orders" actions={<><Button variant="outline" size="icon" title="Refresh" aria-label="Refresh buy orders" onClick={()=>refresh()}><RefreshCw className="size-4"/></Button><Button onClick={()=>setOpen(true)}><Plus className="size-4"/>New buy order</Button></>}>
-    {!data.monitorReady && <div role="status" className="mb-6 border-l-4 border-destructive bg-muted px-4 py-3 text-sm"><strong>Fast monitor not connected</strong><p className="mt-1 text-muted-foreground">Buy orders remain paused. No automatic purchases will run until supplier request limits and background monitoring are configured.</p></div>}
+    <div role="status" className="mb-6 border-l-4 border-primary bg-muted px-4 py-3 text-sm"><strong>Stock check every 5 seconds</strong><p className="mt-1 text-muted-foreground">Active orders check supplier stock every 5 seconds. A purchase is sent immediately only when stock covers one of your quantities. Runs on the live site after it is updated.</p></div>
     <div className="mb-6 grid grid-cols-2 gap-4 border-b pb-5 sm:grid-cols-4">{[['Watching',data.orders.filter((o:any)=>o.status==='watching').length],['Acquired',data.orders.reduce((n:number,o:any)=>n+o.acquired,0)],['Review',data.orders.filter((o:any)=>['review','purchasing'].includes(o.status)).length],['Completed',data.orders.filter((o:any)=>o.status==='completed').length]].map(([label,value])=><div key={label}><div className="text-sm text-muted-foreground">{label}</div><div className="mt-1 text-2xl font-semibold tabular-nums">{value}</div></div>)}</div>
     {data.orders.length===0?<div className="py-16 text-center text-muted-foreground">No buy orders</div>:<div className="grid gap-4 xl:grid-cols-2">{data.orders.map((o:any)=>{
       const s=data.suppliers.find((x:any)=>x.id===o.supplier_id);
