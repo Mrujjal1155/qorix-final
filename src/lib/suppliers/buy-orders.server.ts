@@ -1,4 +1,4 @@
-import { buyBatchQuantity, buyOutcome, supportsBuyWatch } from '../supplier-buy-rules';
+import { buyBatchQuantity, buyOutcome, supportsBuyWatch, chooseBuyQuantity } from '../supplier-buy-rules';
 import { buyApi, BuyRejected } from './buy-api.server';
 
 export async function processBuyOrders(db: any) {
@@ -15,11 +15,16 @@ export async function processBuyOrders(db: any) {
     checks++;
     const stock = Number(product.stock);
     if (!Number.isSafeInteger(stock) || stock < 0 || String(product.id) !== o.external_id) continue;
-    await db.from('supplier_buy_orders').update({ last_stock: stock, last_checked_at: new Date().toISOString(), message: '' }).eq('id', o.id).eq('status','watching');
-    const qty = buyBatchQuantity(stock, o.target - o.acquired);
+    const { data: rejected, error: rejectedError } = await db.from('supplier_buy_batches').select('quantity').eq('buy_order_id',o.id).eq('status','rejected');
+    if (rejectedError) continue;
+    const choices = o.quantity_choices ? chooseBuyQuantity(stock, o.quantity_choices, (rejected ?? []).map((b:any)=>b.quantity)) : {quantity:buyBatchQuantity(stock,o.target-o.acquired),checked:[]};
+    const { data: recorded, error: recordError } = await db.rpc('record_supplier_buy_check',{p_order:o.id,p_stock:stock,p_choices:choices.checked});
+    if (recordError || !recorded) continue;
+    let qty = choices.quantity;
     if (!qty) continue;
+    while (qty) {
     const { data: batch, error: claimError } = await db.rpc('claim_supplier_buy_batch', { p_order: o.id, p_qty: qty });
-    if (claimError || !batch) continue;
+    if (claimError || !batch) break;
     purchases++;
     let status: string = 'unknown', items: string[] = [], supplierOrder: string | null = null, message = 'Purchase outcome uncertain; do not retry';
     try {
@@ -34,6 +39,9 @@ export async function processBuyOrders(db: any) {
     // If saving fails, leave the submitted batch permanently unresolved; never POST again.
     const { error: saveError } = await db.rpc('finish_supplier_buy_batch', { p_batch: batch, p_status: status, p_items: items, p_supplier_order: supplierOrder, p_message: message });
     if (saveError) throw new Error('Purchase needs reconciliation; automatic retry blocked');
+    if (!(o.quantity_choices && status==='rejected' && message==='OUT_OF_STOCK')) break;
+    qty = chooseBuyQuantity(stock,o.quantity_choices,[qty]).quantity;
+    }
   }
   return { checks, purchases };
 }

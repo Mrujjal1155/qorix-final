@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Add approved three-choice supplier purchases (50→40→35), single-success completion, attempt counts/history and complete supplier-scoped sold-out search; verify rules without real spending or deployment.
+
 - [x] Supplier Buy Orders foundation: admin section, supplier/product selection, paused order saving, quantity target, one-time spending confirmation, rounded partial batches (35→30, 25→20, 15→15), no price/balance preflight, DigitalCore documented single-product stock and one-shot bulk purchase adapter, private batch/TXT history, atomic claims and cross-order uncertain-purchase blocking. Twenty focused adapter/rule/isolated-SQL tests pass; latest build OK; unauthenticated monitor returns 401. Additive RLS-protected storage applied; no real purchase or deployment.
 - [ ] Activate sub-five-second monitoring: DigitalCore public docs specify no request rate limit or restock webhook; provider-approved cadence and a deployed background scheduler are unavailable. Activation fails closed and all orders stay paused rather than pretending automatic buying is running. Other suppliers remain selectable but automatic purchase support requires their verified adapter contracts.
 - [ ] Verify signed-in buy-order save/history/TXT and a real charged delivery: external unmanaged authentication prevents authenticated preview checks; live spending/deployment lacks separate permission. Public desktop/mobile login gate checked with zero runtime errors and no overflow.

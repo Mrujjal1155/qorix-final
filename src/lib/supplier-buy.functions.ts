@@ -2,30 +2,36 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
 import { assertSupplierAdmin } from '@/lib/suppliers/admin-support';
-import { buyItemsText, supportsBuyWatch } from './supplier-buy-rules';
+import { buyItemsText, supportsBuyWatch, validBuyChoices, readAllBuyProducts } from './supplier-buy-rules';
+
+export const listBuyProducts = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ supplierId: z.string().uuid() }).parse(d))
+  .handler(async ({ context, data }) => {
+    await assertSupplierAdmin(context);
+    return readAllBuyProducts(context.supabase, data.supplierId);
+  });
 
 export const listBuyOrders = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth]).handler(async ({ context }) => {
   await assertSupplierAdmin(context);
   const sb = context.supabase as any;
-  const [orders, suppliers, products] = await Promise.all([
+  const [orders, suppliers] = await Promise.all([
     sb.from('supplier_buy_orders').select('*').order('created_at', { ascending: false }).limit(200),
     sb.from('suppliers').select('id,key,name,base_url,is_enabled').order('name'),
-    sb.from('supplier_products').select('id,supplier_id,external_id,name,stock,min_qty').order('name').limit(1000),
   ]);
-  if (orders.error || suppliers.error || products.error) throw new Error('Buy orders unavailable');
+  if (orders.error || suppliers.error) throw new Error('Buy orders unavailable');
   const interval = Number(process.env['SUPPLIER_BUY_VERIFIED_INTERVAL_MS'] ?? 0);
-  return { orders: orders.data ?? [], suppliers: (suppliers.data ?? []).map((s: any) => ({ id:s.id, name:s.name, enabled:s.is_enabled, supported:supportsBuyWatch(s.key,s.base_url) })), products: products.data ?? [], monitorReady: interval > 0 && interval < 5000, interval };
+  return { orders: orders.data ?? [], suppliers: (suppliers.data ?? []).map((s: any) => ({ id:s.id, name:s.name, enabled:s.is_enabled, supported:supportsBuyWatch(s.key,s.base_url) })), monitorReady: interval > 0 && interval < 5000, interval };
 });
 
 export const createBuyOrder = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ productId: z.string().uuid(), target: z.number().int().min(1).max(100000) }).parse(d))
+  .inputValidator((d: unknown) => z.object({ productId: z.string().uuid(), choices: z.array(z.number()).refine(validBuyChoices, 'Enter three decreasing quantities between 1 and 1000') }).parse(d))
   .handler(async ({ context, data }) => {
     await assertSupplierAdmin(context);
     const sb = context.supabase as any;
-    const { data:p } = await sb.from('supplier_products').select('id,supplier_id,external_id,name').eq('id',data.productId).maybeSingle();
+    const { data:p } = await sb.from('supplier_products').select('id,supplier_id,external_id,name').eq('id',data.productId).eq('stock',0).maybeSingle();
     if (!p) throw new Error('Product unavailable');
     const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
-    const { error } = await (supabaseAdmin as any).from('supplier_buy_orders').insert({ admin_id: context.userId, supplier_id:p.supplier_id, supplier_product_id:p.id, external_id:p.external_id, product_name:p.name, target:data.target, status:'paused' });
+    const { error } = await (supabaseAdmin as any).from('supplier_buy_orders').insert({ admin_id: context.userId, supplier_id:p.supplier_id, supplier_product_id:p.id, external_id:p.external_id, product_name:p.name, target:data.choices[0], quantity_choices:data.choices, status:'paused' });
     if (error) throw new Error(error.code === '23505' ? 'An unfinished buy order already exists for this product' : 'Could not save buy order');
     return { ok:true };
   });
