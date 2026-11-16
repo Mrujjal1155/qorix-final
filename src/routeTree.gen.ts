@@ -42,6 +42,7 @@ import { Route as AdminResellerPricesRouteImport } from './routes/admin/reseller
 import { Route as AdminResellersRouteImport } from './routes/admin/resellers'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminSiteRouteImport } from './routes/admin/site'
+import { Route as AdminSupplierBuyOrdersRouteImport } from './routes/admin/supplier-buy-orders'
 import { Route as AdminSuppliersRouteImport } from './routes/admin/suppliers'
 import { Route as AdminSupportRouteImport } from './routes/admin/support'
 import { Route as AdminUserPricesRouteImport } from './routes/admin/user-prices'
@@ -66,6 +67,7 @@ import { Route as ApiPublicEpsReturnRouteImport } from './routes/api/public/eps/
 import { Route as ApiPublicOxapayReturnRouteImport } from './routes/api/public/oxapay/return'
 import { Route as ApiPublicOxapayWebhookRouteImport } from './routes/api/public/oxapay/webhook'
 import { Route as ApiPublicProductImageIdRouteImport } from './routes/api/public/product-image/$id'
+import { Route as ApiPublicSuppliersBuyMonitorRouteImport } from './routes/api/public/suppliers/buy-monitor'
 import { Route as ApiPublicSuppliersNotifyRouteImport } from './routes/api/public/suppliers/notify'
 import { Route as ApiPublicSuppliersSyncRouteImport } from './routes/api/public/suppliers/sync'
 import { Route as ApiPublicSuppliersWebhookRouteImport } from './routes/api/public/suppliers/webhook'
@@ -243,6 +245,11 @@ const AdminSiteRoute = AdminSiteRouteImport.update({
   path: '/site',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminSupplierBuyOrdersRoute = AdminSupplierBuyOrdersRouteImport.update({
+  id: '/supplier-buy-orders',
+  path: '/supplier-buy-orders',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminSuppliersRoute = AdminSuppliersRouteImport.update({
   id: '/suppliers',
   path: '/suppliers',
@@ -369,6 +376,12 @@ const ApiPublicProductImageIdRoute = ApiPublicProductImageIdRouteImport.update({
   path: '/api/public/product-image/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSuppliersBuyMonitorRoute =
+  ApiPublicSuppliersBuyMonitorRouteImport.update({
+    id: '/api/public/suppliers/buy-monitor',
+    path: '/api/public/suppliers/buy-monitor',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicSuppliersNotifyRoute =
   ApiPublicSuppliersNotifyRouteImport.update({
     id: '/api/public/suppliers/notify',
@@ -472,6 +485,7 @@ export interface FileRoutesByFullPath {
   '/admin/resellers': typeof AdminResellersRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/site': typeof AdminSiteRoute
+  '/admin/supplier-buy-orders': typeof AdminSupplierBuyOrdersRoute
   '/admin/suppliers': typeof AdminSuppliersRoute
   '/admin/support': typeof AdminSupportRoute
   '/admin/user-prices': typeof AdminUserPricesRoute
@@ -497,6 +511,7 @@ export interface FileRoutesByFullPath {
   '/api/public/oxapay/return': typeof ApiPublicOxapayReturnRoute
   '/api/public/oxapay/webhook': typeof ApiPublicOxapayWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
+  '/api/public/suppliers/buy-monitor': typeof ApiPublicSuppliersBuyMonitorRoute
   '/api/public/suppliers/notify': typeof ApiPublicSuppliersNotifyRoute
   '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
   '/api/public/suppliers/webhook': typeof ApiPublicSuppliersWebhookRoute
@@ -541,6 +556,7 @@ export interface FileRoutesByTo {
   '/admin/resellers': typeof AdminResellersRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/site': typeof AdminSiteRoute
+  '/admin/supplier-buy-orders': typeof AdminSupplierBuyOrdersRoute
   '/admin/suppliers': typeof AdminSuppliersRoute
   '/admin/support': typeof AdminSupportRoute
   '/admin/user-prices': typeof AdminUserPricesRoute
@@ -566,6 +582,7 @@ export interface FileRoutesByTo {
   '/api/public/oxapay/return': typeof ApiPublicOxapayReturnRoute
   '/api/public/oxapay/webhook': typeof ApiPublicOxapayWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
+  '/api/public/suppliers/buy-monitor': typeof ApiPublicSuppliersBuyMonitorRoute
   '/api/public/suppliers/notify': typeof ApiPublicSuppliersNotifyRoute
   '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
   '/api/public/suppliers/webhook': typeof ApiPublicSuppliersWebhookRoute
@@ -613,6 +630,7 @@ export interface FileRoutesById {
   '/admin/resellers': typeof AdminResellersRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/site': typeof AdminSiteRoute
+  '/admin/supplier-buy-orders': typeof AdminSupplierBuyOrdersRoute
   '/admin/suppliers': typeof AdminSuppliersRoute
   '/admin/support': typeof AdminSupportRoute
   '/admin/user-prices': typeof AdminUserPricesRoute
@@ -638,6 +656,7 @@ export interface FileRoutesById {
   '/api/public/oxapay/return': typeof ApiPublicOxapayReturnRoute
   '/api/public/oxapay/webhook': typeof ApiPublicOxapayWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
+  '/api/public/suppliers/buy-monitor': typeof ApiPublicSuppliersBuyMonitorRoute
   '/api/public/suppliers/notify': typeof ApiPublicSuppliersNotifyRoute
   '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
   '/api/public/suppliers/webhook': typeof ApiPublicSuppliersWebhookRoute
@@ -685,6 +704,7 @@ export interface FileRouteTypes {
     | '/admin/resellers'
     | '/admin/settings'
     | '/admin/site'
+    | '/admin/supplier-buy-orders'
     | '/admin/suppliers'
     | '/admin/support'
     | '/admin/user-prices'
@@ -710,6 +730,7 @@ export interface FileRouteTypes {
     | '/api/public/oxapay/return'
     | '/api/public/oxapay/webhook'
     | '/api/public/product-image/$id'
+    | '/api/public/suppliers/buy-monitor'
     | '/api/public/suppliers/notify'
     | '/api/public/suppliers/sync'
     | '/api/public/suppliers/webhook'
@@ -754,6 +775,7 @@ export interface FileRouteTypes {
     | '/admin/resellers'
     | '/admin/settings'
     | '/admin/site'
+    | '/admin/supplier-buy-orders'
     | '/admin/suppliers'
     | '/admin/support'
     | '/admin/user-prices'
@@ -779,6 +801,7 @@ export interface FileRouteTypes {
     | '/api/public/oxapay/return'
     | '/api/public/oxapay/webhook'
     | '/api/public/product-image/$id'
+    | '/api/public/suppliers/buy-monitor'
     | '/api/public/suppliers/notify'
     | '/api/public/suppliers/sync'
     | '/api/public/suppliers/webhook'
@@ -825,6 +848,7 @@ export interface FileRouteTypes {
     | '/admin/resellers'
     | '/admin/settings'
     | '/admin/site'
+    | '/admin/supplier-buy-orders'
     | '/admin/suppliers'
     | '/admin/support'
     | '/admin/user-prices'
@@ -850,6 +874,7 @@ export interface FileRouteTypes {
     | '/api/public/oxapay/return'
     | '/api/public/oxapay/webhook'
     | '/api/public/product-image/$id'
+    | '/api/public/suppliers/buy-monitor'
     | '/api/public/suppliers/notify'
     | '/api/public/suppliers/sync'
     | '/api/public/suppliers/webhook'
@@ -896,6 +921,7 @@ export interface RootRouteChildren {
   ApiPublicOxapayReturnRoute: typeof ApiPublicOxapayReturnRoute
   ApiPublicOxapayWebhookRoute: typeof ApiPublicOxapayWebhookRoute
   ApiPublicProductImageIdRoute: typeof ApiPublicProductImageIdRoute
+  ApiPublicSuppliersBuyMonitorRoute: typeof ApiPublicSuppliersBuyMonitorRoute
   ApiPublicSuppliersNotifyRoute: typeof ApiPublicSuppliersNotifyRoute
   ApiPublicSuppliersSyncRoute: typeof ApiPublicSuppliersSyncRoute
   ApiPublicSuppliersWebhookRoute: typeof ApiPublicSuppliersWebhookRoute
@@ -1141,6 +1167,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminSiteRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/supplier-buy-orders': {
+      id: '/admin/supplier-buy-orders'
+      path: '/supplier-buy-orders'
+      fullPath: '/admin/supplier-buy-orders'
+      preLoaderRoute: typeof AdminSupplierBuyOrdersRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/suppliers': {
       id: '/admin/suppliers'
       path: '/suppliers'
@@ -1309,6 +1342,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicProductImageIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/suppliers/buy-monitor': {
+      id: '/api/public/suppliers/buy-monitor'
+      path: '/api/public/suppliers/buy-monitor'
+      fullPath: '/api/public/suppliers/buy-monitor'
+      preLoaderRoute: typeof ApiPublicSuppliersBuyMonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/suppliers/notify': {
       id: '/api/public/suppliers/notify'
       path: '/api/public/suppliers/notify'
@@ -1431,6 +1471,7 @@ interface AdminRouteRouteChildren {
   AdminResellersRoute: typeof AdminResellersRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminSiteRoute: typeof AdminSiteRoute
+  AdminSupplierBuyOrdersRoute: typeof AdminSupplierBuyOrdersRoute
   AdminSuppliersRoute: typeof AdminSuppliersRoute
   AdminSupportRoute: typeof AdminSupportRoute
   AdminUserPricesRoute: typeof AdminUserPricesRoute
@@ -1455,6 +1496,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminResellersRoute: AdminResellersRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminSiteRoute: AdminSiteRoute,
+  AdminSupplierBuyOrdersRoute: AdminSupplierBuyOrdersRoute,
   AdminSuppliersRoute: AdminSuppliersRoute,
   AdminSupportRoute: AdminSupportRoute,
   AdminUserPricesRoute: AdminUserPricesRoute,
@@ -1527,6 +1569,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicOxapayReturnRoute: ApiPublicOxapayReturnRoute,
   ApiPublicOxapayWebhookRoute: ApiPublicOxapayWebhookRoute,
   ApiPublicProductImageIdRoute: ApiPublicProductImageIdRoute,
+  ApiPublicSuppliersBuyMonitorRoute: ApiPublicSuppliersBuyMonitorRoute,
   ApiPublicSuppliersNotifyRoute: ApiPublicSuppliersNotifyRoute,
   ApiPublicSuppliersSyncRoute: ApiPublicSuppliersSyncRoute,
   ApiPublicSuppliersWebhookRoute: ApiPublicSuppliersWebhookRoute,

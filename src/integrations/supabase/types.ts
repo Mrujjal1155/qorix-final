@@ -1792,6 +1792,116 @@ export type Database = {
           },
         ]
       }
+      supplier_buy_batches: {
+        Row: {
+          buy_order_id: string
+          created_at: string
+          id: string
+          items: Json
+          message: string
+          quantity: number
+          status: string
+          supplier_order_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          buy_order_id: string
+          created_at?: string
+          id?: string
+          items?: Json
+          message?: string
+          quantity: number
+          status?: string
+          supplier_order_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          buy_order_id?: string
+          created_at?: string
+          id?: string
+          items?: Json
+          message?: string
+          quantity?: number
+          status?: string
+          supplier_order_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_buy_batches_buy_order_id_fkey"
+            columns: ["buy_order_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_buy_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_buy_orders: {
+        Row: {
+          acquired: number
+          admin_id: string
+          created_at: string
+          external_id: string
+          id: string
+          last_checked_at: string | null
+          last_stock: number | null
+          message: string
+          product_name: string
+          status: string
+          supplier_id: string
+          supplier_product_id: string
+          target: number
+          updated_at: string
+        }
+        Insert: {
+          acquired?: number
+          admin_id: string
+          created_at?: string
+          external_id: string
+          id?: string
+          last_checked_at?: string | null
+          last_stock?: number | null
+          message?: string
+          product_name: string
+          status?: string
+          supplier_id: string
+          supplier_product_id: string
+          target: number
+          updated_at?: string
+        }
+        Update: {
+          acquired?: number
+          admin_id?: string
+          created_at?: string
+          external_id?: string
+          id?: string
+          last_checked_at?: string | null
+          last_stock?: number | null
+          message?: string
+          product_name?: string
+          status?: string
+          supplier_id?: string
+          supplier_product_id?: string
+          target?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_buy_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_buy_orders_supplier_product_id_fkey"
+            columns: ["supplier_product_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_products: {
         Row: {
           cost_price: number
@@ -2427,6 +2537,10 @@ export type Database = {
           telegram_id: number
         }[]
       }
+      claim_supplier_buy_batch: {
+        Args: { p_order: string; p_qty: number }
+        Returns: string
+      }
       cleanup_old_logs: { Args: never; Returns: Json }
       current_referral_mode: { Args: never; Returns: string }
       debit_reseller_order: { Args: { _order_id: string }; Returns: Json }
@@ -2459,6 +2573,16 @@ export type Database = {
       }
       finish_stock_notification: {
         Args: { _delivered: boolean; _error?: string; _id: string }
+        Returns: undefined
+      }
+      finish_supplier_buy_batch: {
+        Args: {
+          p_batch: string
+          p_items: Json
+          p_message: string
+          p_status: string
+          p_supplier_order: string
+        }
         Returns: undefined
       }
       fulfill_charged_reseller_stock: {
