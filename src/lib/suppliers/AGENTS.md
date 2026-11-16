@@ -1,1 +1,2 @@
 - Supplier buy orders use separate durable admin-only batches and atomic claims; uncertain non-idempotent purchases never retry and activation requires provider-verified fast scheduling, preventing duplicate supplier-wallet spending.
+- New buy watches use three descending choices and stop after one successful batch; only definitive stock rejection permits smaller choices. Legacy targets stay unchanged; supplier-scoped sold-out selection uses deterministic complete pagination to avoid missing products.

@@ -1,5 +1,6 @@
 export function validBuyChoices(choices: number[]): boolean {
-  return choices.length === 3 && choices.every(n => Number.isSafeInteger(n) && n >= 1 && n <= 1000) && choices[0] > choices[1] && choices[1] > choices[2];
+  const [first, second, last] = choices;
+  return first !== undefined && second !== undefined && last !== undefined && choices.length === 3 && choices.every(n => Number.isSafeInteger(n) && n >= 1 && n <= 1000) && first > second && second > last;
 }
 
 export function chooseBuyQuantity(stock: number, choices: number[], rejected: number[] = []) {

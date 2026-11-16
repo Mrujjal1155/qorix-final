@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { buyBatchQuantity, buyItemsText, buyOutcome, supportsBuyWatch } from '../../src/lib/supplier-buy-rules';
+import { buyBatchQuantity, buyItemsText, buyOutcome, supportsBuyWatch, chooseBuyQuantity, validBuyChoices, readAllBuyProducts } from '../../src/lib/supplier-buy-rules';
 import { buyApi, BuyRejected } from '../../src/lib/suppliers/buy-api.server';
 
 describe('supplier buy quantities',()=>{
@@ -17,6 +17,21 @@ describe('supplier buy quantities',()=>{
 });
 
 const supplier={id:'s',key:'digitalcore',name:'Test',base_url:'https://digitalcore.top',api_key:'test-only'};
+describe('three admin quantity choices',()=>{
+  it('50 stock buys the first 50',()=>expect(chooseBuyQuantity(50,[50,40,35])).toEqual({quantity:50,checked:[50]}));
+  it('45 stock switches immediately to 40',()=>expect(chooseBuyQuantity(45,[50,40,35])).toEqual({quantity:40,checked:[50,40]}));
+  it('38 stock switches to the last 35',()=>expect(chooseBuyQuantity(38,[50,40,35])).toEqual({quantity:35,checked:[50,40,35]}));
+  it('34 stock never buys below 35',()=>expect(chooseBuyQuantity(34,[50,40,35])).toEqual({quantity:0,checked:[50,40,35]}));
+  it('confirmed rejection moves only downward',()=>{expect(chooseBuyQuantity(60,[50,40,35],[50]).quantity).toBe(40);expect(chooseBuyQuantity(60,[50,40,35],[40]).quantity).toBe(35);expect(chooseBuyQuantity(60,[50,40,35],[35]).quantity).toBe(0);});
+  it('requires three decreasing integer choices',()=>{expect(validBuyChoices([50,40,35])).toBe(true);for(const c of [[50,50,35],[50,35,40],[50,40],[50,40,0],[1001,40,35],[50,40,3.5]])expect(validBuyChoices(c)).toBe(false);});
+  it('includes sold-out products beyond the first 1000',async()=>{
+    const rows=Array.from({length:1201},(_,i)=>({id:String(i),name:i===1200?'Lovable Pro Lite':'Product',stock:0,supplier_id:'digitalcore'}));
+    const filters:any[]=[];const pages:any[]=[];
+    const q:any={select:()=>q,eq:(k:string,v:any)=>{filters.push([k,v]);return q;},order:()=>q,range:async(a:number,b:number)=>{pages.push([a,b]);return {data:rows.slice(a,b+1)};}};
+    const result=await readAllBuyProducts({from:()=>q},'digitalcore');
+    expect(result).toHaveLength(1201);expect(result.find(p=>p.name==='Lovable Pro Lite')?.id).toBe('1200');expect(pages).toEqual([[0,499],[500,999],[1000,1499]]);expect(filters).toContainEqual(['supplier_id','digitalcore']);expect(filters).toContainEqual(['stock',0]);
+  });
+});
 describe('one-shot supplier API',()=>{
   it('one bulk purchase without price or balance checks',async()=>{
     const requests: {url:string,body:any}[]=[];
