@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Supplier Buy Orders: admin-only supplier/product selection, owner-authorized quantity target, rounded partial batches (35→30, 25→20, 15→15), no price ceiling/preflight, rapid stock watch with provider rate limits, durable single-owner attempts, unknown-outcome reconciliation, private TXT downloads. Waiting for plan approval and provider evidence for sub-five-second monitoring; no live purchase or deployment authorized.
+
 - [x] Add approved admin Settings Referral Switch (points rewards / profit commission / both off), admin-selected automatic in-house rewards, pending requests with red badge, point reservation/refund, atomic approval/stock and leased saved-credential delivery. Database reads both off; no commissions distributed, real stock claimed, Telegram sends or deployment. 23 focused tests pass; latest build OK. Existing RLS info and leaked-password warning unchanged; reviewed admin RPC is role-gated.
 - [ ] Verify signed-in settings save/request approval and deployed Telegram reward delivery; external unmanaged authentication prevents signed-in preview checks and no live send/deployment was approved. Public login gate has zero runtime errors and no mobile overflow.
 
