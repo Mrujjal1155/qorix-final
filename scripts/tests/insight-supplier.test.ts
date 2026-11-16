@@ -5,7 +5,7 @@ const originalFetch = globalThis.fetch;
 const supplier = { id: "test", key: "insightstore", name: "Insight Store", base_url: "https://api.insightxpro.store", api_key: "fixture-not-a-real-key" };
 afterEach(() => { globalThis.fetch = originalFetch; });
 function respond(data: unknown, status = 200) {
-  const fn = mock(async () => new Response(JSON.stringify(data), { status }));
+  const fn = mock(async (_input: string | URL | Request, _init?: RequestInit) => new Response(JSON.stringify(data), { status }));
   globalThis.fetch = fn as unknown as typeof fetch;
   return fn;
 }

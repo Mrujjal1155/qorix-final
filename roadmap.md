@@ -1,6 +1,7 @@
 # Roadmap
 
-- [ ] Add approved disabled Insight Store supplier, server-only catalogue/cost/balance/idempotent delivery adapter and focused tests; no real orders or deployment. Live connection awaits the owner's API key.
+- [x] Add approved disabled Insight Store supplier and server-only catalogue/cost/balance/idempotent delivery adapter; 15 adapter/regression tests pass and build OK, public provider health succeeds. No real orders, stock import or deployment.
+- [ ] Verify Insight Store authenticated catalogue/balance and full paid delivery: awaits owner's API key in Supplier APIs and explicit real-purchase/deployment permission; supplier remains disabled.
 
 - [x] App-owned five-second stock-only watch (no n8n): minutely Cloudflare trigger runs 11 checks on fixed 5s marks; Activate runs an immediate check; purchase sent in the same tick when stock covers a choice. 30 tests pass. Runs only after the live site is redeployed (needs permission).
 
