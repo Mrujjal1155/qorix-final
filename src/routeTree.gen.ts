@@ -66,6 +66,7 @@ import { Route as ApiPublicEpsReturnRouteImport } from './routes/api/public/eps/
 import { Route as ApiPublicOxapayReturnRouteImport } from './routes/api/public/oxapay/return'
 import { Route as ApiPublicOxapayWebhookRouteImport } from './routes/api/public/oxapay/webhook'
 import { Route as ApiPublicProductImageIdRouteImport } from './routes/api/public/product-image/$id'
+import { Route as ApiPublicSuppliersBuyMonitorRouteImport } from './routes/api/public/suppliers/buy-monitor'
 import { Route as ApiPublicSuppliersNotifyRouteImport } from './routes/api/public/suppliers/notify'
 import { Route as ApiPublicSuppliersSyncRouteImport } from './routes/api/public/suppliers/sync'
 import { Route as ApiPublicSuppliersWebhookRouteImport } from './routes/api/public/suppliers/webhook'
@@ -369,6 +370,12 @@ const ApiPublicProductImageIdRoute = ApiPublicProductImageIdRouteImport.update({
   path: '/api/public/product-image/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSuppliersBuyMonitorRoute =
+  ApiPublicSuppliersBuyMonitorRouteImport.update({
+    id: '/api/public/suppliers/buy-monitor',
+    path: '/api/public/suppliers/buy-monitor',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicSuppliersNotifyRoute =
   ApiPublicSuppliersNotifyRouteImport.update({
     id: '/api/public/suppliers/notify',
@@ -497,6 +504,7 @@ export interface FileRoutesByFullPath {
   '/api/public/oxapay/return': typeof ApiPublicOxapayReturnRoute
   '/api/public/oxapay/webhook': typeof ApiPublicOxapayWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
+  '/api/public/suppliers/buy-monitor': typeof ApiPublicSuppliersBuyMonitorRoute
   '/api/public/suppliers/notify': typeof ApiPublicSuppliersNotifyRoute
   '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
   '/api/public/suppliers/webhook': typeof ApiPublicSuppliersWebhookRoute
@@ -566,6 +574,7 @@ export interface FileRoutesByTo {
   '/api/public/oxapay/return': typeof ApiPublicOxapayReturnRoute
   '/api/public/oxapay/webhook': typeof ApiPublicOxapayWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
+  '/api/public/suppliers/buy-monitor': typeof ApiPublicSuppliersBuyMonitorRoute
   '/api/public/suppliers/notify': typeof ApiPublicSuppliersNotifyRoute
   '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
   '/api/public/suppliers/webhook': typeof ApiPublicSuppliersWebhookRoute
@@ -638,6 +647,7 @@ export interface FileRoutesById {
   '/api/public/oxapay/return': typeof ApiPublicOxapayReturnRoute
   '/api/public/oxapay/webhook': typeof ApiPublicOxapayWebhookRoute
   '/api/public/product-image/$id': typeof ApiPublicProductImageIdRoute
+  '/api/public/suppliers/buy-monitor': typeof ApiPublicSuppliersBuyMonitorRoute
   '/api/public/suppliers/notify': typeof ApiPublicSuppliersNotifyRoute
   '/api/public/suppliers/sync': typeof ApiPublicSuppliersSyncRoute
   '/api/public/suppliers/webhook': typeof ApiPublicSuppliersWebhookRoute
@@ -710,6 +720,7 @@ export interface FileRouteTypes {
     | '/api/public/oxapay/return'
     | '/api/public/oxapay/webhook'
     | '/api/public/product-image/$id'
+    | '/api/public/suppliers/buy-monitor'
     | '/api/public/suppliers/notify'
     | '/api/public/suppliers/sync'
     | '/api/public/suppliers/webhook'
@@ -779,6 +790,7 @@ export interface FileRouteTypes {
     | '/api/public/oxapay/return'
     | '/api/public/oxapay/webhook'
     | '/api/public/product-image/$id'
+    | '/api/public/suppliers/buy-monitor'
     | '/api/public/suppliers/notify'
     | '/api/public/suppliers/sync'
     | '/api/public/suppliers/webhook'
@@ -850,6 +862,7 @@ export interface FileRouteTypes {
     | '/api/public/oxapay/return'
     | '/api/public/oxapay/webhook'
     | '/api/public/product-image/$id'
+    | '/api/public/suppliers/buy-monitor'
     | '/api/public/suppliers/notify'
     | '/api/public/suppliers/sync'
     | '/api/public/suppliers/webhook'
@@ -896,6 +909,7 @@ export interface RootRouteChildren {
   ApiPublicOxapayReturnRoute: typeof ApiPublicOxapayReturnRoute
   ApiPublicOxapayWebhookRoute: typeof ApiPublicOxapayWebhookRoute
   ApiPublicProductImageIdRoute: typeof ApiPublicProductImageIdRoute
+  ApiPublicSuppliersBuyMonitorRoute: typeof ApiPublicSuppliersBuyMonitorRoute
   ApiPublicSuppliersNotifyRoute: typeof ApiPublicSuppliersNotifyRoute
   ApiPublicSuppliersSyncRoute: typeof ApiPublicSuppliersSyncRoute
   ApiPublicSuppliersWebhookRoute: typeof ApiPublicSuppliersWebhookRoute
@@ -1309,6 +1323,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicProductImageIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/suppliers/buy-monitor': {
+      id: '/api/public/suppliers/buy-monitor'
+      path: '/api/public/suppliers/buy-monitor'
+      fullPath: '/api/public/suppliers/buy-monitor'
+      preLoaderRoute: typeof ApiPublicSuppliersBuyMonitorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/suppliers/notify': {
       id: '/api/public/suppliers/notify'
       path: '/api/public/suppliers/notify'
@@ -1527,6 +1548,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicOxapayReturnRoute: ApiPublicOxapayReturnRoute,
   ApiPublicOxapayWebhookRoute: ApiPublicOxapayWebhookRoute,
   ApiPublicProductImageIdRoute: ApiPublicProductImageIdRoute,
+  ApiPublicSuppliersBuyMonitorRoute: ApiPublicSuppliersBuyMonitorRoute,
   ApiPublicSuppliersNotifyRoute: ApiPublicSuppliersNotifyRoute,
   ApiPublicSuppliersSyncRoute: ApiPublicSuppliersSyncRoute,
   ApiPublicSuppliersWebhookRoute: ApiPublicSuppliersWebhookRoute,
