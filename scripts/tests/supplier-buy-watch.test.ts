@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { runBuyWatchWindow } from '../../src/lib/suppliers/buy-watch.server';
+import { runBuyWatchWindow, BUY_WATCH_TICK_WINDOW_MS } from '../../src/lib/suppliers/buy-watch.server';
 
 function clock() { let t = 0; return { now: () => t, sleep: async (ms: number) => { t += ms; } }; }
 
@@ -21,8 +21,6 @@ test('stops the window after a failed save so nothing is bought twice', async ()
   const r = await runBuyWatchWindow({}, { ...c, run: async () => { calls++; throw new Error('Purchase needs reconciliation'); } });
   expect(calls).toBe(1); expect(r.ticks).toBe(1);
 });
-
-import { BUY_WATCH_TICK_WINDOW_MS } from '../../src/lib/suppliers/buy-watch.server';
 
 test('15-second scheduler call checks stock at 0s, 5s and 10s', async () => {
   let t = 0; const marks: number[] = [];
