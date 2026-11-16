@@ -84,6 +84,12 @@ export default {
     }
   },
   scheduled(_controller: unknown, _env: unknown, ctx: ExecutionContext) {
+    // Supplier buy orders: stock check every 5 seconds; buy immediately when stock is enough.
+    ctx.waitUntil(
+      Promise.all([import("./lib/suppliers/buy-watch.server"), import("./integrations/supabase/client.server")])
+        .then(([{ runBuyWatchWindow }, { supabaseAdmin }]) => runBuyWatchWindow(supabaseAdmin))
+        .catch((error) => console.error("Supplier buy watch failed:", error)),
+    );
     ctx.waitUntil(
       import("./lib/suppliers/sync.server")
         .then(async ({ drainAllNotifications, maybeAutoSyncSuppliers }) => {

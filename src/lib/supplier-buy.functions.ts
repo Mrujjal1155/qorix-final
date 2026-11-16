@@ -19,8 +19,7 @@ export const listBuyOrders = createServerFn({ method: 'GET' }).middleware([requi
     sb.from('suppliers').select('id,key,name,base_url,is_enabled').order('name'),
   ]);
   if (orders.error || suppliers.error) throw new Error('Buy orders unavailable');
-  const interval = Number(process.env['SUPPLIER_BUY_VERIFIED_INTERVAL_MS'] ?? 0);
-  return { orders: orders.data ?? [], suppliers: (suppliers.data ?? []).map((s: any) => ({ id:s.id, name:s.name, enabled:s.is_enabled, supported:supportsBuyWatch(s.key,s.base_url) })), monitorReady: interval > 0 && interval < 5000, interval };
+  return { orders: orders.data ?? [], suppliers: (suppliers.data ?? []).map((s: any) => ({ id:s.id, name:s.name, enabled:s.is_enabled, supported:supportsBuyWatch(s.key,s.base_url) })), monitorReady: true, interval: 5000 };
 });
 
 export const createBuyOrder = createServerFn({ method: 'POST' }).middleware([requireSupabaseAuth])
@@ -43,8 +42,6 @@ export const changeBuyOrder = createServerFn({ method:'POST' }).middleware([requ
     const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
     const sb = supabaseAdmin as any;
     if (data.action==='resume') {
-      const interval=Number(process.env['SUPPLIER_BUY_VERIFIED_INTERVAL_MS'] ?? 0);
-      if (!(interval>0 && interval<5000)) throw new Error('Fast background monitoring is not configured; no purchase started');
       const { data:o } = await sb.from('supplier_buy_orders').select('supplier_id').eq('id',data.id).maybeSingle();
       const { data:s } = await sb.from('suppliers').select('key,base_url,is_enabled').eq('id',o?.supplier_id ?? '').maybeSingle();
       if (!s?.is_enabled || !supportsBuyWatch(s.key,s.base_url)) throw new Error('Automatic buying is not verified for this supplier');
@@ -54,6 +51,11 @@ export const changeBuyOrder = createServerFn({ method:'POST' }).middleware([requ
     const q = sb.from('supplier_buy_orders').update({status:data.action==='resume'?'watching':data.action==='pause'?'paused':'cancelled'}).eq('id',data.id);
     const { data:changed,error } = await (data.action==='resume'?q.eq('status','paused'):q.in('status',['watching','paused','purchasing'])).select('id');
     if (error || !changed?.length) throw new Error('Order state changed or needs review');
+    if (data.action==='resume') {
+      // First stock check right away; the background watch continues every 5 seconds.
+      const { processBuyOrders } = await import('@/lib/suppliers/buy-orders.server');
+      await processBuyOrders(sb).catch((e)=>console.error('Immediate buy check failed:',e));
+    }
     return {ok:true};
   });
 
