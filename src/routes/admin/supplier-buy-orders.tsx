@@ -16,7 +16,7 @@ import { changeBuyOrder, createBuyOrder, listBuyOrders, listBuyProducts, readBuy
 import { validBuyChoices } from '@/lib/supplier-buy-rules';
 import { colorIndexesFor, supplierBadgeStyle } from '@/lib/supplier-colors';
 
-const buyQuery = queryOptions({queryKey:['supplier-buy-orders'],queryFn:()=>listBuyOrders(),refetchInterval:15000});
+const buyQuery = queryOptions({queryKey:['supplier-buy-orders'],queryFn:()=>listBuyOrders(),refetchInterval:5000});
 export const Route = createFileRoute('/admin/supplier-buy-orders')({
   loader:({context})=>context.queryClient.ensureQueryData(buyQuery),
   head:()=>({meta:[{title:'Supplier Buy Orders — QORIX Admin'},{name:'description',content:'Private supplier stock watches, quantity-limited purchases and account downloads.'},{property:'og:title',content:'Supplier Buy Orders — QORIX Admin'},{property:'og:description',content:'Private supplier purchasing and delivery management.'},{property:'og:type',content:'website'},{name:'twitter:card',content:'summary'},{name:'robots',content:'noindex, nofollow'}]}),
