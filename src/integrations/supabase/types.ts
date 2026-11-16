@@ -1844,10 +1844,13 @@ export type Database = {
           external_id: string
           id: string
           last_checked_at: string | null
+          last_choices_checked: number[]
           last_stock: number | null
           message: string
           product_name: string
+          quantity_choices: number[] | null
           status: string
+          stock_checks: number
           supplier_id: string
           supplier_product_id: string
           target: number
@@ -1860,10 +1863,13 @@ export type Database = {
           external_id: string
           id?: string
           last_checked_at?: string | null
+          last_choices_checked?: number[]
           last_stock?: number | null
           message?: string
           product_name: string
+          quantity_choices?: number[] | null
           status?: string
+          stock_checks?: number
           supplier_id: string
           supplier_product_id: string
           target: number
@@ -1876,10 +1882,13 @@ export type Database = {
           external_id?: string
           id?: string
           last_checked_at?: string | null
+          last_choices_checked?: number[]
           last_stock?: number | null
           message?: string
           product_name?: string
+          quantity_choices?: number[] | null
           status?: string
+          stock_checks?: number
           supplier_id?: string
           supplier_product_id?: string
           target?: number
@@ -2684,6 +2693,10 @@ export type Database = {
       record_bybit_website_check: {
         Args: { _note: string; _order_id: string }
         Returns: undefined
+      }
+      record_supplier_buy_check: {
+        Args: { p_choices: number[]; p_order: string; p_stock: number }
+        Returns: boolean
       }
       redeem_code_claim: {
         Args: { _code: string; _telegram_id: number }
