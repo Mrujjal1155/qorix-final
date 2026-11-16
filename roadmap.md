@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Add approved disabled Insight Store supplier and server-only catalogue/cost/balance/idempotent delivery adapter; 15 adapter/regression tests pass and build OK, public provider health succeeds. No real orders, stock import or deployment.
+- [ ] Verify Insight Store authenticated catalogue/balance and full paid delivery: awaits owner's API key in Supplier APIs and explicit real-purchase/deployment permission; supplier remains disabled.
+
 - [x] App-owned five-second stock-only watch (no n8n): minutely Cloudflare trigger runs 11 checks on fixed 5s marks; Activate runs an immediate check; purchase sent in the same tick when stock covers a choice. 30 tests pass. Runs only after the live site is redeployed (needs permission).
 
 - [x] Add approved three-choice supplier purchases (50→40→35), single-success completion, attempt counts/history and complete supplier-scoped sold-out search. Additive admin-only migration applied; 39 rules/processor/isolated-SQL tests pass, latest build OK. DigitalCore has seven sold-out rows including Lovable Pro Lite. No real spending or deployment. Signed-in UI verification remains blocked by external unmanaged authentication; fast scheduler remains unavailable as noted below. Three pre-existing security findings unchanged (no-policy RLS info, signed-in definer warning, leaked-password protection disabled).

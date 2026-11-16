@@ -1,5 +1,6 @@
 // Server-only client for reseller supplier APIs (Qamify-compatible).
 // Never expose supplier names/branding to end users — this is internal only.
+import { isInsightStore, insightBalance, insightProducts, insightOrder } from "./insight.server";
 
 export type SupplierRow = {
   id: string;
@@ -696,6 +697,10 @@ async function callAny(
 }
 
 export async function supplierPing(s: SupplierRow) {
+  if (isInsightStore(s)) {
+    await insightBalance(s);
+    return { ok: true as const, status: "active" };
+  }
   if (isPrimeLabs(s)) {
     await call(s, `${primeBase(s)}/me`);
     return { ok: true as const, status: "active" };
@@ -761,6 +766,7 @@ export async function supplierDeleteWebhook(s: SupplierRow, endpointId: string) 
 
 
 export async function supplierBalance(s: SupplierRow) {
+  if (isInsightStore(s)) return insightBalance(s);
   if (isPrimeLabs(s)) {
     const j = await call(s, `${primeBase(s)}/me`);
     return { balance: Number(j?.user?.balance ?? j?.balance ?? 0) || 0, currency: "USD" };
@@ -791,6 +797,7 @@ export async function supplierBalance(s: SupplierRow) {
 }
 
 export async function supplierProducts(s: SupplierRow): Promise<SupplierProduct[]> {
+  if (isInsightStore(s)) return insightProducts(s);
   if (isPrimeLabs(s)) {
     const all: any[] = [];
     for (let offset = 0; offset < 5000; offset += 200) {
@@ -1078,6 +1085,7 @@ export async function supplierOrder(
   idempotencyKey: string,
   opts: { customerEmail?: string | null } = {},
 ): Promise<{ code: string | null; items: string[] }> {
+  if (isInsightStore(s)) return insightOrder(s, externalId, qty, idempotencyKey);
   const canboso = isCanboso(s);
   // Canboso requires an Idempotency-Key header of 8-128 chars.
   const idemKey = (idempotencyKey || "")
