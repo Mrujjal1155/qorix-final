@@ -1,7 +1,7 @@
 import { buyBatchQuantity, buyOutcome, supportsBuyWatch, chooseBuyQuantity } from '../supplier-buy-rules';
 import { buyApi, BuyRejected } from './buy-api.server';
 
-export async function processBuyOrders(db: any) {
+export async function processBuyOrders(db: any, request: typeof buyApi = buyApi) {
   const { data: orders, error } = await db.from('supplier_buy_orders').select('*').eq('status', 'watching').order('created_at').limit(50);
   if (error) throw new Error('Buy orders unavailable');
   let checks = 0, purchases = 0;
@@ -10,7 +10,7 @@ export async function processBuyOrders(db: any) {
     const { data: s } = await db.from('suppliers').select('*').eq('id', o.supplier_id).eq('is_enabled', true).maybeSingle();
     if (!s || !supportsBuyWatch(s.key, s.base_url)) continue;
     let product: any;
-    try { product = await buyApi(s, `product?id=${encodeURIComponent(o.external_id)}`); }
+    try { product = await request(s, `product?id=${encodeURIComponent(o.external_id)}`); }
     catch { await db.from('supplier_buy_orders').update({ message: 'Stock check unavailable; no purchase sent', last_checked_at: new Date().toISOString() }).eq('id', o.id).eq('status','watching'); continue; }
     checks++;
     const stock = Number(product.stock);
@@ -28,7 +28,7 @@ export async function processBuyOrders(db: any) {
     purchases++;
     let status: string = 'unknown', items: string[] = [], supplierOrder: string | null = null, message = 'Purchase outcome uncertain; do not retry';
     try {
-      const result = await buyApi(s, 'buy', { id: o.external_id, count: qty });
+      const result = await request(s, 'buy', { id: o.external_id, count: qty });
       supplierOrder = typeof result.order_id === 'string' ? result.order_id : null;
       if (Array.isArray(result.items) && result.items.every((x: unknown) => typeof x === 'string')) items = result.items;
       status = buyOutcome(items, qty);
