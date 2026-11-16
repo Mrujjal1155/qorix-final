@@ -3,6 +3,8 @@ import { processBuyOrders } from './buy-orders.server';
 export const BUY_WATCH_INTERVAL_MS = 5000;
 // Stop before the next minutely trigger so windows rarely overlap; claims stay atomic if they do.
 export const BUY_WATCH_WINDOW_MS = 55000;
+// The database scheduler calls the sync route every 15 seconds: checks at 0s, 5s and 10s of each call.
+export const BUY_WATCH_TICK_WINDOW_MS = 15000;
 
 type WatchDeps = {
   run?: (db: any) => Promise<{ checks: number; purchases: number }>;
