@@ -21,3 +21,17 @@ test('stops the window after a failed save so nothing is bought twice', async ()
   const r = await runBuyWatchWindow({}, { ...c, run: async () => { calls++; throw new Error('Purchase needs reconciliation'); } });
   expect(calls).toBe(1); expect(r.ticks).toBe(1);
 });
+
+import { BUY_WATCH_TICK_WINDOW_MS } from '../../src/lib/suppliers/buy-watch.server';
+
+test('15-second scheduler call checks stock at 0s, 5s and 10s', async () => {
+  let t = 0; const marks: number[] = [];
+  const r = await runBuyWatchWindow({}, {
+    windowMs: BUY_WATCH_TICK_WINDOW_MS,
+    now: () => t,
+    sleep: async (ms) => { t += ms; },
+    run: async () => { marks.push(t); return { checks: 1, purchases: 0 }; },
+  });
+  expect(marks).toEqual([0, 5000, 10000]);
+  expect(r.ticks).toBe(3);
+});
