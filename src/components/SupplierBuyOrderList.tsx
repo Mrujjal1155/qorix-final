@@ -59,7 +59,7 @@ function Status({ order }: { order: BuyOrderListItem }) {
   return <Badge variant="outline" className={`shrink-0 gap-1.5 rounded-sm px-2 py-1 ${style.badge}`}><Icon className="size-3 shrink-0"/>{style.label}</Badge>;
 }
 
-function OrderActions({ order, supplier, ...props }: Props & { order: BuyOrderListItem; supplier?: BuySupplier }) {
+function OrderActions({ order, supplier, ...props }: Props & { order: BuyOrderListItem; supplier: BuySupplier | undefined }) {
   return <div className="flex flex-wrap items-center gap-1.5">
     {order.status === 'paused' && <Button size="icon" className="size-9 shrink-0" disabled={props.busy || !props.monitorReady || !supplier?.supported || !supplier?.enabled} title="Activate buy order" aria-label="Activate buy order" onClick={() => props.onActivate(order)}><Play className="size-4"/></Button>}
     {order.status === 'watching' && <Button size="icon" variant="outline" className="size-9 shrink-0" disabled={props.busy} title="Pause buy order" aria-label="Pause buy order" onClick={() => props.onAction(order.id, 'pause')}><Pause className="size-4"/></Button>}
