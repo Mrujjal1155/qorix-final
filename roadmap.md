@@ -1,6 +1,6 @@
 # Roadmap
 
-- [ ] Restyle supplier buy orders with a desktop table and compact mobile cards; waiting blue, completed green, cancelled red. Preserve purchase actions and rules; check both layouts without spending or deployment.
+- [x] Restyle supplier buy orders with a desktop table and compact mobile cards; waiting blue, completed green, cancelled red. Presentation-only fixture checks at 1280/390/320 widths confirm table/card switching, no overflow, history/download callbacks and both admin themes; build OK. Authenticated live order page remains unverified because authentication is external unmanaged. No purchase rules, spending or deployment changed.
 
 - [x] Add approved disabled Insight Store supplier and server-only catalogue/cost/balance/idempotent delivery adapter; 15 adapter/regression tests pass and build OK, public provider health succeeds. No real orders, stock import or deployment.
 - [ ] Verify Insight Store authenticated catalogue/balance and full paid delivery: awaits owner's API key in Supplier APIs and explicit real-purchase/deployment permission; supplier remains disabled.
