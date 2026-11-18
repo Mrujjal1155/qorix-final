@@ -6,6 +6,8 @@ import { CalendarDays, ChevronDown, CircleCheck, Clock3, Copy, CreditCard, Packa
 import { getMyAccount } from "@/lib/account.functions";
 import { AccountShell, statusTone } from "@/components/AccountShell";
 import { priceTag } from "@/components/StoreShell";
+import { useMobileTemplate } from "@/components/mobile/BotFrame";
+import { BotOrders } from "@/components/mobile/BotAccount";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -118,6 +120,8 @@ function MyOrders() {
   const fetchAccount = useServerFn(getMyAccount);
   const { data, isLoading } = useQuery({ queryKey: ["my-account"], queryFn: () => fetchAccount() });
   const orders = data?.orders ?? [];
+  const mobile = useMobileTemplate();
+  if (mobile) return <BotOrders orders={orders as any[]} loading={isLoading} />;
 
   return (
     <AccountShell title="My orders" subtitle="Delivered products appear here as soon as an order is completed.">

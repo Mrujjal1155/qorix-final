@@ -6,6 +6,8 @@ import { ArrowRight, CheckCircle2, Clock, Package, Wallet } from "lucide-react";
 import { getMyAccount, linkMyOrders } from "@/lib/account.functions";
 import { AccountShell, statusTone } from "@/components/AccountShell";
 import { priceTag } from "@/components/StoreShell";
+import { useMobileTemplate } from "@/components/mobile/BotFrame";
+import { BotWallet } from "@/components/mobile/BotAccount";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const Route = createFileRoute("/_authenticated/account/")({
@@ -42,6 +44,8 @@ function AccountOverview() {
   ];
 
   const recent = (data?.orders ?? []).slice(0, 5);
+  const mobile = useMobileTemplate();
+  if (mobile) return <BotWallet email={data?.email ?? undefined} stats={data?.stats} orders={(data?.orders ?? []) as any[]} />;
 
   return (
     <AccountShell title="My account" subtitle={data?.email ? `Signed in as ${data.email}` : undefined}>
