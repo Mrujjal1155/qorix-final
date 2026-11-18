@@ -25,6 +25,8 @@ export function BotCheckout(p: {
   const [stage, setStage] = useState<Stage>("summary");
   const [customQty, setCustomQty] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  // Connected status may load after the buyer taps Pay now — never leave them on the email form.
+  useEffect(() => { if (p.connected && stage === "details") setStage("methods"); }, [p.connected, stage]);
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [stage]);
 
   const m = p.methods.find((x) => x.id === p.method);
