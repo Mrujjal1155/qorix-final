@@ -1,0 +1,1 @@
+CREATE POLICY "No direct client access" ON public.web_login_codes FOR ALL TO anon, authenticated USING (false) WITH CHECK (false);

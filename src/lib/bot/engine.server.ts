@@ -3770,6 +3770,17 @@ async function handleMessage(msg: any) {
     await setState(chatId, { msgs: (user.state as any)?.msgs ?? [] });
 
 
+    // Website "Connect Telegram" login: /start wlg_<code> confirms the browser's one-time login.
+    if (payload?.startsWith("wlg_")) {
+      const { data: res } = await db.rpc("confirm_web_login_code" as any, { _code: payload.slice(4).slice(0, 40), _telegram_id: chatId });
+      const msgs: Record<string, string> = {
+        ok: "✅ <b>Website login authorized</b>\n\nGo back to the website — you are now signed in with this same account, wallet and orders.",
+        expired: "⌛ This login link expired. Tap Connect Telegram on the website again.",
+        used: "ℹ️ This login link was already used.",
+      };
+      await say(chatId, msgs[String(res)] ?? "❌ This login link is not valid. Tap Connect Telegram on the website again.", [[{ text: "🏠 Home", callback_data: "home" }]]);
+      return;
+    }
     // Website Deposit page: /start wl_<code> connects the website account to this wallet.
     if (payload?.startsWith("wl_")) {
       const { data: res } = await db.rpc("consume_web_link_code" as any, { _code: payload.slice(3).slice(0, 40), _telegram_id: chatId });

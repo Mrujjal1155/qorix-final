@@ -5,6 +5,8 @@ import {
   Gift, Home, LayoutGrid, LifeBuoy, Mail, Megaphone, Minus, Package, Plus, RefreshCw, Send,
   ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, User, Users, Wallet, Zap, type LucideIcon,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { startTelegramLogin, claimTelegramLogin } from "@/lib/telegram-login.functions";
 import { mobileImageFor, stripEmoji } from "@/lib/mobile-template";
 import { BotFrame, BotLogo, bottomCls } from "@/components/mobile/BotFrame";
 
@@ -15,7 +17,7 @@ type Prod = {
   slug?: string | null; delivery_time?: string | null; instant?: boolean | null;
 };
 type View =
-  | { k: "start" } | { k: "menu" } | { k: "cats" }
+  | { k: "start" } | { k: "choose" } | { k: "tg" } | { k: "guest"; what: string } | { k: "menu" } | { k: "cats" }
   | { k: "prods"; cat: string | null; page: number }
   | { k: "prod"; id: string; from: View } | { k: "qty"; id: string; from: View };
 
@@ -29,6 +31,17 @@ export function BotStorefront(props: {
   const { categories, products, images } = props;
   const [view, setView] = useState<View>({ k: "start" });
   const scroller = useRef<HTMLDivElement>(null);
+  // Signed in = connected Telegram account; otherwise the visitor shops as a guest (no ID).
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setSignedIn(Boolean(data.session)));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, sess) => setSignedIn(Boolean(sess)));
+    return () => sub.subscription.unsubscribe();
+  }, []);
+  const begin = () => setView(signedIn || sessionStorage.getItem("qorix_guest") ? { k: "menu" } : { k: "choose" });
+  const acct = (to: string, what: string, icon: LucideIcon, label: string, tone: "blue" | "green" = "blue") =>
+    signedIn ? <KeyLink tone={tone} icon={icon} to={to}>{label}</KeyLink>
+      : <Key tone={tone} icon={icon} onClick={() => setView({ k: "guest", what })}>{label}</Key>;
   useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" }); }, [view]);
 
   const inStockCount = products.filter((p) => p.in_stock !== false).length;
@@ -49,6 +62,41 @@ export function BotStorefront(props: {
           </p>
         </Bubble>
       </div>
+    );
+  } else if (view.k === "choose") {
+    body = (
+      <>
+        <Bubble>
+          <p className="flex items-center gap-2 text-base font-bold"><Sparkles className="h-5 w-5 text-tg-quote-bar" /> How do you want to continue?</p>
+          <Quote>
+            <MenuLine icon={User} t="Guest" d="Shop and order instantly — no account needed" />
+            <MenuLine icon={Send} t="Connect Telegram" d="Use your bot account: same ID, wallet balance, orders, deposits and referral link" />
+          </Quote>
+        </Bubble>
+        <Keys cols={1}>
+          <Key icon={User} onClick={() => { sessionStorage.setItem("qorix_guest", "1"); setView({ k: "menu" }); }}>Continue as Guest</Key>
+          <Key tone="green" icon={Send} onClick={() => setView({ k: "tg" })}>Connect Telegram</Key>
+        </Keys>
+      </>
+    );
+  } else if (view.k === "tg") {
+    body = <TelegramConnect onDone={() => setView({ k: "menu" })} onBack={() => setView({ k: "choose" })} />;
+  } else if (view.k === "guest") {
+    body = (
+      <>
+        <Bubble>
+          <p className="flex items-center gap-2 font-bold"><Send className="h-4 w-4 text-tg-link" /> Connect Telegram</p>
+          <Quote>{view.what === "referral"
+            ? "Want to earn by referring friends? Connect your Telegram account to see your referral link and rewards."
+            : "Your wallet, deposits and profile live in your Telegram bot account. Connect Telegram to use them here."}</Quote>
+          <p className="mt-2 text-sm italic">As a guest you can still buy any product and track orders by email.</p>
+        </Bubble>
+        <Keys cols={1}>
+          <Key tone="green" icon={Send} onClick={() => setView({ k: "tg" })}>Connect Telegram</Key>
+          <KeyLink icon={Package} to="/track">Track my order</KeyLink>
+          <Key tone="red" icon={ChevronLeft} onClick={() => setView({ k: "menu" })}>Main Menu</Key>
+        </Keys>
+      </>
     );
   } else if (view.k === "menu") {
     body = (
@@ -77,17 +125,22 @@ export function BotStorefront(props: {
         <Keys cols={3}>
           <Key icon={Store} onClick={() => setView({ k: "cats" })}>SHOP</Key>
           <Key icon={ShoppingCart} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>Cart</Key>
-          <KeyLink icon={Package} to="/account/orders">Orders</KeyLink>
-          <KeyLink icon={Wallet} to="/account">Wallet</KeyLink>
-          <KeyLink icon={Gift} to="/account/referrals">Freebies</KeyLink>
-          <KeyLink icon={User} to="/account/profile">Profile</KeyLink>
+          {signedIn ? <KeyLink icon={Package} to="/account/orders">Orders</KeyLink> : <KeyLink icon={Package} to="/track">Orders</KeyLink>}
+          {acct("/account", "wallet", Wallet, "Wallet")}
+          {acct("/account/referrals", "referral", Gift, "Freebies")}
+          {acct("/account/profile", "profile", User, "Profile")}
         </Keys>
-        <Keys cols={1}><KeyLink tone="green" icon={Gift} to="/account/referrals">Referral Store</KeyLink></Keys>
+        <Keys cols={1}>{acct("/account/referrals", "referral", Gift, "Referral Store", "green")}</Keys>
         <Keys cols={2}>
           <KeyLink tone="green" icon={LifeBuoy} to="/contact">Support</KeyLink>
           <KeyLink tone="green" icon={Mail} to="/track">Emails & Trials</KeyLink>
           <KeyLink tone="green" icon={Code2} to="/reseller/docs">Reseller API</KeyLink>
           <Key tone="green" icon={Trash2} onClick={() => setView({ k: "start" })}>Clear Chat</Key>
+        </Keys>
+        <Keys cols={1}>
+          {signedIn
+            ? <Key tone="red" icon={CircleX} onClick={async () => { await supabase.auth.signOut(); sessionStorage.removeItem("qorix_guest"); setView({ k: "start" }); }}>Disconnect Telegram</Key>
+            : <Key tone="green" icon={Send} onClick={() => setView({ k: "tg" })}>Connect Telegram</Key>}
         </Keys>
       </>
     );
@@ -197,19 +250,67 @@ export function BotStorefront(props: {
       onBack={() => setView(view.k === "start" ? { k: "start" } : view.k === "menu" ? { k: "start" } : { k: "menu" })}
       onMenu={() => setView({ k: "menu" })}
       footer={view.k === "start" ? (
-        <button type="button" onClick={() => setView({ k: "menu" })}
+        <button type="button" onClick={begin}
           className="w-full rounded-2xl bg-tg-header py-3.5 text-base font-bold uppercase tracking-wide text-tg-link shadow-sm backdrop-blur">
           Start
         </button>
       ) : (
         <div className="grid grid-cols-3 gap-2">
           <button type="button" onClick={() => setView({ k: "cats" })} className={bottomCls}><LayoutGrid className="h-4 w-4 shrink-0" /><span className="truncate">Products</span></button>
-          <Link to="/account" className={bottomCls}><Wallet className="h-4 w-4 shrink-0" /><span className="truncate">Deposit</span></Link>
-          <Link to="/account/orders" className={bottomCls}><Package className="h-4 w-4 shrink-0" /><span className="truncate">My Orders</span></Link>
+          {signedIn ? <Link to="/account" className={bottomCls}><Wallet className="h-4 w-4 shrink-0" /><span className="truncate">Deposit</span></Link>
+            : <button type="button" onClick={() => setView({ k: "guest", what: "wallet" })} className={bottomCls}><Wallet className="h-4 w-4 shrink-0" /><span className="truncate">Deposit</span></button>}
+          <Link to={signedIn ? "/account/orders" : "/track"} className={bottomCls}><Package className="h-4 w-4 shrink-0" /><span className="truncate">My Orders</span></Link>
         </div>
       )}>
       {body}
     </BotFrame>
+  );
+}
+
+function TelegramConnect({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
+  const [s, setS] = useState<{ code: string; secret: string; botUser: string } | null>(null);
+  const [msg, setMsg] = useState("Preparing your secure login link…");
+  const start = () => {
+    setS(null); setMsg("Preparing your secure login link…");
+    startTelegramLogin().then((r) => { setS(r); setMsg("Tap Open Telegram, then press START in the bot to authorize."); })
+      .catch(() => setMsg("Could not start Telegram login. Please try again."));
+  };
+  useEffect(start, []);
+  useEffect(() => {
+    if (!s) return;
+    let stop = false;
+    const t = setInterval(async () => {
+      try {
+        const r = await claimTelegramLogin({ data: { code: s.code, secret: s.secret } });
+        if (stop) return;
+        if (r.status === "ok") {
+          clearInterval(t);
+          setMsg("Authorized — signing you in…");
+          const { error } = await supabase.auth.verifyOtp({ token_hash: r.token_hash, type: "magiclink" });
+          if (error) setMsg("Sign-in failed. Please try again."); else onDone();
+        } else if (r.status !== "waiting") {
+          clearInterval(t);
+          setMsg(r.status === "expired" ? "This login link expired. Tap Try again." : r.status === "unavailable" ? "This Telegram account is not available." : "Login could not be completed. Tap Try again.");
+        }
+      } catch { /* keep polling */ }
+    }, 3000);
+    return () => { stop = true; clearInterval(t); };
+  }, [s]);
+  const href = s ? `https://t.me/${s.botUser}?start=wlg_${s.code}` : undefined;
+  return (
+    <>
+      <Bubble>
+        <p className="flex items-center gap-2 font-bold"><Send className="h-4 w-4 text-tg-link" /> Connect Telegram</p>
+        <Quote>After you authorize in the bot, this website shows your same bot account — ID, wallet balance, orders, deposits and referral link.</Quote>
+        <p className="mt-2 text-sm italic">{msg}</p>
+        <p className="mt-1 text-xs text-tg-muted">The link works once and expires in 10 minutes.</p>
+      </Bubble>
+      <Keys cols={1}>
+        {href && <a href={href} target="_blank" rel="noreferrer" className={keyCls("green")}><KeyInner icon={Send}>Open Telegram</KeyInner></a>}
+        <Key icon={RefreshCw} onClick={start}>Try again</Key>
+        <Key tone="red" icon={ArrowLeft} onClick={onBack}>Back</Key>
+      </Keys>
+    </>
   );
 }
 

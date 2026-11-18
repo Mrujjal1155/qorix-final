@@ -2417,6 +2417,36 @@ export type Database = {
         }
         Relationships: []
       }
+      web_login_codes: {
+        Row: {
+          claimed_at: string | null
+          code: string
+          confirmed_at: string | null
+          created_at: string
+          expires_at: string
+          secret_hash: string
+          telegram_id: number | null
+        }
+        Insert: {
+          claimed_at?: string | null
+          code: string
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          secret_hash: string
+          telegram_id?: number | null
+        }
+        Update: {
+          claimed_at?: string | null
+          code?: string
+          confirmed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          secret_hash?: string
+          telegram_id?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       public_products: {
@@ -2577,7 +2607,15 @@ export type Database = {
         Args: { p_order: string; p_qty: number }
         Returns: string
       }
+      claim_web_login_code: {
+        Args: { _code: string; _secret_hash: string }
+        Returns: number
+      }
       cleanup_old_logs: { Args: never; Returns: Json }
+      confirm_web_login_code: {
+        Args: { _code: string; _telegram_id: number }
+        Returns: string
+      }
       consume_web_link_code: {
         Args: { _code: string; _telegram_id: number }
         Returns: string

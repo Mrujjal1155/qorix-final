@@ -14,7 +14,18 @@ export const getMyAccount = createServerFn({ method: "GET" })
     ]);
     if (ordersError) throw new Error("Unable to load your orders. Please try again.");
 
-    const rows = orders ?? [];
+    // Telegram-connected customers also see their bot orders (same account as the bot).
+    const { data: link } = await supabaseAdmin.from("profiles").select("telegram_id").eq("id", context.userId).maybeSingle();
+    const tid = Number((link as any)?.telegram_id ?? 0);
+    let rows: any[] = orders ?? [];
+    if (tid > 0) {
+      const { data: botRows } = await supabaseAdmin.from("orders")
+        .select("order_no,product_name,quantity,unit_price,total,status,delivery_type,delivered_content,payment_method,txid,created_at")
+        .eq("telegram_id", tid).order("created_at", { ascending: false }).limit(200);
+      const seen = new Set(rows.map((o: any) => String(o.order_no)));
+      rows = [...rows, ...((botRows ?? []) as any[]).filter((o) => !seen.has(String(o.order_no)))]
+        .sort((x, y) => String(y.created_at).localeCompare(String(x.created_at)));
+    }
     const completed = rows.filter((o: any) => o.status === "completed");
     return {
       email,
