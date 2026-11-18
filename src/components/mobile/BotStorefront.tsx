@@ -7,6 +7,11 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { startTelegramLogin, claimTelegramLogin } from "@/lib/telegram-login.functions";
+import { useNavigate } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { BotReferralView, BotSupportView } from "@/components/mobile/BotSupport";
+import { getWebSupport } from "@/lib/web-wallet.functions";
 import { mobileImageFor, stripEmoji } from "@/lib/mobile-template";
 import { BotFrame, BotLogo, bottomCls } from "@/components/mobile/BotFrame";
 
@@ -17,7 +22,7 @@ type Prod = {
   slug?: string | null; delivery_time?: string | null; instant?: boolean | null;
 };
 type View =
-  | { k: "start" } | { k: "choose" } | { k: "tg" } | { k: "guest"; what: string } | { k: "menu" } | { k: "cats" }
+  | { k: "start" } | { k: "choose" } | { k: "tg" } | { k: "guest"; what: string } | { k: "support" } | { k: "refer" } | { k: "free" } | { k: "menu" } | { k: "cats" }
   | { k: "prods"; cat: string | null; page: number }
   | { k: "prod"; id: string; from: View } | { k: "qty"; id: string; from: View };
 
@@ -31,14 +36,22 @@ export function BotStorefront(props: {
   const { categories, products, images } = props;
   const [view, setView] = useState<View>({ k: "start" });
   const scroller = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const fetchSupport = useServerFn(getWebSupport);
+  const { data: supportInfo } = useQuery({ queryKey: ["web-support"], queryFn: () => fetchSupport(), staleTime: 60_000 });
+  const go = (v: "menu" | "support" | "tg" | "profile") =>
+    v === "profile" ? (signedIn ? void navigate({ to: "/account/profile" }) : setView({ k: "menu" })) : setView({ k: v });
   // Signed in = connected Telegram account; otherwise the visitor shops as a guest (no ID).
   const [signedIn, setSignedIn] = useState(false);
   useEffect(() => {
     // Once Guest or Telegram was chosen, open straight on the menu (no Start again), like the bot.
     // Products button on other pages lands here and opens the full product list, like the bot.
-    if (localStorage.getItem("qorix_open") === "products") {
+    const open = localStorage.getItem("qorix_open");
+    if (open) {
       localStorage.removeItem("qorix_open");
-      setView({ k: "prods", cat: null, page: 0 });
+      if (open === "products") setView({ k: "prods", cat: null, page: 0 });
+      else if (open === "refer") setView({ k: "refer" });
+      else if (open === "support") setView({ k: "support" });
     }
     if (localStorage.getItem("qorix_guest")) setView((v) => (v.k === "start" ? { k: "menu" } : v));
     supabase.auth.getSession().then(({ data }) => {
@@ -108,6 +121,28 @@ export function BotStorefront(props: {
         </Keys>
       </>
     );
+  } else if (view.k === "support") {
+    body = <BotSupportView signedIn={signedIn} go={go} />;
+  } else if (view.k === "refer") {
+    body = <BotReferralView signedIn={signedIn} go={go} />;
+  } else if (view.k === "free") {
+    const free = products.filter((p) => Number(p.price) <= 0 && p.in_stock !== false);
+    body = (
+      <>
+        <Bubble>
+          <p className="flex items-center gap-2 font-bold tracking-[0.3em]"><Gift className="h-5 w-5 text-tg-quote-bar" /> FREEBIES</p>
+          <div className="my-1.5 h-px w-40 bg-tg-bubble-fg/40" />
+          {free.length ? <p className="text-sm">Every product below can be claimed <b>FREE</b> once per its free window.</p>
+            : <><p className="text-sm">No freebies right now. Check back later!</p><p className="mt-2 text-sm italic">No offer found — no free offers are running right now.</p></>}
+        </Bubble>
+        {free.length > 0 && <Keys cols={1}>{free.map((p) => <Key key={p.id} img={imgOf(p)} icon={Gift} onClick={() => setView({ k: "prod", id: p.id, from: view })}>{stripEmoji(p.name)} | FREE</Key>)}</Keys>}
+        <Keys cols={1}><Key tone="green" icon={RefreshCw} onClick={() => setView({ k: "free" })}>Refresh</Key></Keys>
+        <Keys cols={2}>
+          <Key tone="green" icon={ShoppingCart} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>Open Shop</Key>
+          <Key tone="red" icon={ArrowLeft} onClick={() => setView({ k: "menu" })}>Back</Key>
+        </Keys>
+      </>
+    );
   } else if (view.k === "menu") {
     body = (
       <>
@@ -137,13 +172,13 @@ export function BotStorefront(props: {
           <Key icon={ShoppingCart} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>Cart</Key>
           {signedIn ? <KeyLink icon={Package} to="/account/orders">Orders</KeyLink> : <KeyLink icon={Package} to="/track">Orders</KeyLink>}
           {acct("/account", "wallet", Wallet, "Wallet")}
-          {acct("/account/referrals", "referral", Gift, "Freebies")}
+          <Key icon={Gift} onClick={() => setView({ k: "free" })}>Freebies</Key>
           {acct("/account/profile", "profile", User, "Profile")}
         </Keys>
-        <Keys cols={1}>{acct("/account/referrals", "referral", Gift, "Referral Store", "green")}</Keys>
+        <Keys cols={1}><Key tone="green" icon={Gift} onClick={() => setView({ k: "refer" })}>Referral Store</Key></Keys>
         <Keys cols={2}>
-          <KeyLink tone="green" icon={LifeBuoy} to="/contact">Support</KeyLink>
-          <KeyLink tone="green" icon={Mail} to="/track">Emails & Trials</KeyLink>
+          <Key tone="green" icon={LifeBuoy} onClick={() => setView({ k: "support" })}>Support</Key>
+          <a href={supportInfo?.emails ?? "https://mailreader.click/"} target="_blank" rel="noreferrer" className={keyCls("green")}><KeyInner icon={Mail}>Emails & Trials</KeyInner></a>
           <KeyLink tone="green" icon={Code2} to="/reseller/docs">Reseller API</KeyLink>
           <Key tone="green" icon={Trash2} onClick={() => { setView({ k: "cats" }); setTimeout(() => setView({ k: "menu" }), 0); }}>Clear Chat</Key>
         </Keys>

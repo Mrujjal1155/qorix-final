@@ -8961,3 +8961,77 @@ export async function webSubmitDepositTxid(chatId: number, depId: string, txid: 
   const { data: row } = await db.from("binance_deposits").select("status").eq("id", depId).eq("telegram_id", chatId).maybeSingle();
   return { message: stripTags(r.message), credited: row?.status === "credited" };
 }
+
+/* ---------- Website Mobile View: Support / Referral Store / Freebies for the connected bot user ---------- */
+const plainText = (h: string) => h.replace(/<tg-emoji[^>]*>.*?<\/tg-emoji>/g, "").replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, "")
+  .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').trim();
+
+export async function webSupportInfo() {
+  const s = await getSettings();
+  const link = (s["support_link"] || "").trim() || DEFAULT_SUPPORT_LINK;
+  return {
+    body: plainText((s["support_text"] || "").trim() || "Contact our support team."),
+    rules: (s["support_rules"] || "").trim() ? plainText(s["support_rules"]!).split("\n").map((l) => l.replace(/^•\s*/, "")).filter(Boolean) : null,
+    link, handle: supportHandle(link),
+    emails: (s["emails_trials_link"] || "").trim() || DEFAULT_EMAILS_LINK,
+  };
+}
+
+export async function webTickets(tid: number) {
+  const { data } = await db.from("support_tickets").select("id,ticket_no,subject,status,updated_at,unread_user").eq("telegram_id", tid).order("updated_at", { ascending: false }).limit(20);
+  return ((data ?? []) as any[]).map((t) => ({ id: String(t.id), code: ticketCode(t.ticket_no), subject: String(t.subject), status: String(t.status), updated_at: String(t.updated_at), unread: Number(t.unread_user ?? 0) }));
+}
+
+export async function webTicketMessages(tid: number, ticketId: string) {
+  const { data: t } = await db.from("support_tickets").select("id,ticket_no,subject,status").eq("id", ticketId).eq("telegram_id", tid).maybeSingle();
+  if (!t) return null;
+  const { data: m } = await db.from("support_messages").select("sender,body,created_at").eq("ticket_id", ticketId).order("created_at", { ascending: true }).limit(100);
+  await db.from("support_tickets").update({ unread_user: 0 }).eq("id", ticketId);
+  return { code: ticketCode((t as any).ticket_no), subject: String((t as any).subject), status: String((t as any).status), messages: ((m ?? []) as any[]).map((x) => ({ sender: String(x.sender), body: String(x.body), at: String(x.created_at) })) };
+}
+
+export async function webCreateTicket(tid: number, body: string) {
+  const user = await getUser(tid);
+  if (!user || (user as any).is_banned) return null;
+  const t = await createTicket(user, body);
+  return t ? { id: String((t as any).id), code: ticketCode((t as any).ticket_no) } : null;
+}
+
+export async function webReplyTicket(tid: number, ticketId: string, body: string) {
+  const user = await getUser(tid);
+  const { data: t } = await db.from("support_tickets").select("id,status").eq("id", ticketId).eq("telegram_id", tid).maybeSingle();
+  if (!user || !t || (t as any).status === "closed") return false;
+  await postTicketReply(ticketId, "user", body, (user as any).username || (user as any).first_name || String(tid));
+  return true;
+}
+
+export async function webReferralStore(tid: number) {
+  const user = await getUser(tid);
+  if (!user) return null;
+  const s = await getSettings();
+  await flushReferralCredits(user);
+  const [credits, purchases, rewards] = await Promise.all([refCredits(tid), refPurchases(tid), refRewards()]);
+  const { count: queued } = await db.from("referral_credit_events").select("id", { count: "exact", head: true }).eq("inviter_telegram_id", tid).eq("status", "pending");
+  const { data: requests } = await db.from("referral_reward_requests").select("product_name,credits,status,created_at").eq("telegram_id", tid).order("created_at", { ascending: false }).limit(10);
+  return {
+    per: Math.max(1, Number(s["referral_credit_per_invite"] || 1)),
+    cap: Math.max(1, Number(s["referral_daily_cap"] || 10)),
+    link: refLink(s, user), code: String((user as any).ref_code ?? ""), share: shareUrl(s, user),
+    referrals: Number((user as any).referral_count ?? 0), credits, queued: Number(queued ?? 0),
+    rewards: rewards.map((r) => ({ id: r.id, name: plainText(r.name), credits: r.credits })),
+    purchases: purchases.slice(0, 10).map((p) => ({ name: plainText(p.name), credits: p.credits, at: p.created_at })),
+    requests: ((requests ?? []) as any[]).map((r) => ({ name: String(r.product_name), credits: Number(r.credits), status: String(r.status) })),
+  };
+}
+
+export async function webClaimReward(tid: number, rewardId: string) {
+  const user = await getUser(tid);
+  if (!user || (user as any).is_banned) return { ok: false, message: "This account is not available." };
+  const r = await claimRefReward(user, rewardId);
+  return { ok: r.text.startsWith("✅"), message: plainText(r.text) };
+}
+
+export async function webFreebiesText() {
+  const s = await getSettings();
+  return plainText((s["freebies_text"] || "").trim() || "No freebies right now. Check back later!");
+}

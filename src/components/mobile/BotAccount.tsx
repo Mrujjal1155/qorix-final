@@ -329,7 +329,7 @@ export function BotProfile() {
         </Bubble>
         <Keys cols={2}>
           <KeyLink tone="green" icon={Package} to="/account/orders">Orders</KeyLink>
-          <KeyLink tone="green" icon={Gift} to="/account/referrals">Refer & Earn</KeyLink>
+          <KeyLink tone="green" icon={Gift} to="/" onClick={() => localStorage.setItem("qorix_open", "refer")}>Refer & Earn</KeyLink>
         </Keys>
         {data?.linked && data.referral_link && (
           <Keys cols={1}>

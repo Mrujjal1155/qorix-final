@@ -117,3 +117,74 @@ export const getWebProfile = createServerFn({ method: "GET" })
       referral_link: r.ref_code && bot ? `https://t.me/${bot}?start=ref_${r.ref_code}` : null,
     };
   });
+
+/* Support / Referral Store pages (Mobile View) — same data and actions as the bot. */
+export const getWebSupport = createServerFn({ method: "GET" }).handler(async () => {
+  const { webSupportInfo } = await import("@/lib/bot/engine.server");
+  return await webSupportInfo();
+});
+
+export const getWebTickets = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { tid } = await linkedTelegram(context.userId);
+    if (!tid) return { linked: false as const, tickets: [] };
+    const { webTickets } = await import("@/lib/bot/engine.server");
+    return { linked: true as const, tickets: await webTickets(tid) };
+  });
+
+export const getWebTicket = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => ({ id: String(d?.id ?? "").slice(0, 64) }))
+  .handler(async ({ data, context }) => {
+    const { tid } = await linkedTelegram(context.userId);
+    if (!tid) return null;
+    const { webTicketMessages } = await import("@/lib/bot/engine.server");
+    return await webTicketMessages(tid, data.id);
+  });
+
+const cleanBody = (v: unknown) => {
+  const b = String(v ?? "").trim().slice(0, 2000);
+  if (b.length < 3) throw new Error("Please write a little more about your issue.");
+  return b;
+};
+
+export const createWebTicket = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { body: string }) => ({ body: cleanBody(d?.body) }))
+  .handler(async ({ data, context }) => {
+    const { tid } = await linkedTelegram(context.userId);
+    if (!tid) return { error: "Connect your Telegram account first." };
+    const { webCreateTicket } = await import("@/lib/bot/engine.server");
+    const t = await webCreateTicket(tid, data.body);
+    return t ? { ticket: t } : { error: "Could not create the ticket. Please try again." };
+  });
+
+export const replyWebTicket = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; body: string }) => ({ id: String(d?.id ?? "").slice(0, 64), body: cleanBody(d?.body) }))
+  .handler(async ({ data, context }) => {
+    const { tid } = await linkedTelegram(context.userId);
+    if (!tid) return { ok: false };
+    const { webReplyTicket } = await import("@/lib/bot/engine.server");
+    return { ok: await webReplyTicket(tid, data.id, data.body) };
+  });
+
+export const getWebReferralStore = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { tid } = await linkedTelegram(context.userId);
+    if (!tid) return null;
+    const { webReferralStore } = await import("@/lib/bot/engine.server");
+    return await webReferralStore(tid);
+  });
+
+export const claimWebReward = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => ({ id: String(d?.id ?? "").slice(0, 64) }))
+  .handler(async ({ data, context }) => {
+    const { tid } = await linkedTelegram(context.userId);
+    if (!tid) return { ok: false, message: "Connect your Telegram account first." };
+    const { webClaimReward } = await import("@/lib/bot/engine.server");
+    return await webClaimReward(tid, data.id);
+  });
