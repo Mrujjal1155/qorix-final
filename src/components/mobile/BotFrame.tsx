@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import type { ReactNode } from "react";
-import { ArrowLeft, EllipsisVertical, LayoutGrid, Package, ShieldCheck, ShoppingBag, Wallet } from "lucide-react";
+import { useEffect, useState, type ReactNode } from "react";
+import { ArrowLeft, EllipsisVertical, Home, Moon, Sun, LayoutGrid, Package, ShieldCheck, ShoppingBag, Wallet } from "lucide-react";
 import { getPublicStats } from "@/lib/shop.functions";
 import { useSiteContent } from "@/lib/use-site-content";
 import { activeTemplate, MOBILE_LOGO_KEY, MOBILE_NAME_KEY, TEMPLATE_KEY } from "@/lib/mobile-template";
@@ -36,6 +36,43 @@ export const bottomCls = "flex min-h-12 items-center justify-center gap-1.5 roun
 /** White rounded pill bar that holds the 3 bottom buttons, like Telegram's pinned menu. */
 export const bottomBarCls = "grid grid-cols-3 gap-1.5 rounded-full bg-tg-header p-1.5 shadow-md backdrop-blur";
 
+/** Dark mode flag for Mobile View; stored in the browser, applied to <html> after hydration. */
+export function useTgDark() {
+  const [dark, setDark] = useState(false);
+  useEffect(() => { setDark(localStorage.getItem("qorix_tg_dark") === "1"); }, []);
+  useEffect(() => {
+    document.documentElement.classList.toggle("tg-dark", dark);
+    return () => document.documentElement.classList.remove("tg-dark");
+  }, [dark]);
+  const toggle = () => setDark((d) => { localStorage.setItem("qorix_tg_dark", d ? "0" : "1"); return !d; });
+  return { dark, toggle };
+}
+
+function HeaderMenu({ onMenu }: { onMenu?: () => void }) {
+  const [open, setOpen] = useState(false);
+  const { dark, toggle } = useTgDark();
+  const item = "flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium hover:bg-tg-bubble-fg/5";
+  return (
+    <div className="relative">
+      <button type="button" aria-label="Menu" aria-expanded={open} onClick={() => setOpen((o) => !o)} className={roundBtn}><EllipsisVertical className="h-5 w-5" /></button>
+      {open && <>
+        <button type="button" aria-label="Close menu" className="fixed inset-0 z-20 cursor-default" onClick={() => setOpen(false)} />
+        <div className="absolute right-0 top-12 z-30 w-52 overflow-hidden rounded-xl bg-tg-bubble py-1 text-tg-bubble-fg shadow-xl">
+          <button type="button" className={item} onClick={() => { toggle(); setOpen(false); }}>
+            {dark ? <Sun className="h-5 w-5 text-tg-muted" /> : <Moon className="h-5 w-5 text-tg-muted" />}
+            {dark ? "Light mode" : "Dark mode"}
+          </button>
+          {onMenu ? (
+            <button type="button" className={item} onClick={() => { setOpen(false); onMenu(); }}><Home className="h-5 w-5 text-tg-muted" />Main menu</button>
+          ) : (
+            <Link to="/" className={item} onClick={() => setOpen(false)}><Home className="h-5 w-5 text-tg-muted" />Main menu</Link>
+          )}
+        </div>
+      </>}
+    </div>
+  );
+}
+
 /** Telegram chat window: header (logo, name, total users), wallpaper, scroll area, bottom keyboard. */
 export function BotFrame({ children, footer, onBack, onMenu, scrollRef, bare }: {
   children: ReactNode; footer?: ReactNode; onBack?: () => void; onMenu?: () => void; bare?: boolean;
@@ -58,11 +95,7 @@ export function BotFrame({ children, footer, onBack, onMenu, scrollRef, bare }: 
               <p className="truncate text-xs text-tg-muted">{h.users == null ? "bot" : `${h.users.toLocaleString("en-US")} total users`}</p>
             </div>
           </div>
-          {bare ? <span className="h-11 w-11" /> : onMenu ? (
-            <button type="button" aria-label="Menu" onClick={onMenu} className={roundBtn}><EllipsisVertical className="h-5 w-5" /></button>
-          ) : (
-            <Link to="/" aria-label="Menu" className={roundBtn}><EllipsisVertical className="h-5 w-5" /></Link>
-          )}
+          {bare ? <span className="h-11 w-11" /> : <HeaderMenu onMenu={onMenu} />}
         </header>
         <div ref={scrollRef} className="tg-scroll flex flex-1 flex-col gap-1.5 overflow-y-auto px-2 py-3">{children}</div>
         {!bare && <footer className="space-y-2 px-1.5 pb-1.5">

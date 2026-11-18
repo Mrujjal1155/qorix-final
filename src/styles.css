@@ -785,3 +785,32 @@
 
 .tg-scroll { scrollbar-width: none; }
 .tg-scroll::-webkit-scrollbar { display: none; }
+
+/* Mobile View dark mode — Telegram night palette, toggled from the header ⋮ menu. */
+.tg-dark {
+  --tg-chat: oklch(0.24 0.03 250);
+  --tg-chat-2: oklch(0.18 0.03 260);
+  --tg-header: oklch(0.26 0.025 250 / 0.9);
+  --tg-bubble: oklch(0.29 0.025 250);
+  --tg-bubble-fg: oklch(0.96 0.005 250);
+  --tg-quote: oklch(0.34 0.04 290);
+  --tg-quote-bar: oklch(0.72 0.15 300);
+  --tg-link: oklch(0.75 0.12 240);
+  --tg-btn: oklch(0.55 0.11 240);
+  --tg-muted: oklch(0.7 0.02 250);
+}
+.tg-dark .tg-wallpaper {
+  background:
+    url("/tg-doodles-dark.svg") 0 0 / 190px 190px repeat,
+    url("/tg-doodles-dark.svg") 95px 95px / 150px 150px repeat,
+    linear-gradient(160deg, var(--tg-chat), var(--tg-chat-2));
+}
+.tg-dark .tg-page {
+  --card: oklch(0.33 0.025 250);
+  --muted: oklch(0.34 0.02 250);
+  --secondary: oklch(0.34 0.02 250);
+  --accent: oklch(0.36 0.03 245);
+  --border: oklch(0.4 0.02 250);
+  --input: oklch(0.4 0.02 250);
+  --hairline: oklch(0.4 0.02 250);
+}
