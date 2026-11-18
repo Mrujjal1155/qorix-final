@@ -279,3 +279,20 @@ export const deleteResellerApplication = createServerFn({ method: "POST" })
     await (context as any).supabase.from("reseller_applications").delete().eq("id", data.id);
     return { ok: true };
   });
+
+/** Signed-in: the caller's own latest reseller application (matched by their verified login email). */
+export const getMyResellerApplication = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const email = String((context as any).claims?.email ?? "").trim().toLowerCase();
+    if (!email) return { email: "", application: null as null | { status: string; created_at: string; admin_note: string | null } };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await (supabaseAdmin as any)
+      .from("reseller_applications")
+      .select("status, created_at, admin_note")
+      .eq("email", email)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    return { email, application: (data ?? null) as null | { status: string; created_at: string; admin_note: string | null } };
+  });

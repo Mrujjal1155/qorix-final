@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { productionUrlFor } from "@/lib/site-url";
 import { sendPasswordResetEmail } from "@/lib/password-reset.functions";
 import { signUpWithBrandedEmail } from "@/lib/auth-signup.functions";
+import { BotFrame, useMobileTemplate } from "@/components/mobile/BotFrame";
 
 export const Route = createFileRoute("/reseller/start")({
   head: () => ({
@@ -34,6 +35,7 @@ export const Route = createFileRoute("/reseller/start")({
 
 function ResellerStartPage() {
   const navigate = useNavigate();
+  const mobile = useMobileTemplate();
   const [mode, setMode] = useState<"up" | "in" | "forgot">("up");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -79,8 +81,8 @@ function ResellerStartPage() {
   }
 
   return (
-    <StoreShell>
-      <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-12">
+    <Wrap mobile={mobile}>
+      <div className={mobile ? "tg-page w-full overflow-hidden rounded-2xl rounded-bl-md bg-tg-bubble shadow-sm" : "mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-12"}>
         <Card className="border-border/70 bg-card/80">
           <CardHeader>
             <CardTitle>{mode === "forgot" ? "Reset reseller password" : mode === "up" ? "Create your reseller login" : "Reseller sign in"}</CardTitle>
@@ -139,7 +141,7 @@ function ResellerStartPage() {
               {mode === "forgot" ? "Back to sign in" : mode === "up" ? "Already registered? Sign in" : "New here? Create an account"}
             </Button>
 
-            <p className="mt-4 text-center text-xs text-muted-foreground">
+            {!mobile && <p className="mt-4 text-center text-xs text-muted-foreground">
               Not approved yet?{" "}
               <Link to="/reseller" className="text-primary">
                 Apply as a reseller
@@ -148,10 +150,14 @@ function ResellerStartPage() {
               <Link to="/reseller/docs" className="text-primary">
                 API docs
               </Link>
-            </p>
+            </p>}
           </CardContent>
         </Card>
       </div>
-    </StoreShell>
+    </Wrap>
   );
+}
+
+function Wrap({ mobile, children }: { mobile: boolean; children: React.ReactNode }) {
+  return mobile ? <BotFrame bare>{children}</BotFrame> : <StoreShell>{children}</StoreShell>;
 }

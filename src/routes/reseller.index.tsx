@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { submitResellerApplication } from "@/lib/reseller-apply.functions";
 import { productionUrlFor } from "@/lib/site-url";
+import { useMobileTemplate } from "@/components/mobile/BotFrame";
+import { BotResellerPortal } from "@/components/mobile/BotResellerPortal";
 
 export const Route = createFileRoute("/reseller/")({
   head: () => ({
@@ -43,6 +45,11 @@ const PERKS = [
 ];
 
 function ResellerApplyPage() {
+  if (useMobileTemplate()) return <BotResellerPortal />;
+  return <ClassicResellerApplyPage />;
+}
+
+function ClassicResellerApplyPage() {
   const submit = useServerFn(submitResellerApplication);
   const [sending, setSending] = useState(false);
   const [done, setDone] = useState(false);

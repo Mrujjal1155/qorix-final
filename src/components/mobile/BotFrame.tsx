@@ -35,8 +35,8 @@ const roundBtn = "grid h-11 w-11 shrink-0 place-items-center rounded-full bg-tg-
 export const bottomCls = "flex min-h-12 items-center justify-center gap-1.5 rounded-2xl bg-tg-btn px-2 text-sm font-bold text-tg-btn-fg shadow-sm";
 
 /** Telegram chat window: header (logo, name, total users), wallpaper, scroll area, bottom keyboard. */
-export function BotFrame({ children, footer, onBack, onMenu, scrollRef }: {
-  children: ReactNode; footer?: ReactNode; onBack?: () => void; onMenu?: () => void;
+export function BotFrame({ children, footer, onBack, onMenu, scrollRef, bare }: {
+  children: ReactNode; footer?: ReactNode; onBack?: () => void; onMenu?: () => void; bare?: boolean;
   scrollRef?: React.Ref<HTMLDivElement>;
 }) {
   const h = useBotHeader();
@@ -44,7 +44,7 @@ export function BotFrame({ children, footer, onBack, onMenu, scrollRef }: {
     <div className="flex h-[100dvh] justify-center bg-tg-chat">
       <div className="tg-wallpaper relative flex h-full w-full max-w-md flex-col overflow-hidden text-tg-bubble-fg sm:border-x sm:border-tg-bubble-fg/10">
         <header className="z-10 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2 pt-2">
-          {onBack ? (
+          {bare ? <span className="h-11 w-11" /> : onBack ? (
             <button type="button" aria-label="Back" onClick={onBack} className={roundBtn}><ArrowLeft className="h-5 w-5" /></button>
           ) : (
             <Link to="/" aria-label="Back" className={roundBtn}><ArrowLeft className="h-5 w-5" /></Link>
@@ -56,14 +56,14 @@ export function BotFrame({ children, footer, onBack, onMenu, scrollRef }: {
               <p className="truncate text-xs text-tg-muted">{h.users == null ? "bot" : `${h.users.toLocaleString("en-US")} total users`}</p>
             </div>
           </div>
-          {onMenu ? (
+          {bare ? <span className="h-11 w-11" /> : onMenu ? (
             <button type="button" aria-label="Menu" onClick={onMenu} className={roundBtn}><EllipsisVertical className="h-5 w-5" /></button>
           ) : (
             <Link to="/" aria-label="Menu" className={roundBtn}><EllipsisVertical className="h-5 w-5" /></Link>
           )}
         </header>
         <div ref={scrollRef} className="flex flex-1 flex-col gap-1.5 overflow-y-auto px-2 py-3">{children}</div>
-        <footer className="space-y-2 px-2 pb-3">
+        {!bare && <footer className="space-y-2 px-2 pb-3">
           {footer ?? (
             <div className="grid grid-cols-3 gap-2">
               <Link to="/" onClick={() => localStorage.setItem("qorix_open", "products")} className={bottomCls}><LayoutGrid className="h-4 w-4 shrink-0" /><span className="truncate">Products</span></Link>
@@ -71,7 +71,7 @@ export function BotFrame({ children, footer, onBack, onMenu, scrollRef }: {
               <Link to="/account/orders" className={bottomCls}><Package className="h-4 w-4 shrink-0" /><span className="truncate">My Orders</span></Link>
             </div>
           )}
-        </footer>
+        </footer>}
       </div>
     </div>
   );
