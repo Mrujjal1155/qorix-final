@@ -48,7 +48,7 @@ export function useTgDark() {
   return { dark, toggle };
 }
 
-function HeaderMenu({ onMenu }: { onMenu?: () => void }) {
+function HeaderMenu({ onMenu }: { onMenu?: (() => void) | undefined }) {
   const [open, setOpen] = useState(false);
   const { dark, toggle } = useTgDark();
   const item = "flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium hover:bg-tg-bubble-fg/5";
