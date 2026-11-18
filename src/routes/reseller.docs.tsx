@@ -3,9 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Check, Copy } from "lucide-react";
 import { StoreShell } from "@/components/StoreShell";
 import { toast } from "sonner";
-import { BotFrame, useMobileTemplate } from "@/components/mobile/BotFrame";
-import { Bubble, Key, KeyLink, Keys, Quote, Title } from "@/components/mobile/BotStorefront";
-import { BookOpen, ChevronLeft, KeyRound, Link2, Wallet as WalletIcon, Wrench, Code2, Headphones } from "lucide-react";
+import { useMobileTemplate } from "@/components/mobile/BotFrame";
+import { BotApiDocs } from "@/components/mobile/BotApiDocs";
 import { Button } from "@/components/ui/button";
 import { RESELLER_API_BASE_PRODUCTION, productionUrlFor } from "@/lib/site-url";
 
@@ -89,75 +88,7 @@ function DocsPage() {
   const [view, setView] = useState<"home" | "steps" | "endpoints" | "help">("home");
   const copy = (v: string) => { void navigator.clipboard.writeText(v); toast.success("Copied"); };
 
-  if (mobile) {
-    const anim = "flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-300";
-    const back = <Key tone="red" icon={ChevronLeft} onClick={() => setView("home")}>Back</Key>;
-    return (
-      <BotFrame>
-        <div className="mb-1 self-end rounded-2xl rounded-br-md bg-tg-header px-3 py-1.5 text-sm text-tg-link shadow-sm">Reseller API</div>
-        {view === "home" && (
-          <div key="h" className={anim}>
-            <Bubble className="w-full">
-              <Title>RESELLER API</Title>
-              <div className="my-1.5 h-px w-40 bg-tg-bubble-fg/40" />
-              <p className="text-sm">Resell our full catalogue from your own website or Telegram bot. Paste the URL, paste your key, add balance — done.</p>
-              <p className="mt-2 flex items-center gap-2 text-sm font-semibold"><Link2 className="h-4 w-4 text-tg-link" /> Base URL (tap to copy):</p>
-              <button type="button" onClick={() => copy(base)} className="break-all text-left font-mono text-sm font-semibold text-tg-link">{base}</button>
-              <Quote><p>No <b>www</b> and no slash at the end. Send your key in the <b>Authorization: Bearer</b> header.</p></Quote>
-            </Bubble>
-            <Keys cols={2}>
-              <Key icon={Copy} onClick={() => copy(base)}>Copy URL</Key>
-              <KeyLink tone="green" icon={KeyRound} to="/reseller" hash="apply">Get API key</KeyLink>
-            </Keys>
-            <Key icon={BookOpen} onClick={() => setView("steps")}>Connect in 3 steps</Key>
-            <Key icon={Code2} onClick={() => setView("endpoints")}>Endpoints</Key>
-            <Key icon={Wrench} onClick={() => setView("help")}>Connection problems</Key>
-            <Keys cols={2}>
-              <KeyLink icon={WalletIcon} to="/reseller">Reseller portal</KeyLink>
-              <KeyLink tone="red" icon={ChevronLeft} to="/">Main Menu</KeyLink>
-            </Keys>
-          </div>
-        )}
-        {view === "steps" && (
-          <div key="s" className={anim}>
-            <Bubble className="w-full">
-              <p className="font-bold">Connect in 3 steps</p>
-              <p className="mt-2 text-sm"><b>1.</b> Paste the Base URL into your panel.</p>
-              <p className="mt-1 text-sm"><b>2.</b> Paste your API key (from the reseller portal).</p>
-              <p className="mt-1 text-sm"><b>3.</b> Add wallet balance — products appear and orders are delivered automatically.</p>
-            </Bubble>
-            {back}
-          </div>
-        )}
-        {view === "endpoints" && (
-          <div key="e" className={anim}>
-            <Bubble className="w-full">
-              <p className="font-bold">Endpoints</p>
-              {[["GET /me", "Account & wallet balance"], ["GET /products", "Full catalogue with your prices"], ["GET /products/:id", "One product"], ["POST /orders", "Buy — paid from your wallet"], ["GET /orders", "Order history"], ["GET /orders/:id", "Order status & delivery"]].map(([e, d]) => (
-                <button key={e} type="button" onClick={() => copy(`${base}${e!.split(" ")[1]}`)} className="mt-2 block w-full text-left text-sm">
-                  <span className="font-mono font-semibold text-tg-link">{e}</span><br /><span className="text-tg-muted">{d}</span>
-                </button>
-              ))}
-            </Bubble>
-            {back}
-          </div>
-        )}
-        {view === "help" && (
-          <div key="p" className={anim}>
-            <Bubble className="w-full">
-              <p className="font-bold">Connection problems</p>
-              <Quote>
-                <p><b>"Invalid redirect value … use manual"</b> / <b>"fetch failed"</b> — use the exact Base URL above, without www or a trailing slash.</p>
-                <p className="mt-1"><b>401</b> — the API key is wrong or the account is not approved yet.</p>
-              </Quote>
-            </Bubble>
-            <KeyLink tone="green" icon={Headphones} to="/contact">Contact support</KeyLink>
-            {back}
-          </div>
-        )}
-      </BotFrame>
-    );
-  }
+  if (mobile) return <BotApiDocs base={base} />;
 
   return (
     <StoreShell>
