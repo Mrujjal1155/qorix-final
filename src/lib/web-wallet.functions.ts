@@ -89,3 +89,31 @@ export const getWebDeposit = createServerFn({ method: "POST" })
     const { data: row } = await db.from("binance_deposits").select("status,expires_at").eq("id", data.id).eq("telegram_id", tid).maybeSingle();
     return { status: String((row as any)?.status ?? "unknown"), expires_at: (row as any)?.expires_at ?? null };
   });
+
+/** Website Profile page = the bot PROFILE (account, wallet, referrals) for the connected Telegram user. */
+export const getWebProfile = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { db, tid } = await linkedTelegram(context.userId);
+    if (!tid) return { linked: false as const };
+    const [{ data: u }, { count }, { data: bs }] = await Promise.all([
+      db.from("bot_users").select("username,first_name,membership,created_at,balance,total_spent,referral_count,referral_earnings,ref_code").eq("telegram_id", tid).maybeSingle(),
+      db.from("orders").select("id", { count: "exact", head: true }).eq("telegram_id", tid),
+      db.from("bot_settings").select("value").eq("key", "bot_username").maybeSingle(),
+    ]);
+    const r = (u ?? {}) as any;
+    const bot = String((bs as any)?.value ?? "").replace(/^@/, "");
+    return {
+      linked: true as const,
+      telegram_id: tid,
+      username: r.username ? `@${r.username}` : (r.first_name ?? "—"),
+      membership: String(r.membership ?? "—"),
+      orders: count ?? 0,
+      member_since: r.created_at ?? null,
+      balance: Number(r.balance ?? 0),
+      total_spent: Number(r.total_spent ?? 0),
+      referrals: Number(r.referral_count ?? 0),
+      referral_earnings: Number(r.referral_earnings ?? 0),
+      referral_link: r.ref_code && bot ? `https://t.me/${bot}?start=ref_${r.ref_code}` : null,
+    };
+  });

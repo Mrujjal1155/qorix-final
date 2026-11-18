@@ -10,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { useMobileTemplate } from "@/components/mobile/BotFrame";
+import { BotProfile } from "@/components/mobile/BotAccount";
 
 export const Route = createFileRoute("/_authenticated/account/profile")({
   head: () => ({
@@ -27,6 +29,11 @@ export const Route = createFileRoute("/_authenticated/account/profile")({
 });
 
 function ProfilePage() {
+  if (useMobileTemplate()) return <BotProfile />;
+  return <BasicProfile />;
+}
+
+function BasicProfile() {
   const fetchAccount = useServerFn(getMyAccount);
   const save = useServerFn(updateMyProfile);
   const { data, refetch } = useQuery({ queryKey: ["my-account"], queryFn: () => fetchAccount() });

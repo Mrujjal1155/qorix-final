@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { createWebLinkCode, getWebDeposit, getWebWallet, startWebDeposit, submitWebDepositTxid } from "@/lib/web-wallet.functions";
+import { createWebLinkCode, getWebDeposit, getWebProfile, getWebWallet, startWebDeposit, submitWebDepositTxid } from "@/lib/web-wallet.functions";
 import { getStorePayInfo } from "@/lib/shop.functions";
 import { getEpsStatus } from "@/lib/eps.functions";
 import { getOxapayStatus } from "@/lib/oxapay.functions";
@@ -281,6 +281,64 @@ export function BotOrders({ orders, loading }: { orders: any[]; loading: boolean
           <KeyLink tone="green" icon={Store} to="/store">SHOP</KeyLink>
           <KeyLink tone="red" icon={ChevronLeft} to="/">Main Menu</KeyLink>
         </Keys>
+      </div>
+    </BotFrame>
+  );
+}
+
+const Sec = ({ children }: { children: ReactNode }) => <p className="mt-3 text-base font-bold">{children}</p>;
+const Lbl = ({ icon: I, children }: { icon: LucideIcon; children: ReactNode }) => <><I className="h-4 w-4 shrink-0 text-tg-quote-bar" />{children}</>;
+
+/** Profile page = the bot PROFILE message (account, wallet, referrals) for the connected Telegram account. */
+export function BotProfile() {
+  const fetchProfile = useServerFn(getWebProfile);
+  const { data, isLoading } = useQuery({ queryKey: ["web-profile"], queryFn: () => fetchProfile() });
+  const copy = async (t: string) => { await navigator.clipboard.writeText(t); toast.success("Link copied"); };
+  const since = data?.linked && data.member_since ? new Date(data.member_since).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+  return (
+    <BotFrame>
+      <Cmd>Profile</Cmd>
+      <div className={anim}>
+        <Bubble className="w-full">
+          <Title>PROFILE</Title>
+          {isLoading ? <p className="mt-2 text-sm">Loading…</p> : !data?.linked ? (
+            <Quote>Connect your Telegram account to see your profile, wallet and referral link here.</Quote>
+          ) : (
+            <>
+              <Sec>ACCOUNT</Sec>
+              <Table rows={[
+                [<Lbl icon={CreditCard}>Username</Lbl>, <span className="font-normal text-tg-link">{data.username}</span>],
+                [<Lbl icon={User}>UserID</Lbl>, <span className="font-mono font-normal text-tg-link">{data.telegram_id}</span>],
+                [<Lbl icon={Medal}>Membership</Lbl>, data.membership],
+                [<Lbl icon={Package}>Orders</Lbl>, data.orders],
+                [<Lbl icon={CalendarDays}>Member since</Lbl>, <span className="font-normal">{since}</span>],
+              ]} />
+              <Sec>WALLET</Sec>
+              <Table rows={[
+                [<Lbl icon={Wallet}>Balance</Lbl>, priceTag(data.balance)],
+                [<Lbl icon={Gem}>Total Spent</Lbl>, <span className="font-normal">{priceTag(data.total_spent)}</span>],
+              ]} />
+              <Sec>REFERRALS</Sec>
+              <Table rows={[
+                [<Lbl icon={User}>Referrals</Lbl>, data.referrals],
+                [<Lbl icon={Coins}>Referral Earning</Lbl>, priceTag(data.referral_earnings)],
+                [<Lbl icon={Gift}>Referral Link</Lbl>, <span className="break-all font-mono text-xs font-normal text-tg-link">{data.referral_link ?? "—"}</span>],
+              ]} />
+            </>
+          )}
+        </Bubble>
+        <Keys cols={2}>
+          <KeyLink tone="green" icon={Package} to="/account/orders">Orders</KeyLink>
+          <KeyLink tone="green" icon={Gift} to="/account/referrals">Refer & Earn</KeyLink>
+        </Keys>
+        {data?.linked && data.referral_link && (
+          <Keys cols={1}>
+            <Key icon={Copy} onClick={() => copy(data.referral_link!)}>Copy Link</Key>
+            <a className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-tg-btn-green px-2 py-2 text-sm font-semibold text-tg-btn-fg shadow-sm"
+              href={`https://t.me/share/url?url=${encodeURIComponent(data.referral_link)}`} target="_blank" rel="noreferrer"><Send className="h-4 w-4" /> Share Referral Link</a>
+          </Keys>
+        )}
+        <Keys cols={1}><KeyLink tone="red" icon={ChevronLeft} to="/">Back</KeyLink></Keys>
       </div>
     </BotFrame>
   );

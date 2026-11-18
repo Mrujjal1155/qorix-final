@@ -34,11 +34,16 @@ export function BotStorefront(props: {
   // Signed in = connected Telegram account; otherwise the visitor shops as a guest (no ID).
   const [signedIn, setSignedIn] = useState(false);
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setSignedIn(Boolean(data.session)));
+    // Once Guest or Telegram was chosen, open straight on the menu (no Start again), like the bot.
+    if (localStorage.getItem("qorix_guest")) setView((v) => (v.k === "start" ? { k: "menu" } : v));
+    supabase.auth.getSession().then(({ data }) => {
+      setSignedIn(Boolean(data.session));
+      if (data.session) setView((v) => (v.k === "start" ? { k: "menu" } : v));
+    });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, sess) => setSignedIn(Boolean(sess)));
     return () => sub.subscription.unsubscribe();
   }, []);
-  const begin = () => setView(signedIn || sessionStorage.getItem("qorix_guest") ? { k: "menu" } : { k: "choose" });
+  const begin = () => setView(signedIn || localStorage.getItem("qorix_guest") ? { k: "menu" } : { k: "choose" });
   const acct = (to: string, what: string, icon: LucideIcon, label: string, tone: "blue" | "green" = "blue") =>
     signedIn ? <KeyLink tone={tone} icon={icon} to={to}>{label}</KeyLink>
       : <Key tone={tone} icon={icon} onClick={() => setView({ k: "guest", what })}>{label}</Key>;
@@ -74,13 +79,13 @@ export function BotStorefront(props: {
           </Quote>
         </Bubble>
         <Keys cols={1}>
-          <Key icon={User} onClick={() => { sessionStorage.setItem("qorix_guest", "1"); setView({ k: "menu" }); }}>Continue as Guest</Key>
+          <Key icon={User} onClick={() => { localStorage.setItem("qorix_guest", "1"); setView({ k: "menu" }); }}>Continue as Guest</Key>
           <Key tone="green" icon={Send} onClick={() => setView({ k: "tg" })}>Connect Telegram</Key>
         </Keys>
       </>
     );
   } else if (view.k === "tg") {
-    body = <TelegramConnect onDone={() => setView({ k: "menu" })} onBack={() => setView({ k: "choose" })} />;
+    body = <TelegramConnect onDone={() => { localStorage.setItem("qorix_guest", "1"); setView({ k: "menu" }); }} onBack={() => setView({ k: "choose" })} />;
   } else if (view.k === "guest") {
     body = (
       <>
@@ -135,11 +140,11 @@ export function BotStorefront(props: {
           <KeyLink tone="green" icon={LifeBuoy} to="/contact">Support</KeyLink>
           <KeyLink tone="green" icon={Mail} to="/track">Emails & Trials</KeyLink>
           <KeyLink tone="green" icon={Code2} to="/reseller/docs">Reseller API</KeyLink>
-          <Key tone="green" icon={Trash2} onClick={() => setView({ k: "start" })}>Clear Chat</Key>
+          <Key tone="green" icon={Trash2} onClick={() => { setView({ k: "cats" }); setTimeout(() => setView({ k: "menu" }), 0); }}>Clear Chat</Key>
         </Keys>
         <Keys cols={1}>
           {signedIn
-            ? <Key tone="red" icon={CircleX} onClick={async () => { await supabase.auth.signOut(); sessionStorage.removeItem("qorix_guest"); setView({ k: "start" }); }}>Disconnect Telegram</Key>
+            ? <Key tone="red" icon={CircleX} onClick={async () => { await supabase.auth.signOut(); localStorage.removeItem("qorix_guest"); setView({ k: "start" }); }}>Disconnect Telegram</Key>
             : <Key tone="green" icon={Send} onClick={() => setView({ k: "tg" })}>Connect Telegram</Key>}
         </Keys>
       </>
@@ -247,7 +252,7 @@ export function BotStorefront(props: {
 
   return (
     <BotFrame scrollRef={scroller}
-      onBack={() => setView(view.k === "start" ? { k: "start" } : view.k === "menu" ? { k: "start" } : { k: "menu" })}
+      onBack={() => setView(view.k === "start" || view.k === "choose" || view.k === "tg" ? (signedIn ? { k: "menu" } : { k: "start" }) : { k: "menu" })}
       onMenu={() => setView({ k: "menu" })}
       footer={view.k === "start" ? (
         <button type="button" onClick={begin}
