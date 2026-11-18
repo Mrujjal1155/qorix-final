@@ -780,3 +780,6 @@
 .tg-page img, .tg-page video { max-width: 100%; height: auto; }
 .tg-page .pointer-events-none.absolute { display: none; }
 .tg-page { overflow-wrap: anywhere; }
+
+.tg-scroll { scrollbar-width: none; }
+.tg-scroll::-webkit-scrollbar { display: none; }

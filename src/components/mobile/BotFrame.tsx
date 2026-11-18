@@ -22,8 +22,8 @@ export function useBotHeader() {
   };
 }
 
-export function BotLogo({ src, size = "md" }: { src: string; size?: "md" | "lg" }) {
-  const cls = size === "lg" ? "h-20 w-20" : "h-11 w-11";
+export function BotLogo({ src, size = "md", inline }: { src: string; size?: "md" | "lg"; inline?: boolean }) {
+  const cls = (size === "lg" ? "h-20 w-20" : "h-11 w-11") + (inline ? " !mx-0" : "");
   return src ? (
     <img src={src} alt="Bot logo" className={`${cls} mx-auto shrink-0 rounded-full object-cover ring-2 ring-tg-bubble`} />
   ) : (
@@ -49,9 +49,9 @@ export function BotFrame({ children, footer, onBack, onMenu, scrollRef, bare }: 
           ) : (
             <Link to="/" aria-label="Back" className={roundBtn}><ArrowLeft className="h-5 w-5" /></Link>
           )}
-          <div className="flex min-w-0 items-center gap-2 rounded-full bg-tg-header py-1 pl-1 pr-4 shadow-sm backdrop-blur">
-            <BotLogo src={h.logo} />
-            <div className="min-w-0">
+          <div className="flex min-w-0 items-center justify-start gap-2.5 rounded-full bg-tg-header py-1 pl-1 pr-4 shadow-sm backdrop-blur">
+            <BotLogo src={h.logo} inline />
+            <div className="min-w-0 flex-1 text-left leading-tight">
               <p className="flex items-center gap-1 truncate text-base font-bold">{h.name} <ShieldCheck className="h-4 w-4 shrink-0 text-tg-link" /></p>
               <p className="truncate text-xs text-tg-muted">{h.users == null ? "bot" : `${h.users.toLocaleString("en-US")} total users`}</p>
             </div>
@@ -62,7 +62,7 @@ export function BotFrame({ children, footer, onBack, onMenu, scrollRef, bare }: 
             <Link to="/" aria-label="Menu" className={roundBtn}><EllipsisVertical className="h-5 w-5" /></Link>
           )}
         </header>
-        <div ref={scrollRef} className="flex flex-1 flex-col gap-1.5 overflow-y-auto px-2 py-3">{children}</div>
+        <div ref={scrollRef} className="tg-scroll flex flex-1 flex-col gap-1.5 overflow-y-auto px-2 py-3">{children}</div>
         {!bare && <footer className="space-y-2 px-2 pb-3">
           {footer ?? (
             <div className="grid grid-cols-3 gap-2">
