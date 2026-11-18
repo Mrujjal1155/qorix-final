@@ -20,6 +20,9 @@ import { getEpsStatus, startEpsCheckout } from "@/lib/eps.functions";
 import { getOxapayStatus, startOxapayCheckout } from "@/lib/oxapay.functions";
 import { StoreShell, priceTag } from "@/components/StoreShell";
 import { CategoryIcon } from "@/components/CategoryIcon";
+import { useMobileTemplate } from "@/components/mobile/BotFrame";
+import { BotCheckout } from "@/components/mobile/BotCheckout";
+import { Landmark } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -86,6 +89,7 @@ function CheckoutPage() {
   const fetchOxa = useServerFn(getOxapayStatus);
   const startOxa = useServerFn(startOxapayCheckout);
   const { money, usd, currency } = usePrefs();
+  const mobile = useMobileTemplate();
 
   const { data: product } = useQuery({
     queryKey: ["store-product", id],
@@ -175,6 +179,25 @@ function CheckoutPage() {
   }
 
   const stepIndex = STEPS.indexOf(step);
+
+  if (mobile) {
+    const botMethods = [
+      ...visibleMethods.map((m) => ({ id: m.id, label: m.label, icon: m.icon, img: m.id === "binance" ? binancePaymentIcon : undefined, address: pay?.[m.key] ?? "" })),
+      ...(oxa?.enabled ? [{ id: "oxapay", label: "Any Crypto · BTC, LTC, USDT", img: oxapayPaymentIcon }] : []),
+      ...(eps?.enabled ? [{ id: "eps", label: "bKash · Nagad · Rocket & more", icon: Landmark }] : []),
+    ];
+    return (
+      <BotCheckout
+        productId={id} productName={product?.name ?? "Loading…"} productImg={product?.image_url ?? undefined}
+        unit={Number(product?.price ?? 0)} qty={qty} total={total} money={money}
+        methods={botMethods} method={method} setMethod={setMethod}
+        name={name} setName={setName} email={email} setEmail={setEmail} phone={phone} setPhone={setPhone}
+        txid={txid} setTxid={setTxid} botUser={botUser} epsBdt={epsTotalBdt}
+        placing={mut.isPending} redirecting={epsMut.isPending || oxaMut.isPending}
+        onPlace={() => product && mut.mutate()} onEps={() => epsMut.mutate()} onOxa={() => oxaMut.mutate()}
+      />
+    );
+  }
 
   return (
     <StoreShell>

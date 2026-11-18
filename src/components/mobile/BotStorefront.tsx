@@ -247,19 +247,19 @@ function QtyPicker({ p, onBack }: { p: Prod; onBack: () => void }) {
 
 /* ---------- small Telegram-like building blocks ---------- */
 
-function Bubble({ children, className = "" }: { children: ReactNode; className?: string }) {
+export function Bubble({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <div className={`max-w-[92%] self-start rounded-2xl rounded-bl-md bg-tg-bubble px-3.5 py-2.5 shadow-sm ${className}`}>{children}</div>;
 }
-function Title({ children }: { children: ReactNode }) {
+export function Title({ children }: { children: ReactNode }) {
   return <p className="bg-gradient-to-r from-tg-btn-red to-tg-quote-bar bg-clip-text text-2xl font-black tracking-[0.15em] text-transparent">{children}</p>;
 }
-function Quote({ children }: { children: ReactNode }) {
+export function Quote({ children }: { children: ReactNode }) {
   return <div className="mt-2 rounded-md border-l-4 border-tg-quote-bar bg-tg-quote px-3 py-2 text-sm">{children}</div>;
 }
 function MenuLine({ icon: I, t, d }: { icon: LucideIcon; t: string; d: string }) {
   return <p className="flex items-start gap-2 py-0.5"><I className="mt-0.5 h-4 w-4 shrink-0 text-tg-quote-bar" /><span><b>{t}</b> — {d}</span></p>;
 }
-function Keys({ cols, children }: { cols: 1 | 2 | 3; children: ReactNode }) {
+export function Keys({ cols, children }: { cols: 1 | 2 | 3; children: ReactNode }) {
   const c = cols === 1 ? "grid-cols-1" : cols === 2 ? "grid-cols-2" : "grid-cols-3";
   return <div className={`grid ${c} gap-1.5`}>{children}</div>;
 }
@@ -276,11 +276,11 @@ function KeyInner({ icon: I, img, children }: { icon?: LucideIcon | undefined; i
     </>
   );
 }
-function Key({ tone = "blue", icon, img, children, onClick, disabled, active }: {
+export function Key({ tone = "blue", icon, img, children, onClick, disabled, active }: {
   tone?: Tone; icon?: LucideIcon | undefined; img?: string | undefined; children: ReactNode; onClick?: () => void; disabled?: boolean; active?: boolean;
 }) {
   return <button type="button" onClick={onClick} disabled={disabled} className={keyCls(tone, active)}><KeyInner icon={icon} img={img}>{children}</KeyInner></button>;
 }
-function KeyLink({ tone = "blue", icon, children, ...link }: { tone?: Tone; icon?: LucideIcon; children: ReactNode } & Record<string, any>) {
+export function KeyLink({ tone = "blue", icon, children, ...link }: { tone?: Tone; icon?: LucideIcon; children: ReactNode } & Record<string, any>) {
   return <Link {...(link as any)} className={keyCls(tone)}><KeyInner icon={icon}>{children}</KeyInner></Link>;
 }
