@@ -750,3 +750,33 @@
 .tg-page :is(.lg\:col-span-4, .lg\:col-span-5, .lg\:col-span-7, .lg\:col-span-8) {
   grid-column: auto;
 }
+
+/* Mobile View: the bot frame is phone-width on every screen, so website breakpoint
+   layouts (two columns, side panels, huge type) are flattened to a phone layout. */
+.tg-page [class*="md:grid-cols-"], .tg-page [class*="lg:grid-cols-"], .tg-page [class*="xl:grid-cols-"] {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+.tg-page [class*="sm:grid-cols-"]:not([class*="grid-cols-1"]):not([class*="md:grid-cols-"]):not([class*="lg:grid-cols-"]):not([class*="xl:grid-cols-"]) {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+.tg-page [class*="sm:grid-cols-"][class*="grid-cols-1"]:not([class*="md:"]):not([class*="lg:"]) {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+.tg-page [class*="col-span-"], .tg-page [class*="row-span-"] { grid-column: auto !important; grid-row: auto !important; }
+.tg-page [class*="sm:flex-row"], .tg-page [class*="md:flex-row"], .tg-page [class*="lg:flex-row"] { flex-direction: column !important; align-items: stretch !important; }
+.tg-page [class*="lg:sticky"], .tg-page [class*="md:sticky"] { position: static !important; }
+.tg-page [class*="md:w-"], .tg-page [class*="lg:w-"], .tg-page [class*="sm:w-"] { width: 100% !important; max-width: 100% !important; }
+.tg-page .min-h-screen, .tg-page [class*="min-h-["], .tg-page [class*="min-h-dvh"] { min-height: 0 !important; }
+.tg-page [class*="max-w-"] { max-width: 100% !important; }
+.tg-page :is(h1) { font-size: 1.35rem !important; line-height: 1.25 !important; }
+.tg-page :is(h2) { font-size: 1.1rem !important; line-height: 1.3 !important; }
+.tg-page :is(h3) { font-size: 1rem !important; }
+.tg-page :is(section, main) { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+.tg-page :is(section, main)[class*="py-"] { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
+.tg-page [class*="md:p-"], .tg-page [class*="lg:p-"], .tg-page [class*="sm:p-"] { padding: 1rem !important; }
+.tg-page [class*="md:px-"], .tg-page [class*="lg:px-"], .tg-page [class*="sm:px-"] { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+.tg-page [class*="gap-8"], .tg-page [class*="gap-10"], .tg-page [class*="gap-12"], .tg-page [class*="md:gap-"], .tg-page [class*="lg:gap-"] { gap: 0.75rem !important; }
+.tg-page table { display: block; overflow-x: auto; max-width: 100%; }
+.tg-page img, .tg-page video { max-width: 100%; height: auto; }
+.tg-page .pointer-events-none.absolute { display: none; }
+.tg-page { overflow-wrap: anywhere; }
