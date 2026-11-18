@@ -23,6 +23,7 @@ export function BotCheckout(p: {
 }) {
   const navigate = useNavigate();
   const [stage, setStage] = useState<Stage>("summary");
+  const [customQty, setCustomQty] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [stage]);
 
@@ -60,6 +61,16 @@ export function BotCheckout(p: {
             <>
               <Bubble><p className="flex items-center gap-2 text-sm"><Ico i={Pencil} /> Choose a new quantity:</p></Bubble>
               <Keys cols={3}>{[1, 2, 3, 5, 10].map((q) => <Key key={q} active={q === p.qty} onClick={() => setQty(q)}>{q}×</Key>)}</Keys>
+              <form className="flex gap-1.5" onSubmit={(e) => {
+                e.preventDefault();
+                const q = Math.floor(Number(customQty));
+                if (!Number.isFinite(q) || q < 1 || q > 999) { toast.error("Enter a quantity between 1 and 999."); return; }
+                setCustomQty(""); setQty(q);
+              }}>
+                <input type="number" inputMode="numeric" min={1} max={999} value={customQty} onChange={(e) => setCustomQty(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                  placeholder="Custom quantity" aria-label="Custom quantity" className={`${field} min-h-11 flex-1`} />
+                <button type="submit" className="min-h-11 rounded-xl bg-tg-btn-green px-4 text-sm font-semibold text-tg-btn-fg shadow-sm active:scale-[0.98]">Confirm</button>
+              </form>
               <Key tone="red" icon={ChevronLeft} onClick={() => setStage("summary")}>Back</Key>
             </>
           ) : (
