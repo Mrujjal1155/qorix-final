@@ -361,7 +361,8 @@ function TelegramConnect({ onDone, onBack }: { onDone: () => void; onBack: () =>
 
 function QtyPicker({ p, onBack }: { p: Prod; onBack: () => void }) {
   const [qty, setQty] = useState(1);
-  const max = Math.max(1, Math.min(20, Number(p.stock ?? 20) || 20));
+  const [custom, setCustom] = useState("");
+  const max = p.stock == null ? 100000 : Math.max(1, Number(p.stock) || 1);
   const total = useMemo(() => Number(p.price) * qty, [p.price, qty]);
   return (
     <>
@@ -383,6 +384,16 @@ function QtyPicker({ p, onBack }: { p: Prod; onBack: () => void }) {
         <Key>{qty} × {money(p.price)}</Key>
         <Key icon={Plus} disabled={qty >= max} onClick={() => setQty((q) => Math.min(max, q + 1))}>More</Key>
       </Keys>
+      <form className="flex gap-1.5" onSubmit={(e) => {
+        e.preventDefault();
+        const q = Math.floor(Number(custom));
+        if (!Number.isFinite(q) || q < 1) return;
+        setQty(Math.min(max, q)); setCustom("");
+      }}>
+        <input type="number" inputMode="numeric" min={1} max={max} value={custom} onChange={(e) => setCustom(e.target.value.replace(/\D/g, "").slice(0, 6))}
+          placeholder="Custom quantity" aria-label="Custom quantity" className="min-h-11 w-full min-w-0 flex-1 rounded-xl border border-tg-bubble-fg/15 bg-tg-bubble px-3 text-sm outline-none focus:border-tg-link" />
+        <button type="submit" className="min-h-11 rounded-xl bg-tg-btn-green px-4 text-sm font-semibold text-tg-btn-fg shadow-sm">Confirm</button>
+      </form>
       <Keys cols={1}>
         <KeyLink tone="green" icon={Send} to="/checkout" search={{ id: p.id, qty, step: "details" }}>Checkout · {money(total)}</KeyLink>
         <Key tone="red" icon={ArrowLeft} onClick={onBack}>Back</Key>

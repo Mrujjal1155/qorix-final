@@ -1,3 +1,4 @@
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { likeExact } from "@/lib/ilike-escape";
 import { createServerFn } from "@tanstack/react-start";
 import { resolveSiteOrigin } from "@/lib/site-url";
@@ -225,9 +226,12 @@ export const getStorePayInfo = createServerFn({ method: "GET" }).handler(async (
 
 
 
-export const placeWebsiteOrder = createServerFn({ method: "POST" })
-  .inputValidator(
-    (d: {
+/** Website orders have no fixed quantity cap (like the bot); stock checks still apply. */
+const MAX_WEB_QTY = 100000;
+/** Accounts created by Telegram login use this placeholder email domain; never email it. */
+const TELEGRAM_EMAIL_DOMAIN = "@telegram.qorixlab.com";
+
+const parseWebsiteOrderInput = (d: {
       product_id: string;
       quantity: number;
       customer_name: string;
@@ -235,7 +239,7 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
       payment_method: string;
       txid: string;
     }) => {
-      const qty = Math.max(1, Math.min(20, Math.floor(Number(d.quantity) || 1)));
+      const qty = Math.max(1, Math.min(MAX_WEB_QTY, Math.floor(Number(d.quantity) || 1)));
       const email = String(d.customer_email ?? "").trim();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("Valid email is required");
       const name = String(d.customer_name ?? "").trim().slice(0, 80);
@@ -248,13 +252,15 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
         bybitTxidSchema.parse(txid);
       }
       return { product_id: String(d.product_id), quantity: qty, customer_name: name, customer_email: email, payment_method: method, txid };
-    },
-  )
-  .handler(async ({ data }) => {
+    };
+
+type WebsiteOrderInput = ReturnType<typeof parseWebsiteOrderInput>;
+
+async function createWebsiteOrder(data: WebsiteOrderInput, owner: { telegram_id: number; user_id: string } | null) {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: product } = await supabaseAdmin
       .from("products")
-      .select("id,name,price,delivery_type,is_active,supplier_id,supplier_external_id,supplier_stock")
+      .select("id,name,price,delivery_type,is_active,supplier_id,supplier_external_id,supplier_stock,manual_stock_limited")
       .eq("id", data.product_id)
       .maybeSingle();
     if (!product || !product.is_active) throw new Error("Product is not available");
@@ -314,6 +320,13 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
       if (liveStock < data.quantity) throw new Error(liveStock > 0 ? `Only ${liveStock} item(s) are available` : "Product is out of stock");
     }
 
+    // In-house stock: no fixed quantity cap any more, so never accept more than is in stock.
+    if (!product.supplier_id && (product.delivery_type === "auto" || (product as any).manual_stock_limited)) {
+      const { data: c } = await (supabaseAdmin as any).rpc("stock_counts", { _product_ids: [product.id] });
+      const left = Number((c ?? [])[0]?.available ?? 0);
+      if (left < data.quantity) throw new Error(left > 0 ? `Only ${left} item(s) are available` : "Product is out of stock");
+    }
+
     let duplicateQuery = supabaseAdmin.from("orders").select("id").eq("txid", data.txid);
     duplicateQuery = data.payment_method.startsWith("chain_") ? duplicateQuery.eq("payment_method", data.payment_method) : data.payment_method === "bybit" ? duplicateQuery.eq("payment_method", "bybit") : duplicateQuery.neq("payment_method", "bybit");
     const dup = await duplicateQuery.maybeSingle();
@@ -341,7 +354,8 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
     const { data: order, error } = await supabaseAdmin
       .from("orders")
       .insert({
-        telegram_id: 0,
+        telegram_id: owner?.telegram_id ?? 0,
+        user_id: owner?.user_id ?? null,
         source: "website",
         product_id: product.id,
         product_name: product.name,
@@ -404,7 +418,7 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
       const adminUrl = `${origin}/admin/orders`;
 
       await Promise.allSettled([
-        sendResendEmail({
+        data.customer_email.endsWith(TELEGRAM_EMAIL_DOMAIN) ? Promise.resolve() : sendResendEmail({
           to: data.customer_email,
           kind: "order_receipt",
           ...orderReceiptEmail({
@@ -449,6 +463,29 @@ export const placeWebsiteOrder = createServerFn({ method: "POST" })
       order_no: order?.order_no as number,
       token: orderAccessToken(order?.order_no as number, data.customer_email),
     };
+  }
+
+export const placeWebsiteOrder = createServerFn({ method: "POST" })
+  .inputValidator(parseWebsiteOrderInput)
+  .handler(async ({ data }) => createWebsiteOrder(data, null));
+
+/** Telegram-connected website buyer: no name/email form; the order is saved under their bot account. */
+export const placeConnectedWebsiteOrder = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { product_id: string; quantity: number; payment_method: string; txid: string }) =>
+    parseWebsiteOrderInput({ ...d, customer_name: "Telegram user", customer_email: "placeholder@example.com" }),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: prof } = await supabaseAdmin.from("profiles").select("telegram_id,email").eq("id", context.userId).maybeSingle();
+    const tid = Number((prof as any)?.telegram_id ?? 0);
+    if (!tid) throw new Error("Connect your Telegram account first.");
+    const email = String((prof as any)?.email ?? (context.claims as any)?.email ?? "").trim().toLowerCase() || `tg${tid}${TELEGRAM_EMAIL_DOMAIN}`;
+    const { data: bu } = await supabaseAdmin.from("bot_users").select("username,first_name,is_banned").eq("telegram_id", tid).maybeSingle();
+    if ((bu as any)?.is_banned) throw new Error("This account cannot place orders.");
+    const name = String((bu as any)?.first_name || ((bu as any)?.username ? `@${(bu as any).username}` : `Telegram ${tid}`)).slice(0, 80);
+    const r = await createWebsiteOrder({ ...data, customer_name: name.length >= 2 ? name : `Telegram ${tid}`, customer_email: email }, { telegram_id: tid, user_id: context.userId });
+    return { ...r, email };
   });
 
 export const trackWebsiteOrder = createServerFn({ method: "POST" })

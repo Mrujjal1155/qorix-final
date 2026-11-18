@@ -27,7 +27,7 @@ export const startEpsCheckout = createServerFn({ method: "POST" })
       customer_email: string;
       customer_phone: string;
     }) => {
-      const qty = Math.max(1, Math.min(20, Math.floor(Number(d.quantity) || 1)));
+      const qty = Math.max(1, Math.min(100000, Math.floor(Number(d.quantity) || 1)));
       const email = String(d.customer_email ?? "").trim();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("Valid email is required");
       const name = String(d.customer_name ?? "").trim().slice(0, 80);
@@ -77,7 +77,7 @@ export const startEpsCheckout = createServerFn({ method: "POST" })
         throw new Error(liveStock > 0 ? `Only ${liveStock} item(s) are available` : "Product is out of stock");
     }
 
-    if (product.delivery_type === "manual" && (product as any).manual_stock_limited) {
+    if (!product.supplier_id && (product.delivery_type === "auto" || (product as any).manual_stock_limited)) {
       const { data: c } = await (supabaseAdmin as any).rpc("stock_counts", { _product_ids: [product.id] });
       const left = Number((c ?? [])[0]?.available ?? 0);
       if (left < data.quantity) throw new Error(left > 0 ? `Only ${left} item(s) are available` : "Product is out of stock");

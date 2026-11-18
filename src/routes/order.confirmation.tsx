@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { usePrefs } from "@/lib/prefs";
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
+import { BotDelivery } from "@/components/mobile/BotDelivery";
 import { BotFrame, useMobileTemplate } from "@/components/mobile/BotFrame";
 import { Bubble, KeyLink, Keys, Quote, Title } from "@/components/mobile/BotStorefront";
 import { Clock, FileText, Hourglass, Package, Search, Store, ChevronLeft, CircleDollarSign } from "lucide-react";
@@ -215,7 +216,7 @@ function BotConfirmation({ orderNo, email, o, loading, failed, money }: {
             <p className="mt-1 flex items-center gap-2 text-sm"><CircleDollarSign className="h-4 w-4 shrink-0 text-tg-btn-green" /> Total: <b>{money(Number(o.total))}</b> · {o.payment_method ?? "—"}</p>
             {o.txid ? <p className="mt-1 break-all text-sm">TXID: <span className="font-mono">{o.txid}</span></p> : null}
             {done ? (
-              <p className="mt-2 text-sm">Payment verified and your order is complete. The items were sent to <b>{email}</b> and are also shown on the tracking page.</p>
+              <p className="mt-2 text-sm">Payment verified and your order is complete. Your items are below.</p>
             ) : closed ? (
               <p className="mt-2 text-sm">This order is closed. If you already paid, please contact support with your Order ID.</p>
             ) : waited ? (
@@ -227,6 +228,7 @@ function BotConfirmation({ orderNo, email, o, loading, failed, money }: {
               <p className="mt-2 flex items-start gap-2 text-sm"><Clock className="mt-0.5 h-4 w-4 shrink-0 text-tg-btn-red" /> <span>Checking your payment automatically… please keep this page open.</span></p>
             )}
           </Bubble>
+          {done && o.delivered_content ? <BotDelivery content={String(o.delivered_content)} orderNo={o.order_no} productName={o.product_name} /> : null}
           <KeyLink icon={Search} to="/track" search={{}}>Track order</KeyLink>
           <Keys cols={2}>
             <KeyLink tone="green" icon={Store} to="/" onClick={() => localStorage.setItem("qorix_open", "products")}>SHOP</KeyLink>

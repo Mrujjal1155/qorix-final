@@ -366,7 +366,7 @@ function ProductPage() {
                   type="button"
                   aria-label="Increase quantity"
                   className="px-3 py-1.5 text-muted-foreground hover:text-foreground"
-                  onClick={() => setQty((q) => Math.min(20, q + 1))}
+                  onClick={() => setQty((q) => q + 1)}
                 >
                   <Plus className="h-4 w-4" />
                 </button>

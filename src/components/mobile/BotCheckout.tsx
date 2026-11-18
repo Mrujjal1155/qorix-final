@@ -18,7 +18,7 @@ export function BotCheckout(p: {
   money: (n: number) => string; methods: BotMethod[]; method: string; setMethod: (id: string) => void;
   name: string; setName: (v: string) => void; email: string; setEmail: (v: string) => void;
   phone: string; setPhone: (v: string) => void; txid: string; setTxid: (v: string) => void;
-  botUser: string; epsBdt: number; placing: boolean; redirecting: boolean;
+  botUser: string; epsBdt: number; placing: boolean; redirecting: boolean; connected?: boolean;
   onPlace: () => void; onEps: () => void; onOxa: () => void;
 }) {
   const navigate = useNavigate();
@@ -39,7 +39,7 @@ export function BotCheckout(p: {
   const anim = "animate-in fade-in slide-in-from-bottom-2 duration-300";
 
   return (
-    <BotFrame scrollRef={scrollRef} onBack={() => setStage(stage === "summary" ? "summary" : stage === "txid" ? "pay" : stage === "pay" ? "methods" : stage === "methods" ? "details" : "summary")}>
+    <BotFrame scrollRef={scrollRef} onBack={() => setStage(stage === "summary" ? "summary" : stage === "txid" ? "pay" : stage === "pay" ? "methods" : stage === "methods" ? (p.connected ? "summary" : "details") : "summary")}>
       <div className="mb-1 self-end rounded-2xl rounded-br-md bg-tg-header px-3 py-1.5 text-sm text-tg-link shadow-sm">/checkout</div>
 
       {(stage === "summary" || stage === "qty") && (
@@ -64,10 +64,10 @@ export function BotCheckout(p: {
               <form className="flex gap-1.5" onSubmit={(e) => {
                 e.preventDefault();
                 const q = Math.floor(Number(customQty));
-                if (!Number.isFinite(q) || q < 1 || q > 999) { toast.error("Enter a quantity between 1 and 999."); return; }
+                if (!Number.isFinite(q) || q < 1 || q > 100000) { toast.error("Enter a valid quantity."); return; }
                 setCustomQty(""); setQty(q);
               }}>
-                <input type="number" inputMode="numeric" min={1} max={999} value={customQty} onChange={(e) => setCustomQty(e.target.value.replace(/\D/g, "").slice(0, 3))}
+                <input type="number" inputMode="numeric" min={1} max={100000} value={customQty} onChange={(e) => setCustomQty(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="Custom quantity" aria-label="Custom quantity" className={`${field} min-h-11 flex-1`} />
                 <button type="submit" className="min-h-11 rounded-xl bg-tg-btn-green px-4 text-sm font-semibold text-tg-btn-fg shadow-sm active:scale-[0.98]">Confirm</button>
               </form>
@@ -75,7 +75,7 @@ export function BotCheckout(p: {
             </>
           ) : (
             <>
-              <Key tone="green" icon={CreditCard} onClick={() => setStage("details")}>Pay now · {p.money(p.total)}</Key>
+              <Key tone="green" icon={CreditCard} onClick={() => setStage(p.connected ? "methods" : "details")}>Pay now · {p.money(p.total)}</Key>
               <Key icon={Pencil} onClick={() => setStage("qty")}>Change quantity</Key>
               <Keys cols={2}>
                 <KeyLink tone="green" icon={Store} to="/" onClick={() => localStorage.setItem("qorix_open", "products")}>SHOP</KeyLink>
@@ -107,12 +107,13 @@ export function BotCheckout(p: {
             <p className="flex items-center gap-2 font-semibold"><Ico i={CreditCard} /> Select Payment Method</p>
             <p className="mt-2 flex items-center gap-2 text-sm font-semibold"><Ico i={Package} /> {p.productName} x {p.qty}</p>
             <p className="text-sm">Total: <b>{p.total.toFixed(2)} USDT</b></p>
+            {p.connected && <p className="mt-1 flex items-center gap-2 text-xs text-tg-muted"><Send className="h-3.5 w-3.5" /> Saved to your connected Telegram account.</p>}
           </Bubble>
           {p.methods.map((x) => (
             <Key key={x.id} icon={x.icon} img={x.img} onClick={() => { p.setMethod(x.id); setStage("pay"); }}>{x.label}</Key>
           ))}
           {p.methods.length === 0 && <Bubble><p className="text-sm">No payment method is available right now — please contact support.</p></Bubble>}
-          <Key tone="red" icon={ChevronLeft} onClick={() => setStage("details")}>Back</Key>
+          <Key tone="red" icon={ChevronLeft} onClick={() => setStage(p.connected ? "summary" : "details")}>Back</Key>
         </div>
       )}
 
@@ -125,6 +126,12 @@ export function BotCheckout(p: {
             {isEps || isOxa ? (
               <>
                 <p className="mt-2 text-sm">{isEps ? "You will be taken to the secure EPS page to pay with bKash, Nagad, Rocket or card." : "You will be taken to the secure crypto page — USDT, BTC, LTC & more, confirmed automatically."}</p>
+                {p.connected && (
+                  <div className="mt-2 space-y-2">
+                    <input className={field} value={p.name} onChange={(e) => p.setName(e.target.value)} placeholder="Your name" autoComplete="name" />
+                    <input className={field} type="email" value={p.email} onChange={(e) => p.setEmail(e.target.value)} placeholder="Email for the receipt" autoComplete="email" />
+                  </div>
+                )}
                 {isEps && <input className={`${field} mt-2`} inputMode="tel" value={p.phone} onChange={(e) => p.setPhone(e.target.value)} placeholder="Mobile number 01XXXXXXXXX" />}
                 <p className="mt-2 text-sm">Amount: <b className="font-mono">{isEps ? `৳${p.epsBdt.toFixed(2)}` : `${p.total.toFixed(2)} USD`}</b></p>
               </>
@@ -143,7 +150,7 @@ export function BotCheckout(p: {
             )}
           </Bubble>
           {isEps || isOxa ? (
-            <Key tone="green" icon={CreditCard} disabled={p.redirecting || (isEps && p.phone.replace(/\D/g, "").length < 11)} onClick={isEps ? p.onEps : p.onOxa}>
+            <Key tone="green" icon={CreditCard} disabled={p.redirecting || (isEps && p.phone.replace(/\D/g, "").length < 11) || Boolean(p.connected && (!p.name.trim() || !emailOk))} onClick={isEps ? p.onEps : p.onOxa}>
               {p.redirecting ? "Opening secure payment…" : "Pay securely"}
             </Key>
           ) : (

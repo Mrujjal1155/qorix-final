@@ -15,7 +15,7 @@ export const getOxapayStatus = createServerFn({ method: "GET" }).handler(async (
 
 export const startOxapayCheckout = createServerFn({ method: "POST" })
   .inputValidator((d: { product_id: string; quantity: number; customer_name: string; customer_email: string }) => {
-    const qty = Math.max(1, Math.min(20, Math.floor(Number(d.quantity) || 1)));
+    const qty = Math.max(1, Math.min(100000, Math.floor(Number(d.quantity) || 1)));
     const email = String(d.customer_email ?? "").trim().slice(0, 200);
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("Valid email is required");
     const name = String(d.customer_name ?? "").trim().slice(0, 80);

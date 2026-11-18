@@ -15,7 +15,9 @@ import {
   Wallet,
 } from "lucide-react";
 
-import { getStoreProduct, getStorePayInfo, placeWebsiteOrder } from "@/lib/shop.functions";
+import { getStoreProduct, getStorePayInfo, placeWebsiteOrder, placeConnectedWebsiteOrder } from "@/lib/shop.functions";
+import { getWebWallet } from "@/lib/web-wallet.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { getEpsStatus, startEpsCheckout } from "@/lib/eps.functions";
 import { getOxapayStatus, startOxapayCheckout } from "@/lib/oxapay.functions";
 import { StoreShell, priceTag } from "@/components/StoreShell";
@@ -57,7 +59,7 @@ export const Route = createFileRoute("/checkout")({
   }),
   validateSearch: (search: Record<string, unknown>) => ({
     id: String(search["id"] ?? ""),
-    qty: Math.max(1, Math.min(20, Math.floor(Number(search["qty"] ?? 1) || 1))),
+    qty: Math.max(1, Math.min(100000, Math.floor(Number(search["qty"] ?? 1) || 1))),
     step: (STEPS.includes(search["step"] as Step) ? (search["step"] as Step) : "details") as Step,
   }),
   component: CheckoutPage,
@@ -84,6 +86,8 @@ function CheckoutPage() {
   const fetchProduct = useServerFn(getStoreProduct);
   const fetchPay = useServerFn(getStorePayInfo);
   const submit = useServerFn(placeWebsiteOrder);
+  const submitConnected = useServerFn(placeConnectedWebsiteOrder);
+  const fetchWallet = useServerFn(getWebWallet);
   const fetchEps = useServerFn(getEpsStatus);
   const startEps = useServerFn(startEpsCheckout);
   const fetchOxa = useServerFn(getOxapayStatus);
@@ -127,14 +131,31 @@ function CheckoutPage() {
     if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
   }, [step]);
 
+  // Telegram-connected buyers (signed in + linked bot account) skip the name/email form, like the bot.
+  const { data: tgLink } = useQuery({
+    queryKey: ["checkout-tg-link"],
+    queryFn: async () => {
+      const { data: s } = await supabase.auth.getSession();
+      if (!s.session) return { linked: false as const };
+      try { return await fetchWallet(); } catch { return { linked: false as const }; }
+    },
+    staleTime: 60_000,
+  });
+  const connected = Boolean(tgLink?.linked);
+
   const mut = useMutation({
-    mutationFn: () =>
-      submit({
+    mutationFn: async () => {
+      if (connected && !["eps", "oxapay"].includes(method)) {
+        return submitConnected({ data: { product_id: id, quantity: qty, payment_method: method, txid } });
+      }
+      const r = await submit({
         data: { product_id: id, quantity: qty, customer_name: name, customer_email: email, payment_method: method, txid },
-      }),
+      });
+      return { ...r, email };
+    },
     onSuccess: (r) => {
       toast.success(`Order #${r.order_no} placed`);
-      void navigate({ to: "/order/confirmation", search: { order: String(r.order_no), email, t: r.token } });
+      void navigate({ to: "/order/confirmation", search: { order: String(r.order_no), email: r.email, t: r.token } });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -192,7 +213,7 @@ function CheckoutPage() {
         unit={Number(product?.price ?? 0)} qty={qty} total={total} money={money}
         methods={botMethods} method={method} setMethod={setMethod}
         name={name} setName={setName} email={email} setEmail={setEmail} phone={phone} setPhone={setPhone}
-        txid={txid} setTxid={setTxid} botUser={botUser} epsBdt={epsTotalBdt}
+        txid={txid} setTxid={setTxid} botUser={botUser} epsBdt={epsTotalBdt} connected={connected}
         placing={mut.isPending} redirecting={epsMut.isPending || oxaMut.isPending}
         onPlace={() => product && mut.mutate()} onEps={() => epsMut.mutate()} onOxa={() => oxaMut.mutate()}
       />

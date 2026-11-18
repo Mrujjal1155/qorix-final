@@ -8,6 +8,7 @@ import { getOxapayStatus } from "@/lib/oxapay.functions";
 import { AlertTriangle, Medal, QrCode, RotateCcw, Send, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
+import { BotDelivery } from "@/components/mobile/BotDelivery";
 import type { LucideIcon } from "lucide-react";
 import { Bitcoin, Coins, FileText, Gem, Landmark, Ticket, CalendarDays, ChevronDown, ChevronLeft, CircleCheck, Clock3, Copy, CreditCard, Gift, Package, Store, User, Wallet, Zap, Info } from "lucide-react";
 import { BotFrame } from "@/components/mobile/BotFrame";
@@ -234,7 +235,6 @@ function QrToggle({ src }: { src: string }) {
 function OrderMsg({ o }: { o: any }) {
   const [open, setOpen] = useState(false);
   const delivered = Boolean(o.delivered_content);
-  const copy = (t: string) => { void navigator.clipboard.writeText(t); toast.success("Copied"); };
   return (
     <>
       <Bubble className="w-full">
@@ -248,19 +248,14 @@ function OrderMsg({ o }: { o: any }) {
           [<><CalendarDays className="h-4 w-4" /> Date</>, new Date(o.created_at).toLocaleString()],
         ]} />
         {!delivered && <p className="mt-2 text-sm italic">Waiting for confirmation — your product appears here once the payment is verified.</p>}
-        {delivered && open && (
-          <pre className="mt-2 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-md bg-tg-quote p-2 font-mono text-xs">{o.delivered_content}</pre>
-        )}
       </Bubble>
       {delivered && (
-        <Keys cols={2}>
+        <>
           <button type="button" onClick={() => setOpen((v) => !v)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-tg-btn-green px-2 text-sm font-semibold text-tg-btn-fg shadow-sm">
             <ChevronDown className={`h-4 w-4 transition-transform ${open ? "rotate-180" : ""}`} /> {open ? "Hide delivery" : "View delivery"}
           </button>
-          <button type="button" onClick={() => copy(o.delivered_content)} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-tg-btn px-2 text-sm font-semibold text-tg-btn-fg shadow-sm">
-            <Copy className="h-4 w-4" /> Copy
-          </button>
-        </Keys>
+          {open && <BotDelivery content={o.delivered_content} orderNo={o.order_no} productName={o.product_name} />}
+        </>
       )}
     </>
   );
