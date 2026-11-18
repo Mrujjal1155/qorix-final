@@ -3770,6 +3770,18 @@ async function handleMessage(msg: any) {
     await setState(chatId, { msgs: (user.state as any)?.msgs ?? [] });
 
 
+    // Website Deposit page: /start wl_<code> connects the website account to this wallet.
+    if (payload?.startsWith("wl_")) {
+      const { data: res } = await db.rpc("consume_web_link_code" as any, { _code: payload.slice(3).slice(0, 40), _telegram_id: chatId });
+      const msgs: Record<string, string> = {
+        ok: "✅ <b>Website account connected</b>\n\nYour website Deposit page now uses this same wallet. Go back to the website and refresh.",
+        taken: "⚠️ This Telegram account is already connected to another website account.",
+        expired: "⌛ This link expired. Open the Deposit page on the website and tap Connect again.",
+        used: "ℹ️ This link was already used.",
+      };
+      await say(chatId, msgs[String(res)] ?? "❌ This link is not valid. Open the Deposit page on the website and tap Connect again.", [[{ text: "🏠 Home", callback_data: "home" }]]);
+      return;
+    }
     // Deep link from a channel post: /start p_<product-id> opens that product.
     if (payload?.startsWith("p_")) {
       const view = await productView(payload.slice(2), chatId);
@@ -8911,4 +8923,30 @@ export async function handleProductEditState(chatId: number, msg: any, text: str
   const v = await admProductDetailView(id);
   await say(chatId, `✅ ${PE_FIELDS[field].label} saved.\n\n${v.text}`.slice(0, 4000), v.kb);
   return true;
+}
+
+
+/* ------------------------------------------------ website Deposit page bridge */
+/** Website gateways reuse the bot's own deposit rows, verification and settlement. */
+export type WebGateway = "payid" | "bybit" | "chain_trc20" | "chain_bep20" | "usdt_trc20" | "usdt_bep20" | "eps_mfs" | "eps_card" | "oxapay";
+const stripTags = (t: string) => String(t ?? "").replace(/<[^>]+>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").trim();
+
+export async function webStartDeposit(chatId: number, gw: WebGateway, amount: number) {
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 10000) return { error: "Enter a valid amount." };
+  let r: any;
+  if (gw === "eps_mfs" || gw === "eps_card") r = await startEpsDeposit(chatId, gw === "eps_card" ? "card" : "mfs", amount);
+  else if (gw === "oxapay") r = await startOxapayDeposit(chatId, amount);
+  else if (gw === "usdt_trc20" || gw === "usdt_bep20") r = await startBinanceDeposit(chatId, "crypto", amount, gw === "usdt_trc20" ? "TRX" : "BSC");
+  else r = await startBinanceDeposit(chatId, gw, amount);
+  if (r?.error) return { error: stripTags(r.error) };
+  const row = r?.row;
+  if (!row) return { error: "Could not create the deposit. Please try again." };
+  const settings = await getSettings();
+  return { row: { id: String(row.id), kind: String(row.kind), network: row.network ?? null, address: String(row.address ?? ""), amount_usdt: Number(row.amount_usdt), expires_at: String(row.expires_at), qr: depositQrUrl(row, settings) || "" } };
+}
+
+export async function webSubmitDepositTxid(chatId: number, depId: string, txid: string) {
+  const r = await submitBinanceTxid(chatId, depId, txid, null);
+  const { data: row } = await db.from("binance_deposits").select("status").eq("id", depId).eq("telegram_id", chatId).maybeSingle();
+  return { message: stripTags(r.message), credited: row?.status === "credited" };
 }

@@ -2390,6 +2390,33 @@ export type Database = {
         }
         Relationships: []
       }
+      web_link_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string
+          used_at: string | null
+          used_by: number | null
+          user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at?: string
+          used_at?: string | null
+          used_by?: number | null
+          user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string
+          used_at?: string | null
+          used_by?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       public_products: {
@@ -2551,6 +2578,10 @@ export type Database = {
         Returns: string
       }
       cleanup_old_logs: { Args: never; Returns: Json }
+      consume_web_link_code: {
+        Args: { _code: string; _telegram_id: number }
+        Returns: string
+      }
       current_referral_mode: { Args: never; Returns: string }
       debit_reseller_order: { Args: { _order_id: string }; Returns: Json }
       enqueue_bot_broadcast: {
