@@ -229,7 +229,7 @@ function BotConfirmation({ orderNo, email, o, loading, failed, money }: {
           </Bubble>
           <KeyLink icon={Search} to="/track" search={{}}>Track order</KeyLink>
           <Keys cols={2}>
-            <KeyLink tone="green" icon={Store} to="/store">SHOP</KeyLink>
+            <KeyLink tone="green" icon={Store} to="/" onClick={() => localStorage.setItem("qorix_open", "products")}>SHOP</KeyLink>
             <KeyLink tone="red" icon={ChevronLeft} to="/">Main Menu</KeyLink>
           </Keys>
         </div>

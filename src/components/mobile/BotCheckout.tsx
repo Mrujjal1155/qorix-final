@@ -78,7 +78,7 @@ export function BotCheckout(p: {
               <Key tone="green" icon={CreditCard} onClick={() => setStage("details")}>Pay now · {p.money(p.total)}</Key>
               <Key icon={Pencil} onClick={() => setStage("qty")}>Change quantity</Key>
               <Keys cols={2}>
-                <KeyLink tone="green" icon={Store} to="/store">SHOP</KeyLink>
+                <KeyLink tone="green" icon={Store} to="/" onClick={() => localStorage.setItem("qorix_open", "products")}>SHOP</KeyLink>
                 <KeyLink tone="red" icon={ChevronLeft} to="/">Main Menu</KeyLink>
               </Keys>
             </>

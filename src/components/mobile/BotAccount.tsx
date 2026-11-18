@@ -278,7 +278,7 @@ export function BotOrders({ orders, loading }: { orders: any[]; loading: boolean
         </Bubble>
         {orders.map((o) => <OrderMsg key={o.order_no} o={o} />)}
         <Keys cols={2}>
-          <KeyLink tone="green" icon={Store} to="/store">SHOP</KeyLink>
+          <KeyLink tone="green" icon={Store} to="/" onClick={() => localStorage.setItem("qorix_open", "products")}>SHOP</KeyLink>
           <KeyLink tone="red" icon={ChevronLeft} to="/">Main Menu</KeyLink>
         </Keys>
       </div>
