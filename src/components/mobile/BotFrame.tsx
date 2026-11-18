@@ -32,7 +32,9 @@ export function BotLogo({ src, size = "md", inline }: { src: string; size?: "md"
 }
 
 const roundBtn = "grid h-11 w-11 shrink-0 place-items-center rounded-full bg-tg-header shadow-sm backdrop-blur";
-export const bottomCls = "flex min-h-12 items-center justify-center gap-1.5 rounded-2xl bg-tg-btn px-2 text-sm font-bold text-tg-btn-fg shadow-sm";
+export const bottomCls = "flex min-h-11 items-center justify-center gap-1.5 rounded-full bg-tg-btn px-2 text-sm font-bold text-tg-btn-fg shadow-sm";
+/** White rounded pill bar that holds the 3 bottom buttons, like Telegram's pinned menu. */
+export const bottomBarCls = "grid grid-cols-3 gap-1.5 rounded-full bg-tg-header p-1.5 shadow-sm backdrop-blur";
 
 /** Telegram chat window: header (logo, name, total users), wallpaper, scroll area, bottom keyboard. */
 export function BotFrame({ children, footer, onBack, onMenu, scrollRef, bare }: {
@@ -65,7 +67,7 @@ export function BotFrame({ children, footer, onBack, onMenu, scrollRef, bare }: 
         <div ref={scrollRef} className="tg-scroll flex flex-1 flex-col gap-1.5 overflow-y-auto px-2 py-3">{children}</div>
         {!bare && <footer className="space-y-2 px-2 pb-3">
           {footer ?? (
-            <div className="grid grid-cols-3 gap-2">
+            <div className={bottomBarCls}>
               <Link to="/" onClick={() => localStorage.setItem("qorix_open", "products")} className={bottomCls}><LayoutGrid className="h-4 w-4 shrink-0" /><span className="truncate">Products</span></Link>
               <Link to="/account" className={bottomCls}><Wallet className="h-4 w-4 shrink-0" /><span className="truncate">Deposit</span></Link>
               <Link to="/account/orders" className={bottomCls}><Package className="h-4 w-4 shrink-0" /><span className="truncate">My Orders</span></Link>

@@ -13,7 +13,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { BotReferralView, BotSupportView } from "@/components/mobile/BotSupport";
 import { getWebSupport } from "@/lib/web-wallet.functions";
 import { mobileImageFor, stripEmoji } from "@/lib/mobile-template";
-import { BotFrame, BotLogo, bottomCls } from "@/components/mobile/BotFrame";
+import { BotFrame, BotLogo, bottomBarCls, bottomCls } from "@/components/mobile/BotFrame";
 
 type Cat = { id: string; name: string; image_url?: string | null };
 type Prod = {
@@ -300,7 +300,7 @@ export function BotStorefront(props: {
           Start
         </button>
       ) : (
-        <div className="grid grid-cols-3 gap-2">
+        <div className={bottomBarCls}>
           <button type="button" onClick={() => setView({ k: "prods", cat: null, page: 0 })} className={bottomCls}><LayoutGrid className="h-4 w-4 shrink-0" /><span className="truncate">Products</span></button>
           {signedIn ? <Link to="/account" className={bottomCls}><Wallet className="h-4 w-4 shrink-0" /><span className="truncate">Deposit</span></Link>
             : <button type="button" onClick={() => setView({ k: "guest", what: "wallet" })} className={bottomCls}><Wallet className="h-4 w-4 shrink-0" /><span className="truncate">Deposit</span></button>}
