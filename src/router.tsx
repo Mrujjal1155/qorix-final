@@ -12,9 +12,9 @@ export const getRouter = () => {
     defaultPreloadStaleTime: 0,
     // Hand server-loaded site settings (incl. the active template) to the browser so the first paint never flips designs.
     dehydrate: () => ({
-      queryState: dehydrate(queryClient, {
+      queryState: JSON.parse(JSON.stringify(dehydrate(queryClient, {
         shouldDehydrateQuery: (q) => q.queryKey[0] === "site-content" && q.state.status === "success",
-      }),
+      }))) as Record<string, any>,
     }),
     hydrate: (d: any) => {
       if (d?.queryState) hydrate(queryClient, d.queryState);
