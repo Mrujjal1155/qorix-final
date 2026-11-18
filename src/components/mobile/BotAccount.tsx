@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
-import { CalendarDays, ChevronDown, ChevronLeft, CircleCheck, Clock3, Copy, CreditCard, Gift, Package, Store, User, Wallet, Zap, Info } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { Bitcoin, Coins, FileText, Gem, Landmark, Ticket, CalendarDays, ChevronDown, ChevronLeft, CircleCheck, Clock3, Copy, CreditCard, Gift, Package, Store, User, Wallet, Zap, Info } from "lucide-react";
 import { BotFrame } from "@/components/mobile/BotFrame";
 import { Bubble, KeyLink, Keys, Quote, Title } from "@/components/mobile/BotStorefront";
 import { priceTag } from "@/components/StoreShell";
@@ -23,38 +24,36 @@ function Table({ rows }: { rows: [ReactNode, ReactNode][] }) {
   );
 }
 
-/** Deposit / Wallet message in bot style (website pays at checkout, so it shows the account summary). */
-export function BotWallet({ email, stats, orders }: { email?: string | undefined; stats?: any; orders: any[] }) {
-  const recent = orders.slice(0, 5);
+/** Deposit page laid out exactly like the bot WALLET message. Website has no wallet top-up yet, so method buttons open the Telegram bot deposit. */
+export function BotWallet({ stats, orders, botUser }: { email?: string | undefined; stats?: any; orders: any[]; botUser?: string | undefined }) {
+  const bot = botUser ? `https://t.me/${botUser}?start=deposit` : "";
+  const methods: [string, LucideIcon][] = [
+    ["Binance Pay (auto)", CreditCard], ["Bybit Pay", Wallet], ["USDT · TRC20", Coins], ["USDT · BEP20", Coins],
+    ["bKash · Nagad · Rocket & more (auto)", Landmark], ["Visa · Mastercard (auto)", CreditCard], ["Any Crypto · BTC, LTC, USDT", Bitcoin], ["Redeem Code", Ticket],
+  ];
+  const btn = "flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-semibold text-tg-btn-fg shadow-sm transition active:scale-[0.98]";
+  void orders;
   return (
     <BotFrame>
       <Cmd>Deposit</Cmd>
       <div className={anim}>
         <Bubble className="w-full">
           <Title>WALLET</Title>
+          <p className="mt-2 text-sm">Your Balance and Spending Stats are:</p>
           <div className="my-1.5 h-px w-40 bg-tg-bubble-fg/40" />
-          {email ? <p className="flex items-center gap-2 text-sm"><User className="h-4 w-4 text-tg-link" /> {email}</p> : null}
-          <Table rows={[
-            [<><Package className="h-4 w-4 text-tg-link" /> Total orders</>, stats?.totalOrders ?? 0],
-            [<><CircleCheck className="h-4 w-4 text-tg-btn-green" /> Completed</>, stats?.completed ?? 0],
-            [<><Clock3 className="h-4 w-4 text-tg-btn-red" /> Pending</>, stats?.pending ?? 0],
-            [<><Wallet className="h-4 w-4 text-tg-link" /> Total spent</>, priceTag(stats?.spent ?? 0)],
-          ]} />
-          <Quote><p className="flex items-start gap-2"><Info className="mt-0.5 h-4 w-4 shrink-0" /> <span>No wallet deposit needed on the website — pay directly at checkout and it is verified automatically.</span></p></Quote>
+          <p className="flex items-center gap-2 text-sm"><Wallet className="h-4 w-4 text-tg-link" /> Orders: <b>{stats?.totalOrders ?? 0}</b> · Completed: <b>{stats?.completed ?? 0}</b></p>
+          <p className="flex items-center gap-2 text-sm"><Gem className="h-4 w-4 text-tg-link" /> Total Spent: {priceTag(stats?.spent ?? 0)}</p>
+          <p className="flex items-center gap-2 text-sm"><Clock3 className="h-4 w-4 text-tg-btn-red" /> Pending: {stats?.pending ?? 0}</p>
+          <div className="my-1.5 h-px w-40 bg-tg-bubble-fg/40" />
+          <p className="mt-2 text-sm italic">Choose a payment method below to add funds to your wallet.</p>
         </Bubble>
-        {recent.length > 0 && (
-          <Bubble className="w-full">
-            <p className="font-bold">Recent orders</p>
-            <Table rows={recent.map((o) => [<span className="font-mono">#{o.order_no}</span>, <span className="flex justify-end gap-2"><span className="truncate font-normal">{o.quantity}× {o.product_name}</span><span className={`uppercase ${statusCls(o.status)}`}>{o.status}</span></span>])} />
-          </Bubble>
-        )}
-        <Keys cols={2}>
-          <KeyLink tone="green" icon={Store} to="/store">SHOP</KeyLink>
-          <KeyLink icon={Package} to="/account/orders">My Orders</KeyLink>
-          <KeyLink icon={User} to="/account/profile">Profile</KeyLink>
-          <KeyLink icon={Gift} to="/account/referrals">Referrals</KeyLink>
-        </Keys>
-        <KeyLink tone="red" icon={ChevronLeft} to="/">Main Menu</KeyLink>
+        {methods.map(([label, I]) => (
+          <a key={label} href={bot || undefined} target="_blank" rel="noreferrer" aria-disabled={!bot} className={`${btn} bg-tg-btn ${bot ? "" : "pointer-events-none opacity-50"}`}>
+            <I className="h-4 w-4 shrink-0" /> <span className="truncate">{label}</span>
+          </a>
+        ))}
+        <KeyLink icon={FileText} to="/account/orders">Transaction History</KeyLink>
+        <KeyLink tone="green" icon={Store} to="/">Home</KeyLink>
       </div>
     </BotFrame>
   );

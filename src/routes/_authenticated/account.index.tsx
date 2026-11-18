@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect } from "react";
 import { ArrowRight, CheckCircle2, Clock, Package, Wallet } from "lucide-react";
 import { getMyAccount, linkMyOrders } from "@/lib/account.functions";
+import { getStorePayInfo } from "@/lib/shop.functions";
 import { AccountShell, statusTone } from "@/components/AccountShell";
 import { priceTag } from "@/components/StoreShell";
 import { useMobileTemplate } from "@/components/mobile/BotFrame";
@@ -45,7 +46,9 @@ function AccountOverview() {
 
   const recent = (data?.orders ?? []).slice(0, 5);
   const mobile = useMobileTemplate();
-  if (mobile) return <BotWallet email={data?.email ?? undefined} stats={data?.stats} orders={(data?.orders ?? []) as any[]} />;
+  const fetchPay = useServerFn(getStorePayInfo);
+  const { data: pay } = useQuery({ queryKey: ["store-pay"], queryFn: () => fetchPay(), enabled: mobile });
+  if (mobile) return <BotWallet email={data?.email ?? undefined} stats={data?.stats} orders={(data?.orders ?? []) as any[]} botUser={(pay as any)?.["bot_username"] || undefined} />;
 
   return (
     <AccountShell title="My account" subtitle={data?.email ? `Signed in as ${data.email}` : undefined}>
