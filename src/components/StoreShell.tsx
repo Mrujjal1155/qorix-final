@@ -57,6 +57,7 @@ import { siteContacts, type SiteLink } from "@/lib/site-content";
 
 import { Clock } from "lucide-react";
 import { hideOnError } from "@/components/SmartImage";
+import { BotPage, useMobileTemplate } from "@/components/mobile/BotFrame";
 
 function useSignedIn() {
   const [signedIn, setSignedIn] = useState(false);
@@ -201,6 +202,12 @@ function FooterColumn({ title, links }: { title: string; links: SiteLink[] }) {
 }
 
 export function StoreShell({ children }: { children: ReactNode }) {
+  // Mobile View template: every customer page opens inside the Telegram-bot window.
+  if (useMobileTemplate()) return <BotPage>{children}</BotPage>;
+  return <WebsiteShell>{children}</WebsiteShell>;
+}
+
+function WebsiteShell({ children }: { children: ReactNode }) {
   const signedIn = useSignedIn();
   const t = useT();
   const { site, v, links } = useSiteContent();

@@ -5,6 +5,7 @@ export const TEMPLATE_KEY = "site_template";
 export const MOBILE_LOGO_KEY = "site_mobile_logo";
 export const MOBILE_NAME_KEY = "site_mobile_name";
 export const MOBILE_IMAGES_KEY = "site_mobile_product_images";
+export const MOBILE_CAT_IMAGES_KEY = "site_mobile_category_images";
 
 /** Anything other than an explicit "mobile" keeps the current (Basic) design. */
 export function activeTemplate(raw: string | undefined | null): SiteTemplate {

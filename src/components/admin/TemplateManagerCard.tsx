@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { stripEmoji } from "@/lib/mobile-template";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { CheckCircle2, Monitor, Search, Smartphone } from "lucide-react";
-import { getBotSettings, saveBotSettings } from "@/lib/admin.functions";
-import { listStorefront } from "@/lib/shop.functions";
+import { CheckCircle2, ImageIcon, LayoutGrid, Monitor, Search, Smartphone } from "lucide-react";
+import { getBotSettings, getCatalogue, saveBotSettings } from "@/lib/admin.functions";
 import { broadcastSiteUpdate } from "@/lib/site-refresh";
 import {
-  activeTemplate, MOBILE_IMAGES_KEY, MOBILE_LOGO_KEY, MOBILE_NAME_KEY, parseMobileImages, TEMPLATE_KEY,
+  activeTemplate, MOBILE_CAT_IMAGES_KEY, MOBILE_IMAGES_KEY, MOBILE_LOGO_KEY, MOBILE_NAME_KEY, parseMobileImages, TEMPLATE_KEY,
   type SiteTemplate,
 } from "@/lib/mobile-template";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,15 +27,17 @@ export function TemplateManagerCard() {
   const qc = useQueryClient();
   const load = useServerFn(getBotSettings);
   const save = useServerFn(saveBotSettings);
-  const fetchStore = useServerFn(listStorefront);
+  const fetchCatalogue = useServerFn(getCatalogue);
   const { data: settings } = useQuery({ queryKey: ["admin-bot-settings-templates"], queryFn: () => load() });
-  const { data: store } = useQuery({ queryKey: ["storefront"], queryFn: () => fetchStore() });
+  const { data: catalogue } = useQuery({ queryKey: ["admin-template-catalogue"], queryFn: () => fetchCatalogue() });
 
   const [active, setActive] = useState<SiteTemplate>("basic");
   const [logo, setLogo] = useState("");
   const [name, setName] = useState("");
   const [images, setImages] = useState<Record<string, string>>({});
-  const [q, setQ] = useState("");
+  const [catImages, setCatImages] = useState<Record<string, string>>({});
+  const [panel, setPanel] = useState<"products" | "categories" | null>(null);
+  const [status, setStatus] = useState<"active" | "inactive">("active");
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -44,6 +46,7 @@ export function TemplateManagerCard() {
     setLogo(settings[MOBILE_LOGO_KEY] ?? "");
     setName(settings[MOBILE_NAME_KEY] ?? "");
     setImages(parseMobileImages(settings[MOBILE_IMAGES_KEY]));
+    setCatImages(parseMobileImages(settings[MOBILE_CAT_IMAGES_KEY]));
   }, [settings]);
 
   async function persist(values: Record<string, string>, ok: string) {
@@ -61,18 +64,14 @@ export function TemplateManagerCard() {
     }
   }
 
-  const products = (store?.products ?? []) as any[];
-  const filtered = useMemo(() => {
-    const t = q.trim().toLowerCase();
-    return t ? products.filter((p) => String(p.name).toLowerCase().includes(t)) : products;
-  }, [products, q]);
-  const doneCount = products.filter((p) => images[p.id]).length;
+  const allProducts = ((catalogue as any)?.products ?? []) as any[];
+  const allCategories = ((catalogue as any)?.categories ?? []) as any[];
 
-  function setImage(id: string, url: string) {
-    const next = { ...images };
+  function setMapImage(key: string, map: Record<string, string>, set: (m: Record<string, string>) => void, id: string, url: string) {
+    const next = { ...map };
     if (url) next[id] = url; else delete next[id];
-    setImages(next);
-    void persist({ [MOBILE_IMAGES_KEY]: JSON.stringify(next) }, url ? "Image saved" : "Image removed");
+    set(next);
+    void persist({ [key]: JSON.stringify(next) }, url ? "Image saved" : "Image removed");
   }
 
   return (
@@ -121,38 +120,74 @@ export function TemplateManagerCard() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="flex flex-wrap items-center gap-2">
-            Mobile View — product images <Badge variant="secondary">{doneCount}/{products.length} uploaded</Badge>
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            These images are used only by the Mobile View template. Products without one keep their normal image. Best size: square 256×256 px.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search products…" className="pl-9" />
+        <CardHeader><CardTitle>Mobile View — images</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <Button variant={panel === "products" ? "default" : "outline"} onClick={() => setPanel(panel === "products" ? null : "products")}>
+              <ImageIcon className="mr-2 h-4 w-4" /> Product Image
+            </Button>
+            <Button variant={panel === "categories" ? "default" : "outline"} onClick={() => setPanel(panel === "categories" ? null : "categories")}>
+              <LayoutGrid className="mr-2 h-4 w-4" /> Category Image
+            </Button>
           </div>
-          <div className="divide-y divide-border rounded-xl border border-border">
-            {filtered.map((p) => (
-              <div key={p.id} className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] sm:items-center">
-                <div className="flex min-w-0 items-center gap-3">
-                  {images[p.id] || p.image_url ? (
-                    <img src={images[p.id] || p.image_url} alt="" className="h-10 w-10 shrink-0 rounded-md object-cover" />
-                  ) : <span className="h-10 w-10 shrink-0 rounded-md bg-muted" />}
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{p.name}</p>
-                    <p className="text-xs text-muted-foreground">{images[p.id] ? "Mobile image set" : "Using normal image"}</p>
-                  </div>
-                </div>
-                <ImageUploadField compact value={images[p.id] ?? ""} onChange={(url) => setImage(p.id, url)} />
+          {panel === "products" && (
+            <>
+              <div className="grid grid-cols-2 gap-2">
+                <Button size="sm" variant={status === "active" ? "secondary" : "ghost"} onClick={() => setStatus("active")}>
+                  Active ({allProducts.filter((p) => p.is_active).length})
+                </Button>
+                <Button size="sm" variant={status === "inactive" ? "secondary" : "ghost"} onClick={() => setStatus("inactive")}>
+                  Inactive ({allProducts.filter((p) => !p.is_active).length})
+                </Button>
               </div>
-            ))}
-            {filtered.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">No products found.</p>}
-          </div>
+              <ImageList rows={allProducts.filter((p) => (status === "active" ? p.is_active : !p.is_active))}
+                map={images} onSet={(id, url) => setMapImage(MOBILE_IMAGES_KEY, images, setImages, id, url)} />
+            </>
+          )}
+          {panel === "categories" && (
+            <ImageList rows={allCategories} map={catImages}
+              onSet={(id, url) => setMapImage(MOBILE_CAT_IMAGES_KEY, catImages, setCatImages, id, url)} />
+          )}
+          <p className="text-xs text-muted-foreground">Used only by the Mobile View template. Best size: square 256×256 px. Without an upload the normal image stays.</p>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function ImageList({ rows, map, onSet }: { rows: any[]; map: Record<string, string>; onSet: (id: string, url: string) => void }) {
+  const [q, setQ] = useState("");
+  const filtered = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    return t ? rows.filter((r) => String(r.name).toLowerCase().includes(t)) : rows;
+  }, [rows, q]);
+  const done = rows.filter((r) => map[r.id]).length;
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…" className="pl-9" />
+        </div>
+        <Badge variant="secondary">{done}/{rows.length} uploaded</Badge>
+      </div>
+      <div className="max-h-[60vh] divide-y divide-border overflow-y-auto rounded-xl border border-border">
+        {filtered.map((r) => (
+          <div key={r.id} className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] sm:items-center">
+            <div className="flex min-w-0 items-center gap-3">
+              {map[r.id] || r.image_url ? (
+                <img src={map[r.id] || r.image_url} alt="" className="h-10 w-10 shrink-0 rounded-md object-cover" />
+              ) : <span className="h-10 w-10 shrink-0 rounded-md bg-muted" />}
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium">{stripEmoji(r.name)}</p>
+                <p className="text-xs text-muted-foreground">{map[r.id] ? "Mobile image set" : "Using normal image"}</p>
+              </div>
+            </div>
+            <ImageUploadField compact value={map[r.id] ?? ""} onChange={(url) => onSet(r.id, url)} />
+          </div>
+        ))}
+        {filtered.length === 0 && <p className="p-4 text-center text-sm text-muted-foreground">Nothing found.</p>}
+      </div>
     </div>
   );
 }

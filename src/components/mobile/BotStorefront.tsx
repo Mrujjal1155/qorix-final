@@ -1,11 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
-  ArrowLeft, Bell, BookOpen, Boxes, ChevronLeft, ChevronRight, CircleCheck, CircleX, Code2, EllipsisVertical,
-  Gift, Home, LayoutGrid, LifeBuoy, Mail, Megaphone, Minus, Package, Plus, RefreshCw, Send, ShieldCheck,
+  ArrowLeft, Bell, BookOpen, Boxes, ChevronLeft, ChevronRight, CircleCheck, CircleX, Code2,
+  Gift, Home, LayoutGrid, LifeBuoy, Mail, Megaphone, Minus, Package, Plus, RefreshCw, Send,
   ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, User, Users, Wallet, Zap, type LucideIcon,
 } from "lucide-react";
 import { mobileImageFor, stripEmoji } from "@/lib/mobile-template";
+import { BotFrame, BotLogo, bottomCls } from "@/components/mobile/BotFrame";
 
 type Cat = { id: string; name: string; image_url?: string | null };
 type Prod = {
@@ -23,7 +24,7 @@ const money = (v: unknown) => `$${Number(v ?? 0).toFixed(2)}`;
 
 export function BotStorefront(props: {
   name: string; logo: string; users: number | null; categories: Cat[]; products: Prod[];
-  images: Record<string, string>; loading: boolean;
+  images: Record<string, string>; catImages: Record<string, string>; loading: boolean;
 }) {
   const { categories, products, images } = props;
   const [view, setView] = useState<View>({ k: "start" });
@@ -41,7 +42,7 @@ export function BotStorefront(props: {
     body = (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 px-6 text-center">
         <Bubble className="max-w-xs text-center">
-          <Logo src={props.logo} size="lg" />
+          <BotLogo src={props.logo} size="lg" />
           <p className="mt-3 text-base font-bold">{props.name}</p>
           <p className="mt-1 text-sm text-tg-muted">
             Premium AI, developer, streaming and creative apps with automatic delivery after payment.
@@ -102,7 +103,7 @@ export function BotStorefront(props: {
         <Keys cols={1}><Key tone="green" icon={Zap} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>All products ({inStockCount})</Key></Keys>
         <Keys cols={categories.length > 8 ? 3 : 2}>
           {categories.map((c) => (
-            <Key key={c.id} img={c.image_url ?? undefined} icon={LayoutGrid} onClick={() => setView({ k: "prods", cat: c.id, page: 0 })}>{stripEmoji(c.name)}</Key>
+            <Key key={c.id} img={mobileImageFor(props.catImages, c.id, c.image_url) || undefined} icon={LayoutGrid} onClick={() => setView({ k: "prods", cat: c.id, page: 0 })}>{stripEmoji(c.name)}</Key>
           ))}
         </Keys>
         {props.loading && <p className="text-center text-xs text-tg-bubble-fg">Loading…</p>}
@@ -192,46 +193,23 @@ export function BotStorefront(props: {
   }
 
   return (
-    <div className="flex h-[100dvh] justify-center bg-tg-chat">
-      <div className="tg-wallpaper relative flex h-full w-full max-w-md flex-col overflow-hidden text-tg-bubble-fg sm:border-x sm:border-tg-bubble-fg/10">
-        <header className="z-10 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2 pt-2">
-          <button type="button" aria-label="Back" onClick={() => setView({ k: view.k === "start" ? "start" : "menu" } as View)}
-            className="grid h-11 w-11 place-items-center rounded-full bg-tg-header shadow-sm backdrop-blur">
-            <ArrowLeft className="h-5 w-5" />
-          </button>
-          <div className="flex min-w-0 items-center gap-2 rounded-full bg-tg-header py-1 pl-1 pr-4 shadow-sm backdrop-blur">
-            <Logo src={props.logo} />
-            <div className="min-w-0">
-              <p className="flex items-center gap-1 truncate text-base font-bold">{props.name} <ShieldCheck className="h-4 w-4 shrink-0 text-tg-link" /></p>
-              <p className="truncate text-xs text-tg-muted">
-                {props.users == null ? "bot" : `${props.users.toLocaleString("en-US")} total users`}
-              </p>
-            </div>
-          </div>
-          <button type="button" aria-label="Menu" onClick={() => setView({ k: "menu" })}
-            className="grid h-11 w-11 place-items-center rounded-full bg-tg-header shadow-sm backdrop-blur">
-            <EllipsisVertical className="h-5 w-5" />
-          </button>
-        </header>
-
-        <div ref={scroller} className="flex flex-1 flex-col gap-1.5 overflow-y-auto px-2 py-3">{body}</div>
-
-        <footer className="space-y-2 px-2 pb-3">
-          {view.k === "start" ? (
-            <button type="button" onClick={() => setView({ k: "menu" })}
-              className="w-full rounded-2xl bg-tg-header py-3.5 text-base font-bold uppercase tracking-wide text-tg-link shadow-sm backdrop-blur">
-              Start
-            </button>
-          ) : (
-            <div className="grid grid-cols-3 gap-2">
-              <BottomKey icon={LayoutGrid} onClick={() => setView({ k: "cats" })}>Products</BottomKey>
-              <BottomLink icon={Wallet} to="/account">Deposit</BottomLink>
-              <BottomLink icon={Package} to="/account/orders">My Orders</BottomLink>
-            </div>
-          )}
-        </footer>
-      </div>
-    </div>
+    <BotFrame scrollRef={scroller}
+      onBack={() => setView(view.k === "start" ? { k: "start" } : view.k === "menu" ? { k: "start" } : { k: "menu" })}
+      onMenu={() => setView({ k: "menu" })}
+      footer={view.k === "start" ? (
+        <button type="button" onClick={() => setView({ k: "menu" })}
+          className="w-full rounded-2xl bg-tg-header py-3.5 text-base font-bold uppercase tracking-wide text-tg-link shadow-sm backdrop-blur">
+          Start
+        </button>
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          <button type="button" onClick={() => setView({ k: "cats" })} className={bottomCls}><LayoutGrid className="h-4 w-4 shrink-0" /><span className="truncate">Products</span></button>
+          <Link to="/account" className={bottomCls}><Wallet className="h-4 w-4 shrink-0" /><span className="truncate">Deposit</span></Link>
+          <Link to="/account/orders" className={bottomCls}><Package className="h-4 w-4 shrink-0" /><span className="truncate">My Orders</span></Link>
+        </div>
+      )}>
+      {body}
+    </BotFrame>
   );
 }
 
@@ -269,14 +247,6 @@ function QtyPicker({ p, onBack }: { p: Prod; onBack: () => void }) {
 
 /* ---------- small Telegram-like building blocks ---------- */
 
-function Logo({ src, size = "md" }: { src: string; size?: "md" | "lg" }) {
-  const cls = size === "lg" ? "h-20 w-20" : "h-11 w-11";
-  return src ? (
-    <img src={src} alt="Bot logo" className={`${cls} mx-auto shrink-0 rounded-full object-cover ring-2 ring-tg-bubble`} />
-  ) : (
-    <span className={`${cls} mx-auto grid shrink-0 place-items-center rounded-full bg-tg-btn text-tg-btn-fg`}><ShoppingBag className="h-1/2 w-1/2" /></span>
-  );
-}
 function Bubble({ children, className = "" }: { children: ReactNode; className?: string }) {
   return <div className={`max-w-[92%] self-start rounded-2xl rounded-bl-md bg-tg-bubble px-3.5 py-2.5 shadow-sm ${className}`}>{children}</div>;
 }
@@ -313,11 +283,4 @@ function Key({ tone = "blue", icon, img, children, onClick, disabled, active }: 
 }
 function KeyLink({ tone = "blue", icon, children, ...link }: { tone?: Tone; icon?: LucideIcon; children: ReactNode } & Record<string, any>) {
   return <Link {...(link as any)} className={keyCls(tone)}><KeyInner icon={icon}>{children}</KeyInner></Link>;
-}
-const bottomCls = "flex min-h-12 items-center justify-center gap-1.5 rounded-2xl bg-tg-btn px-2 text-sm font-bold text-tg-btn-fg shadow-sm";
-function BottomKey({ icon: I, children, onClick }: { icon: LucideIcon; children: ReactNode; onClick: () => void }) {
-  return <button type="button" onClick={onClick} className={bottomCls}><I className="h-4 w-4 shrink-0" /><span className="truncate">{children}</span></button>;
-}
-function BottomLink({ icon: I, children, to }: { icon: LucideIcon; children: ReactNode; to: string }) {
-  return <Link to={to as any} className={bottomCls}><I className="h-4 w-4 shrink-0" /><span className="truncate">{children}</span></Link>;
 }

@@ -715,3 +715,38 @@
     radial-gradient(40rem 30rem at 0% 0%, color-mix(in oklab, var(--tg-chat) 90%, white), transparent 70%),
     linear-gradient(160deg, var(--tg-chat), var(--tg-chat-2));
 }
+
+/* Website pages rendered inside the bot bubble: light Telegram message palette. */
+.tg-page {
+  --background: var(--tg-bubble);
+  --foreground: var(--tg-bubble-fg);
+  --card: oklch(0.97 0.01 250);
+  --card-foreground: var(--tg-bubble-fg);
+  --popover: var(--tg-bubble);
+  --popover-foreground: var(--tg-bubble-fg);
+  --muted: oklch(0.95 0.01 250);
+  --muted-foreground: var(--tg-muted);
+  --secondary: oklch(0.95 0.01 250);
+  --secondary-foreground: var(--tg-bubble-fg);
+  --accent: oklch(0.94 0.02 240);
+  --accent-foreground: var(--tg-bubble-fg);
+  --primary: var(--tg-btn);
+  --primary-foreground: var(--tg-btn-fg);
+  --success: var(--tg-btn-green);
+  --destructive: var(--tg-btn-red);
+  --border: oklch(0.9 0.01 250);
+  --input: oklch(0.9 0.01 250);
+  --hairline: oklch(0.9 0.01 250);
+  color: var(--tg-bubble-fg);
+  background: var(--tg-bubble);
+  font-size: 0.95rem;
+}
+.tg-page .max-w-7xl, .tg-page .max-w-6xl, .tg-page .max-w-5xl, .tg-page .max-w-4xl, .tg-page .max-w-3xl {
+  max-width: 100%;
+}
+.tg-page :is(.lg\:grid-cols-2, .lg\:grid-cols-3, .lg\:grid-cols-12, .md\:grid-cols-2, .md\:grid-cols-3) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.tg-page :is(.lg\:col-span-4, .lg\:col-span-5, .lg\:col-span-7, .lg\:col-span-8) {
+  grid-column: auto;
+}

@@ -20,7 +20,7 @@ import { catalogPriceRange, storeJsonLd } from "@/lib/seo";
 import { useT } from "@/lib/i18n";
 import { categoriesWithProducts } from "@/lib/category-count";
 import { useSiteContent } from "@/lib/use-site-content";
-import { activeTemplate, MOBILE_IMAGES_KEY, MOBILE_LOGO_KEY, MOBILE_NAME_KEY, parseMobileImages, TEMPLATE_KEY } from "@/lib/mobile-template";
+import { activeTemplate, MOBILE_CAT_IMAGES_KEY, MOBILE_IMAGES_KEY, MOBILE_LOGO_KEY, MOBILE_NAME_KEY, parseMobileImages, TEMPLATE_KEY } from "@/lib/mobile-template";
 import { BotStorefront } from "@/components/mobile/BotStorefront";
 // Served from public/ so it works on the Cloudflare deploy (qorixlab.com) too.
 const EXPLAINER_URL = "/qorix-explainer.mp4";
@@ -96,6 +96,7 @@ function MobileHome({ v }: { v: (key: string) => string }) {
       categories={categories as any}
       products={products}
       images={parseMobileImages(v(MOBILE_IMAGES_KEY))}
+      catImages={parseMobileImages(v(MOBILE_CAT_IMAGES_KEY))}
       loading={isLoading}
     />
   );

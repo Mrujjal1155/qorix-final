@@ -23,6 +23,7 @@ import { BrandHead } from "@/components/BrandHead";
 import { siteJsonLd } from "@/lib/seo";
 import { MaintenanceGate } from "@/components/MaintenanceGate";
 import { AdminThemeProvider, useAdminTheme } from "@/components/admin/AdminThemeProvider";
+import { getSiteContent } from "@/lib/shop.functions";
 
 /** Storage origin that serves product images — warm the connection early. */
 const IMG_ORIGIN: string =
@@ -96,6 +97,12 @@ function ErrorComponentFallback({ error, reset }: ErrorComponentProps) {
 const ErrorLazyComponent = lazy(async () => ({ default: ErrorComponentFallback }));
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
+  // Site settings (incl. the active template) ship in the first HTML so no page flips designs.
+  loader: async ({ context }) => {
+    await context.queryClient
+      .ensureQueryData({ queryKey: ["site-content"], queryFn: () => getSiteContent() })
+      .catch(() => null);
+  },
   head: () => ({
     meta: [
       { charSet: "utf-8" },
