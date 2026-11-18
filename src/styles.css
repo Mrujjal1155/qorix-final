@@ -712,6 +712,8 @@
 }
 @utility tg-wallpaper {
   background:
+    url("/tg-doodles.svg") 0 0 / 190px 190px repeat,
+    url("/tg-doodles.svg") 95px 95px / 150px 150px repeat,
     radial-gradient(40rem 30rem at 0% 0%, color-mix(in oklab, var(--tg-chat) 90%, white), transparent 70%),
     linear-gradient(160deg, var(--tg-chat), var(--tg-chat-2));
 }
