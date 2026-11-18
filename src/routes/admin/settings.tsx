@@ -27,7 +27,8 @@ import { SupplierKeysCard } from "@/components/SupplierKeysCard";
 import { EmailTemplatesCard } from "@/components/EmailTemplatesCard";
 import { StockAlertSettingsCard } from "@/components/StockAlertSettingsCard";
 import { MaintenanceCard } from "@/components/MaintenanceCard";
-import { Wrench, Radio } from "lucide-react";
+import { Wrench, Radio, LayoutTemplate } from "lucide-react";
+import { TemplateManagerCard } from "@/components/admin/TemplateManagerCard";
 import { LiveUpdateCard } from "@/components/LiveUpdateCard";
 import { PRODUCTION_SITE_URL } from "@/lib/site-url";
 
@@ -1007,6 +1008,13 @@ function SettingsPage() {
       description: "Add each supplier's API key and base URL, test the connection and turn it on or off.",
       icon: Network,
       render: () => <SupplierKeysCard />,
+    },
+    {
+      id: "templates",
+      title: "Template Management",
+      description: "Choose the live website design: Basic or Mobile View (Telegram-bot style).",
+      icon: LayoutTemplate,
+      render: () => <TemplateManagerCard />,
     },
     {
       id: "currency",

@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { ChevronDown, Play, Send } from "lucide-react";
 import { SectionHeader } from "@/components/SectionHeader";
-import { listStorefront, getPublicStats } from "@/lib/shop.functions";
+import { listStorefront, getPublicStats, getSiteContent } from "@/lib/shop.functions";
 import { FaqTeaser, ResellerTeaser, StatsStrip, StayUpdated, Testimonials, WeeklyOffers } from "@/components/HomeTrust";
 import { duplicateNotes } from "@/lib/duplicate-products";
 import { availableStoreProducts } from "@/lib/available-store-products";
@@ -19,6 +19,9 @@ import { productionUrlFor } from "@/lib/site-url";
 import { catalogPriceRange, storeJsonLd } from "@/lib/seo";
 import { useT } from "@/lib/i18n";
 import { categoriesWithProducts } from "@/lib/category-count";
+import { useSiteContent } from "@/lib/use-site-content";
+import { activeTemplate, MOBILE_IMAGES_KEY, MOBILE_LOGO_KEY, MOBILE_NAME_KEY, parseMobileImages, TEMPLATE_KEY } from "@/lib/mobile-template";
+import { BotStorefront } from "@/components/mobile/BotStorefront";
 // Served from public/ so it works on the Cloudflare deploy (qorixlab.com) too.
 const EXPLAINER_URL = "/qorix-explainer.mp4";
 // Real frame taken from the explainer itself (3s) — always renders, no wait for the video.
@@ -28,6 +31,10 @@ const EXPLAINER_POSTER = "/qorix-explainer-poster.jpg";
 export const Route = createFileRoute("/")({
   loader: async ({ context }) => {
     // Server-render the real catalogue so names, prices and stock are in the first HTML.
+    // Template choice is needed in the first HTML so the page never flips designs.
+    await context.queryClient
+      .ensureQueryData({ queryKey: ["site-content"], queryFn: () => getSiteContent() })
+      .catch(() => null);
     try {
       const data: any = await context.queryClient.ensureQueryData(storefrontQuery);
       return { priceRange: catalogPriceRange(data?.products ?? []) };
@@ -53,7 +60,7 @@ export const Route = createFileRoute("/")({
     scripts: [{ type: "application/ld+json", children: JSON.stringify(storeJsonLd(loaderData?.priceRange ?? null)) }],
     links: [{ rel: "canonical", href: productionUrlFor("/") }],
   }),
-  component: Landing,
+  component: HomePage,
 });
 
 /** Columns of the category grid: 2 on phones, 3 on tablets, 5 on desktops — mirrors the grid classes. */
@@ -66,6 +73,32 @@ function useGridCols() {
     return () => window.removeEventListener("resize", read);
   }, []);
   return cols;
+}
+
+function HomePage() {
+  const { v } = useSiteContent();
+  return activeTemplate(v(TEMPLATE_KEY)) === "mobile" ? <MobileHome v={v} /> : <Landing />;
+}
+
+/** Mobile View template: the whole storefront as a Telegram-bot style chat. */
+function MobileHome({ v }: { v: (key: string) => string }) {
+  const fetchStore = useServerFn(listStorefront);
+  const fetchStats = useServerFn(getPublicStats);
+  const { data, isLoading } = useQuery({ ...storefrontQuery, queryFn: () => fetchStore(), refetchInterval: 10_000 });
+  const { data: stats } = useQuery({ queryKey: ["public-stats"], queryFn: () => fetchStats(), staleTime: 300_000 });
+  const products = (data?.products ?? []) as any[];
+  const categories = categoriesWithProducts((data?.categories ?? []) as any[], products as any[]);
+  return (
+    <BotStorefront
+      name={v(MOBILE_NAME_KEY) || "QORIX-store"}
+      logo={v(MOBILE_LOGO_KEY) || v("site_brand_logo")}
+      users={(stats as any)?.users ?? null}
+      categories={categories as any}
+      products={products}
+      images={parseMobileImages(v(MOBILE_IMAGES_KEY))}
+      loading={isLoading}
+    />
+  );
 }
 
 function Landing() {

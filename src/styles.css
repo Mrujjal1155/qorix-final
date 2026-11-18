@@ -679,3 +679,39 @@
   font-size: clamp(2.25rem, 5.2vw, 4.25rem);
   line-height: 0.98;
 }
+
+/* Mobile View template — Telegram-bot look. */
+:root {
+  --tg-chat: oklch(0.86 0.09 128);
+  --tg-chat-2: oklch(0.8 0.1 150);
+  --tg-header: oklch(0.97 0.02 150 / 0.85);
+  --tg-bubble: oklch(1 0 0);
+  --tg-bubble-fg: oklch(0.2 0.01 250);
+  --tg-quote: oklch(0.95 0.03 300);
+  --tg-quote-bar: oklch(0.62 0.18 300);
+  --tg-link: oklch(0.55 0.15 245);
+  --tg-btn: oklch(0.62 0.13 230);
+  --tg-btn-green: oklch(0.64 0.18 145);
+  --tg-btn-red: oklch(0.62 0.15 30);
+  --tg-btn-fg: oklch(0.99 0 0);
+  --tg-muted: oklch(0.55 0.01 250);
+}
+@theme inline {
+  --color-tg-chat: var(--tg-chat);
+  --color-tg-header: var(--tg-header);
+  --color-tg-bubble: var(--tg-bubble);
+  --color-tg-bubble-fg: var(--tg-bubble-fg);
+  --color-tg-quote: var(--tg-quote);
+  --color-tg-quote-bar: var(--tg-quote-bar);
+  --color-tg-link: var(--tg-link);
+  --color-tg-btn: var(--tg-btn);
+  --color-tg-btn-green: var(--tg-btn-green);
+  --color-tg-btn-red: var(--tg-btn-red);
+  --color-tg-btn-fg: var(--tg-btn-fg);
+  --color-tg-muted: var(--tg-muted);
+}
+@utility tg-wallpaper {
+  background:
+    radial-gradient(40rem 30rem at 0% 0%, color-mix(in oklab, var(--tg-chat) 90%, white), transparent 70%),
+    linear-gradient(160deg, var(--tg-chat), var(--tg-chat-2));
+}

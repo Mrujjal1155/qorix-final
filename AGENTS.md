@@ -41,3 +41,4 @@
 - Bybit: UID-bound read-only reads, exact matching, atomic prefixed claims; not Merchant Pay. Wallet/checkout share Bybit/chain icons.
 - Blockchain: service-only settings/claims, solidified TRON/finalized BSC, exact amounts. TronGrid uses server-only TRONGRID_API_KEY, no redirects.
 - Store URLs: trigger-kept service-only `product_slugs`; UUID/old slugs 301; checkout/bot use UUIDs.
+- Website templates: `site_template` (basic|mobile) in bot_settings picks the storefront design; Mobile View images/logo live in `site_mobile_*` keys via pure helpers in `src/lib/mobile-template.ts`, so switching never touches products, checkout or admin.

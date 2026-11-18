@@ -95,7 +95,9 @@ export const getPublicStats = createServerFn({ method: "GET" }).handler(async ()
     .from("orders")
     .select("id", { count: "exact", head: true })
     .eq("status", "completed");
-  return { delivered: error ? null : (count ?? null) };
+  // Lifetime bot members (only the number leaves the server).
+  const users = await supabaseAdmin.from("bot_users").select("telegram_id", { count: "exact", head: true });
+  return { delivered: error ? null : (count ?? null), users: users.error ? null : (users.count ?? null) };
 });
 
 /** Resolve /store/<param> (slug, old slug or UUID) to the product id and its current slug. */
