@@ -35,6 +35,11 @@ export function BotStorefront(props: {
   const [signedIn, setSignedIn] = useState(false);
   useEffect(() => {
     // Once Guest or Telegram was chosen, open straight on the menu (no Start again), like the bot.
+    // Products button on other pages lands here and opens the full product list, like the bot.
+    if (localStorage.getItem("qorix_open") === "products") {
+      localStorage.removeItem("qorix_open");
+      setView({ k: "prods", cat: null, page: 0 });
+    }
     if (localStorage.getItem("qorix_guest")) setView((v) => (v.k === "start" ? { k: "menu" } : v));
     supabase.auth.getSession().then(({ data }) => {
       setSignedIn(Boolean(data.session));
@@ -261,7 +266,7 @@ export function BotStorefront(props: {
         </button>
       ) : (
         <div className="grid grid-cols-3 gap-2">
-          <button type="button" onClick={() => setView({ k: "cats" })} className={bottomCls}><LayoutGrid className="h-4 w-4 shrink-0" /><span className="truncate">Products</span></button>
+          <button type="button" onClick={() => setView({ k: "prods", cat: null, page: 0 })} className={bottomCls}><LayoutGrid className="h-4 w-4 shrink-0" /><span className="truncate">Products</span></button>
           {signedIn ? <Link to="/account" className={bottomCls}><Wallet className="h-4 w-4 shrink-0" /><span className="truncate">Deposit</span></Link>
             : <button type="button" onClick={() => setView({ k: "guest", what: "wallet" })} className={bottomCls}><Wallet className="h-4 w-4 shrink-0" /><span className="truncate">Deposit</span></button>}
           <Link to={signedIn ? "/account/orders" : "/track"} className={bottomCls}><Package className="h-4 w-4 shrink-0" /><span className="truncate">My Orders</span></Link>

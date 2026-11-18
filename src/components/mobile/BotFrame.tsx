@@ -66,7 +66,7 @@ export function BotFrame({ children, footer, onBack, onMenu, scrollRef }: {
         <footer className="space-y-2 px-2 pb-3">
           {footer ?? (
             <div className="grid grid-cols-3 gap-2">
-              <Link to="/" className={bottomCls}><LayoutGrid className="h-4 w-4 shrink-0" /><span className="truncate">Products</span></Link>
+              <Link to="/" onClick={() => localStorage.setItem("qorix_open", "products")} className={bottomCls}><LayoutGrid className="h-4 w-4 shrink-0" /><span className="truncate">Products</span></Link>
               <Link to="/account" className={bottomCls}><Wallet className="h-4 w-4 shrink-0" /><span className="truncate">Deposit</span></Link>
               <Link to="/account/orders" className={bottomCls}><Package className="h-4 w-4 shrink-0" /><span className="truncate">My Orders</span></Link>
             </div>
