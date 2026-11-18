@@ -43,4 +43,3 @@
 - Store URLs: trigger-kept service-only `product_slugs`; UUID/old slugs 301; checkout/bot use UUIDs.
 - Templates: `site_template`/`site_mobile_*` settings via `src/lib/mobile-template.ts`; design only.
 
-- Website Deposit (Mobile View) uses the connected bot wallet: one-time `web_link_codes` consumed by bot `/start wl_<code>` set `profiles.telegram_id`; website deposits call `webStartDeposit`/`webSubmitDepositTxid` in the bot engine so verification and settlement stay single-path.
