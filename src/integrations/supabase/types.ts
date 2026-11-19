@@ -2697,6 +2697,16 @@ export type Database = {
         }
         Returns: Json
       }
+      purchase_website_wallet: {
+        Args: {
+          _expected_total: number
+          _product_id: string
+          _qty: number
+          _request_id: string
+          _user_id: string
+        }
+        Returns: Json
+      }
       read_customer_orders: {
         Args: { _email: string; _user_id: string }
         Returns: {

@@ -1,0 +1,40 @@
+import { beforeAll, afterAll, test, expect } from "bun:test";
+import { PGlite } from "@electric-sql/pglite";
+import { readFile } from "node:fs/promises";
+const db = new PGlite();
+const uid="11111111-1111-4111-8111-111111111111", pid="22222222-2222-4222-8222-222222222222";
+beforeAll(async()=>{
+ await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role; CREATE SCHEMA auth;
+ CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql AS $$ SELECT coalesce(current_setting('test.role',true),'service_role') $$;
+ CREATE TABLE profiles(id uuid,telegram_id bigint,email text);
+ CREATE TABLE bot_users(telegram_id bigint,balance numeric,total_spent numeric,is_banned boolean,first_name text);
+ CREATE TABLE products(id uuid,name text,price numeric,cost_price numeric,is_active boolean,supplier_id uuid,supplier_stock integer,delivery_type text,manual_stock_limited boolean);
+ CREATE TABLE suppliers(id uuid,is_enabled boolean);
+ CREATE TABLE stock_items(id serial,product_id uuid,content text,is_sold boolean default false);
+ CREATE TABLE orders(id uuid default gen_random_uuid(),order_no serial,telegram_id bigint,user_id uuid,source text,product_id uuid,product_name text,quantity integer,unit_price numeric,total numeric,status text,delivery_type text,customer_name text,customer_email text,payment_method text,delivered_content text,meta jsonb);
+ CREATE TABLE transactions(amount numeric,reference text);
+ CREATE FUNCTION claim_stock_items(_pid uuid,_qty integer,_tid bigint) RETURNS SETOF stock_items LANGUAGE sql AS $$ UPDATE stock_items SET is_sold=true WHERE id IN (SELECT id FROM stock_items WHERE product_id=_pid AND NOT is_sold LIMIT _qty) RETURNING * $$;
+ CREATE FUNCTION take_manual_stock(_pid uuid,_qty integer) RETURNS boolean LANGUAGE sql AS $$ SELECT false $$;
+ CREATE FUNCTION bot_user_debit(_tid bigint,_amount numeric,_method text,_ref text,_note text) RETURNS jsonb LANGUAGE plpgsql AS $$ BEGIN UPDATE bot_users SET balance=balance-_amount,total_spent=total_spent+_amount WHERE telegram_id=_tid AND balance>=_amount; IF NOT FOUND THEN RAISE EXCEPTION 'Insufficient wallet balance'; END IF; INSERT INTO transactions VALUES(_amount,_ref); RETURN '{}'::jsonb; END $$;
+ INSERT INTO profiles VALUES('${uid}',123,'fixture@example.com'); INSERT INTO bot_users VALUES(123,10,0,false,'Fixture');
+ INSERT INTO products VALUES('${pid}','Fixture',2,1,true,null,0,'auto',false);`);
+ await db.exec(await readFile(new URL('../../supabase/migrations/20261119060650_10aee7b6-4e0c-4c5e-9cfa-c70fbbafec76.sql',import.meta.url),'utf8'));
+},30000);
+afterAll(()=>db.close());
+const buy=(request:string,qty=1,total=2)=>db.query<{r:any}>("select purchase_website_wallet($1,$2,$3,$4,$5) r",[uid,pid,qty,request,total]);
+const state=async()=> (await db.query<any>("select balance,(select count(*) from orders) orders,(select count(*) from transactions) debits,(select count(*) from stock_items where is_sold) sold from bot_users")).rows[0];
+test("full-stock paid order and duplicate request debit only once",async()=>{
+ await db.query('insert into stock_items(product_id,content) values($1,$2)',[pid,'credential']);
+ const key='33333333-3333-4333-8333-333333333333'; const first=(await buy(key)).rows[0]?.r;
+ expect(first.changed).toBe(true);expect((await buy(key)).rows[0]?.r.id).toBe(first.id);
+ const s=await state();expect(Number(s.balance)).toBe(8);expect(Number(s.debits)).toBe(1);expect(Number(s.sold)).toBe(1);
+});
+test("insufficient stock rolls back partial stock claim, debit and order",async()=>{
+ await db.query('insert into stock_items(product_id,content) values($1,$2)',[pid,'second']);const before=await state();
+ await expect(buy('44444444-4444-4444-8444-444444444444',2,4)).rejects.toThrow('Stock unavailable');expect(await state()).toEqual(before);
+});
+test("insufficient balance cannot create an order",async()=>{const before=await state();await expect(buy('55555555-5555-4555-8555-555555555555',5,10)).rejects.toThrow('Insufficient wallet balance');expect(await state()).toEqual(before);});
+test("price change cannot debit",async()=>{const before=await state();await expect(buy('66666666-6666-4666-8666-666666666666',1,1)).rejects.toThrow('Price changed');expect(await state()).toEqual(before);});
+test("unlinked account cannot debit",async()=>{await db.exec('update profiles set telegram_id=null');await expect(buy('77777777-7777-4777-8777-777777777777')).rejects.toThrow('Connect');await db.exec('update profiles set telegram_id=123');});
+test("banned account cannot debit",async()=>{await db.exec('update bot_users set is_banned=true');await expect(buy('88888888-8888-4888-8888-888888888888')).rejects.toThrow('Wallet unavailable');await db.exec('update bot_users set is_banned=false');});
+test("direct non-service invocation fails closed",async()=>{await db.exec("set test.role='authenticated'");await expect(buy('99999999-9999-4999-8999-999999999999')).rejects.toThrow('Forbidden');});

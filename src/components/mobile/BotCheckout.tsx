@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangle, CircleDollarSign, Clock, Coins, Copy, CreditCard, FileText,
-  Package, Pencil, ReceiptText, RotateCcw, Send, Store, X, ChevronLeft, CheckCircle2,
+  Package, Pencil, ReceiptText, RotateCcw, Send, Store, X, ChevronLeft, CheckCircle2, Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -23,6 +23,7 @@ export function BotCheckout(p: {
   phone: string; setPhone: (v: string) => void; txid: string; setTxid: (v: string) => void;
   botUser: string; epsBdt: number; placing: boolean; redirecting: boolean; connected?: boolean;
   onPlace: () => void; onEps: () => void; onOxa: () => void;
+  walletBalance?: number; walletAllowed?: boolean; walletBusy?: boolean; onWallet?: () => void;
 }) {
   const navigate = useNavigate();
   const [stage, setStage] = useState<Stage>("summary");
@@ -114,6 +115,7 @@ export function BotCheckout(p: {
             <p className="text-sm">Total: <b>{p.total.toFixed(2)} USDT</b></p>
             {p.connected && <p className="mt-1 flex items-center gap-2 text-xs text-tg-muted"><Send className="h-3.5 w-3.5" /> Saved to your connected Telegram account.</p>}
           </Bubble>
+          {p.connected && <Key icon={Wallet} disabled={!p.walletAllowed || Boolean(p.walletBusy)} onClick={() => p.onWallet?.()}>{p.walletBusy ? "Purchasing…" : `Pay with Wallet · ${(p.walletBalance ?? 0).toFixed(2)} USDT`}</Key>}
           {p.methods.map((x) => (
             <Key key={x.id} leading={<PaymentGatewayIcon gateway={x.id} img={x.img} icon={x.icon} />} onClick={() => { p.setMethod(x.id); setStage("pay"); }}>{x.label}</Key>
           ))}

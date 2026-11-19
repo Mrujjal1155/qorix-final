@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Add approved connected-only checkout wallet payment with displayed bot balance, insufficient/banned gating, session-persisted request identity and service-only atomic debit/ledger/order/own-stock claim; website prices and existing gateways unchanged. Supplier buys use one durable claim and stable order reference; uncertain/partial results stay paid for review, not automatic replay. Eleven rule/isolated SQL tests and six delivery regressions pass; guest hidden/connected callback and mobile/desktop display fixtures pass; build OK. No real purchase or publication.
+- [ ] Verify authenticated wallet purchase → confirmation → saved delivery on real account; external unmanaged authentication and no real-purchase approval prevent this check. Live rollout requires separate deployment permission/access.
+
 - [x] Repair category/product/payment Premium media URLs for external hosting: reproduced qorixlab.com asset 404s and switched the shared player to the verified public asset origin with credential-free animation reads. All 216 media return 200, animation CORS passes, eight tests pass, desktop/mobile catalogue and checkout show no broken images or runtime errors; build OK.
 - [ ] Release and verify the Premium asset URL fix on qorixlab.com; waits for separate external deployment permission/access. No deployment attempted.
 

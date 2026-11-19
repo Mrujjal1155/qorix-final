@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { z } from "zod";
 
 /** Website Deposit page: the signed-in user's connected bot wallet. */
 async function linkedTelegram(userId: string) {
@@ -29,6 +30,47 @@ export const getWebWallet = createServerFn({ method: "GET" })
       membership: String((u as any)?.membership ?? "—"),
       history: ((tx ?? []) as any[]).map((t) => ({ id: String(t.id), type: String(t.type), amount: Number(t.amount), method: t.method ?? null, status: String(t.status), created_at: String(t.created_at) })),
     };
+  });
+
+export const purchaseWithWebWallet = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ product_id: z.string().uuid(), quantity: z.number().int().min(1).max(100000), request_id: z.string().uuid(), expected_total: z.number().positive() }).parse(d))
+  .handler(async ({ data, context }) => {
+    const { db, tid } = await linkedTelegram(context.userId);
+    if (!tid) throw new Error("Connect your Telegram account first.");
+    const { data: user } = await db.from("bot_users").select("is_banned").eq("telegram_id", tid).maybeSingle();
+    if (!user || user.is_banned) throw new Error("This wallet is unavailable.");
+    const { data: existing } = await db.from("orders").select("product_id,quantity,order_no,customer_email")
+      .eq("user_id", context.userId).eq("payment_method", "wallet").eq("meta->>wallet_request_id", data.request_id).maybeSingle();
+    if (existing) {
+      if (existing.product_id !== data.product_id || existing.quantity !== data.quantity) throw new Error("Request already used");
+      const email = String(existing.customer_email ?? "");
+      const { orderAccessToken } = await import("@/lib/order-access.server");
+      return { order_no: existing.order_no, email, token: orderAccessToken(existing.order_no, email) };
+    }
+    const { data: product } = await db.from("products").select("id,delivery_type,supplier_id,supplier_external_id,is_active").eq("id", data.product_id).maybeSingle();
+    if (!product?.is_active) throw new Error("Product unavailable.");
+    if (product.delivery_type !== "manual" && product.supplier_id && product.supplier_external_id) {
+      const { data: supplier } = await db.from("suppliers").select("*").eq("id", product.supplier_id).eq("is_enabled", true).maybeSingle();
+      if (!supplier) throw new Error("Product unavailable.");
+      const { supplierProducts } = await import("@/lib/suppliers/api.server");
+      let available = 0;
+      try { available = Number((await supplierProducts(supplier as any)).find(p => String(p.external_id) === String(product.supplier_external_id))?.stock ?? 0); }
+      catch { throw new Error("Live stock could not be verified. Please try again shortly."); }
+      if (available < data.quantity) throw new Error("Not enough stock is available.");
+    }
+    const { data: result, error } = await db.rpc("purchase_website_wallet", { _user_id: context.userId, _product_id: data.product_id, _qty: data.quantity, _request_id: data.request_id, _expected_total: data.expected_total });
+    if (error) {
+      const safe = ["Insufficient wallet balance", "Stock unavailable", "Price changed. Refresh checkout", "Request already used", "Wallet unavailable"];
+      throw new Error(safe.includes(error.message) ? error.message : "Could not place the wallet order. Please try again with the same checkout.");
+    }
+    const r = result as { id: string; order_no: number; email: string; changed: boolean };
+    if (r.changed) {
+      const { deliverWebsiteWalletOrder } = await import("@/lib/website-wallet.server");
+      await deliverWebsiteWalletOrder(r.id);
+    }
+    const { orderAccessToken } = await import("@/lib/order-access.server");
+    return { order_no: r.order_no, email: r.email, token: orderAccessToken(r.order_no, r.email) };
   });
 
 export const createWebLinkCode = createServerFn({ method: "POST" })

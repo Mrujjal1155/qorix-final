@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import {
@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 
 import { getStoreProduct, getStorePayInfo, placeWebsiteOrder, placeConnectedWebsiteOrder } from "@/lib/shop.functions";
-import { getWebWallet } from "@/lib/web-wallet.functions";
+import { getWebWallet, purchaseWithWebWallet } from "@/lib/web-wallet.functions";
+import { canPayCheckoutWallet } from "@/lib/wallet-checkout";
 import { supabase } from "@/integrations/supabase/client";
 import { getEpsStatus, startEpsCheckout } from "@/lib/eps.functions";
 import { getOxapayStatus, startOxapayCheckout } from "@/lib/oxapay.functions";
@@ -88,6 +89,14 @@ function CheckoutPage() {
   const submit = useServerFn(placeWebsiteOrder);
   const submitConnected = useServerFn(placeConnectedWebsiteOrder);
   const fetchWallet = useServerFn(getWebWallet);
+  const purchaseWallet = useServerFn(purchaseWithWebWallet);
+  const qc = useQueryClient();
+  const [walletRequest, setWalletRequest] = useState("");
+  useEffect(() => {
+    const key = `wallet-checkout:${id}:${qty}`;
+    const request = sessionStorage.getItem(key) || crypto.randomUUID();
+    sessionStorage.setItem(key, request); setWalletRequest(request);
+  }, [id, qty]);
   const fetchEps = useServerFn(getEpsStatus);
   const startEps = useServerFn(startEpsCheckout);
   const fetchOxa = useServerFn(getOxapayStatus);
@@ -142,6 +151,19 @@ function CheckoutPage() {
     staleTime: 60_000,
   });
   const connected = Boolean(tgLink?.linked);
+  const walletBalance = tgLink?.linked ? tgLink.balance : 0;
+  const walletAllowed = canPayCheckoutWallet(connected, tgLink?.linked ? tgLink.banned : false, walletBalance, total);
+  const walletMut = useMutation({
+    mutationFn: () => purchaseWallet({ data: { product_id: id, quantity: qty, request_id: walletRequest, expected_total: Math.round(total * 100) / 100 } }),
+    onSuccess: (r) => {
+      sessionStorage.removeItem(`wallet-checkout:${id}:${qty}`);
+      void qc.invalidateQueries({ queryKey: ["checkout-tg-link"] });
+      void qc.invalidateQueries({ queryKey: ["web-wallet"] });
+      toast.success(`Order #${r.order_no} placed`);
+      void navigate({ to: "/order/confirmation", search: { order: String(r.order_no), email: r.email, t: r.token } });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const mut = useMutation({
     mutationFn: async () => {
@@ -215,6 +237,7 @@ function CheckoutPage() {
         name={name} setName={setName} email={email} setEmail={setEmail} phone={phone} setPhone={setPhone}
         txid={txid} setTxid={setTxid} botUser={botUser} epsBdt={epsTotalBdt} connected={connected}
         placing={mut.isPending} redirecting={epsMut.isPending || oxaMut.isPending}
+        walletBalance={walletBalance} walletAllowed={walletAllowed && Boolean(walletRequest)} walletBusy={walletMut.isPending} onWallet={() => walletMut.mutate()}
         onPlace={() => product && mut.mutate()} onEps={() => epsMut.mutate()} onOxa={() => oxaMut.mutate()}
       />
     );
@@ -289,6 +312,7 @@ function CheckoutPage() {
 
             {step === "details" && (
               <div className="grid gap-4 md:grid-cols-2">
+                {connected && <Button className="md:col-span-2" disabled={!walletAllowed || !walletRequest || walletMut.isPending} onClick={() => walletMut.mutate()}><Wallet className="h-4 w-4" /> {walletMut.isPending ? "Purchasing…" : `Pay with Wallet · ${money(walletBalance)}`}</Button>}
                 <div className="space-y-1">
                   <Label>Your name</Label>
                   <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="John Doe" />
