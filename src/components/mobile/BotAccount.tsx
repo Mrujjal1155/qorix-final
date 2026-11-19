@@ -9,6 +9,7 @@ import { AlertTriangle, Medal, QrCode, RotateCcw, Send, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { BotDelivery } from "@/components/mobile/BotDelivery";
+import { PaymentGatewayIcon } from "@/components/mobile/PaymentGatewayIcon";
 import type { LucideIcon } from "lucide-react";
 import { Bitcoin, Coins, FileText, Gem, Landmark, Ticket, CalendarDays, ChevronDown, ChevronLeft, CircleCheck, Clock3, Copy, CreditCard, Gift, Package, Store, User, Wallet, Zap, Info } from "lucide-react";
 import { BotFrame } from "@/components/mobile/BotFrame";
@@ -134,7 +135,7 @@ export function BotWallet() {
             <div className="my-1.5 h-px w-40 bg-tg-bubble-fg/40" />
             <p className="mt-2 text-sm italic">Choose a payment method below to add funds to your wallet.</p>
           </Bubble>
-          {gws.map((g) => <Key key={g.id} icon={g.icon} onClick={() => { setAmount(""); setSt({ k: "amount", gw: g }); }}>{g.label}</Key>)}
+          {gws.map((g) => <Key key={g.id} leading={<PaymentGatewayIcon gateway={g.id} icon={g.icon} />} onClick={() => { setAmount(""); setSt({ k: "amount", gw: g }); }}>{g.label}</Key>)}
           {botUser ? <a href={`https://t.me/${botUser}`} target="_blank" rel="noreferrer" className={`${btn} bg-tg-btn`}><Ticket className="h-4 w-4" /> Redeem Code</a> : null}
           <Key icon={FileText} onClick={() => setSt({ k: "history" })}>Transaction History</Key>
           <KeyLink tone="green" icon={Store} to="/">Home</KeyLink>
@@ -151,7 +152,7 @@ export function BotWallet() {
       ) : st.k === "amount" ? (
         <div key="amt" className={anim}>
           <Bubble className="w-full">
-            <p className="flex items-center gap-2 font-bold"><st.gw.icon className="h-4 w-4 text-tg-link" /> {st.gw.label}</p>
+            <p className="flex items-center gap-2 font-bold"><PaymentGatewayIcon gateway={st.gw.id} icon={st.gw.icon} /> {st.gw.label}</p>
             <p className="mt-2 text-sm font-semibold">How much USDT do you want to add?</p>
             <Quote>
               <p>Enter the amount only, e.g. <b>1</b> or <b>10.5</b>.</p>
@@ -170,7 +171,7 @@ export function BotWallet() {
           <Bubble className="w-full">
             <p className="flex items-center gap-2 text-sm"><FileText className="h-4 w-4 text-tg-link" /> <b>Deposit ID:</b> <span className="font-mono text-tg-link">{st.dep.id.slice(0, 8)}</span></p>
             <p className="mt-1 flex items-start gap-2 text-sm"><Clock3 className="mt-0.5 h-4 w-4 shrink-0 text-tg-btn-red" /> <span>Open until {new Date(st.dep.expires_at).toLocaleTimeString()} (30 minutes). Unpaid deposits expire automatically.</span></p>
-            <p className="mt-3 flex items-center gap-2 font-bold"><st.gw.icon className="h-4 w-4 text-tg-link" /> {st.gw.label}</p>
+            <p className="mt-3 flex items-center gap-2 font-bold"><PaymentGatewayIcon gateway={st.gw.id} icon={st.gw.icon} /> {st.gw.label}</p>
             <p className="mt-2 text-sm">{isPayId(st.dep) ? <>Open Binance app → <b>Pay</b> → <b>Send</b> → paste this Pay ID:</> : st.dep.kind === "bybit" ? <>Bybit app → <b>Transfer</b> → internal transfer to this UID:</> : <>Send <b>USDT only</b> on the {st.gw.label.split("·")[1]?.trim()} network to:</>}</p>
             <button type="button" onClick={() => copy(st.dep.address)} className="block break-all text-left font-mono text-sm font-semibold text-tg-link">{st.dep.address}</button>
             <p className="mt-3 flex items-center gap-2 text-sm"><Coins className="h-4 w-4 text-tg-btn-green" /> Amount to send (tap to copy):</p>

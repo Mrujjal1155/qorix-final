@@ -10,6 +10,7 @@ import { BotFrame } from "@/components/mobile/BotFrame";
 import { Bubble, Key, KeyLink, Keys, Quote, Title } from "@/components/mobile/BotStorefront";
 import { ProductPremiumIcon } from "@/components/mobile/ProductPremiumIcon";
 import { productPremiumMedia } from "@/lib/product-premium-media";
+import { PaymentGatewayIcon } from "@/components/mobile/PaymentGatewayIcon";
 
 export type BotMethod = { id: string; label: string; icon?: LucideIcon | undefined; img?: string | undefined; address?: string | undefined };
 
@@ -114,7 +115,7 @@ export function BotCheckout(p: {
             {p.connected && <p className="mt-1 flex items-center gap-2 text-xs text-tg-muted"><Send className="h-3.5 w-3.5" /> Saved to your connected Telegram account.</p>}
           </Bubble>
           {p.methods.map((x) => (
-            <Key key={x.id} icon={x.icon} img={x.img} onClick={() => { p.setMethod(x.id); setStage("pay"); }}>{x.label}</Key>
+            <Key key={x.id} leading={<PaymentGatewayIcon gateway={x.id} img={x.img} icon={x.icon} />} onClick={() => { p.setMethod(x.id); setStage("pay"); }}>{x.label}</Key>
           ))}
           {p.methods.length === 0 && <Bubble><p className="text-sm">No payment method is available right now — please contact support.</p></Bubble>}
           <Key tone="red" icon={ChevronLeft} onClick={() => setStage(p.connected ? "summary" : "details")}>Back</Key>
@@ -126,7 +127,7 @@ export function BotCheckout(p: {
           <Bubble className="w-full">
             <p className="flex items-center gap-2 text-sm"><Ico i={Package} /> <b>Order:</b> {p.qty}x {p.productName}</p>
             <p className="mt-2 flex items-start gap-2 text-sm"><Ico i={Clock} c="mt-0.5 text-tg-btn-red" /> <span>This order stays open for 30 minutes. If the payment is not made and confirmed within that time, it can be cancelled automatically.</span></p>
-            <p className="mt-3 flex items-center gap-2 font-bold">{m.img ? <img src={m.img} alt="" className="h-5 w-5 object-contain" /> : m.icon ? <Ico i={m.icon} /> : null} {m.label}</p>
+            <p className="mt-3 flex items-center gap-2 font-bold"><PaymentGatewayIcon gateway={m.id} img={m.img} icon={m.icon} /> {m.label}</p>
             {isEps || isOxa ? (
               <>
                 <p className="mt-2 text-sm">{isEps ? "You will be taken to the secure EPS page to pay with bKash, Nagad, Rocket or card." : "You will be taken to the secure crypto page — USDT, BTC, LTC & more, confirmed automatically."}</p>

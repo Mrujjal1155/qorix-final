@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Add eight captured bot payment Premium media assets to Mobile View checkout and wallet/deposit through a shared renderer; preserve OxaPay artwork and all payment behavior. Real catalogue checkout method→payment display and wallet/deposit display fixtures pass on desktop/mobile with no broken images, overflow or runtime errors; six existing media tests pass. No spending, bot changes or publication; authenticated wallet verification unavailable with external unmanaged authentication.
+
 - [x] Extend Premium icons to all 377 products with saved bot custom emojis, reuse category assets and capture 147 new unique media files. Mobile View product/freebie lists, details, quantity and checkout use the same player; original artwork remains. Nine tests pass; real catalogue list→detail→quantity→checkout display checked at desktop/mobile with no broken images, overflow or runtime errors. No purchase, bot/database changes or publish; future icon edits need another capture.
 
 - [x] Preview-only category Premium emoji experiment: captured 62 exact category mappings / 61 unique Telegram media assets (18 animated), kept saved artwork as fallback, verified category images and navigation on desktop/mobile. No bot settings, product data or deployment changes; future bot-icon edits are not automatically synced in this experiment.
