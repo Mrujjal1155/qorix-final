@@ -44,5 +44,6 @@
 - Templates: `site_template`/`site_mobile_*` settings via `src/lib/mobile-template.ts`; design only.
 - Mobile payment gateway artwork uses a browser-safe captured media map and shared icon renderer; checkout/wallet IDs preserve their distinct bot icons without changing gateway availability or settlement.
 - Captured Premium media resolves through `premiumAssetUrl` to the verified public Lovable asset origin because the external shop does not serve `/__l5e/assets-v1/`; animation fetches omit credentials.
+- Mobile action icons use captured bot setting keys through ButtonPremiumIcon; explicit per-action keys preserve distinct back/cart/payment artwork without changing behavior.
 - Connected website wallet purchases use a service-only request-idempotent atomic debit/order/own-stock RPC and website prices; supplier attempts are durably claimed once and uncertain outcomes require review, never automatic replay.
 

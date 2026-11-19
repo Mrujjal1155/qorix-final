@@ -18,6 +18,8 @@ import { CategoryPremiumIcon } from "@/components/mobile/CategoryPremiumIcon";
 import { categoryPremiumMedia } from "@/lib/category-premium-media";
 import { productPremiumMedia } from "@/lib/product-premium-media";
 import { ProductPremiumIcon } from "@/components/mobile/ProductPremiumIcon";
+import { ButtonPremiumIcon } from "@/components/mobile/ButtonPremiumIcon";
+import { Button } from "@/components/ui/button";
 
 type Cat = { id: string; name: string; image_url?: string | null };
 type Prod = {
@@ -67,8 +69,8 @@ export function BotStorefront(props: {
   }, []);
   const begin = () => setView(signedIn || localStorage.getItem("qorix_guest") ? { k: "menu" } : { k: "choose" });
   const acct = (to: string, what: string, icon: LucideIcon, label: string, tone: "blue" | "green" = "blue") =>
-    signedIn ? <KeyLink tone={tone} icon={icon} to={to}>{label}</KeyLink>
-      : <Key tone={tone} icon={icon} onClick={() => setView({ k: "guest", what })}>{label}</Key>;
+    signedIn ? <KeyLink premium={`menu_icon_${what}`} tone={tone} icon={icon} to={to}>{label}</KeyLink>
+      : <Key premium={`menu_icon_${what}`} tone={tone} icon={icon} onClick={() => setView({ k: "guest", what })}>{label}</Key>;
   useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" }); }, [view]);
 
   const inStockCount = products.filter((p) => p.in_stock !== false).length;
@@ -121,7 +123,7 @@ export function BotStorefront(props: {
         <Keys cols={1}>
           <Key tone="green" icon={Send} onClick={() => setView({ k: "tg" })}>Connect Telegram</Key>
           <KeyLink icon={Package} to="/track">Track my order</KeyLink>
-          <Key tone="red" icon={ChevronLeft} onClick={() => setView({ k: "menu" })}>Main Menu</Key>
+          <Key premium="menu_icon_back" tone="red" icon={ChevronLeft} onClick={() => setView({ k: "menu" })}>Main Menu</Key>
         </Keys>
       </>
     );
@@ -140,10 +142,10 @@ export function BotStorefront(props: {
             : <><p className="text-sm">No freebies right now. Check back later!</p><p className="mt-2 text-sm italic">No offer found — no free offers are running right now.</p></>}
         </Bubble>
         {free.length > 0 && <Keys cols={1}>{free.map((p) => <Key key={p.id} leading={productPremiumMedia(p.id) ? <ProductPremiumIcon productId={p.id} /> : undefined} img={imgOf(p)} icon={Gift} onClick={() => setView({ k: "prod", id: p.id, from: view })}>{stripEmoji(p.name)} | FREE</Key>)}</Keys>}
-        <Keys cols={1}><Key tone="green" icon={RefreshCw} onClick={() => setView({ k: "free" })}>Refresh</Key></Keys>
+        <Keys cols={1}><Key premium="ui_icon_prod_refresh" tone="green" icon={RefreshCw} onClick={() => setView({ k: "free" })}>Refresh</Key></Keys>
         <Keys cols={2}>
           <Key tone="green" icon={ShoppingCart} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>Open Shop</Key>
-          <Key tone="red" icon={ArrowLeft} onClick={() => setView({ k: "menu" })}>Back</Key>
+          <Key premium="ui_icon_prod_back" tone="red" icon={ArrowLeft} onClick={() => setView({ k: "menu" })}>Back</Key>
         </Keys>
       </>
     );
@@ -172,19 +174,19 @@ export function BotStorefront(props: {
           <p className="text-sm">Shop · Wallet · Orders · Support</p>
         </Bubble>
         <Keys cols={3}>
-          <Key icon={Store} onClick={() => setView({ k: "cats" })}>SHOP</Key>
-          <Key icon={ShoppingCart} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>Cart</Key>
-          {signedIn ? <KeyLink icon={Package} to="/account/orders">Orders</KeyLink> : <KeyLink icon={Package} to="/track">Orders</KeyLink>}
+          <Key premium="menu_icon_shop" icon={Store} onClick={() => setView({ k: "cats" })}>SHOP</Key>
+          <Key premium="ui_icon_prod_cart" icon={ShoppingCart} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>Cart</Key>
+          {signedIn ? <KeyLink premium="menu_icon_orders" icon={Package} to="/account/orders">Orders</KeyLink> : <KeyLink premium="menu_icon_orders" icon={Package} to="/track">Orders</KeyLink>}
           {acct("/account", "wallet", Wallet, "Wallet")}
-          <Key icon={Gift} onClick={() => setView({ k: "free" })}>Freebies</Key>
+          <Key premium="menu_icon_freebies" icon={Gift} onClick={() => setView({ k: "free" })}>Freebies</Key>
           {acct("/account/profile", "profile", User, "Profile")}
         </Keys>
-        <Keys cols={1}><Key tone="green" icon={Gift} onClick={() => setView({ k: "refer" })}>Referral Store</Key></Keys>
+        <Keys cols={1}><Key premium="menu_icon_referral" tone="green" icon={Gift} onClick={() => setView({ k: "refer" })}>Referral Store</Key></Keys>
         <Keys cols={2}>
-          <Key tone="green" icon={LifeBuoy} onClick={() => setView({ k: "support" })}>Support</Key>
-          <a href={supportInfo?.emails ?? "https://mailreader.click/"} target="_blank" rel="noreferrer" className={keyCls("green")}><KeyInner icon={Mail}>Emails & Trials</KeyInner></a>
-          <KeyLink tone="green" icon={Code2} to="/reseller/docs">Reseller API</KeyLink>
-          <Key tone="green" icon={Trash2} onClick={() => { setView({ k: "cats" }); setTimeout(() => setView({ k: "menu" }), 0); }}>Clear Chat</Key>
+          <Key premium="menu_icon_support" tone="green" icon={LifeBuoy} onClick={() => setView({ k: "support" })}>Support</Key>
+          <a href={supportInfo?.emails ?? "https://mailreader.click/"} target="_blank" rel="noreferrer" className={keyCls("green")}><KeyInner premium="menu_icon_emails" icon={Mail}>Emails & Trials</KeyInner></a>
+          <KeyLink premium="menu_icon_api" tone="green" icon={Code2} to="/reseller/docs">Reseller API</KeyLink>
+          <Key premium="menu_icon_clear" tone="green" icon={Trash2} onClick={() => { setView({ k: "cats" }); setTimeout(() => setView({ k: "menu" }), 0); }}>Clear Chat</Key>
         </Keys>
         <Keys cols={1}>
           {signedIn
@@ -202,7 +204,7 @@ export function BotStorefront(props: {
           <p className="text-sm italic">Every product is neatly organised by category — just tap a category below to browse and buy instantly.</p>
           <p className="mt-2 flex items-center gap-2 text-sm font-semibold"><ShoppingBag className="h-4 w-4 text-tg-quote-bar" /> Happy shopping with QORIX!</p>
         </Bubble>
-        <Keys cols={1}><Key tone="green" icon={Zap} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>All products ({inStockCount})</Key></Keys>
+        <Keys cols={1}><Key premium="cat_icon_all" tone="green" icon={Zap} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>All products ({inStockCount})</Key></Keys>
         <Keys cols={categories.length > 8 ? 3 : 2}>
           {categories.map((c) => {
             const premium = categoryPremiumMedia(c.id);
@@ -213,8 +215,8 @@ export function BotStorefront(props: {
         </Keys>
         {props.loading && <p className="text-center text-xs text-tg-bubble-fg">Loading…</p>}
         <Keys cols={2}>
-          <Key tone="green" icon={RefreshCw} onClick={() => setView({ k: "cats" })}>Refresh Stock</Key>
-          <Key tone="red" icon={ChevronLeft} onClick={() => setView({ k: "menu" })}>Main Menu</Key>
+          <Key premium="menu_icon_refresh" tone="green" icon={RefreshCw} onClick={() => setView({ k: "cats" })}>Refresh Stock</Key>
+          <Key premium="menu_icon_back" tone="red" icon={ChevronLeft} onClick={() => setView({ k: "menu" })}>Main Menu</Key>
         </Keys>
       </>
     );
@@ -243,17 +245,17 @@ export function BotStorefront(props: {
         </Keys>
         {pages > 1 && (
           <Keys cols={2}>
-            <Key icon={ChevronLeft} disabled={view.page === 0} onClick={() => setView({ ...view, page: view.page - 1 })}>Prev</Key>
-            <Key icon={ChevronRight} disabled={view.page >= pages - 1} onClick={() => setView({ ...view, page: view.page + 1 })}>Next ({view.page + 1}/{pages})</Key>
+            <Key premium="menu_icon_prev" icon={ChevronLeft} disabled={view.page === 0} onClick={() => setView({ ...view, page: view.page - 1 })}>Prev</Key>
+            <Key premium="menu_icon_next" icon={ChevronRight} disabled={view.page >= pages - 1} onClick={() => setView({ ...view, page: view.page + 1 })}>Next ({view.page + 1}/{pages})</Key>
           </Keys>
         )}
         <Keys cols={1}>
-          <Key tone="green" icon={RefreshCw} onClick={() => setView({ ...view })}>Refresh Stock</Key>
-          <Key tone="green" icon={LayoutGrid} onClick={() => setView({ k: "cats" })}>Back to Categories</Key>
+          <Key premium="menu_icon_refresh" tone="green" icon={RefreshCw} onClick={() => setView({ ...view })}>Refresh Stock</Key>
+          <Key premium="ui_icon_shop_back_cat" tone="green" icon={LayoutGrid} onClick={() => setView({ k: "cats" })}>Back to Categories</Key>
         </Keys>
         <Keys cols={2}>
-          <Key tone="green" icon={ShoppingCart} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>Cart</Key>
-          <Key tone="red" icon={ChevronLeft} onClick={() => setView({ k: "menu" })}>Main Menu</Key>
+          <Key premium="ui_icon_prod_cart" tone="green" icon={ShoppingCart} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>Cart</Key>
+          <Key premium="menu_icon_back" tone="red" icon={ChevronLeft} onClick={() => setView({ k: "menu" })}>Main Menu</Key>
         </Keys>
       </>
     );
@@ -278,20 +280,20 @@ export function BotStorefront(props: {
           </Bubble>
           {sold ? (
             <Keys cols={1}>
-              <Key tone="green" icon={CircleX}>Out of stock</Key>
-              <KeyLink tone="green" icon={Bell} to="/store/$id" params={{ id: p.slug ?? p.id }}>Notify Me When Available</KeyLink>
+              <Key premium="ui_icon_prod_out" tone="green" icon={CircleX}>Out of stock</Key>
+              <KeyLink premium="ui_icon_prod_notify" tone="green" icon={Bell} to="/store/$id" params={{ id: p.slug ?? p.id }}>Notify Me When Available</KeyLink>
             </Keys>
           ) : (
             <Keys cols={2}>
-              <Key tone="green" icon={ShoppingCart} onClick={() => setView({ k: "qty", id: p.id, from: view.from })}>Buy Now</Key>
+              <Key premium="ui_icon_prod_buy" tone="green" icon={ShoppingCart} onClick={() => setView({ k: "qty", id: p.id, from: view.from })}>Buy Now</Key>
               <KeyLink tone="green" icon={BookOpen} to="/store/$id" params={{ id: p.slug ?? p.id }}>Full Details</KeyLink>
             </Keys>
           )}
           <Keys cols={2}>
-            <Key tone="green" icon={RefreshCw} onClick={() => setView({ ...view })}>Refresh</Key>
-            <Key tone="red" icon={ArrowLeft} onClick={() => setView(back)}>Back</Key>
-            <Key tone="green" icon={ShoppingCart} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>Cart</Key>
-            <Key tone="green" icon={Home} onClick={() => setView({ k: "menu" })}>Home</Key>
+            <Key premium="ui_icon_prod_refresh" tone="green" icon={RefreshCw} onClick={() => setView({ ...view })}>Refresh</Key>
+            <Key premium="ui_icon_prod_back" tone="red" icon={ArrowLeft} onClick={() => setView(back)}>Back</Key>
+            <Key premium="ui_icon_prod_cart" tone="green" icon={ShoppingCart} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>Cart</Key>
+            <Key premium="ui_icon_prod_home" tone="green" icon={Home} onClick={() => setView({ k: "menu" })}>Home</Key>
           </Keys>
         </>
       );
@@ -309,10 +311,10 @@ export function BotStorefront(props: {
         </button>
       ) : (
         <div className={bottomBarCls}>
-          <button type="button" onClick={() => setView({ k: "prods", cat: null, page: 0 })} className={bottomCls}><LayoutGrid className="h-4 w-4 shrink-0" /><span className="truncate">Products</span></button>
-          {signedIn ? <Link to="/account" className={bottomCls}><Wallet className="h-4 w-4 shrink-0" /><span className="truncate">Deposit</span></Link>
-            : <button type="button" onClick={() => setView({ k: "guest", what: "wallet" })} className={bottomCls}><Wallet className="h-4 w-4 shrink-0" /><span className="truncate">Deposit</span></button>}
-          <Link to={signedIn ? "/account/orders" : "/track"} className={bottomCls}><Package className="h-4 w-4 shrink-0" /><span className="truncate">My Orders</span></Link>
+          <button type="button" onClick={() => setView({ k: "prods", cat: null, page: 0 })} className={bottomCls}><ButtonPremiumIcon setting="menu_icon_bottom_products" fallback={LayoutGrid} /><span className="truncate">Products</span></button>
+          {signedIn ? <Link to="/account" className={bottomCls}><ButtonPremiumIcon setting="menu_icon_bottom_deposit" fallback={Wallet} /><span className="truncate">Deposit</span></Link>
+            : <button type="button" onClick={() => setView({ k: "guest", what: "wallet" })} className={bottomCls}><ButtonPremiumIcon setting="menu_icon_bottom_deposit" fallback={Wallet} /><span className="truncate">Deposit</span></button>}
+          <Link to={signedIn ? "/account/orders" : "/track"} className={bottomCls}><ButtonPremiumIcon setting="menu_icon_bottom_orders" fallback={Package} /><span className="truncate">My Orders</span></Link>
         </div>
       )}>
       {body}
@@ -361,7 +363,7 @@ function TelegramConnect({ onDone, onBack }: { onDone: () => void; onBack: () =>
       <Keys cols={1}>
         {href && <a href={href} target="_blank" rel="noreferrer" className={keyCls("green")}><KeyInner icon={Send}>Open Telegram</KeyInner></a>}
         <Key icon={RefreshCw} onClick={start}>Try again</Key>
-        <Key tone="red" icon={ArrowLeft} onClick={onBack}>Back</Key>
+        <Key premium="ui_icon_qty_back" tone="red" icon={ArrowLeft} onClick={onBack}>Back</Key>
       </Keys>
     </>
   );
@@ -375,7 +377,7 @@ function QtyPicker({ p, onBack }: { p: Prod; onBack: () => void }) {
   return (
     <>
       <Bubble>
-        <p className="flex items-center gap-2 font-bold"><ShoppingCart className="h-4 w-4 text-tg-link" /> Select quantity</p>
+        <p className="flex items-center gap-2 font-bold"><ButtonPremiumIcon setting="ui_icon_qty_title" fallback={ShoppingCart} /> Select quantity</p>
         <hr className="my-2 w-40 border-tg-bubble-fg/40" />
         <p className="flex items-center gap-2 uppercase"><ProductPremiumIcon productId={p.id} /><span className="min-w-0 break-words">{stripEmoji(p.name)}</span></p>
         <p>Price: <b>{money(p.price)}</b></p>
@@ -390,7 +392,7 @@ function QtyPicker({ p, onBack }: { p: Prod; onBack: () => void }) {
       <Keys cols={3}>
         <Key icon={Minus} disabled={qty <= 1} onClick={() => setQty((q) => Math.max(1, q - 1))}>Less</Key>
         <Key>{qty} × {money(p.price)}</Key>
-        <Key icon={Plus} disabled={qty >= max} onClick={() => setQty((q) => Math.min(max, q + 1))}>More</Key>
+        <Key premium="ui_icon_qty_add1" icon={Plus} disabled={qty >= max} onClick={() => setQty((q) => Math.min(max, q + 1))}>More</Key>
       </Keys>
       <form className="flex gap-1.5" onSubmit={(e) => {
         e.preventDefault();
@@ -400,11 +402,11 @@ function QtyPicker({ p, onBack }: { p: Prod; onBack: () => void }) {
       }}>
         <input type="number" inputMode="numeric" min={1} max={max} value={custom} onChange={(e) => setCustom(e.target.value.replace(/\D/g, "").slice(0, 6))}
           placeholder="Custom quantity" aria-label="Custom quantity" className="min-h-11 w-full min-w-0 flex-1 rounded-xl border border-tg-bubble-fg/15 bg-tg-bubble px-3 text-sm outline-none focus:border-tg-link" />
-        <button type="submit" className="min-h-11 rounded-xl bg-tg-btn-green px-4 text-sm font-semibold text-tg-btn-fg shadow-sm">Confirm</button>
+        <Button type="submit" variant="ghost" className="min-h-11 rounded-xl bg-tg-btn-green px-4 text-sm font-semibold text-tg-btn-fg shadow-sm"><ButtonPremiumIcon setting="ui_icon_qty_custom" />Confirm</Button>
       </form>
       <Keys cols={1}>
-        <KeyLink tone="green" icon={Send} to="/checkout" search={{ id: p.id, qty, step: "details" }}>Checkout · {money(total)}</KeyLink>
-        <Key tone="red" icon={ArrowLeft} onClick={onBack}>Back</Key>
+        <KeyLink premium="ui_icon_co_pay" tone="green" icon={Send} to="/checkout" search={{ id: p.id, qty, step: "details" }}>Checkout · {money(total)}</KeyLink>
+        <Key premium="ui_icon_qty_back" tone="red" icon={ArrowLeft} onClick={onBack}>Back</Key>
       </Keys>
     </>
   );
@@ -432,20 +434,20 @@ type Tone = "blue" | "green" | "red";
 const toneCls: Record<Tone, string> = { blue: "bg-tg-btn", green: "bg-tg-btn-green", red: "bg-tg-btn-red" };
 const keyCls = (tone: Tone, active?: boolean) =>
   `flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl px-2 py-2 text-sm font-semibold text-tg-btn-fg shadow-sm transition active:scale-[0.98] disabled:opacity-50 ${toneCls[tone]} ${active ? "ring-2 ring-tg-btn-fg" : ""}`;
-function KeyInner({ icon: I, img, leading, children }: { icon?: LucideIcon | undefined; img?: string | undefined; leading?: ReactNode; children: ReactNode }) {
+function KeyInner({ icon: I, img, leading, premium, children }: { icon?: LucideIcon | undefined; img?: string | undefined; leading?: ReactNode; premium?: string | undefined; children: ReactNode }) {
   return (
     <>
       {leading ?? (img ? <img src={img} alt="" loading="lazy" className="h-6 w-6 shrink-0 rounded-md bg-tg-bubble object-cover" />
-        : I ? <I className="h-4 w-4 shrink-0" /> : null)}
+        : premium ? <ButtonPremiumIcon setting={premium} fallback={I} /> : I ? <I className="h-4 w-4 shrink-0" /> : null)}
       <span className="truncate">{children}</span>
     </>
   );
 }
-export function Key({ tone = "blue", icon, img, leading, children, onClick, disabled, active }: {
-  tone?: Tone; icon?: LucideIcon | undefined; img?: string | undefined; leading?: ReactNode; children: ReactNode; onClick?: () => void; disabled?: boolean; active?: boolean;
+export function Key({ tone = "blue", icon, img, leading, premium, children, onClick, disabled, active }: {
+  tone?: Tone; icon?: LucideIcon | undefined; img?: string | undefined; leading?: ReactNode; premium?: string | undefined; children: ReactNode; onClick?: () => void; disabled?: boolean; active?: boolean;
 }) {
-  return <button type="button" onClick={onClick} disabled={disabled} className={keyCls(tone, active)}><KeyInner icon={icon} img={img} leading={leading}>{children}</KeyInner></button>;
+  return <Button type="button" variant="ghost" onClick={onClick} disabled={disabled} className={`${keyCls(tone, active)} h-auto hover:opacity-90`}><KeyInner icon={icon} img={img} leading={leading} premium={premium}>{children}</KeyInner></Button>;
 }
-export function KeyLink({ tone = "blue", icon, children, ...link }: { tone?: Tone; icon?: LucideIcon; children: ReactNode } & Record<string, any>) {
-  return <Link {...(link as any)} className={keyCls(tone)}><KeyInner icon={icon}>{children}</KeyInner></Link>;
+export function KeyLink({ tone = "blue", icon, premium, children, ...link }: { tone?: Tone; icon?: LucideIcon; premium?: string; children: ReactNode } & Record<string, any>) {
+  return <Link {...(link as any)} className={keyCls(tone)}><KeyInner icon={icon} premium={premium}>{children}</KeyInner></Link>;
 }

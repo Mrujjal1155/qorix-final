@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Capture 61 exact bot button settings / 45 unique media and apply to Mobile View catalogue navigation, product actions, quantity, checkout, wallet purchase, copy/payment/back/cancel and persistent menu buttons. Unset bot icons retain website fallback (no captured delivery copy/download settings). Desktop/mobile product→quantity and checkout→gateway→TXID verified without placing orders; 45 media HTTP checks, 12 regressions and build pass. No purchase rules, bot settings or publication changed.
+
 - [x] Add approved connected-only checkout wallet payment with displayed bot balance, insufficient/banned gating, session-persisted request identity and service-only atomic debit/ledger/order/own-stock claim; website prices and existing gateways unchanged. Supplier buys use one durable claim and stable order reference; uncertain/partial results stay paid for review, not automatic replay. Eleven rule/isolated SQL tests and six delivery regressions pass; guest hidden/connected callback and mobile/desktop display fixtures pass; build OK. No real purchase or publication.
 - [ ] Verify authenticated wallet purchase → confirmation → saved delivery on real account; external unmanaged authentication and no real-purchase approval prevent this check. Live rollout requires separate deployment permission/access.
 

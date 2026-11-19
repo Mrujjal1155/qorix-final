@@ -10,6 +10,8 @@ import { BotFrame } from "@/components/mobile/BotFrame";
 import { Bubble, Key, KeyLink, Keys, Quote, Title } from "@/components/mobile/BotStorefront";
 import { ProductPremiumIcon } from "@/components/mobile/ProductPremiumIcon";
 import { productPremiumMedia } from "@/lib/product-premium-media";
+import { ButtonPremiumIcon } from "@/components/mobile/ButtonPremiumIcon";
+import { Button } from "@/components/ui/button";
 import { PaymentGatewayIcon } from "@/components/mobile/PaymentGatewayIcon";
 
 export type BotMethod = { id: string; label: string; icon?: LucideIcon | undefined; img?: string | undefined; address?: string | undefined };
@@ -75,17 +77,17 @@ export function BotCheckout(p: {
               }}>
                 <input type="number" inputMode="numeric" min={1} max={100000} value={customQty} onChange={(e) => setCustomQty(e.target.value.replace(/\D/g, "").slice(0, 6))}
                   placeholder="Custom quantity" aria-label="Custom quantity" className={`${field} min-h-11 flex-1`} />
-                <button type="submit" className="min-h-11 rounded-xl bg-tg-btn-green px-4 text-sm font-semibold text-tg-btn-fg shadow-sm active:scale-[0.98]">Confirm</button>
+                <Button type="submit" variant="ghost" className="min-h-11 rounded-xl bg-tg-btn-green px-4 text-sm font-semibold text-tg-btn-fg shadow-sm active:scale-[0.98]"><ButtonPremiumIcon setting="ui_icon_qty_custom" />Confirm</Button>
               </form>
-              <Key tone="red" icon={ChevronLeft} onClick={() => setStage("summary")}>Back</Key>
+              <Key premium="ui_icon_pay_back" tone="red" icon={ChevronLeft} onClick={() => setStage("summary")}>Back</Key>
             </>
           ) : (
             <>
-              <Key tone="green" icon={CreditCard} onClick={() => setStage(p.connected ? "methods" : "details")}>Pay now · {p.money(p.total)}</Key>
-              <Key icon={Pencil} onClick={() => setStage("qty")}>Change quantity</Key>
+              <Key premium="ui_icon_co_pay" tone="green" icon={CreditCard} onClick={() => setStage(p.connected ? "methods" : "details")}>Pay now · {p.money(p.total)}</Key>
+              <Key premium="ui_icon_qty_custom" icon={Pencil} onClick={() => setStage("qty")}>Change quantity</Key>
               <Keys cols={2}>
-                <KeyLink tone="green" icon={Store} to="/" onClick={() => localStorage.setItem("qorix_open", "products")}>SHOP</KeyLink>
-                <KeyLink tone="red" icon={ChevronLeft} to="/">Main Menu</KeyLink>
+                <KeyLink premium="menu_icon_shop" tone="green" icon={Store} to="/" onClick={() => localStorage.setItem("qorix_open", "products")}>SHOP</KeyLink>
+                <KeyLink premium="menu_icon_back" tone="red" icon={ChevronLeft} to="/">Main Menu</KeyLink>
               </Keys>
             </>
           )}
@@ -102,8 +104,8 @@ export function BotCheckout(p: {
               <input className={field} type="email" value={p.email} onChange={(e) => p.setEmail(e.target.value)} placeholder="you@mail.com" autoComplete="email" />
             </div>
           </Bubble>
-          <Key tone="green" icon={CheckCircle2} disabled={!p.name.trim() || !emailOk} onClick={() => setStage("methods")}>Continue</Key>
-          <Key tone="red" icon={ChevronLeft} onClick={() => setStage("summary")}>Back</Key>
+          <Key premium="ui_icon_dep_paid_txid" tone="green" icon={CheckCircle2} disabled={!p.name.trim() || !emailOk} onClick={() => setStage("methods")}>Continue</Key>
+          <Key premium="ui_icon_pay_back" tone="red" icon={ChevronLeft} onClick={() => setStage("summary")}>Back</Key>
         </div>
       )}
 
@@ -115,12 +117,12 @@ export function BotCheckout(p: {
             <p className="text-sm">Total: <b>{p.total.toFixed(2)} USDT</b></p>
             {p.connected && <p className="mt-1 flex items-center gap-2 text-xs text-tg-muted"><Send className="h-3.5 w-3.5" /> Saved to your connected Telegram account.</p>}
           </Bubble>
-          {p.connected && <Key icon={Wallet} disabled={!p.walletAllowed || Boolean(p.walletBusy)} onClick={() => p.onWallet?.()}>{p.walletBusy ? "Purchasing…" : `Pay with Wallet · ${(p.walletBalance ?? 0).toFixed(2)} USDT`}</Key>}
+          {p.connected && <Key premium="ui_icon_pay_balance" icon={Wallet} disabled={!p.walletAllowed || Boolean(p.walletBusy)} onClick={() => p.onWallet?.()}>{p.walletBusy ? "Purchasing…" : `Pay with Wallet · ${(p.walletBalance ?? 0).toFixed(2)} USDT`}</Key>}
           {p.methods.map((x) => (
             <Key key={x.id} leading={<PaymentGatewayIcon gateway={x.id} img={x.img} icon={x.icon} />} onClick={() => { p.setMethod(x.id); setStage("pay"); }}>{x.label}</Key>
           ))}
           {p.methods.length === 0 && <Bubble><p className="text-sm">No payment method is available right now — please contact support.</p></Bubble>}
-          <Key tone="red" icon={ChevronLeft} onClick={() => setStage(p.connected ? "summary" : "details")}>Back</Key>
+          <Key premium="ui_icon_pay_back" tone="red" icon={ChevronLeft} onClick={() => setStage(p.connected ? "summary" : "details")}>Back</Key>
         </div>
       )}
 
@@ -157,26 +159,26 @@ export function BotCheckout(p: {
             )}
           </Bubble>
           {isEps || isOxa ? (
-            <Key tone="green" icon={CreditCard} disabled={p.redirecting || (isEps && p.phone.replace(/\D/g, "").length < 11) || Boolean(p.connected && (!p.name.trim() || !emailOk))} onClick={isEps ? p.onEps : p.onOxa}>
+            <Key premium="ui_icon_co_pay" tone="green" icon={CreditCard} disabled={p.redirecting || (isEps && p.phone.replace(/\D/g, "").length < 11) || Boolean(p.connected && (!p.name.trim() || !emailOk))} onClick={isEps ? p.onEps : p.onOxa}>
               {p.redirecting ? "Opening secure payment…" : "Pay securely"}
             </Key>
           ) : (
             <>
               <Keys cols={2}>
-                <Key icon={Copy} onClick={() => m.address && copy(m.address)}>{p.method === "binance" ? "Copy ID" : "Copy address"}</Key>
-                <Key icon={Coins} onClick={() => copy(amount)}>Copy amount</Key>
+                <Key premium={p.method === "binance" ? "ui_icon_dep_copy_id" : "ui_icon_dep_copy_address"} icon={Copy} onClick={() => m.address && copy(m.address)}>{p.method === "binance" ? "Copy ID" : "Copy address"}</Key>
+                <Key premium="ui_icon_co_total" icon={Coins} onClick={() => copy(amount)}>Copy amount</Key>
               </Keys>
-              <Key tone="green" icon={CheckCircle2} onClick={() => setStage("txid")}>I paid → submit {p.method === "binance" ? "Order ID" : "TXID"}</Key>
+              <Key premium="ui_icon_dep_paid_txid" tone="green" icon={CheckCircle2} onClick={() => setStage("txid")}>I paid → submit {p.method === "binance" ? "Order ID" : "TXID"}</Key>
             </>
           )}
           {p.botUser ? (
             <a href={`https://t.me/${p.botUser}`} target="_blank" rel="noreferrer" className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-tg-btn-green px-2 text-sm font-semibold text-tg-btn-fg shadow-sm">
-              <Send className="h-4 w-4" /> Payment problem? Contact support
+              <ButtonPremiumIcon setting="ui_icon_dep_support" fallback={Send} /> Payment problem? Contact support
             </a>
           ) : null}
           <Keys cols={2}>
-            <Key icon={RotateCcw} onClick={() => setStage("methods")}>Change Gateway</Key>
-            <Key tone="red" icon={X} onClick={() => setStage("summary")}>Cancel</Key>
+            <Key premium="ui_icon_dep_change_gateway" icon={RotateCcw} onClick={() => setStage("methods")}>Change Gateway</Key>
+            <Key premium="ui_icon_dep_cancel" tone="red" icon={X} onClick={() => setStage("summary")}>Cancel</Key>
           </Keys>
         </div>
       )}
@@ -193,7 +195,7 @@ export function BotCheckout(p: {
             <button type="button" aria-label="Send" disabled={!p.txid.trim() || p.placing} onClick={p.onPlace} className="grid h-10 w-10 place-items-center rounded-full bg-tg-btn text-tg-btn-fg disabled:opacity-50"><Send className="h-4 w-4" /></button>
           </div>
           {p.placing && <Bubble><p className="text-sm">Checking your payment…</p></Bubble>}
-          <Key tone="red" icon={ChevronLeft} onClick={() => setStage("pay")}>Back</Key>
+          <Key premium="ui_icon_pay_back" tone="red" icon={ChevronLeft} onClick={() => setStage("pay")}>Back</Key>
         </div>
       )}
     </BotFrame>

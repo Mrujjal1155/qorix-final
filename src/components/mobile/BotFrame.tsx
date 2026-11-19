@@ -1,3 +1,4 @@
+import { ButtonPremiumIcon } from "@/components/mobile/ButtonPremiumIcon";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
@@ -63,9 +64,9 @@ function HeaderMenu({ onMenu }: { onMenu?: (() => void) | undefined }) {
             {dark ? "Light mode" : "Dark mode"}
           </button>
           {onMenu ? (
-            <button type="button" className={item} onClick={() => { setOpen(false); onMenu(); }}><Home className="h-5 w-5 text-tg-muted" />Main menu</button>
+            <button type="button" className={item} onClick={() => { setOpen(false); onMenu(); }}><ButtonPremiumIcon setting="ui_icon_prod_home" fallback={Home} />Main menu</button>
           ) : (
-            <Link to="/" className={item} onClick={() => setOpen(false)}><Home className="h-5 w-5 text-tg-muted" />Main menu</Link>
+            <Link to="/" className={item} onClick={() => setOpen(false)}><ButtonPremiumIcon setting="ui_icon_prod_home" fallback={Home} />Main menu</Link>
           )}
         </div>
       </>}
@@ -84,9 +85,9 @@ export function BotFrame({ children, footer, onBack, onMenu, scrollRef, bare }: 
       <div className="tg-wallpaper relative flex h-full w-full max-w-md flex-col overflow-hidden text-tg-bubble-fg sm:border-x sm:border-tg-bubble-fg/10">
         <header className="z-10 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2 pt-2">
           {bare ? <span className="h-11 w-11" /> : onBack ? (
-            <button type="button" aria-label="Back" onClick={onBack} className={roundBtn}><ArrowLeft className="h-5 w-5" /></button>
+            <button type="button" aria-label="Back" onClick={onBack} className={roundBtn}><ButtonPremiumIcon setting="menu_icon_back" fallback={ArrowLeft} /></button>
           ) : (
-            <Link to="/" aria-label="Back" className={roundBtn}><ArrowLeft className="h-5 w-5" /></Link>
+            <Link to="/" aria-label="Back" className={roundBtn}><ButtonPremiumIcon setting="menu_icon_back" fallback={ArrowLeft} /></Link>
           )}
           <div className="flex min-w-0 items-center justify-start gap-2.5 rounded-full bg-tg-header py-1 pl-1 pr-4 shadow-sm backdrop-blur">
             <BotLogo src={h.logo} inline />
@@ -101,9 +102,9 @@ export function BotFrame({ children, footer, onBack, onMenu, scrollRef, bare }: 
         {!bare && <footer className="space-y-2 px-1.5 pb-1.5">
           {footer ?? (
             <div className={bottomBarCls}>
-              <Link to="/" onClick={() => localStorage.setItem("qorix_open", "products")} className={bottomCls}><LayoutGrid className="h-4 w-4 shrink-0" /><span className="truncate">Products</span></Link>
-              <Link to="/account" className={bottomCls}><Wallet className="h-4 w-4 shrink-0" /><span className="truncate">Deposit</span></Link>
-              <Link to="/account/orders" className={bottomCls}><Package className="h-4 w-4 shrink-0" /><span className="truncate">My Orders</span></Link>
+              <Link to="/" onClick={() => localStorage.setItem("qorix_open", "products")} className={bottomCls}><ButtonPremiumIcon setting="menu_icon_bottom_products" fallback={LayoutGrid} /><span className="truncate">Products</span></Link>
+              <Link to="/account" className={bottomCls}><ButtonPremiumIcon setting="menu_icon_bottom_deposit" fallback={Wallet} /><span className="truncate">Deposit</span></Link>
+              <Link to="/account/orders" className={bottomCls}><ButtonPremiumIcon setting="menu_icon_bottom_orders" fallback={Package} /><span className="truncate">My Orders</span></Link>
             </div>
           )}
         </footer>}
@@ -118,7 +119,7 @@ export function BotPage({ children }: { children: ReactNode }) {
     <BotFrame onBack={() => (typeof window !== "undefined" && window.history.length > 1 ? window.history.back() : undefined)}>
       <div className="tg-page w-full self-start overflow-hidden rounded-2xl rounded-bl-md bg-tg-bubble shadow-sm">{children}</div>
       <Link to="/" className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-tg-btn-red px-2 text-sm font-semibold text-tg-btn-fg shadow-sm">
-        <ArrowLeft className="h-4 w-4" /> Main Menu
+        <ButtonPremiumIcon setting="menu_icon_back" fallback={ArrowLeft} /> Main Menu
       </Link>
     </BotFrame>
   );
