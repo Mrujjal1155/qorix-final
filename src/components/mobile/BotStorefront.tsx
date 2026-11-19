@@ -248,7 +248,7 @@ export function BotStorefront(props: {
             <Key key={p.id} tone={p.in_stock === false ? "red" : "blue"} img={imgOf(p)} icon={Package}
               leading={productPremiumMedia(p.id) ? <ProductPremiumIcon productId={p.id} /> : undefined}
               onClick={() => setView({ k: "prod", id: p.id, from: view })}>
-              {stripEmoji(p.name)} | {money(p.price)} | <Boxes className="inline h-4 w-4" /> {Number(p.stock ?? 0)}
+              {stripEmoji(p.name)} | {money(p.price)} | <ButtonPremiumIcon setting="ui_icon_prod_stock" fallback={Boxes} /> {Number(p.stock ?? 0)}
             </Key>
           ))}
           {slice.length === 0 && <p className="text-center text-sm text-tg-bubble-fg">No products here yet.</p>}

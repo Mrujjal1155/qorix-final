@@ -61,6 +61,7 @@ import media57 from "@/assets/button-premium/6253359902077489275.webm.asset.json
 import media58 from "@/assets/button-premium/6266794310671275367.json.asset.json";
 const buttons: Record<string, CategoryPremiumMedia & { emojiId: string }> = {
   "menu_icon_bottom_orders": { emojiId: "5854908544712707500", kind: "video", url: media35.url },
+  "ui_icon_prod_stock": { emojiId: "5854908544712707500", kind: "video", url: media35.url },
   "menu_icon_next": { emojiId: "5215613971352004352", kind: "video", url: media10.url },
   "menu_icon_prev": { emojiId: "5215361191051798408", kind: "video", url: media8.url },
   "ui_icon_dep_change_gateway": { emojiId: "5260687119092817530", kind: "lottie", url: media16.url },
