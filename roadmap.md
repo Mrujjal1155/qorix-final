@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Repair category/product/payment Premium media URLs for external hosting: reproduced qorixlab.com asset 404s and switched the shared player to the verified public asset origin with credential-free animation reads. All 216 media return 200, animation CORS passes, eight tests pass, desktop/mobile catalogue and checkout show no broken images or runtime errors; build OK.
+- [ ] Release and verify the Premium asset URL fix on qorixlab.com; waits for separate external deployment permission/access. No deployment attempted.
+
 - [x] Add eight captured bot payment Premium media assets to Mobile View checkout and wallet/deposit through a shared renderer; preserve OxaPay artwork and all payment behavior. Real catalogue checkout method→payment display and wallet/deposit display fixtures pass on desktop/mobile with no broken images, overflow or runtime errors; six existing media tests pass. No spending, bot changes or publication; authenticated wallet verification unavailable with external unmanaged authentication.
 
 - [x] Extend Premium icons to all 377 products with saved bot custom emojis, reuse category assets and capture 147 new unique media files. Mobile View product/freebie lists, details, quantity and checkout use the same player; original artwork remains. Nine tests pass; real catalogue list→detail→quantity→checkout display checked at desktop/mobile with no broken images, overflow or runtime errors. No purchase, bot/database changes or publish; future icon edits need another capture.
