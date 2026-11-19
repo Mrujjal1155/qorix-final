@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Preview-only category Premium emoji experiment: captured 62 exact category mappings / 61 unique Telegram media assets (18 animated), kept saved artwork as fallback, verified category images and navigation on desktop/mobile. No bot settings, product data or deployment changes; future bot-icon edits are not automatically synced in this experiment.
+
 - [x] Restyle supplier buy orders with a desktop table and compact mobile cards; waiting blue, completed green, cancelled red. Presentation-only fixture checks at 1280/390/320 widths confirm table/card switching, no overflow, history/download callbacks and both admin themes; build OK. Authenticated live order page remains unverified because authentication is external unmanaged. No purchase rules, spending or deployment changed.
 
 - [x] Add approved disabled Insight Store supplier and server-only catalogue/cost/balance/idempotent delivery adapter; 15 adapter/regression tests pass and build OK, public provider health succeeds. No real orders, stock import or deployment.

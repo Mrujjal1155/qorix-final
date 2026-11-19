@@ -14,6 +14,8 @@ import { BotReferralView, BotSupportView } from "@/components/mobile/BotSupport"
 import { getWebSupport } from "@/lib/web-wallet.functions";
 import { mobileImageFor, stripEmoji } from "@/lib/mobile-template";
 import { BotFrame, BotLogo, bottomBarCls, bottomCls } from "@/components/mobile/BotFrame";
+import { CategoryPremiumIcon } from "@/components/mobile/CategoryPremiumIcon";
+import { categoryPremiumMedia } from "@/lib/category-premium-media";
 
 type Cat = { id: string; name: string; image_url?: string | null };
 type Prod = {
@@ -200,9 +202,12 @@ export function BotStorefront(props: {
         </Bubble>
         <Keys cols={1}><Key tone="green" icon={Zap} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>All products ({inStockCount})</Key></Keys>
         <Keys cols={categories.length > 8 ? 3 : 2}>
-          {categories.map((c) => (
-            <Key key={c.id} img={mobileImageFor(props.catImages, c.id, c.image_url) || undefined} icon={LayoutGrid} onClick={() => setView({ k: "prods", cat: c.id, page: 0 })}>{stripEmoji(c.name)}</Key>
-          ))}
+          {categories.map((c) => {
+            const premium = categoryPremiumMedia(c.id);
+            return <Key key={c.id} leading={premium ? <CategoryPremiumIcon media={premium} /> : undefined}
+              img={premium ? undefined : mobileImageFor(props.catImages, c.id, c.image_url) || undefined}
+              icon={LayoutGrid} onClick={() => setView({ k: "prods", cat: c.id, page: 0 })}>{stripEmoji(c.name)}</Key>;
+          })}
         </Keys>
         {props.loading && <p className="text-center text-xs text-tg-bubble-fg">Loading…</p>}
         <Keys cols={2}>
@@ -424,19 +429,19 @@ type Tone = "blue" | "green" | "red";
 const toneCls: Record<Tone, string> = { blue: "bg-tg-btn", green: "bg-tg-btn-green", red: "bg-tg-btn-red" };
 const keyCls = (tone: Tone, active?: boolean) =>
   `flex min-h-11 min-w-0 items-center justify-center gap-2 rounded-xl px-2 py-2 text-sm font-semibold text-tg-btn-fg shadow-sm transition active:scale-[0.98] disabled:opacity-50 ${toneCls[tone]} ${active ? "ring-2 ring-tg-btn-fg" : ""}`;
-function KeyInner({ icon: I, img, children }: { icon?: LucideIcon | undefined; img?: string | undefined; children: ReactNode }) {
+function KeyInner({ icon: I, img, leading, children }: { icon?: LucideIcon | undefined; img?: string | undefined; leading?: ReactNode; children: ReactNode }) {
   return (
     <>
-      {img ? <img src={img} alt="" loading="lazy" className="h-6 w-6 shrink-0 rounded-md bg-tg-bubble object-cover" />
-        : I ? <I className="h-4 w-4 shrink-0" /> : null}
+      {leading ?? (img ? <img src={img} alt="" loading="lazy" className="h-6 w-6 shrink-0 rounded-md bg-tg-bubble object-cover" />
+        : I ? <I className="h-4 w-4 shrink-0" /> : null)}
       <span className="truncate">{children}</span>
     </>
   );
 }
-export function Key({ tone = "blue", icon, img, children, onClick, disabled, active }: {
-  tone?: Tone; icon?: LucideIcon | undefined; img?: string | undefined; children: ReactNode; onClick?: () => void; disabled?: boolean; active?: boolean;
+export function Key({ tone = "blue", icon, img, leading, children, onClick, disabled, active }: {
+  tone?: Tone; icon?: LucideIcon | undefined; img?: string | undefined; leading?: ReactNode; children: ReactNode; onClick?: () => void; disabled?: boolean; active?: boolean;
 }) {
-  return <button type="button" onClick={onClick} disabled={disabled} className={keyCls(tone, active)}><KeyInner icon={icon} img={img}>{children}</KeyInner></button>;
+  return <button type="button" onClick={onClick} disabled={disabled} className={keyCls(tone, active)}><KeyInner icon={icon} img={img} leading={leading}>{children}</KeyInner></button>;
 }
 export function KeyLink({ tone = "blue", icon, children, ...link }: { tone?: Tone; icon?: LucideIcon; children: ReactNode } & Record<string, any>) {
   return <Link {...(link as any)} className={keyCls(tone)}><KeyInner icon={icon}>{children}</KeyInner></Link>;

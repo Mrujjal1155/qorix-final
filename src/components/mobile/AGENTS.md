@@ -1,3 +1,4 @@
 - Website Deposit (Mobile View) uses the connected bot wallet: one-time `web_link_codes` consumed by bot `/start wl_<code>` set `profiles.telegram_id`; website deposits call `webStartDeposit`/`webSubmitDepositTxid` in the bot engine so verification and settlement stay single-path.
 - Mobile View customer login is Guest (no session) or Connect Telegram: `web_login_codes` (browser keeps secret, bot confirms `/start wlg_<code>`) signs into the website account tied to `profiles.telegram_id`; wallet/orders are read from the bot user, never copied.
 - Mobile View reseller portal (/reseller) is bot-style; application status is shown only to the signed-in applicant by their login email; /reseller/start uses a bare BotFrame with no exits so the template never switches.
+- Category Premium icon experiments use a captured bot-ID map and CDN media pointers without overwriting saved category artwork; animation players load only after hydration to keep SSR browser-safe.
