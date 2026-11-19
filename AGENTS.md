@@ -39,6 +39,7 @@
 - Telegram tables share pure builders and send/edit fallback only on definitive format rejection, never uncertain failure. Wallet history keeps ledger/payment attempts separate and reads only the verified private-chat sender to preserve accounting/privacy.
 - Category edits use validated schemas and shared position moves; name-only saves preserve metadata.
 - Bybit: UID-bound read-only reads, exact matching, atomic prefixed claims; not Merchant Pay. Wallet/checkout share Bybit/chain icons.
+- Telegram Stars wallet/checkout buttons share the `wal_stars` registry entry and existing Bot Admin emoji editor, keeping artwork independent of payment availability and settlement.
 - Blockchain: service-only settings/claims, solidified TRON/finalized BSC, exact amounts. TronGrid uses server-only TRONGRID_API_KEY, no redirects.
 - Store URLs: trigger-kept service-only `product_slugs`; UUID/old slugs 301; checkout/bot use UUIDs.
 - Templates: `site_template`/`site_mobile_*` settings via `src/lib/mobile-template.ts`; design only.

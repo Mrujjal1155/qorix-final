@@ -14,7 +14,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
     let key = "";
     const result = () => ({ data: table === "bot_settings" ? (key ? { value: settings[key] } : Object.entries(settings).map(([key, value]) => ({ key, value }))) : table === "bot_users" ? user : table === "products" ? [{ id: "p1", name: "Test product", is_active: true, delivery_type: "manual", price: 2 }] : [], error: null });
     const chain: any = {
-      select: () => chain, order: () => chain, range: () => chain, in: () => chain, neq: () => chain, limit: () => chain, gte: () => chain, lt: () => chain, or: () => chain,
+      select: () => chain, order: () => chain, range: () => chain, in: () => chain, neq: () => chain, limit: () => chain, gte: () => chain, gt: () => chain, lt: () => chain, or: () => chain,
       eq: (field: string, value: string) => { if (field === "key") key = value; return chain; },
       update: (value: any) => { if (table === "bot_users" && value.state) user.state = value.state; return chain; },
       upsert: (value: any) => { if (table === "bot_settings") settings[value.key] = value.value; return chain; },
@@ -33,7 +33,7 @@ mock.module("@/lib/telegram.server", () => ({
   sendDocument: async () => ({}), sendDocumentUpload: async () => ({}), sendAlertMessage: async () => ({}), sendPhoto: async () => ({}), sendAnimation: async () => ({}), COMMAND_LIST: [],
 }));
 mock.module("@/lib/bg.server", () => ({ backgroundWaitUntil: () => true }));
-const { handleUpdate } = await import("../../src/lib/bot/engine.server");
+const { handleUpdate, invalidateSettings } = await import("../../src/lib/bot/engine.server");
 async function click(data: string, id = 123) {
   await handleUpdate({ callback_query: { id: "test", data, from: { id, first_name: "Test" }, message: { message_id: 1, chat: { id, type: "private" } } } });
 }
@@ -44,6 +44,7 @@ const slots = [
   ["wal_bybit", "bybit", "5400280896311944960"],
   ["wal_chain_bep20", "chain_bep20", "5400280896311944961"],
   ["wal_chain_trc20", "chain_trc20", "5400280896311944962"],
+  ["wal_stars", "stars", "5400280896311944963"],
 ] as const;
 
 test("legacy Bybit icon is preserved before bot override", async () => {
@@ -76,10 +77,12 @@ for (const [slot, gateway, emojiId] of slots) {
 
 test("icons never enable disabled payment gateways", async () => {
   enabled = false;
+  settings.stars_enabled = "0";
   for (const [slot, , emojiId] of slots) settings[`ui_icon_${slot}`] = emojiId;
+  invalidateSettings();
   for (const page of ["wallet", "copay"]) {
     await click(page);
-    expect(buttons.flat().filter((b) => /^(dep|copm):(bybit|chain_)/.test(b.callback_data ?? ""))).toHaveLength(0);
+    expect(buttons.flat().filter((b) => /^(dep|copm):(bybit|chain_|stars)/.test(b.callback_data ?? ""))).toHaveLength(0);
   }
 });
 
@@ -98,4 +101,22 @@ test("normal emoji and full reset use the existing shared editor", async () => {
 test("non-admin cannot enter the icon editor", async () => {
   await click("adm:uii:wal_bybit", 456);
   expect(user.state.awaiting).not.toBe("adm_ui_icon");
+});
+
+test("Stars plain emoji, full reset and non-admin protection reuse the shared editor", async () => {
+  settings.stars_enabled = "1";
+  await click("adm:uii:wal_stars");
+  await reply("🔥");
+  expect(settings.ui_icon_wal_stars).toBe("🔥");
+  for (const [page, callback] of [["wallet", "dep:stars"], ["copay", "copm:stars"]]) {
+    await click(page ?? "");
+    expect(buttons.flat().find((b) => b.callback_data === callback)?.icon_custom_emoji_id).toBeUndefined();
+  }
+  await click("adm:uir:wal_stars");
+  expect(settings.ui_icon_wal_stars).toBe("");
+  expect(settings.ui_text_wal_stars).toBe("");
+  await click("adm:uii:wal_stars", 456);
+  expect(user.state.awaiting).not.toBe("adm_ui_icon");
+  await reply("⭐", "5400280896311944963");
+  expect(settings.ui_icon_wal_stars).toBe("");
 });

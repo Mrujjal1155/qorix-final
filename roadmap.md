@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Add shared Bot Admin Stars Premium emoji editor through `wal_stars`; mocked real admin save/reset and wallet/checkout readback, disabled-gateway and non-admin protections pass (9 flow + 6 pricing tests), build OK. Website/payment behavior unchanged; no real Telegram sends or deployment.
+- [ ] Verify Stars Premium emoji visually in live Telegram after separately approved deployment and actual bot interaction.
+
 - [x] Wallet connect now reuses fresh Telegram login authorization into the existing linked account instead of attempting another account link. Connected name/email prompts removed from Basic/Mobile checkout including EPS/OxaPay; protected hosted-checkout wrappers resolve identity server-side and save user/Telegram ownership. Account checks block early taps and refresh after auth changes. Twenty-five rule/payment/isolated SQL tests pass; desktop/mobile guest and connected hosted UI fixtures have no name/email prompts, overflow or runtime errors; build OK. No real purchases or deployment.
 - [ ] Verify real Telegram authorization in two browsers and connected paid checkout readback; external unmanaged authentication and no real-purchase/deployment approval prevent end-to-end checks.
 

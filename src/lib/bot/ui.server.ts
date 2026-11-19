@@ -112,6 +112,7 @@ export const UI_ELEMENTS = {
   wal_usdt: { icon: "💵", label: "USDT crypto (auto)", group: "wallet" },
   wal_oxapay: { icon: "🪙", label: "Any Crypto · BTC, LTC, USDT", group: "wallet" },
   wal_bybit: { icon: "🪙", label: "Bybit Pay", group: "wallet" },
+  wal_stars: { icon: "⭐", label: "Telegram Stars", group: "wallet" },
   wal_chain_bep20: { icon: "💵", label: "USDT · BEP20", group: "wallet" },
   wal_chain_trc20: { icon: "💵", label: "USDT · TRC20", group: "wallet" },
   wal_bkash: { icon: "📱", label: "bKash", group: "wallet" },

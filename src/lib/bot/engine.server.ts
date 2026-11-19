@@ -2279,7 +2279,7 @@ async function walletView(user: any) {
   if (cfg.active && cfg.crypto && cfg.live) kb.push([wBtn(uiBtn(s, "wal_usdt", "dep:usdt"))]);
   const bybit = await bybitSettings();
   if (bybitEnabled(bybit)) kb.push([wBtn(uiBtn({ ...s, bybit_icon: bybit["bybit_icon"] ?? s["bybit_icon"] ?? "" }, "wal_bybit", "dep:bybit"))]);
-  if (starsEnabled(s)) kb.push([wBtn({ text: "⭐ Telegram Stars", callback_data: "dep:stars" })]);
+  if (starsEnabled(s)) kb.push([wBtn(uiBtn(s, "wal_stars", "dep:stars"))]);
   for (const gateway of await blockchainGateways().catch(() => [])) if (gateway.enabled && gateway.verified) kb.push([wBtn(uiBtn(s, gateway.network === "trc20" ? "wal_chain_trc20" : "wal_chain_bep20", `dep:chain_${gateway.network}`))]);
   {
     // Merged EPS rows: one for bKash/Nagad/Rocket, one for cards.
@@ -5686,6 +5686,7 @@ async function admPaymentIconsView() {
     ["card_visa", "Card"],
     ["wal_oxapay", "OxaPay"],
     ["wal_bybit", "Bybit Pay"],
+    ["wal_stars", "Telegram Stars"],
     ["wal_chain_bep20", "USDT BEP20"],
     ["wal_chain_trc20", "USDT TRC20"],
   ] as const;
@@ -5710,9 +5711,10 @@ async function admPaymentIconsView() {
       `Card row: ${cardIconsHtml(settings)} <b>${escapeHtml(uiText(settings, "wal_card"))}</b>\n\n` +
       `OxaPay: ${uiTag(settings, "wal_oxapay")} · shared by Wallet and Checkout\n\n` +
       `Bybit: ${uiTag(settings, "wal_bybit")}\n` +
+      `Stars: ${uiTag(settings, "wal_stars")}\n` +
       `BEP20: ${uiTag(settings, "wal_chain_bep20")}\n` +
       `TRC20: ${uiTag(settings, "wal_chain_trc20")}\n` +
-      "These three gateway icons are shared by Wallet and Checkout.\n\n" +
+      "These gateway icons are shared by Wallet and Checkout.\n\n" +
       "Set one Premium custom emoji (or normal emoji) for each merged payment option. " +
       "Row labels rename the merged wallet / checkout buttons.",
     kb,
@@ -6018,7 +6020,7 @@ async function coPayView(chatId: number) {
   const payStyle: ButtonStyle = "primary";
   if (Number(user.balance) >= total && total > 0)
     kb.push([styled(uiBtn(settings, "pay_balance", "copm:balance", `(${money(user.balance)})`), payStyle)]);
-  if (starsEnabled(settings) && total > 0) kb.push([styled({ text: `⭐ Telegram Stars · ${usdToStars(total, starsPerUsd(settings))} Stars`, callback_data: "copm:stars" }, payStyle)]);
+  if (starsEnabled(settings) && total > 0) kb.push([styled(uiBtn(settings, "wal_stars", "copm:stars", `· ${usdToStars(total, starsPerUsd(settings))} Stars`), payStyle)]);
   if (cfg.active && cfg.payid) kb.push([styled(uiBtn(settings, "pay_payid", "copm:payid"), payStyle)]);
   const bybit = await bybitSettings();
   if (bybitEnabled(bybit)) kb.push([styled(uiBtn({ ...settings, bybit_icon: bybit["bybit_icon"] ?? settings["bybit_icon"] ?? "" }, "wal_bybit", "copm:bybit"), payStyle)]);
