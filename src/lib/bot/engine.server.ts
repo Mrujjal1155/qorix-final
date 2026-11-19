@@ -57,6 +57,7 @@ import { LIVE_EMOJI_SLOTS } from "@/lib/live-update";
 import { parseStock } from "@/lib/stock-format";
 import { MANUAL_INPUT_PREFIX, parseManualInput, validateManualReply, type ManualInputConfig } from "@/lib/manual-input";
 import { SITE_ORIGIN } from "@/lib/site-url";
+import { websiteOrderRow } from "@/lib/bot/website-order-button";
 import { backgroundWaitUntil } from "@/lib/bg.server";
 import { enqueueAdminBroadcast } from "@/lib/bot/admin-broadcast.server";
 import { binancePaymentAmount, exactBinanceAmount } from "@/lib/binance-payment";
@@ -110,6 +111,7 @@ const MENU_ICONS = {
   wallet: ["💰", "Wallet"], freebies: ["🎁", "Freebies"], profile: ["👤", "Profile"],
   referral: ["🏪", "Referral Store"], support: ["🆘", "Support"], emails: ["📧", "Emails & Trials"],
   api: ["🔌", "Reseller API"], clear: ["🧹", "Clear Chat"], refresh: ["🔄", "Refresh Stock"],
+  website: ["🌐", "Order from Website"],
   back: ["◀️", "Main Menu"],
   next: ["➡️", "Next"], prev: ["⬅️", "Previous"],
   bottom_products: ["🛍", "Products"], bottom_deposit: ["💳", "Deposit"], bottom_orders: ["📦", "My Orders"],
@@ -875,6 +877,8 @@ function homeKeyboard(settings: Record<string, string>): Button[][] {
       btn("api", iconButton(settings, "api", "api")),
       btn("clear", iconButton(settings, "clear", "clear")),
     ],
+    // One full-width blue button: opens the shop website, never a callback.
+    websiteOrderRow(btn("website", iconUrlButton(settings, "website", siteUrl(settings)))),
   ];
 }
 

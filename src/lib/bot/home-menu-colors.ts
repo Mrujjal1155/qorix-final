@@ -8,7 +8,8 @@
  * Rule: the two top rows (Shop, Cart, Orders, Wallet, Freebies, Profile)
  * follow the admin's "Main menu" colour, which defaults to blue. The single
  * Referral Store button keeps Telegram's normal colour. The bottom rows
- * (Support, Emails & Trials, Reseller API, Clear Chat) are green.
+ * (Support, Emails & Trials, Reseller API, Clear Chat) are green. The
+ * full-width "Order from Website" row is always blue.
  */
 
 export type HomeMenuColor = "primary" | "success" | "danger" | "default";
@@ -22,13 +23,18 @@ export const HOME_MENU_GREEN_KEYS = ["support", "emails", "api", "clear"] as con
 /** The single middle button — always Telegram's normal colour. */
 export const HOME_MENU_NORMAL_KEYS = ["referral"] as const;
 
+/** Full-width website-order row — always blue. */
+export const HOME_MENU_BLUE_KEYS = ["website"] as const;
+
 export type HomeMenuKey =
   | (typeof HOME_MENU_TOP_KEYS)[number]
   | (typeof HOME_MENU_GREEN_KEYS)[number]
-  | (typeof HOME_MENU_NORMAL_KEYS)[number];
+  | (typeof HOME_MENU_NORMAL_KEYS)[number]
+  | (typeof HOME_MENU_BLUE_KEYS)[number];
 
 /** Native Telegram style for one home-menu button. */
 export function homeMenuColor(key: HomeMenuKey, topColor: HomeMenuColor): HomeMenuColor {
+  if ((HOME_MENU_BLUE_KEYS as readonly string[]).includes(key)) return "primary";
   if ((HOME_MENU_TOP_KEYS as readonly string[]).includes(key)) return topColor;
   if ((HOME_MENU_NORMAL_KEYS as readonly string[]).includes(key)) return "default";
   return "success";
