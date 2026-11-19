@@ -47,4 +47,5 @@
 - Mobile action icons use captured bot setting keys through ButtonPremiumIcon; explicit per-action keys preserve distinct back/cart/payment artwork without changing behavior.
 - WelcomePremiumHeading renders the captured ordered bot header letters as media, never Telegram HTML; welcome menu explanations share the button setting map.
 - Connected website wallet purchases use a service-only request-idempotent atomic debit/order/own-stock RPC and website prices; supplier attempts are durably claimed once and uncertain outcomes require review, never automatic replay.
+- Mobile product messages use the existing safe full-product reader and React-rendered captured emoji tokens, never injected Telegram HTML; catalogue/payment behavior stays separate from presentation.
 

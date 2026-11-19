@@ -8,7 +8,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { startTelegramLogin, claimTelegramLogin } from "@/lib/telegram-login.functions";
 import { useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { BotReferralView, BotSupportView } from "@/components/mobile/BotSupport";
 import { getWebSupport } from "@/lib/web-wallet.functions";
@@ -21,6 +21,7 @@ import { ProductPremiumIcon } from "@/components/mobile/ProductPremiumIcon";
 import { ButtonPremiumIcon } from "@/components/mobile/ButtonPremiumIcon";
 import { Button } from "@/components/ui/button";
 import { WelcomePremiumHeading } from "@/components/mobile/WelcomePremiumHeading";
+import { BotProductMessage } from "@/components/mobile/BotProductMessage";
 
 type Cat = { id: string; name: string; image_url?: string | null };
 type Prod = {
@@ -44,6 +45,7 @@ export function BotStorefront(props: {
   const [view, setView] = useState<View>({ k: "start" });
   const scroller = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const fetchSupport = useServerFn(getWebSupport);
   const { data: supportInfo } = useQuery({ queryKey: ["web-support"], queryFn: () => fetchSupport(), staleTime: 60_000 });
   const go = (v: "menu" | "support" | "tg" | "profile") =>
@@ -272,38 +274,28 @@ export function BotStorefront(props: {
     const back = view.k === "qty" ? { k: "prod" as const, id: view.id, from: view.from } : view.from;
     if (!p) body = <Bubble>This product is no longer available.</Bubble>;
     else if (view.k === "prod") {
-      const off = p.old_price && Number(p.old_price) > Number(p.price)
-        ? Math.round((1 - Number(p.price) / Number(p.old_price)) * 100) : 0;
       const sold = p.in_stock === false;
       body = (
-        <>
-          <Bubble>
-            {imgOf(p) && <img src={imgOf(p)} alt={p.name} loading="lazy" className="mb-3 aspect-video w-full rounded-lg object-cover" />}
-            <p className="flex items-center gap-2 text-base font-bold uppercase"><ProductPremiumIcon productId={p.id} /><span className="min-w-0 break-words">{stripEmoji(p.name)}</span></p>
-            {off > 0 && <p className="mt-2 flex items-center gap-2 font-semibold"><Zap className="h-4 w-4 text-tg-btn-red" /> FLASH SALE -{off}%</p>}
-            <p className="text-sm">Price: {off > 0 && <s className="text-tg-muted">{money(p.old_price)}</s>} {off > 0 && "→ "}<b>{money(p.price)}</b></p>
-            {p.description && (<><p className="mt-3 font-semibold">Must Read The description First</p><Quote><span className="whitespace-pre-line">{stripEmoji(p.description)}</span></Quote></>)}
-            <p className="mt-3 flex items-center gap-2 text-sm"><Boxes className="h-4 w-4 text-tg-link" /> In Stock: <b>{Number(p.stock ?? 0)} available</b></p>
-            <p className="flex items-center gap-2 text-sm italic"><Zap className="h-4 w-4 text-tg-btn-red" /> Delivery is automatic after payment confirmation.</p>
-          </Bubble>
+        <div className="w-full self-start">
+          <BotProductMessage product={p} />
+          <div className="mt-px grid grid-cols-2 gap-px [&_button]:rounded-md [&_a]:rounded-md [&_button]:text-base [&_a]:text-base [&_button]:font-medium [&_a]:font-medium [&_button]:shadow-none [&_a]:shadow-none [&_button]:bg-tg-btn-green/80 [&_a]:bg-tg-btn-green/80 [&_button]:hover:bg-tg-btn-green [&_a]:hover:bg-tg-btn-green [&_span]:whitespace-normal [&_span]:break-words">
           {sold ? (
-            <Keys cols={1}>
+            <div className="col-span-2 grid gap-px">
               <Key premium="ui_icon_prod_out" tone="green" icon={CircleX}>Out of stock</Key>
               <KeyLink premium="ui_icon_prod_notify" tone="green" icon={Bell} to="/store/$id" params={{ id: p.slug ?? p.id }}>Notify Me When Available</KeyLink>
-            </Keys>
+            </div>
           ) : (
-            <Keys cols={2}>
+            <>
               <Key premium="ui_icon_prod_buy" tone="green" icon={ShoppingCart} onClick={() => setView({ k: "qty", id: p.id, from: view.from })}>Buy Now</Key>
-              <KeyLink tone="green" icon={BookOpen} to="/store/$id" params={{ id: p.slug ?? p.id }}>Full Details</KeyLink>
-            </Keys>
+              <KeyLink premium="ui_icon_prod_addcart" tone="green" icon={Plus} to="/checkout" search={{ id: p.id, qty: 1, step: "details" }}>Add to Cart</KeyLink>
+            </>
           )}
-          <Keys cols={2}>
-            <Key premium="ui_icon_prod_refresh" tone="green" icon={RefreshCw} onClick={() => setView({ ...view })}>Refresh</Key>
-            <Key premium="ui_icon_prod_back" tone="red" icon={ArrowLeft} onClick={() => setView(back)}>Back</Key>
+            <Key premium="ui_icon_prod_refresh" tone="green" icon={RefreshCw} onClick={() => { void queryClient.invalidateQueries({ queryKey: ["store-product", p.id] }); setView({ ...view }); }}>Refresh</Key>
+            <div className="grid [&_button]:bg-tg-btn-red/80 [&_button]:hover:bg-tg-btn-red"><Key premium="ui_icon_prod_back" tone="red" icon={ArrowLeft} onClick={() => setView(back)}>Back</Key></div>
             <Key premium="ui_icon_prod_cart" tone="green" icon={ShoppingCart} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>Cart</Key>
             <Key premium="ui_icon_prod_home" tone="green" icon={Home} onClick={() => setView({ k: "menu" })}>Home</Key>
-          </Keys>
-        </>
+          </div>
+        </div>
       );
     } else body = <QtyPicker p={p} onBack={() => setView(back)} />;
   }
