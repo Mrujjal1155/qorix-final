@@ -1,5 +1,5 @@
 export type ContactStatus = "unknown" | "reachable" | "blocked" | "deactivated" | "stopped";
-export const TELEGRAM_UPDATES = ["message", "edited_message", "callback_query", "my_chat_member"];
+export const TELEGRAM_UPDATES = ["message", "edited_message", "callback_query", "my_chat_member", "pre_checkout_query"];
 
 export function membershipContact(update: any): { id: number; status: ContactStatus; at: string } | null {
   const member = update?.my_chat_member;

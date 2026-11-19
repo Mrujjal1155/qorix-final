@@ -899,6 +899,17 @@ function SettingsPage() {
       render: () => <BybitSetupCard values={values} setValues={setValues} onSave={onSave} />,
     },
     {
+      id: "stars", title: "Telegram Stars", description: "Bot-only Stars payments · default $1 = 77 Stars.", icon: ShieldCheck,
+      render: () => (
+        <section className="space-y-6">
+          <h2 className="text-2xl font-bold">Telegram Stars (bot only)</h2>
+          <div className="flex items-center justify-between gap-4"><Label htmlFor="stars-enabled">Telegram Stars</Label><Switch id="stars-enabled" checked={(values["stars_enabled"] ?? "1") !== "0"} onCheckedChange={(on) => setValues({ ...values, stars_enabled: on ? "1" : "0" })} /></div>
+          <div className="space-y-2"><Label htmlFor="stars-rate">Stars per $1</Label><Input id="stars-rate" inputMode="decimal" placeholder="77" value={values["stars_per_usd"] ?? ""} onChange={(e) => setValues({ ...values, stars_per_usd: e.target.value })} /><p className="text-sm text-muted-foreground">Empty = Telegram default (77). Prices round up; minimum 1 Star.</p></div>
+          <Button onClick={onSave}>Save Stars settings</Button>
+        </section>
+      ),
+    },
+    {
       id: "blockchain", title: "Blockchain USDT", description: "Self-custody TRC20 and BEP20 · free verification.", icon: Network,
       render: () => <BlockchainSetupCard values={values} setValues={setValues} onSave={onSave} />,
     },

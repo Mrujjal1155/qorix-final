@@ -71,6 +71,7 @@ import { readWalletHistory } from "@/lib/bot/wallet-history.server";
 import { buildReferralCommissionHistory } from "@/lib/referral-commission";
 import { readReferralCommissions } from "@/lib/bot/referral-commission.server";
 import { bybitEnabled, bybitTransactionKey } from "@/lib/bybit-payment";
+import { starsEnabled, starsPerUsd, usdToStars, starsPayload, parseStarsPayload } from "@/lib/stars-payment";
 import { bybitSettings } from "@/lib/bybit.server";
 import { confirmBybitBotDeposit, sweepBybitWebsiteOrders } from "@/lib/bybit-settle.server";
 import { blockchainGateways } from "@/lib/blockchain.server";
@@ -2274,6 +2275,7 @@ async function walletView(user: any) {
   if (cfg.active && cfg.crypto && cfg.live) kb.push([wBtn(uiBtn(s, "wal_usdt", "dep:usdt"))]);
   const bybit = await bybitSettings();
   if (bybitEnabled(bybit)) kb.push([wBtn(uiBtn({ ...s, bybit_icon: bybit["bybit_icon"] ?? s["bybit_icon"] ?? "" }, "wal_bybit", "dep:bybit"))]);
+  if (starsEnabled(s)) kb.push([wBtn({ text: "⭐ Telegram Stars", callback_data: "dep:stars" })]);
   for (const gateway of await blockchainGateways().catch(() => [])) if (gateway.enabled && gateway.verified) kb.push([wBtn(uiBtn(s, gateway.network === "trc20" ? "wal_chain_trc20" : "wal_chain_bep20", `dep:chain_${gateway.network}`))]);
   {
     // Merged EPS rows: one for bKash/Nagad/Rocket, one for cards.
@@ -3672,6 +3674,10 @@ export async function announceProductRemoved(product: any, delivery?: CardDelive
 /* ------------------------------------------------------------- dispatchers */
 
 export async function handleUpdate(update: any) {
+  if (update.pre_checkout_query) return await handleStarsPreCheckout(update.pre_checkout_query);
+  if (update.message?.successful_payment) {
+    try { return await handleStarsPaid(update.message); } finally { await flushBackground(); }
+  }
   if (update.my_chat_member) {
     const evidence = membershipContact(update);
     if (evidence) await recordContact(evidence.id, evidence.status, evidence.at);
@@ -3956,6 +3962,15 @@ async function handleMessage(msg: any) {
       }
       const ev = epsView((er as any).row, await getSettings());
       await say(chatId, ev.text, ev.kb);
+      return;
+    }
+    case "stars_amount": {
+      const amount = Math.round(Number(text.replace(/[^0-9.]/g, "")) * 100) / 100;
+      if (!amount || amount < 0.01 || amount > 10000) { await say(chatId, "❌ Please send a valid amount, e.g. <code>1</code>"); return; }
+      state.awaiting = null;
+      await setState(chatId, state);
+      const r = await startStarsPayment(chatId, amount, null);
+      if ("error" in r) await say(chatId, `❌ ${escapeHtml(r.error)}`, [[{ text: "⬅️ Wallet", callback_data: "wallet" }]]);
       return;
     }
     case "bin_amount": {
@@ -5999,6 +6014,7 @@ async function coPayView(chatId: number) {
   const payStyle: ButtonStyle = "primary";
   if (Number(user.balance) >= total && total > 0)
     kb.push([styled(uiBtn(settings, "pay_balance", "copm:balance", `(${money(user.balance)})`), payStyle)]);
+  if (starsEnabled(settings) && total > 0) kb.push([styled({ text: `⭐ Telegram Stars · ${usdToStars(total, starsPerUsd(settings))} Stars`, callback_data: "copm:stars" }, payStyle)]);
   if (cfg.active && cfg.payid) kb.push([styled(uiBtn(settings, "pay_payid", "copm:payid"), payStyle)]);
   const bybit = await bybitSettings();
   if (bybitEnabled(bybit)) kb.push([styled(uiBtn({ ...settings, bybit_icon: bybit["bybit_icon"] ?? settings["bybit_icon"] ?? "" }, "wal_bybit", "copm:bybit"), payStyle)]);
@@ -7018,6 +7034,20 @@ async function handleCallback(cq: any) {
       return;
     }
 
+    if (method === "stars") {
+      const { lines } = await coTotals(meta, chatId);
+      const stockProblems = await checkoutStockIssues(lines);
+      if (stockProblems.length) {
+        await edit(`⚠️ <b>Out of stock</b>\n${stockProblems.join("\n")}\nNothing was charged.`, [[{ text: "⬅️ Back", callback_data: "copay" }]]);
+        return;
+      }
+      const r = await startStarsPayment(chatId, total, { items: meta.items, coupon: meta.coupon ?? null, summary: meta.summary ?? "", total });
+      if ("error" in r) { await edit(`❌ ${escapeHtml(r.error)}`, [[{ text: "⬅️ Back", callback_data: "copay" }]]); return; }
+      const orders = await createAwaitingOrders(chatId, meta, String(r.row.id), "stars");
+      await edit(awaitingOrderNote(orders) + `\n⭐ Pay <b>${r.stars} Stars</b> with the invoice below. Delivery is automatic after payment.`, [[{ text: "⬅️ Back", callback_data: "copay" }]]);
+      return;
+    }
+
     if (method === "oxapay") {
       const { lines } = await coTotals(meta, chatId);
       const stockProblems = await checkoutStockIssues(lines);
@@ -7289,6 +7319,14 @@ async function handleCallback(cq: any) {
   if (data.startsWith("epschk:")) {
     const r = await verifyEpsDeposit(chatId, data.slice(7));
     await edit(r.message, r.keyboard);
+    return;
+  }
+
+  if (data === "dep:stars") {
+    const ss = await getSettings();
+    if (!starsEnabled(ss)) { await edit("Telegram Stars is currently unavailable.", [[uiBtn(ss, "com_wallet", "wallet")]]); return; }
+    await setState(chatId, { ...(user.state ?? {}), awaiting: "stars_amount" });
+    await edit(`<b>⭐ Telegram Stars</b>\n\nHow many <b>USD</b> do you want to add? Reply with the amount, e.g. <code>1</code> or <code>0.5</code>.\n<i>Rate: $1 = ${starsPerUsd(ss)} Stars (rounded up, minimum 1 Star).</i>`, [[changeGatewayButton(ss), uiBtn(ss, "com_wallet", "wallet")]]);
     return;
   }
 
@@ -9034,4 +9072,77 @@ export async function webClaimReward(tid: number, rewardId: string) {
 export async function webFreebiesText() {
   const s = await getSettings();
   return plainText((s["freebies_text"] || "").trim() || "No freebies right now. Check back later!");
+}
+
+
+// ───────── Telegram Stars (bot only) ─────────
+async function startStarsPayment(chatId: number, usd: number, checkout: Record<string, unknown> | null): Promise<{ error: string } | { row: any; stars: number }> {
+  const settings = await getSettings();
+  if (!starsEnabled(settings)) return { error: "Telegram Stars is currently unavailable." };
+  const amount = Math.round(usd * 100) / 100;
+  const stars = usdToStars(amount, starsPerUsd(settings));
+  if (stars < 1) return { error: "Invalid amount." };
+  const { data: row, error } = await db.from("binance_deposits").insert({
+    telegram_id: chatId, kind: "stars", amount_usdt: amount, status: "pending",
+    expires_at: new Date(Date.now() + 30 * 60_000).toISOString(),
+    meta: { ...(checkout ?? {}), stars, stars_rate: starsPerUsd(settings) },
+  } as any).select("*").single();
+  if (error || !row) return { error: "Could not create the payment. Please try again." };
+  const title = checkout ? "QORIX order" : "QORIX wallet top-up";
+  const description = checkout ? String((checkout as any).summary || "Digital order").slice(0, 250) : `Add ${money(amount)} to your wallet`;
+  const res = await tg("sendInvoice", {
+    chat_id: chatId, title, description, payload: starsPayload(row.id), currency: "XTR",
+    prices: [{ label: title, amount: stars }],
+  });
+  if (!res.ok) {
+    await db.from("binance_deposits").update({ status: "failed" }).eq("id", row.id).eq("status", "pending");
+    return { error: "Could not create the Stars invoice. Please try again." };
+  }
+  return { row, stars };
+}
+
+async function handleStarsPreCheckout(q: any) {
+  const answer = (ok: boolean, error_message?: string) => tg("answerPreCheckoutQuery", { pre_checkout_query_id: q.id, ok, ...(ok ? {} : { error_message }) });
+  const id = parseStarsPayload(q.invoice_payload);
+  if (!id || q.currency !== "XTR") return void (await answer(false, "Invalid payment."));
+  const { data: row } = await db.from("binance_deposits").select("*").eq("id", id).maybeSingle();
+  const fresh = row && row.kind === "stars" && row.status === "pending" && Number(row.telegram_id) === Number(q.from?.id)
+    && Number((row.meta as any)?.stars) === Number(q.total_amount) && new Date(row.expires_at).getTime() - Date.now() > 60_000;
+  if (!fresh) return void (await answer(false, "This payment has expired. Please start again."));
+  if (Array.isArray((row.meta as any)?.items)) {
+    const { data: orders } = await db.from("orders").select("status").contains("meta", { deposit_id: id });
+    if (!orders?.length || orders.some((o: any) => o.status !== "awaiting_payment")) return void (await answer(false, "This order is no longer open."));
+  }
+  await answer(true);
+}
+
+async function handleStarsPaid(msg: any) {
+  const p = msg.successful_payment;
+  const chatId = Number(msg.chat?.id);
+  const charge = String(p?.telegram_payment_charge_id ?? "");
+  const id = parseStarsPayload(p?.invoice_payload);
+  const refund = async (why: string) => {
+    if (charge) await tg("refundStarPayment", { user_id: Number(msg.from?.id), telegram_payment_charge_id: charge }).catch(() => {});
+    await sendMessage(chatId, `⚠️ ${why}\nYour Stars were refunded.`).catch(() => {});
+  };
+  if (!id || !charge || p.currency !== "XTR") return await refund("Payment could not be matched.");
+  const { data: row } = await db.from("binance_deposits").select("*").eq("id", id).maybeSingle();
+  if (!row || row.kind !== "stars" || Number(row.telegram_id) !== chatId || Number((row.meta as any)?.stars) !== Number(p.total_amount)) return await refund("Payment could not be matched.");
+  if (row.status === "credited") return;
+  const s = await getSettings();
+  try {
+    const meta = row.meta as any;
+    if (Array.isArray(meta?.items)) {
+      const res = await fulfillCheckout(chatId, meta, "stars", `stars:${charge}`, row.id, Number(row.amount_usdt));
+      await sendMessage(chatId, res.text, res.kb);
+    } else {
+      const { data, error } = await db.rpc("settle_stars_deposit" as any, { _deposit_id: row.id, _charge_id: charge, _stars: Number(p.total_amount) });
+      if (error) throw error;
+      if ((data as any)?.changed) await sendMessage(chatId, `✅ Telegram Stars payment received. Added <b>${money(row.amount_usdt)}</b> to your wallet.`, [[uiBtn(s, "com_wallet", "wallet")]]);
+    }
+  } catch (error) {
+    console.error("Stars settlement failed", error);
+    const { data: again } = await db.from("binance_deposits").select("status").eq("id", row.id).maybeSingle();
+    if (again?.status !== "credited") await refund("We could not complete this payment.");
+  }
 }
