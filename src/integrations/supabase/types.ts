@@ -2922,6 +2922,10 @@ export type Database = {
         }
         Returns: Json
       }
+      settle_stars_deposit: {
+        Args: { _charge_id: string; _deposit_id: string; _stars: number }
+        Returns: Json
+      }
       stock_counter_bump: {
         Args: { _d: number; _pid: string }
         Returns: undefined
