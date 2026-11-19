@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { createWebLinkCode, getWebDeposit, getWebProfile, getWebWallet, startWebDeposit, submitWebDepositTxid } from "@/lib/web-wallet.functions";
+import { getWebDeposit, getWebProfile, getWebWallet, startWebDeposit, submitWebDepositTxid } from "@/lib/web-wallet.functions";
 import { getStorePayInfo } from "@/lib/shop.functions";
 import { getEpsStatus } from "@/lib/eps.functions";
 import { getOxapayStatus } from "@/lib/oxapay.functions";
@@ -13,7 +13,7 @@ import { PaymentGatewayIcon } from "@/components/mobile/PaymentGatewayIcon";
 import type { LucideIcon } from "lucide-react";
 import { Bitcoin, Coins, FileText, Gem, Landmark, Ticket, CalendarDays, ChevronDown, ChevronLeft, CircleCheck, Clock3, Copy, CreditCard, Gift, Package, Store, User, Wallet, Zap, Info } from "lucide-react";
 import { BotFrame } from "@/components/mobile/BotFrame";
-import { Bubble, Key, KeyLink, Keys, Quote, Title } from "@/components/mobile/BotStorefront";
+import { Bubble, Key, KeyLink, Keys, Quote, Title, TelegramConnect } from "@/components/mobile/BotStorefront";
 import { priceTag } from "@/components/StoreShell";
 
 const anim = "flex flex-col gap-1.5 animate-in fade-in slide-in-from-bottom-2 duration-300";
@@ -40,7 +40,8 @@ type Stage = { k: "home" } | { k: "amount"; gw: Gw } | { k: "pay"; gw: Gw; dep: 
 /** Deposit page = the bot WALLET flow, using the connected bot wallet and the bot's own deposit verification. */
 export function BotWallet() {
   const qc = useQueryClient();
-  const fWallet = useServerFn(getWebWallet), fCode = useServerFn(createWebLinkCode), fStart = useServerFn(startWebDeposit);
+  const fWallet = useServerFn(getWebWallet), fStart = useServerFn(startWebDeposit);
+  const [connecting, setConnecting] = useState(false);
   const fTx = useServerFn(submitWebDepositTxid), fDep = useServerFn(getWebDeposit), fPay = useServerFn(getStorePayInfo);
   const fEps = useServerFn(getEpsStatus), fOxa = useServerFn(getOxapayStatus);
   const { data: w, refetch } = useQuery({ queryKey: ["web-wallet"], queryFn: () => fWallet() });
@@ -85,12 +86,6 @@ export function BotWallet() {
     },
   });
 
-  async function connect() {
-    if (!botUser) { toast.error("Bot is not configured yet."); return; }
-    const tab = window.open("about:blank", "_blank");
-    try { const { code } = await fCode(); const url = `https://t.me/${botUser}?start=wl_${code}`; if (tab) tab.location.href = url; else window.location.href = url; }
-    catch (e) { tab?.close(); toast.error((e as Error).message); }
-  }
   async function start(gw: Gw) {
     setBusy(true); setErr("");
     try {
@@ -112,14 +107,17 @@ export function BotWallet() {
   return (
     <BotFrame scrollRef={scrollRef}>
       <Cmd>Deposit</Cmd>
-      {!w ? <Bubble><p className="text-sm">Loading…</p></Bubble> : !w.linked ? (
+      {connecting ? <TelegramConnect onBack={() => setConnecting(false)} onDone={() => {
+        setConnecting(false);
+        void qc.invalidateQueries();
+      }} /> : !w ? <Bubble><p className="text-sm">Loading…</p></Bubble> : !w.linked ? (
         <div className={anim}>
           <Bubble className="w-full">
             <Title>WALLET</Title>
             <p className="mt-2 text-sm">Connect your Telegram account to use the <b>same wallet</b> here and in the bot.</p>
             <Quote><p>Tap <b>Connect Telegram</b>, press <b>Start</b> in the bot, then come back and tap <b>Refresh</b>. The link works once and expires in 10 minutes.</p></Quote>
           </Bubble>
-          <button type="button" onClick={connect} className={`${btn} bg-tg-btn-green`}><Send className="h-4 w-4" /> Connect Telegram</button>
+          <Key tone="green" icon={Send} onClick={() => setConnecting(true)}>Connect Telegram</Key>
           <Key icon={RotateCcw} onClick={() => void refetch()}>Refresh</Key>
           <KeyLink tone="green" icon={Store} to="/">Home</KeyLink>
         </div>

@@ -322,21 +322,26 @@ export function BotStorefront(props: {
   );
 }
 
-function TelegramConnect({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
+export function TelegramConnect({ onDone, onBack }: { onDone: () => void; onBack: () => void }) {
+  const startLogin = useServerFn(startTelegramLogin);
+  const claimLogin = useServerFn(claimTelegramLogin);
   const [s, setS] = useState<{ code: string; secret: string; botUser: string } | null>(null);
   const [msg, setMsg] = useState("Preparing your secure login link…");
   const start = () => {
     setS(null); setMsg("Preparing your secure login link…");
-    startTelegramLogin().then((r) => { setS(r); setMsg("Tap Open Telegram, then press START in the bot to authorize."); })
+    startLogin().then((r) => { setS(r); setMsg("Tap Open Telegram, then press START in the bot to authorize."); })
       .catch(() => setMsg("Could not start Telegram login. Please try again."));
   };
   useEffect(start, []);
   useEffect(() => {
     if (!s) return;
     let stop = false;
+    let claiming = false;
     const t = setInterval(async () => {
+      if (claiming) return;
+      claiming = true;
       try {
-        const r = await claimTelegramLogin({ data: { code: s.code, secret: s.secret } });
+        const r = await claimLogin({ data: { code: s.code, secret: s.secret } });
         if (stop) return;
         if (r.status === "ok") {
           clearInterval(t);
@@ -348,6 +353,7 @@ function TelegramConnect({ onDone, onBack }: { onDone: () => void; onBack: () =>
           setMsg(r.status === "expired" ? "This login link expired. Tap Try again." : r.status === "unavailable" ? "This Telegram account is not available." : "Login could not be completed. Tap Try again.");
         }
       } catch { /* keep polling */ }
+      finally { claiming = false; }
     }, 3000);
     return () => { stop = true; clearInterval(t); };
   }, [s]);

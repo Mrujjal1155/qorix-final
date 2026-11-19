@@ -23,7 +23,7 @@ export function BotCheckout(p: {
   money: (n: number) => string; methods: BotMethod[]; method: string; setMethod: (id: string) => void;
   name: string; setName: (v: string) => void; email: string; setEmail: (v: string) => void;
   phone: string; setPhone: (v: string) => void; txid: string; setTxid: (v: string) => void;
-  botUser: string; epsBdt: number; placing: boolean; redirecting: boolean; connected?: boolean;
+  botUser: string; epsBdt: number; placing: boolean; redirecting: boolean; connected?: boolean; checkingConnection?: boolean; connectionError?: boolean;
   onPlace: () => void; onEps: () => void; onOxa: () => void;
   walletBalance?: number; walletAllowed?: boolean; walletBusy?: boolean; onWallet?: () => void;
 }) {
@@ -83,7 +83,7 @@ export function BotCheckout(p: {
             </>
           ) : (
             <>
-              <Key premium="ui_icon_co_pay" tone="green" icon={CreditCard} onClick={() => setStage(p.connected ? "methods" : "details")}>Pay now · {p.money(p.total)}</Key>
+              <Key premium="ui_icon_co_pay" tone="green" icon={CreditCard} disabled={Boolean(p.checkingConnection || p.connectionError)} onClick={() => setStage(p.connected ? "methods" : "details")}>{p.checkingConnection ? "Checking account…" : p.connectionError ? "Account check failed — refresh" : `Pay now · ${p.money(p.total)}`}</Key>
               <Key premium="ui_icon_qty_custom" icon={Pencil} onClick={() => setStage("qty")}>Change quantity</Key>
               <Keys cols={2}>
                 <KeyLink premium="menu_icon_shop" tone="green" icon={Store} to="/" onClick={() => localStorage.setItem("qorix_open", "products")}>SHOP</KeyLink>
@@ -94,7 +94,7 @@ export function BotCheckout(p: {
         </div>
       )}
 
-      {stage === "details" && (
+      {stage === "details" && !p.connected && (
         <div key="det" className={`flex flex-col gap-1.5 ${anim}`}>
           <Bubble className="w-full">
             <p className="flex items-center gap-2 font-semibold"><Ico i={FileText} /> Delivery details</p>
@@ -135,12 +135,6 @@ export function BotCheckout(p: {
             {isEps || isOxa ? (
               <>
                 <p className="mt-2 text-sm">{isEps ? "You will be taken to the secure EPS page to pay with bKash, Nagad, Rocket or card." : "You will be taken to the secure crypto page — USDT, BTC, LTC & more, confirmed automatically."}</p>
-                {p.connected && (
-                  <div className="mt-2 space-y-2">
-                    <input className={field} value={p.name} onChange={(e) => p.setName(e.target.value)} placeholder="Your name" autoComplete="name" />
-                    <input className={field} type="email" value={p.email} onChange={(e) => p.setEmail(e.target.value)} placeholder="Email for the receipt" autoComplete="email" />
-                  </div>
-                )}
                 {isEps && <input className={`${field} mt-2`} inputMode="tel" value={p.phone} onChange={(e) => p.setPhone(e.target.value)} placeholder="Mobile number 01XXXXXXXXX" />}
                 <p className="mt-2 text-sm">Amount: <b className="font-mono">{isEps ? `৳${p.epsBdt.toFixed(2)}` : `${p.total.toFixed(2)} USD`}</b></p>
               </>
@@ -159,7 +153,7 @@ export function BotCheckout(p: {
             )}
           </Bubble>
           {isEps || isOxa ? (
-            <Key premium="ui_icon_co_pay" tone="green" icon={CreditCard} disabled={p.redirecting || (isEps && p.phone.replace(/\D/g, "").length < 11) || Boolean(p.connected && (!p.name.trim() || !emailOk))} onClick={isEps ? p.onEps : p.onOxa}>
+            <Key premium="ui_icon_co_pay" tone="green" icon={CreditCard} disabled={p.redirecting || (isEps && p.phone.replace(/\D/g, "").length < 11) || Boolean(!p.connected && (!p.name.trim() || !emailOk))} onClick={isEps ? p.onEps : p.onOxa}>
               {p.redirecting ? "Opening secure payment…" : "Pay securely"}
             </Key>
           ) : (

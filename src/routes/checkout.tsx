@@ -19,8 +19,8 @@ import { getStoreProduct, getStorePayInfo, placeWebsiteOrder, placeConnectedWebs
 import { getWebWallet, purchaseWithWebWallet } from "@/lib/web-wallet.functions";
 import { canPayCheckoutWallet } from "@/lib/wallet-checkout";
 import { supabase } from "@/integrations/supabase/client";
-import { getEpsStatus, startEpsCheckout } from "@/lib/eps.functions";
-import { getOxapayStatus, startOxapayCheckout } from "@/lib/oxapay.functions";
+import { getEpsStatus, startEpsCheckout, startConnectedEpsCheckout } from "@/lib/eps.functions";
+import { getOxapayStatus, startOxapayCheckout, startConnectedOxapayCheckout } from "@/lib/oxapay.functions";
 import { StoreShell, priceTag } from "@/components/StoreShell";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { useMobileTemplate } from "@/components/mobile/BotFrame";
@@ -101,6 +101,8 @@ function CheckoutPage() {
   const startEps = useServerFn(startEpsCheckout);
   const fetchOxa = useServerFn(getOxapayStatus);
   const startOxa = useServerFn(startOxapayCheckout);
+  const startConnectedEps = useServerFn(startConnectedEpsCheckout);
+  const startConnectedOxa = useServerFn(startConnectedOxapayCheckout);
   const { money, usd, currency } = usePrefs();
   const mobile = useMobileTemplate();
 
@@ -141,15 +143,19 @@ function CheckoutPage() {
   }, [step]);
 
   // Telegram-connected buyers (signed in + linked bot account) skip the name/email form, like the bot.
-  const { data: tgLink } = useQuery({
+  const { data: tgLink, isPending: checkingConnection, isError: connectionError } = useQuery({
     queryKey: ["checkout-tg-link"],
     queryFn: async () => {
       const { data: s } = await supabase.auth.getSession();
       if (!s.session) return { linked: false as const };
-      try { return await fetchWallet(); } catch { return { linked: false as const }; }
+      return await fetchWallet();
     },
     staleTime: 60_000,
   });
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange(() => { void qc.invalidateQueries({ queryKey: ["checkout-tg-link"] }); });
+    return () => data.subscription.unsubscribe();
+  }, [qc]);
   const connected = Boolean(tgLink?.linked);
   const walletBalance = tgLink?.linked ? tgLink.balance : 0;
   const walletAllowed = canPayCheckoutWallet(connected, tgLink?.linked ? tgLink.banned : false, walletBalance, total);
@@ -167,7 +173,7 @@ function CheckoutPage() {
 
   const mut = useMutation({
     mutationFn: async () => {
-      if (connected && !["eps", "oxapay"].includes(method)) {
+      if (connected) {
         return submitConnected({ data: { product_id: id, quantity: qty, payment_method: method, txid } });
       }
       const r = await submit({
@@ -186,7 +192,7 @@ function CheckoutPage() {
   // gateway where they choose bKash / Nagad / Rocket / card.
   const epsMut = useMutation({
     mutationFn: () =>
-      startEps({ data: { product_id: id, quantity: qty, customer_name: name, customer_email: email, customer_phone: phone } }),
+      (connected ? startConnectedEps : startEps)({ data: { product_id: id, quantity: qty, customer_name: name, customer_email: email, customer_phone: phone } }),
     onSuccess: (r) => {
       if (typeof window !== "undefined") window.location.href = r.url;
     },
@@ -195,7 +201,7 @@ function CheckoutPage() {
 
   const oxaMut = useMutation({
     mutationFn: () =>
-      startOxa({ data: { product_id: id, quantity: qty, customer_name: name, customer_email: email } }),
+      (connected ? startConnectedOxa : startOxa)({ data: { product_id: id, quantity: qty, customer_name: name, customer_email: email } }),
     onSuccess: (r) => {
       if (typeof window !== "undefined") window.location.href = r.url;
     },
@@ -236,7 +242,7 @@ function CheckoutPage() {
         methods={botMethods} method={method} setMethod={setMethod}
         name={name} setName={setName} email={email} setEmail={setEmail} phone={phone} setPhone={setPhone}
         txid={txid} setTxid={setTxid} botUser={botUser} epsBdt={epsTotalBdt} connected={connected}
-        placing={mut.isPending} redirecting={epsMut.isPending || oxaMut.isPending}
+        placing={mut.isPending} redirecting={epsMut.isPending || oxaMut.isPending} checkingConnection={checkingConnection} connectionError={connectionError}
         walletBalance={walletBalance} walletAllowed={walletAllowed && Boolean(walletRequest)} walletBusy={walletMut.isPending} onWallet={() => walletMut.mutate()}
         onPlace={() => product && mut.mutate()} onEps={() => epsMut.mutate()} onOxa={() => oxaMut.mutate()}
       />
@@ -313,14 +319,15 @@ function CheckoutPage() {
             {step === "details" && (
               <div className="grid gap-4 md:grid-cols-2">
                 {connected && <Button className="md:col-span-2" disabled={!walletAllowed || !walletRequest || walletMut.isPending} onClick={() => walletMut.mutate()}><Wallet className="h-4 w-4" /> {walletMut.isPending ? "Purchasing…" : `Pay with Wallet · ${money(walletBalance)}`}</Button>}
-                <div className="space-y-1">
+                {!connected && !checkingConnection && !connectionError && <><div className="space-y-1">
                   <Label>Your name</Label>
                   <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="John Doe" />
                 </div>
                 <div className="space-y-1">
                   <Label>Email (delivery + tracking)</Label>
                   <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@mail.com" />
-                </div>
+                </div></>}
+                {(checkingConnection || connectionError) && <p className="md:col-span-2 text-sm text-muted-foreground">{checkingConnection ? "Checking account…" : "Account check failed. Please refresh."}</p>}
                 <div className="space-y-2 md:col-span-2">
                   <Label>Payment method</Label>
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -413,7 +420,7 @@ function CheckoutPage() {
                 {isOxa ? (
                   <Button
                     className="md:col-span-2"
-                    disabled={!name.trim() || !email.trim() || oxaMut.isPending}
+                    disabled={checkingConnection || connectionError || (!connected && (!name.trim() || !email.trim())) || oxaMut.isPending}
                     onClick={() => oxaMut.mutate()}
                   >
                     {oxaMut.isPending ? "Opening secure payment…" : `Pay ${priceTag(total)} with crypto`}{" "}
@@ -422,7 +429,7 @@ function CheckoutPage() {
                 ) : isEps ? (
                   <Button
                     className="md:col-span-2"
-                    disabled={!name.trim() || !email.trim() || phone.replace(/\D/g, "").length < 11 || epsMut.isPending}
+                    disabled={checkingConnection || connectionError || (!connected && (!name.trim() || !email.trim())) || phone.replace(/\D/g, "").length < 11 || epsMut.isPending}
                     onClick={() => epsMut.mutate()}
                   >
                     {epsMut.isPending
@@ -431,7 +438,7 @@ function CheckoutPage() {
                     <ArrowRight className="h-4 w-4" />
                   </Button>
                 ) : (
-                  <Button className="md:col-span-2" disabled={!name.trim() || !email.trim()} onClick={() => go("pay")}>
+                  <Button className="md:col-span-2" disabled={checkingConnection || connectionError || (!connected && (!name.trim() || !email.trim()))} onClick={() => go("pay")}>
                     Continue to payment <ArrowRight className="h-4 w-4" />
                   </Button>
                 )}
