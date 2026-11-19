@@ -85,9 +85,9 @@ export function BotFrame({ children, footer, onBack, onMenu, scrollRef, bare }: 
       <div className="tg-wallpaper relative flex h-full w-full max-w-md flex-col overflow-hidden text-tg-bubble-fg sm:border-x sm:border-tg-bubble-fg/10">
         <header className="z-10 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-2 pt-2">
           {bare ? <span className="h-11 w-11" /> : onBack ? (
-            <button type="button" aria-label="Back" onClick={onBack} className={roundBtn}><ButtonPremiumIcon setting="menu_icon_back" fallback={ArrowLeft} /></button>
+            <button type="button" aria-label="Back" onClick={onBack} className={roundBtn}><ArrowLeft className="h-5 w-5" /></button>
           ) : (
-            <Link to="/" aria-label="Back" className={roundBtn}><ButtonPremiumIcon setting="menu_icon_back" fallback={ArrowLeft} /></Link>
+            <Link to="/" aria-label="Back" className={roundBtn}><ArrowLeft className="h-5 w-5" /></Link>
           )}
           <div className="flex min-w-0 items-center justify-start gap-2.5 rounded-full bg-tg-header py-1 pl-1 pr-4 shadow-sm backdrop-blur">
             <BotLogo src={h.logo} inline />
