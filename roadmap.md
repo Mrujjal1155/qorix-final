@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Add exact captured bot welcome heading letters/badge, greeting, all eleven menu explanation icons and three community link icons to Mobile View (14 new unique media, existing menu assets reused). Desktop/mobile welcome display and Shop navigation pass with no broken images/overflow/runtime errors; standard header arrow preserved, eight media regressions and build pass. No bot edits, purchase changes or publication.
+
 - [x] Capture 61 exact bot button settings / 45 unique media and apply to Mobile View catalogue navigation, product actions, quantity, checkout, wallet purchase, copy/payment/back/cancel and persistent menu buttons. Unset bot icons retain website fallback (no captured delivery copy/download settings). Desktop/mobile product→quantity and checkout→gateway→TXID verified without placing orders; 45 media HTTP checks, 12 regressions and build pass. No purchase rules, bot settings or publication changed.
 
 - [x] Add approved connected-only checkout wallet payment with displayed bot balance, insufficient/banned gating, session-persisted request identity and service-only atomic debit/ledger/order/own-stock claim; website prices and existing gateways unchanged. Supplier buys use one durable claim and stable order reference; uncertain/partial results stay paid for review, not automatic replay. Eleven rule/isolated SQL tests and six delivery regressions pass; guest hidden/connected callback and mobile/desktop display fixtures pass; build OK. No real purchase or publication.

@@ -20,6 +20,7 @@ import { productPremiumMedia } from "@/lib/product-premium-media";
 import { ProductPremiumIcon } from "@/components/mobile/ProductPremiumIcon";
 import { ButtonPremiumIcon } from "@/components/mobile/ButtonPremiumIcon";
 import { Button } from "@/components/ui/button";
+import { WelcomePremiumHeading } from "@/components/mobile/WelcomePremiumHeading";
 
 type Cat = { id: string; name: string; image_url?: string | null };
 type Prod = {
@@ -153,20 +154,27 @@ export function BotStorefront(props: {
     body = (
       <>
         <Bubble>
-          <p className="flex items-center gap-2 text-base font-bold"><Sparkles className="h-5 w-5 text-tg-quote-bar" /> Welcome to {props.name}</p>
+          <WelcomePremiumHeading />
+          <p className="mt-2 flex items-center gap-2 text-base font-bold"><ButtonPremiumIcon setting="ui_icon_home_greet" fallback={Sparkles} /> Welcome to {props.name}</p>
           <p className="mt-1 text-sm">100% authentic premium apps — delivered automatically.</p>
           <Quote>
-            <MenuLine icon={Store} t="Shop" d="Browse all categories" />
-            <MenuLine icon={Package} t="Orders" d="View order status & delivery" />
-            <MenuLine icon={Wallet} t="Wallet" d="Check balance & add funds" />
-            <MenuLine icon={Gift} t="Referral Store" d="Invite friends & view rewards" />
-            <MenuLine icon={LifeBuoy} t="Support" d="Contact support for help" />
-            <MenuLine icon={Code2} t="Reseller API" d="Access the reseller API & guide" />
+            <MenuLine premium="menu_icon_shop" icon={Store} t="Shop" d="Browse all categories" />
+            <MenuLine premium="menu_icon_cart" icon={ShoppingCart} t="Cart" d="Review products to buy" />
+            <MenuLine premium="menu_icon_orders" icon={Package} t="Orders" d="View order status & delivery" />
+            <MenuLine premium="menu_icon_wallet" icon={Wallet} t="Wallet" d="Check balance & add funds" />
+            <MenuLine premium="menu_icon_freebies" icon={Gift} t="Freebies" d="View available free offers" />
+            <MenuLine premium="menu_icon_profile" icon={User} t="Profile" d="Account, wallet, orders & referral details" />
+            <MenuLine premium="menu_icon_referral" icon={Gift} t="Referral Store" d="Invite friends & view rewards" />
+            <MenuLine premium="menu_icon_support" icon={LifeBuoy} t="Support" d="Contact support for help" />
+            <MenuLine premium="menu_icon_emails" icon={Mail} t="Emails & Trials" d="Open the Emails & Trials page" />
+            <MenuLine premium="menu_icon_api" icon={Code2} t="Reseller API" d="Access the reseller API & guide" />
+            <MenuLine premium="menu_icon_clear" icon={Trash2} t="Clear Chat" d="Clear the current shop view" />
           </Quote>
-          <p className="mt-3 flex items-center gap-2 font-semibold"><Users className="h-4 w-4 text-tg-link" /> Join Community</p>
+          <p className="mt-3 flex items-center gap-2 font-semibold"><ButtonPremiumIcon setting="ui_icon_home_community" fallback={Users} /> Join Community</p>
           <p className="text-sm">Join for stock alerts and updates.</p>
-          <a className="mt-1 flex items-center gap-2 text-sm text-tg-link" href="https://t.me/QORIXCHAT" target="_blank" rel="noreferrer"><Users className="h-4 w-4" /> Community Group</a>
-          <a className="flex items-center gap-2 text-sm text-tg-link" href="https://t.me/qorixlab" target="_blank" rel="noreferrer"><Megaphone className="h-4 w-4" /> Official Channel</a>
+          <a className="mt-1 flex items-center gap-2 text-sm text-tg-link" href="https://t.me/QORIXCHAT" target="_blank" rel="noreferrer"><ButtonPremiumIcon setting="ui_icon_home_group" fallback={Users} /> Community Group</a>
+          <a className="flex items-center gap-2 text-sm text-tg-link" href="https://t.me/qorixlab" target="_blank" rel="noreferrer"><ButtonPremiumIcon setting="ui_icon_home_channel" fallback={Megaphone} /> Official Channel</a>
+          <a className="flex items-center gap-2 text-sm text-tg-link" href="https://t.me/qorixstoreupdate" target="_blank" rel="noreferrer"><ButtonPremiumIcon setting="ui_icon_home_updates" fallback={Bell} /> Store Updates Channel</a>
           <p className="mt-3 text-sm">Choose an option below to get started.</p>
         </Bubble>
         <Bubble>
@@ -423,8 +431,8 @@ export function Title({ children }: { children: ReactNode }) {
 export function Quote({ children }: { children: ReactNode }) {
   return <div className="mt-2 rounded-md border-l-4 border-tg-quote-bar bg-tg-quote px-3 py-2 text-sm">{children}</div>;
 }
-function MenuLine({ icon: I, t, d }: { icon: LucideIcon; t: string; d: string }) {
-  return <p className="flex items-start gap-2 py-0.5"><I className="mt-0.5 h-4 w-4 shrink-0 text-tg-quote-bar" /><span><b>{t}</b> — {d}</span></p>;
+function MenuLine({ icon: I, premium, t, d }: { icon: LucideIcon; premium?: string; t: string; d: string }) {
+  return <p className="flex items-start gap-2 py-0.5">{premium ? <ButtonPremiumIcon setting={premium} fallback={I} /> : <I className="mt-0.5 h-4 w-4 shrink-0 text-tg-quote-bar" />}<span className="min-w-0"><b>{t}</b> — {d}</span></p>;
 }
 export function Keys({ cols, children }: { cols: 1 | 2 | 3; children: ReactNode }) {
   const c = cols === 1 ? "grid-cols-1" : cols === 2 ? "grid-cols-2" : "grid-cols-3";
