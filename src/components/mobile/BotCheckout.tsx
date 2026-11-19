@@ -8,6 +8,8 @@ import {
 import { toast } from "sonner";
 import { BotFrame } from "@/components/mobile/BotFrame";
 import { Bubble, Key, KeyLink, Keys, Quote, Title } from "@/components/mobile/BotStorefront";
+import { ProductPremiumIcon } from "@/components/mobile/ProductPremiumIcon";
+import { productPremiumMedia } from "@/lib/product-premium-media";
 
 export type BotMethod = { id: string; label: string; icon?: LucideIcon | undefined; img?: string | undefined; address?: string | undefined };
 
@@ -50,8 +52,8 @@ export function BotCheckout(p: {
             <Title>CHECKOUT</Title>
             <div className="my-1.5 h-px w-40 bg-tg-bubble-fg/40" />
             <p className="flex items-center gap-2 font-semibold">
-              {p.productImg ? <img src={p.productImg} alt="" className="h-5 w-5 rounded object-cover" /> : <Ico i={Package} />}
-              {p.productName}
+              {productPremiumMedia(p.productId) ? <ProductPremiumIcon productId={p.productId} /> : p.productImg ? <img src={p.productImg} alt="" className="h-5 w-5 rounded object-cover" /> : <Ico i={Package} />}
+              <span className="min-w-0 break-words">{p.productName}</span>
             </p>
             <p className="pl-7 text-sm">{p.qty} × {p.money(p.unit)} = <b>{p.money(p.total)}</b></p>
             <div className="my-1.5 h-px w-40 bg-tg-bubble-fg/40" />

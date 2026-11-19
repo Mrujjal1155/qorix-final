@@ -16,6 +16,8 @@ import { mobileImageFor, stripEmoji } from "@/lib/mobile-template";
 import { BotFrame, BotLogo, bottomBarCls, bottomCls } from "@/components/mobile/BotFrame";
 import { CategoryPremiumIcon } from "@/components/mobile/CategoryPremiumIcon";
 import { categoryPremiumMedia } from "@/lib/category-premium-media";
+import { productPremiumMedia } from "@/lib/product-premium-media";
+import { ProductPremiumIcon } from "@/components/mobile/ProductPremiumIcon";
 
 type Cat = { id: string; name: string; image_url?: string | null };
 type Prod = {
@@ -137,7 +139,7 @@ export function BotStorefront(props: {
           {free.length ? <p className="text-sm">Every product below can be claimed <b>FREE</b> once per its free window.</p>
             : <><p className="text-sm">No freebies right now. Check back later!</p><p className="mt-2 text-sm italic">No offer found — no free offers are running right now.</p></>}
         </Bubble>
-        {free.length > 0 && <Keys cols={1}>{free.map((p) => <Key key={p.id} img={imgOf(p)} icon={Gift} onClick={() => setView({ k: "prod", id: p.id, from: view })}>{stripEmoji(p.name)} | FREE</Key>)}</Keys>}
+        {free.length > 0 && <Keys cols={1}>{free.map((p) => <Key key={p.id} leading={productPremiumMedia(p.id) ? <ProductPremiumIcon productId={p.id} /> : undefined} img={imgOf(p)} icon={Gift} onClick={() => setView({ k: "prod", id: p.id, from: view })}>{stripEmoji(p.name)} | FREE</Key>)}</Keys>}
         <Keys cols={1}><Key tone="green" icon={RefreshCw} onClick={() => setView({ k: "free" })}>Refresh</Key></Keys>
         <Keys cols={2}>
           <Key tone="green" icon={ShoppingCart} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>Open Shop</Key>
@@ -232,6 +234,7 @@ export function BotStorefront(props: {
         <Keys cols={1}>
           {slice.map((p) => (
             <Key key={p.id} tone={p.in_stock === false ? "red" : "blue"} img={imgOf(p)} icon={Package}
+              leading={productPremiumMedia(p.id) ? <ProductPremiumIcon productId={p.id} /> : undefined}
               onClick={() => setView({ k: "prod", id: p.id, from: view })}>
               {stripEmoji(p.name)} | {money(p.price)} | <Boxes className="inline h-4 w-4" /> {Number(p.stock ?? 0)}
             </Key>
@@ -266,7 +269,7 @@ export function BotStorefront(props: {
         <>
           <Bubble>
             {imgOf(p) && <img src={imgOf(p)} alt={p.name} loading="lazy" className="mb-3 aspect-video w-full rounded-lg object-cover" />}
-            <p className="text-base font-bold uppercase">{stripEmoji(p.name)}</p>
+            <p className="flex items-center gap-2 text-base font-bold uppercase"><ProductPremiumIcon productId={p.id} /><span className="min-w-0 break-words">{stripEmoji(p.name)}</span></p>
             {off > 0 && <p className="mt-2 flex items-center gap-2 font-semibold"><Zap className="h-4 w-4 text-tg-btn-red" /> FLASH SALE -{off}%</p>}
             <p className="text-sm">Price: {off > 0 && <s className="text-tg-muted">{money(p.old_price)}</s>} {off > 0 && "→ "}<b>{money(p.price)}</b></p>
             {p.description && (<><p className="mt-3 font-semibold">Must Read The description First</p><Quote><span className="whitespace-pre-line">{stripEmoji(p.description)}</span></Quote></>)}
@@ -374,7 +377,7 @@ function QtyPicker({ p, onBack }: { p: Prod; onBack: () => void }) {
       <Bubble>
         <p className="flex items-center gap-2 font-bold"><ShoppingCart className="h-4 w-4 text-tg-link" /> Select quantity</p>
         <hr className="my-2 w-40 border-tg-bubble-fg/40" />
-        <p className="uppercase">{stripEmoji(p.name)}</p>
+        <p className="flex items-center gap-2 uppercase"><ProductPremiumIcon productId={p.id} /><span className="min-w-0 break-words">{stripEmoji(p.name)}</span></p>
         <p>Price: <b>{money(p.price)}</b></p>
         <p className="mt-2 text-sm italic">Choose how many you want — payment options come next.</p>
       </Bubble>

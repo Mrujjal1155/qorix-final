@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Extend Premium icons to all 377 products with saved bot custom emojis, reuse category assets and capture 147 new unique media files. Mobile View product/freebie lists, details, quantity and checkout use the same player; original artwork remains. Nine tests pass; real catalogue list→detail→quantity→checkout display checked at desktop/mobile with no broken images, overflow or runtime errors. No purchase, bot/database changes or publish; future icon edits need another capture.
+
 - [x] Preview-only category Premium emoji experiment: captured 62 exact category mappings / 61 unique Telegram media assets (18 animated), kept saved artwork as fallback, verified category images and navigation on desktop/mobile. No bot settings, product data or deployment changes; future bot-icon edits are not automatically synced in this experiment.
 
 - [x] Restyle supplier buy orders with a desktop table and compact mobile cards; waiting blue, completed green, cancelled red. Presentation-only fixture checks at 1280/390/320 widths confirm table/card switching, no overflow, history/download callbacks and both admin themes; build OK. Authenticated live order page remains unverified because authentication is external unmanaged. No purchase rules, spending or deployment changed.

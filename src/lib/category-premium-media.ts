@@ -194,3 +194,7 @@ export function categoryPremiumMedia(categoryId: string): CategoryPremiumMedia |
   const emojiId = categoryEmojiIds[categoryId];
   return emojiId ? media[emojiId] : undefined;
 }
+
+export function premiumEmojiMedia(emojiId: string): CategoryPremiumMedia | undefined {
+  return media[emojiId];
+}
