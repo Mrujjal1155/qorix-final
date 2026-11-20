@@ -15,4 +15,8 @@ describe("Price list selection", () => {
   test("removed or inactive rows absent from loaded active catalogue never reappear", () => {
     expect(selectListProducts(rows,"selected",undefined,["missing","a"]).map(p=>p.id)).toEqual(["a"]);
   });
+});describe("New products list", () => {
+  test("new mode keeps only admin-picked products in click order", () => {
+    expect(selectListProducts(rows,"new",undefined,["c","a"]).map(p=>p.id)).toEqual(["c","a"]);
+  });
 });

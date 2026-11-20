@@ -68,16 +68,16 @@ export function ProductListPostCard({ mode = "all" }: { mode?: ProductListMode }
       <div className="space-y-4 py-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="flex items-center gap-2 text-sm font-semibold">
-            <ListOrdered className="size-4 text-primary" /> {mode === "category" ? "Category Products" : mode === "selected" ? "Top Selling Products" : "Product list post"}
+            <ListOrdered className="size-4 text-primary" /> {mode === "category" ? "Category Products" : mode === "selected" ? "Top Selling Products" : mode === "new" ? "New Products" : "Product list post"}
           </p>
-          <Button onClick={() => run()} disabled={busy !== "" || !options || (mode === "category" && !categoryId) || (mode === "selected" && !selected.length)}>
+          <Button onClick={() => run()} disabled={busy !== "" || !options || (mode === "category" && !categoryId) || ((mode === "selected" || mode === "new") && !selected.length)}>
             {busy === "gen" ? "Generating..." : list && list.nextOffset > 0 ? "Generate Next 40" : "Generate Product List"}
           </Button>
         </div>
 
         {optionsError && <p className="text-sm text-destructive">{optionsError.message}</p>}
         {mode === "category" && <Select value={categoryId} onValueChange={id => { setCategoryId(id); setList(null); const category = options?.categories.find((c: any) => c.id === id); setCopy(c => ({ ...c, ...defaultProductListCopy("category",category?.name ?? "Category"), channel: c.channel, updates: c.updates, chat: c.chat })); }}><SelectTrigger className="w-full sm:w-80"><SelectValue placeholder="Choose category" /></SelectTrigger><SelectContent>{(options?.categories ?? []).map((c: any) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select>}
-        {mode === "selected" && <div className="space-y-3">
+        {(mode === "selected" || mode === "new") && <div className="space-y-3">
           <div className="flex flex-wrap gap-2"><Button size="sm" variant={supplier === "all" ? "default" : "outline"} onClick={() => setSupplier("all")}>All</Button><Button size="sm" variant={supplier === "inhouse" ? "default" : "outline"} onClick={() => setSupplier("inhouse")}>In-house</Button>{(options?.suppliers ?? []).map((s: any) => <Button key={s.id} size="sm" variant="outline" style={supplierBadgeStyle(colors.get(s.name) ?? 0)} aria-pressed={supplier === s.id} onClick={() => setSupplier(s.id)}>{s.name}{supplier === s.id ? " ✓" : ""}</Button>)}</div>
           <Input aria-label="Search products" placeholder="Search products" value={search} onChange={e => setSearch(e.target.value)} />
           <p className="text-sm font-semibold">Selected: {selected.length}</p>

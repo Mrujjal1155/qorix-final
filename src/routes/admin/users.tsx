@@ -112,7 +112,7 @@ function UsersPage() {
   const [bcBusy, setBcBusy] = useState(false);
   const [bcOpen, setBcOpen] = useState(false);
   const [plOpen, setPlOpen] = useState(false);
-  const [plMode, setPlMode] = useState<"all" | "category" | "selected">("all");
+  const [plMode, setPlMode] = useState<"all" | "category" | "selected" | "new">("all");
 
   const [balanceUser, setBalanceUser] = useState<TargetUser | null>(null);
   const [balanceMode, setBalanceMode] = useState<"add" | "deduct">("add");
@@ -271,6 +271,7 @@ function UsersPage() {
         </Button>
         <Button variant={plOpen && plMode === "category" ? "secondary" : "outline"} onClick={() => { setPlMode("category"); setPlOpen(true); }}>Category Products</Button>
         <Button variant={plOpen && plMode === "selected" ? "secondary" : "outline"} onClick={() => { setPlMode("selected"); setPlOpen(true); }}>Top Selling Products</Button>
+        <Button variant={plOpen && plMode === "new" ? "secondary" : "outline"} onClick={() => { setPlMode("new"); setPlOpen(true); }}>New Products</Button>
         </div>
         <div className="flex gap-1 rounded-lg border bg-muted/40 p-1">
           {([["all", "All"], ["with", "With balance"], ["without", "No balance"]] as const).map(([k, l]) => (

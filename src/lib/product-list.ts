@@ -22,11 +22,11 @@ export type ProductListSnapshot = {
   copy?: ProductListCopy | undefined;
 };
 
-export type ProductListMode = "all" | "category" | "selected";
+export type ProductListMode = "all" | "category" | "selected" | "new";
 export type ProductListCopy = { title: string; intro: string; instant: string; warranty: string; bulk: string; channel: string; updates: string; chat: string };
 export function defaultProductListCopy(mode: ProductListMode, name: string): ProductListCopy {
-  return { title: mode === "category" ? `${name} — PRODUCT LIST` : mode === "selected" ? "TOP SELLING PRODUCTS" : `${name} — PRICE LIST`,
-    intro: mode === "category" ? `${name} products — explore the latest prices below.` : "Explore our latest products and prices.",
+  return { title: mode === "category" ? `${name} — PRODUCT LIST` : mode === "selected" ? "TOP SELLING PRODUCTS" : mode === "new" ? "🆕 FRESH ARRIVALS AT QORIX" : `${name} — PRICE LIST`,
+    intro: mode === "category" ? `${name} products — explore the latest prices below.` : mode === "new" ? "Brand-new products just landed in our store — limited stock, instant delivery. Grab yours before they're gone!" : "Explore our latest products and prices.",
     instant: "Instant delivery — pay and it arrives in seconds, any hour of the day.",
     warranty: "Covered by warranty — a problem gets replaced, not argued about.",
     bulk: "Cheaper in bulk — larger orders drop the unit price automatically at checkout.",
@@ -35,7 +35,7 @@ export function defaultProductListCopy(mode: ProductListMode, name: string): Pro
 
 export function selectListProducts<T extends { id: string; category_id?: string | null; categoryIds?: string[]; supplier_id?: string | null }>(rows: T[], mode: ProductListMode, categoryId?: string, ids: string[] = []) {
   if (mode === "category") return rows.filter(p => p.category_id === categoryId || p.categoryIds?.includes(categoryId ?? ""));
-  if (mode === "selected") { const byId = new Map(rows.map(p => [p.id, p])); return [...new Set(ids)].flatMap(id => { const p = byId.get(id); return p ? [p] : []; }); }
+  if (mode === "selected" || mode === "new") { const byId = new Map(rows.map(p => [p.id, p])); return [...new Set(ids)].flatMap(id => { const p = byId.get(id); return p ? [p] : []; }); }
   return rows;
 }
 

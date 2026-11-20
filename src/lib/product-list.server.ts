@@ -104,7 +104,7 @@ export async function productListOptions() {
   ]);
   for (const r of [categories,suppliers]) if (r.error) throw new Error(r.error.message);
   let savedCopy = null;
-  try { savedCopy = Object.fromEntries(["all","category","selected"].map(mode => [mode, JSON.parse(settings[`product_list_copy_${mode}`] || "null")])); } catch {}
+  try { savedCopy = Object.fromEntries(["all","category","selected","new"].map(mode => [mode, JSON.parse(settings[`product_list_copy_${mode}`] || "null")])); } catch {}
   const emojis = Object.fromEntries(PRODUCT_LIST_EMOJI_KEYS.map(k => [k.key, settings[productListSettingKey(k.key)] ?? ""]));
   return { categories: categories.data ?? [], products: products.map((p: any) => ({...p,categoryIds: memberships.filter((m: any) => m.product_id === p.id).map((m: any) => m.category_id)})), suppliers: suppliers.data ?? [], emojis, savedCopy };
 }

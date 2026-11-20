@@ -12,7 +12,7 @@ const copySchema = z.object({ title: z.string().min(1).max(200), intro: z.string
 
 export const generateProductList = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ offset: z.number().int().min(0).max(1000), mode: z.enum(["all","category","selected"]).default("all"), categoryId: z.string().uuid().optional(), ids: z.array(z.string().uuid()).max(1000).default([]), copy: copySchema.optional() }).parse(d))
+  .inputValidator((d: unknown) => z.object({ offset: z.number().int().min(0).max(1000), mode: z.enum(["all","category","selected","new"]).default("all"), categoryId: z.string().uuid().optional(), ids: z.array(z.string().uuid()).max(1000).default([]), copy: copySchema.optional() }).parse(d))
   .handler(async ({ context, data }) => {
     await assertAdmin(context);
     const { buildProductList } = await import("@/lib/product-list.server");
@@ -58,7 +58,7 @@ export const getProductListOptions = createServerFn({ method: "POST" }).middlewa
   const { productListOptions } = await import("@/lib/product-list.server");
   return productListOptions();
 });
-export const saveProductListCopy = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d: unknown) => z.object({mode: z.enum(["all","category","selected"]), copy: copySchema}).parse(d)).handler(async ({ context, data }) => {
+export const saveProductListCopy = createServerFn({ method: "POST" }).middleware([requireSupabaseAuth]).inputValidator((d: unknown) => z.object({mode: z.enum(["all","category","selected","new"]), copy: copySchema}).parse(d)).handler(async ({ context, data }) => {
   await assertAdmin(context);
   const { error } = await context.supabase.from("bot_settings").upsert({ key: `product_list_copy_${data.mode}`, value: JSON.stringify(data.copy) }, { onConflict: "key" });
   if (error) throw new Error(error.message);
