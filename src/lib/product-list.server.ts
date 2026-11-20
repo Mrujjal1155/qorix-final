@@ -58,6 +58,8 @@ export async function buildProductList(requestedOffset = 0, mode: ProductListMod
     }));
   const emojis: Record<string, string> = {};
   for (const k of PRODUCT_LIST_EMOJI_KEYS) emojis[k.key] = s[productListSettingKey(k.key)] ?? "";
+  const modeTitle = String(s[productListSettingKey(`title_${mode}`)] ?? "").trim();
+  if (modeTitle) emojis["title"] = modeTitle;
   const botUsername = s["bot_username"] ?? "";
   const storeName = s["store_name"] || s["shop_name"] || "QORIX";
   const batch = productListBatch(products, requestedOffset);
