@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Restore configured bot checkout/deposit gateways by default; admin Bot full gateways switch saves through existing admin authorization, live bot reads avoid stale menu switches. Restricted Website/Wallet/Stars mode and existing gateway availability/website/payment behavior preserved. Nine new menu/live-read tests plus sixteen regressions pass; preview build OK. Real authenticated admin save and live Telegram checks remain unverified (external unmanaged authentication; no send/deployment permission).
+
 - [x] Preserve existing general-group sale and live-update formats for website/bot successful top-ups and deliveries. New verified direct website payments use the same top-up layout with accurate Paid wording (no false wallet credit/delivery claim); only the compatible sender releases them. Existing destination settings, supplier-scoped sale routes and switches remain intact; independent durable receipts, explicit retry_after, six-send budget and uncertain-send review prevent duplicates. Isolated SQL/gateway and mocked two-group sender tests pass; no historical broadcast, real payment/send or deployment.
 - [ ] Verify actual paid website flow and both Telegram group receipts after separately approved deployment/payment; no real sends or payment authorized for this task.
 

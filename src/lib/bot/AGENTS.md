@@ -1,0 +1,1 @@
+- Full-gateway visibility uses a live-read bot setting and a browser-safe default-on helper; it gates menu rows only, never gateway availability or settlement.

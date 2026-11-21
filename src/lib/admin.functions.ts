@@ -1603,6 +1603,7 @@ export const saveBotSettings = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
+    if (data.values["bot_full_gateways_enabled"] !== undefined && !["0", "1"].includes(data.values["bot_full_gateways_enabled"])) throw new Error("Invalid bot gateway switch");
     // Verification flags are written only after a trusted Bybit account/API check.
     if (data.values['referral_mode'] && !['off', 'points', 'commission'].includes(data.values['referral_mode'])) throw new Error('Invalid referral mode');
     const rows = Object.entries(data.values).filter(([key]) => !["bybit_api_verified", "bybit_api_key", "bybit_api_secret", "referral_mode", "referral_enabled", "web_referral_enabled"].includes(key)).map(([key, value]) => ({ key, value }));

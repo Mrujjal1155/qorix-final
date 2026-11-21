@@ -58,6 +58,7 @@ import { parseStock } from "@/lib/stock-format";
 import { MANUAL_INPUT_PREFIX, parseManualInput, validateManualReply, type ManualInputConfig } from "@/lib/manual-input";
 import { SITE_ORIGIN } from "@/lib/site-url";
 import { websiteOrderRow } from "@/lib/bot/website-order-button";
+import { BOT_FULL_GATEWAYS_KEY, botFullGatewaysEnabled } from "@/lib/bot/full-gateways";
 import { issueTelegramWebsiteLogin } from "@/lib/telegram-website-login.server";
 import { telegramWebsiteDestination, telegramCheckoutDestination, websiteQuantity, type TelegramWebsiteDestination } from "@/lib/telegram-website-login";
 import { currentSlugs } from "@/lib/product-slugs.server";
@@ -2287,6 +2288,13 @@ export async function binanceConfig() {
   };
 }
 
+/** Read only the menu switch live so admin saves work across bot isolates. */
+async function fullBotGateways() {
+  const { data, error } = await db.from("bot_settings").select("value").eq("key", BOT_FULL_GATEWAYS_KEY).maybeSingle();
+  if (error) throw new Error("Could not load bot gateway visibility");
+  return botFullGatewaysEnabled(data ? { [BOT_FULL_GATEWAYS_KEY]: data.value ?? "0" } : {});
+}
+
 async function walletView(user: any, websiteOwner: number | null = null) {
   const s = await getSettings();
   const text =
@@ -2304,8 +2312,33 @@ async function walletView(user: any, websiteOwner: number | null = null) {
     text: button.icon_custom_emoji_id ? "Deposit on Website" : "🌐 Deposit on Website",
   }));
   const kb: Button[][] = [depositWebsiteRow];
-  // Bot wallet shows only Website + Stars; other gateways stay available on the website.
   if (starsEnabled(s)) kb.push([wBtn(uiBtn(s, "wal_stars", "dep:stars"))]);
+  if (await fullBotGateways()) {
+    const cfg = await binanceConfig();
+    if (cfg.active && cfg.payid)
+      kb.push([wBtn(uiBtn(s, "wal_binance", "dep:binance", cfg.live ? "(auto)" : "(manual)"))]);
+    if (cfg.active && cfg.crypto && cfg.live) kb.push([wBtn(uiBtn(s, "wal_usdt", "dep:usdt"))]);
+    const bybit = await bybitSettings();
+    if (bybitEnabled(bybit)) kb.push([wBtn(uiBtn({ ...s, bybit_icon: bybit["bybit_icon"] ?? s["bybit_icon"] ?? "" }, "wal_bybit", "dep:bybit"))]);
+    for (const gateway of await blockchainGateways().catch(() => [])) if (gateway.enabled && gateway.verified) kb.push([wBtn(uiBtn(s, gateway.network === "trc20" ? "wal_chain_trc20" : "wal_chain_bep20", `dep:chain_${gateway.network}`))]);
+    {
+      // Merged EPS rows: one for bKash/Nagad/Rocket, one for cards.
+      const { epsConfig } = await import("@/lib/eps.server");
+      const eps = epsConfig(s);
+      if (eps.enabled) {
+        kb.push([wBtn(mfsBtn(s, "wal_mfs", "dep:eps:mfs", "(auto)"))]);
+        kb.push([wBtn(cardBtn(s, "wal_card", "dep:eps:card", "(auto)"))]);
+      } else {
+        kb.push([wBtn(uiBtn(s, "wal_bkash", "dep:bkash")), wBtn(uiBtn(s, "wal_nagad", "dep:nagad"))]);
+      }
+    }
+    {
+      const { oxapayEnabled } = await import("@/lib/oxapay.server");
+      const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
+      // Gateway visibility must reflect admin saves even on another worker isolate.
+      if (oxapayEnabled(await oxapaySettings())) kb.push([wBtn(uiBtn(s, "wal_oxapay", "dep:oxapay"))]);
+    }
+  }
   kb.push([wBtn(uiBtn(s, "wal_redeem", "redeem"))]);
   kb.push([wBtn(uiBtn(s, "wal_history", "hist:0"))]);
   kb.push([uiBtn(s, "wal_home", "home")]);
@@ -6092,8 +6125,7 @@ async function coPayView(chatId: number, websiteOwner: number | null = null) {
       kb: [[{ text: "🧺 Cart", callback_data: "cart" }], [uiBtn(settings, "com_shop", "shop:0")], [uiBtn(settings, "com_home", "home")]] as Button[][],
     };
   }
-  // Bot payment step shows only Wallet, Direct Payment (website) and Stars.
-  // Other gateways stay available on the website; their handlers remain intact.
+  // Menu visibility never changes gateway availability or settlement handlers.
   const kb: Button[][] = [];
   const payStyle: ButtonStyle = "primary";
   if (Number(user.balance) >= total && total > 0)
@@ -6101,7 +6133,30 @@ async function coPayView(chatId: number, websiteOwner: number | null = null) {
   const directRow = await websiteButtonRow(settings, websiteOwner, telegramCheckoutDestination(meta.items, "pay"));
   if (directRow.length) kb.push(directRow.map((b) => ({ ...b, text: "Direct Payment · Pay Another Method" })));
   if (starsEnabled(settings) && total > 0) kb.push([styled(uiBtn(settings, "wal_stars", "copm:stars", `· ${usdToStars(total, starsPerUsd(settings))} Stars`), payStyle)]);
-  void cfg;
+  if (await fullBotGateways()) {
+    if (cfg.active && cfg.payid) kb.push([styled(uiBtn(settings, "pay_payid", "copm:payid"), payStyle)]);
+    const bybit = await bybitSettings();
+    if (bybitEnabled(bybit)) kb.push([styled(uiBtn({ ...settings, bybit_icon: bybit["bybit_icon"] ?? settings["bybit_icon"] ?? "" }, "wal_bybit", "copm:bybit"), payStyle)]);
+    for (const gateway of await blockchainGateways().catch(() => [])) if (gateway.enabled && gateway.verified) kb.push([styled(uiBtn(settings, gateway.network === "trc20" ? "wal_chain_trc20" : "wal_chain_bep20", `copm:chain_${gateway.network}`), payStyle)]);
+    if (cfg.active && cfg.crypto) {
+      kb.push([styled(uiBtn(settings, "pay_bep20", "copm:BSC"), payStyle)]);
+      kb.push([styled(uiBtn(settings, "pay_trc20", "copm:TRX"), payStyle)]);
+    }
+    {
+      const { oxapayEnabled } = await import("@/lib/oxapay.server");
+      const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
+      if (oxapayEnabled(await oxapaySettings()))
+        kb.push([styled(uiBtn(settings, "wal_oxapay", "copm:oxapay"), payStyle)]);
+    }
+    {
+      const { epsConfig } = await import("@/lib/eps.server");
+      const eps = epsConfig(settings);
+      if (eps.enabled) {
+        kb.push([styled(mfsBtn(settings, "pay_mfs", "copm:eps_mfs"), payStyle)]);
+        kb.push([styled(cardBtn(settings, "pay_card", "copm:eps_card"), payStyle)]);
+      }
+    }
+  }
   kb.push([uiBtn(settings, "pay_back", "co")]);
 
 

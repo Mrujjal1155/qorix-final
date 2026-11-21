@@ -32,6 +32,7 @@ import { TemplateManagerCard } from "@/components/admin/TemplateManagerCard";
 import { LiveUpdateCard } from "@/components/LiveUpdateCard";
 import { PRODUCTION_SITE_URL } from "@/lib/site-url";
 import { WebsitePremiumIconsCard } from "@/components/admin/WebsitePremiumIconsCard";
+import { BOT_FULL_GATEWAYS_KEY, botFullGatewaysEnabled } from "@/lib/bot/full-gateways";
 
 
 export const Route = createFileRoute("/admin/settings")({
@@ -877,6 +878,22 @@ function SettingsPage() {
       description: "Check the Telegram bot token and register the webhook.",
       icon: Bot,
       render: () => tokenCard,
+    },
+    {
+      id: "bot-gateways",
+      title: "Bot full gateways",
+      description: "Checkout and wallet deposit payment menu.",
+      icon: Wallet,
+      render: () => (
+        <section className="space-y-6">
+          <h2 className="text-2xl font-bold">Bot full gateways</h2>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="bot-full-gateways">Bot full gateways active</Label>
+            <Switch id="bot-full-gateways" checked={botFullGatewaysEnabled(values)} onCheckedChange={(on) => setValues((prev) => ({ ...prev, [BOT_FULL_GATEWAYS_KEY]: on ? "1" : "0" }))} />
+          </div>
+          <Button onClick={onSave}>Save gateway menu</Button>
+        </section>
+      ),
     },
     {
       id: "binance",
