@@ -51,7 +51,6 @@ import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminVendorsRouteImport } from './routes/admin/vendors'
 import { Route as AdminWebhookRouteImport } from './routes/admin/webhook'
 import { Route as OrderConfirmationRouteImport } from './routes/order.confirmation'
-import { Route as PayIdRouteImport } from './routes/pay.$id'
 import { Route as ResellerIndexRouteImport } from './routes/reseller.index'
 import { Route as ResellerDocsRouteImport } from './routes/reseller.docs'
 import { Route as ResellerStartRouteImport } from './routes/reseller.start'
@@ -293,11 +292,6 @@ const OrderConfirmationRoute = OrderConfirmationRouteImport.update({
   path: '/order/confirmation',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PayIdRoute = PayIdRouteImport.update({
-  id: '/pay/$id',
-  path: '/pay/$id',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ResellerIndexRoute = ResellerIndexRouteImport.update({
   id: '/reseller/',
   path: '/reseller/',
@@ -512,7 +506,6 @@ export interface FileRoutesByFullPath {
   '/admin/vendors': typeof AdminVendorsRoute
   '/admin/webhook': typeof AdminWebhookRoute
   '/order/confirmation': typeof OrderConfirmationRoute
-  '/pay/$id': typeof PayIdRoute
   '/reseller/docs': typeof ResellerDocsRoute
   '/reseller/start': typeof ResellerStartRoute
   '/store/$id': typeof StoreIdRoute
@@ -586,7 +579,6 @@ export interface FileRoutesByTo {
   '/admin/vendors': typeof AdminVendorsRoute
   '/admin/webhook': typeof AdminWebhookRoute
   '/order/confirmation': typeof OrderConfirmationRoute
-  '/pay/$id': typeof PayIdRoute
   '/reseller/docs': typeof ResellerDocsRoute
   '/reseller/start': typeof ResellerStartRoute
   '/store/$id': typeof StoreIdRoute
@@ -663,7 +655,6 @@ export interface FileRoutesById {
   '/admin/vendors': typeof AdminVendorsRoute
   '/admin/webhook': typeof AdminWebhookRoute
   '/order/confirmation': typeof OrderConfirmationRoute
-  '/pay/$id': typeof PayIdRoute
   '/reseller/docs': typeof ResellerDocsRoute
   '/reseller/start': typeof ResellerStartRoute
   '/store/$id': typeof StoreIdRoute
@@ -740,7 +731,6 @@ export interface FileRouteTypes {
     | '/admin/vendors'
     | '/admin/webhook'
     | '/order/confirmation'
-    | '/pay/$id'
     | '/reseller/docs'
     | '/reseller/start'
     | '/store/$id'
@@ -814,7 +804,6 @@ export interface FileRouteTypes {
     | '/admin/vendors'
     | '/admin/webhook'
     | '/order/confirmation'
-    | '/pay/$id'
     | '/reseller/docs'
     | '/reseller/start'
     | '/store/$id'
@@ -890,7 +879,6 @@ export interface FileRouteTypes {
     | '/admin/vendors'
     | '/admin/webhook'
     | '/order/confirmation'
-    | '/pay/$id'
     | '/reseller/docs'
     | '/reseller/start'
     | '/store/$id'
@@ -945,7 +933,6 @@ export interface RootRouteChildren {
   TgRoute: typeof TgRoute
   TrackRoute: typeof TrackRoute
   OrderConfirmationRoute: typeof OrderConfirmationRoute
-  PayIdRoute: typeof PayIdRoute
   ResellerDocsRoute: typeof ResellerDocsRoute
   ResellerStartRoute: typeof ResellerStartRoute
   StoreIdRoute: typeof StoreIdRoute
@@ -1266,13 +1253,6 @@ declare module '@tanstack/react-router' {
       path: '/order/confirmation'
       fullPath: '/order/confirmation'
       preLoaderRoute: typeof OrderConfirmationRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pay/$id': {
-      id: '/pay/$id'
-      path: '/pay/$id'
-      fullPath: '/pay/$id'
-      preLoaderRoute: typeof PayIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reseller/': {
@@ -1618,7 +1598,6 @@ const rootRouteChildren: RootRouteChildren = {
   TgRoute: TgRoute,
   TrackRoute: TrackRoute,
   OrderConfirmationRoute: OrderConfirmationRoute,
-  PayIdRoute: PayIdRoute,
   ResellerDocsRoute: ResellerDocsRoute,
   ResellerStartRoute: ResellerStartRoute,
   StoreIdRoute: StoreIdRoute,
