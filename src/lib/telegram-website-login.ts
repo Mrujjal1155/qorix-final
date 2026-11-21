@@ -12,16 +12,21 @@ export function parseTelegramLoginFragment(fragment: string) {
   return parsed.success ? parsed.data : null;
 }
 
-/** Post-consent navigation only; never accept arbitrary redirect URLs. */
-export function telegramWebsiteDestination(value: unknown): "/" | "/account" {
-  return value === "/account" ? "/account" : "/";
+export type TelegramWebsiteDestination = "/" | "/store" | "/account" | "/account?deposit=1" | `/store/${string}`;
+
+/** Post-consent navigation only; one bounded catalogue segment, never arbitrary URLs. */
+export function telegramWebsiteDestination(value: unknown): TelegramWebsiteDestination {
+  if (value === "/account" || value === "/account?deposit=1" || value === "/store") return value;
+  if (typeof value === "string" && value.length <= 240 && /^\/store\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)) return value as `/store/${string}`;
+  return "/";
 }
 
-export function telegramWebsiteLoginUrl(site: string, code: string, secret: string, destination: "/" | "/account" = "/") {
+export function telegramWebsiteLoginUrl(site: string, code: string, secret: string, destination: TelegramWebsiteDestination = "/") {
   const url = new URL("/tg", site);
   if (url.protocol !== "https:") throw new Error("Website login requires HTTPS");
   const credentials = telegramLoginCredentials.parse({ code, secret });
-  if (telegramWebsiteDestination(destination) === "/account") url.searchParams.set("next", "/account");
+  const next = telegramWebsiteDestination(destination);
+  if (next !== "/") url.searchParams.set("next", next);
   url.hash = `${credentials.code}.${credentials.secret}`;
   return url.toString();
 }

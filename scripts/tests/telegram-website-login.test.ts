@@ -24,21 +24,34 @@ test("username-only, malformed and extra-token links never authorize", () => {
 
 test("deposit links still require the same consent and carry only an allowlisted wallet destination", async () => {
   const fixture = databaseFixture();
-  const url = new URL(await issueTelegramWebsiteLogin(fixture.db, 12345, "https://qorixlab.com", "/account"));
+  const url = new URL(await issueTelegramWebsiteLogin(fixture.db, 12345, "https://qorixlab.com", "/account?deposit=1"));
   expect(url.pathname).toBe("/tg");
-  expect(url.searchParams.get("next")).toBe("/account");
+  expect(url.searchParams.get("next")).toBe("/account?deposit=1");
   const credentials = parseTelegramLoginFragment(url.hash);
   if (!credentials) throw new Error("Missing consent credentials");
   expect(await previewTelegramWebsiteLogin(fixture.db, credentials)).toEqual({ status: "ok", name: "@tester" });
-  expect(telegramWebsiteDestination(url.searchParams.get("next"))).toBe("/account");
+  expect(telegramWebsiteDestination(url.searchParams.get("next"))).toBe("/account?deposit=1");
   expect(fixture.rows[0]?.["claimed_at"]).toBeNull();
 });
 
 test("post-connect routing rejects external, protocol-relative and unknown destinations", () => {
-  for (const destination of [null, "https://attacker.example", "//attacker.example", "/admin", "/account?next=https://attacker.example", "/account/../admin"]) {
+  for (const destination of [null, "https://attacker.example", "//attacker.example", "/admin", "/account?next=https://attacker.example", "/account/../admin", "/store/../admin", "/store/%2fadmin", "/store/product?next=https://attacker.example", "/store/product#secret", "/store/" + "a".repeat(241)]) {
     expect(telegramWebsiteDestination(destination)).toBe("/");
   }
   expect(telegramWebsiteDestination("/account")).toBe("/account");
+});
+
+test("product consent preserves the exact selected product URL without claiming or purchasing", async () => {
+  const fixture = databaseFixture();
+  const next = "/store/gemini-plus-6-months";
+  const url = new URL(await issueTelegramWebsiteLogin(fixture.db, 12345, "https://qorixlab.com", next));
+  expect(url.pathname).toBe("/tg");
+  expect(telegramWebsiteDestination(url.searchParams.get("next"))).toBe(next);
+  const credentials = parseTelegramLoginFragment(url.hash);
+  if (!credentials) throw new Error("Missing consent credentials");
+  expect(await previewTelegramWebsiteLogin(fixture.db, credentials)).toEqual({ status: "ok", name: "@tester" });
+  expect(fixture.rows[0]?.["claimed_at"]).toBeNull();
+  expect(new Set(fixture.tables)).toEqual(new Set(["bot_users", "web_login_codes"]));
 });
 
 test("10-minute absolute expiry, no preview after claim, and confirmation required", () => {

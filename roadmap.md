@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Preserve selected product destinations across all four bot order website buttons after Telegram consent; canonical slug with UUID fallback, multi-item checkout goes to catalogue. Deposit links explicitly open the existing wallet deposit flow, including Basic template. 53 tests pass; consent/failed authorization/cancel verified at 1280/393 widths without runtime errors; build OK. No purchases, live sends or deployment.
+- [ ] Verify successful real Telegram consent → selected product or deposit readback; external unmanaged authentication prevents session minting, and live bot rollout requires separate deployment permission.
+
 - [x] Replace plain website links in all six bot placements with private-sender single-use Telegram consent; deposit links continue to allowlisted /account only after connection. No plain fallback on issuance failure; foreign/group senders cannot mint links. Sixty bot/login/payment regressions pass; real invalid-link rejection and named consent/cancel/failed-claim fixtures verified at 1280/393 widths. No live sends, payments or publication; authenticated live connection remains blocked by external account access and separate deployment permission.
 
 - [x] Add the website-icon Deposit on Website link above bot wallet deposit methods, pointing to the existing website /account wallet/deposit page; payment actions and balance unchanged. No live sends, payments or publication.

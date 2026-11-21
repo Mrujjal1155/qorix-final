@@ -59,6 +59,8 @@ import { MANUAL_INPUT_PREFIX, parseManualInput, validateManualReply, type Manual
 import { SITE_ORIGIN } from "@/lib/site-url";
 import { websiteOrderRow } from "@/lib/bot/website-order-button";
 import { issueTelegramWebsiteLogin } from "@/lib/telegram-website-login.server";
+import { telegramWebsiteDestination, type TelegramWebsiteDestination } from "@/lib/telegram-website-login";
+import { currentSlugs } from "@/lib/product-slugs.server";
 import { vendorInteraction } from "@/lib/bot/vendor.server";
 import { backgroundWaitUntil } from "@/lib/bg.server";
 import { enqueueAdminBroadcast } from "@/lib/bot/admin-broadcast.server";
@@ -847,7 +849,18 @@ async function getUser(telegramId: number) {
 
 /* ------------------------------------------------------------------ views */
 
-async function websiteButtonRow(settings: Record<string, string>, websiteOwner: number | null, destination: "/" | "/account" = "/"): Promise<Button[]> {
+async function productWebsiteDestination(productId: string | undefined): Promise<TelegramWebsiteDestination> {
+  if (!productId) return "/store";
+  try {
+    const slugs = await currentSlugs([productId]);
+    return telegramWebsiteDestination(`/store/${slugs[productId] ?? productId}`);
+  } catch {
+    // Existing UUID product routes resolve to their canonical slug; never break bot checkout on a slug read failure.
+    return telegramWebsiteDestination(`/store/${productId}`);
+  }
+}
+
+async function websiteButtonRow(settings: Record<string, string>, websiteOwner: number | null, destination: TelegramWebsiteDestination = "/"): Promise<Button[]> {
   if (!websiteOwner) return [];
   try {
     const url = await issueTelegramWebsiteLogin(db, websiteOwner, siteUrl(settings), destination);
@@ -2120,7 +2133,7 @@ async function productView(productId: string, chatId?: number, websiteOwner: num
       : `${uiTag(settings, "prod_stock")}: <b>${stock} available</b>\n<i>${uiTag(settings, "prod_auto_note")}</i>`;
 
   const available = (p.delivery_type === "manual" && !p.manual_stock_limited) || stock > 0;
-  const kb: Button[][] = [await websiteButtonRow(settings, websiteOwner)];
+  const kb: Button[][] = [await websiteButtonRow(settings, websiteOwner, await productWebsiteDestination(p.id))];
   if (available)
     kb.push([
       uiBtn(settings, "prod_buy", `qty:${p.id}`),
@@ -2286,7 +2299,7 @@ async function walletView(user: any, websiteOwner: number | null = null) {
     `<i>Choose a payment method below to add funds to your wallet.</i>`;
   const walStyle: ButtonStyle = "primary";
   const wBtn = (b: Button) => styled(b, walStyle);
-  const depositWebsiteRow = (await websiteButtonRow(s, websiteOwner, "/account")).map((button) => ({
+  const depositWebsiteRow = (await websiteButtonRow(s, websiteOwner, "/account?deposit=1")).map((button) => ({
     ...button,
     text: button.icon_custom_emoji_id ? "Deposit on Website" : "🌐 Deposit on Website",
   }));
@@ -6006,7 +6019,7 @@ async function coView(chatId: number, websiteOwner: number | null = null) {
   if (meta.coupon) text += `🏷 Coupon <code>${escapeHtml(meta.coupon.code)}</code>: −${money(Math.max(0, discount - tierOff))}\n`;
   text += `${uiTag(settings, "co_total")}: <b>${money(total)}</b>\n\n<i>No wallet deposit needed — pay directly and it will be verified automatically.</i>`;
 
-  const kb: Button[][] = [await websiteButtonRow(settings, websiteOwner)];
+  const kb: Button[][] = [await websiteButtonRow(settings, websiteOwner, await productWebsiteDestination(meta.items.length === 1 ? meta.items[0]?.product_id : undefined))];
   kb.push([
     meta.coupon
       ? uiBtn(settings, "co_coupon_rm", "cocrm")
@@ -6044,7 +6057,7 @@ async function coPayView(chatId: number, websiteOwner: number | null = null) {
       kb: [[{ text: "🧺 Cart", callback_data: "cart" }], [uiBtn(settings, "com_shop", "shop:0")], [uiBtn(settings, "com_home", "home")]] as Button[][],
     };
   }
-  const kb: Button[][] = [await websiteButtonRow(settings, websiteOwner)];
+  const kb: Button[][] = [await websiteButtonRow(settings, websiteOwner, await productWebsiteDestination(meta.items.length === 1 ? meta.items[0]?.product_id : undefined))];
   const payStyle: ButtonStyle = "primary";
   if (Number(user.balance) >= total && total > 0)
     kb.push([styled(uiBtn(settings, "pay_balance", "copm:balance", `(${money(user.balance)})`), payStyle)]);
@@ -6964,7 +6977,7 @@ async function handleCallback(cq: any) {
     const qs = await getSettings();
     const qtyStyle: ButtonStyle = "primary";
     const kb: Button[][] = [
-      await websiteButtonRow(qs, websiteOwner),
+      await websiteButtonRow(qs, websiteOwner, await productWebsiteDestination(productId)),
       [1, 2, 3].map((n) => styled({ text: `${n}×`, callback_data: `buy:${productId}:${n}` }, qtyStyle)),
       [5, 10].map((n) => styled({ text: `${n}×`, callback_data: `buy:${productId}:${n}` }, qtyStyle)),
       [styled(uiBtn(qs, "qty_custom", `cq:${productId}`), qtyStyle)],

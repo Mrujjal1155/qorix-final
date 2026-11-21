@@ -5,7 +5,7 @@ import { LockKeyhole, Send, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { previewBotWebsiteLogin, claimTelegramLogin } from "@/lib/telegram-login.functions";
-import { parseTelegramLoginFragment, telegramWebsiteDestination } from "@/lib/telegram-website-login";
+import { parseTelegramLoginFragment, telegramWebsiteDestination, type TelegramWebsiteDestination } from "@/lib/telegram-website-login";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/tg")({
@@ -27,7 +27,7 @@ function TelegramWebsiteConsent() {
   const preview = useServerFn(previewBotWebsiteLogin);
   const claim = useServerFn(claimTelegramLogin);
   const credentials = useRef<ReturnType<typeof parseTelegramLoginFragment>>(null);
-  const destination = useRef<"/" | "/account">("/");
+  const destination = useRef<TelegramWebsiteDestination>("/");
   const initialized = useRef(false);
   const busy = useRef(false);
   const [name, setName] = useState("");
@@ -65,7 +65,14 @@ function TelegramWebsiteConsent() {
       if (error) throw error;
       credentials.current = null;
       await router.invalidate();
-      await router.navigate({ to: destination.current });
+      const next = destination.current;
+      if (next.startsWith("/store/")) {
+        await router.navigate({ to: "/store/$id", params: { id: next.slice("/store/".length) } });
+      } else if (next === "/account?deposit=1") {
+        await router.navigate({ to: "/account", search: { deposit: true } });
+      } else {
+        await router.navigate({ to: next === "/account" ? "/account" : next === "/store" ? "/store" : "/" });
+      }
     } catch {
       setState("invalid"); setMessage("Sign-in could not finish. Open a fresh website link from the bot.");
     } finally { busy.current = false; }

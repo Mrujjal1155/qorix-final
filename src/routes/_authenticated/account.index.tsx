@@ -11,6 +11,8 @@ import { BotWallet } from "@/components/mobile/BotAccount";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const Route = createFileRoute("/_authenticated/account/")({
+  validateSearch: (search: Record<string, unknown>): { deposit?: boolean } =>
+    search["deposit"] === true || search["deposit"] === "1" || search["deposit"] === "true" ? { deposit: true } : {},
   head: () => ({
     meta: [
       { title: "My account — QORIX Store" },
@@ -45,7 +47,8 @@ function AccountOverview() {
 
   const recent = (data?.orders ?? []).slice(0, 5);
   const mobile = useMobileTemplate();
-  if (mobile) return <BotWallet />;
+  const { deposit } = Route.useSearch();
+  if (mobile || deposit) return <BotWallet />;
 
   return (
     <AccountShell title="My account" subtitle={data?.email ? `Signed in as ${data.email}` : undefined}>

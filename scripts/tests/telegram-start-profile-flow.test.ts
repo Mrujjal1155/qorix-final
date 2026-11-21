@@ -9,11 +9,18 @@ let profileCounts = 0;
 let enabled = true;
 let websiteIssuedFor: number[] = [];
 let websiteIssueFails = false;
+let productSlug: string | null = null;
+let slugReadFails = false;
+mock.module("@/lib/product-slugs.server", () => ({ currentSlugs: async (ids: string[]) => {
+  if (slugReadFails) throw new Error("Slug read unavailable");
+  const id = ids[0];
+  return id && productSlug ? { [id]: productSlug } : {};
+} }));
 let vendorReceipts: Record<string, unknown>[] = [];
 mock.module("@/lib/telegram-website-login.server", () => ({ issueTelegramWebsiteLogin: async (_db: unknown, id: number, _site: string, destination = "/") => {
   websiteIssuedFor.push(id);
   if (websiteIssueFails) throw new Error("Login unavailable");
-  return "https://qorixlab.com/tg" + (destination === "/account" ? "?next=%2Faccount" : "") + "#" + "a".repeat(24) + "." + "b".repeat(48);
+  return "https://qorixlab.com/tg" + (destination !== "/" ? "?next=" + encodeURIComponent(destination) : "") + "#" + "a".repeat(24) + "." + "b".repeat(48);
 } }));
 const legacy = "5400280896311944999";
 mock.module("@/lib/bybit.server", () => ({ bybitSettings: async () => ({ bybit_enabled: enabled ? "1" : "0", bybit_api_verified: "1", bybit_uid: "98765", bybit_icon: legacy }), findBybitPayment: async () => { throw new Error("Unexpected payment verification"); } }));
@@ -97,6 +104,7 @@ for (const action of ["p:p1", "qty:p1", "co", "copay"]) {
     const row = buttons[0];
     expect(row).toHaveLength(1);
     expect(new URL(row?.[0]?.url).pathname).toBe("/tg");
+    expect(new URL(row?.[0]?.url).searchParams.get("next")).toBe("/store/p1");
     expect(new URL(row?.[0]?.url).hash).toBe("#" + "a".repeat(24) + "." + "b".repeat(48));
     expect(row?.[0]?.style).toBe("primary");
     expect(row?.[0]?.icon_custom_emoji_id).toBe("5400280896311944963");
@@ -119,7 +127,7 @@ test("wallet website deposit link preserves the active deposit methods and balan
   websiteIssuedFor = [];
   await click("wallet");
   expect(new URL(buttons[0]?.[0]?.url).pathname).toBe("/tg");
-  expect(new URL(buttons[0]?.[0]?.url).searchParams.get("next")).toBe("/account");
+  expect(new URL(buttons[0]?.[0]?.url).searchParams.get("next")).toBe("/account?deposit=1");
   expect(buttons[0]?.[0]?.callback_data).toBeUndefined();
   expect(buttons[0]?.[0]?.web_app).toBeUndefined();
   expect(buttons.flat().filter(b => b.callback_data?.startsWith("dep:")).map(b => b.callback_data)).toEqual(originalMethods);
@@ -127,6 +135,33 @@ test("wallet website deposit link preserves the active deposit methods and balan
   expect(user.balance).toBe(originalBalance);
   expect(JSON.stringify(user.state.co)).toBe(originalCheckout);
   expect(websiteIssuedFor).toEqual([123]);
+});
+
+for (const action of ["p:p1", "qty:p1", "co", "copay"]) {
+  test(`${action}: the current readable product URL survives website consent`, async () => {
+    productSlug = "gemini-plus-6-months";
+    user.state.co = { items: [{ product_id: "p1", qty: 2 }] };
+    try {
+      await click(action);
+      expect(new URL(buttons[0]?.[0]?.url).searchParams.get("next")).toBe("/store/gemini-plus-6-months");
+    } finally { productSlug = null; }
+  });
+}
+
+test("slug lookup failure preserves product destination and bot checkout", async () => {
+  slugReadFails = true;
+  try {
+    await click("qty:p1");
+    expect(new URL(buttons[0]?.[0]?.url).searchParams.get("next")).toBe("/store/p1");
+    expect(buttons.flat().some(b => b.callback_data === "buy:p1:1")).toBe(true);
+  } finally { slugReadFails = false; }
+});
+
+test("multi-product checkout does not choose an arbitrary product for the website", async () => {
+  user.state.co = { items: [{ product_id: "p1", qty: 1 }, { product_id: "p1", qty: 2 }] };
+  await click("co");
+  expect(new URL(buttons[0]?.[0]?.url).searchParams.get("next")).toBe("/store");
+  user.state.co = { items: [{ product_id: "p1", qty: 1 }] };
 });
 
 for (const action of ["home", "p:p1", "qty:p1", "co", "copay", "wallet"]) {

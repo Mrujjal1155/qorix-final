@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { loginCodeAvailable, telegramWebsiteLoginUrl } from "./telegram-website-login";
+import { loginCodeAvailable, telegramWebsiteLoginUrl, type TelegramWebsiteDestination } from "./telegram-website-login";
 
 const randomHex = (bytes: number) => Array.from(crypto.getRandomValues(new Uint8Array(bytes)), b => b.toString(16).padStart(2, "0")).join("");
 export async function telegramLoginHash(secret: string) {
@@ -8,7 +8,7 @@ export async function telegramLoginHash(secret: string) {
 }
 
 /** Called only for a verified private-chat sender. No username lookup grants access. */
-export async function issueTelegramWebsiteLogin(db: SupabaseClient, telegramId: number, site: string, destination: "/" | "/account" = "/") {
+export async function issueTelegramWebsiteLogin(db: SupabaseClient, telegramId: number, site: string, destination: TelegramWebsiteDestination = "/") {
   if (!Number.isSafeInteger(telegramId) || telegramId <= 0) throw new Error("Invalid Telegram account");
   const { data: user, error: readError } = await db.from("bot_users").select("telegram_id,is_banned").eq("telegram_id", telegramId).maybeSingle();
   if (readError || !user || user.is_banned) throw new Error("Telegram account unavailable");
