@@ -29,18 +29,17 @@ test("shared helper never adds another Insight purchase on HTTP rejection", asyn
   await expect(supplierOrderWithRetry(supplier, "46", 1, "stable")).rejects.toThrow();
   expect(purchases).toBe(1);
 });
-test("legacy uncertain Insight order cannot be bought again without its original reference", async () => {
-  order = { id: "fixture-order", status: "pending", product_id: "product", meta: { paid: true, supplier_error: "delivery needs review" } };
-  globalThis.fetch = mock(async (_url: unknown, init?: RequestInit) => { if (init?.method === "POST") purchases++; return new Response(JSON.stringify({ balance_usdt: 100 })); }) as unknown as typeof fetch;
-  expect((await retrySupplierDelivery(order.id)).reason).toContain("Original purchase reference is unavailable");
-  expect(purchases).toBe(0);
-});
-test("retry never creates an initial purchase for a missing reference", async () => {
-  order = { id: "fixture-order", status: "pending", product_id: "product", meta: { paid: true } };
-  failSave = true;
-  globalThis.fetch = mock(async (_url: unknown, init?: RequestInit) => { if (init?.method === "POST") purchases++; return new Response(JSON.stringify({ balance_usdt: 100 })); }) as unknown as typeof fetch;
-  expect((await retrySupplierDelivery(order.id)).ok).toBe(false);
-  expect(purchases).toBe(0);
+test("legacy Insight order without a reference retries once with a fixed per-order key", async () => {
+  order = { id: "fixture-order", status: "pending", product_id: "product", quantity: 1, meta: { paid: true, supplier_error: "delivery needs review" } };
+  const keys: string[] = [];
+  globalThis.fetch = mock(async (_url: unknown, init?: RequestInit) => {
+    if (init?.method === "POST") { purchases++; const key = JSON.parse(String(init.body)).idempotency_key; keys.push(key);
+      return new Response(JSON.stringify({ order: { order_id: 7100, idempotency_key: key, product_id: 46, quantity: 1, status: "completed", codes: ["NEW"] } })); }
+    return new Response(JSON.stringify({ balance_usdt: 100 }));
+  }) as unknown as typeof fetch;
+  expect(await retrySupplierDelivery(order.id)).toEqual({ ok: true, items: ["NEW"] });
+  expect(keys).toEqual(["qorix-retry-fixture-order"]);
+  expect(order.status).toBe("completed");
 });
 test("paid retry reuses the original key and reads completed delivery back from the order", async () => {
   order = { id: "fixture-order", status: "pending", product_id: "product", quantity: 1, meta: { paid: true, insight_reference: "original-key", supplier_error: "previous uncertain result" } };

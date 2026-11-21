@@ -1,45 +1,56 @@
 import { afterEach, expect, mock, test } from "bun:test";
-import { insightRecoverDelivery } from "../../src/lib/suppliers/insight.server";
+import { insightRetryDelivery } from "../../src/lib/suppliers/insight.server";
 
 const supplier = { id: "test", key: "insightstore", name: "Fixture", base_url: "https://api.insightxpro.store", api_key: "fixture" };
 const originalFetch = globalThis.fetch;
 afterEach(() => { globalThis.fetch = originalFetch; });
 const done = { order_id: 6922, product_id: 46, quantity: 1, idempotency_key: "original-key", status: "completed", codes: ["ACCOUNT"] };
-function replies(values: unknown[]) {
-  let index = 0;
-  const calls: string[] = [];
+
+/** Fake supplier that honours idempotency: one order per key, charged once. */
+function fakeSupplier(history: any[], detail: Record<number, any>, buyResult: (key: string) => any) {
+  const charged = new Map<string, any>();
+  const posts: string[] = [];
   globalThis.fetch = mock(async (url: string | URL | Request, init?: RequestInit) => {
-    expect(init?.method).toBe("GET");
-    calls.push(String(url));
-    if (index >= values.length) throw new Error("Unexpected request");
-    return new Response(JSON.stringify(values[index++]));
+    const u = String(url);
+    if (init?.method === "POST") {
+      const key = JSON.parse(String(init.body)).idempotency_key;
+      posts.push(key);
+      if (!charged.has(key)) charged.set(key, buyResult(key));
+      return new Response(JSON.stringify({ order: charged.get(key) }));
+    }
+    if (u.endsWith("/orders")) return new Response(JSON.stringify({ orders: history }));
+    const id = Number(u.split("/").pop());
+    return new Response(JSON.stringify({ order: detail[id] }));
   }) as unknown as typeof fetch;
-  return calls;
+  return { posts, charged };
 }
-test("existing complete delivery is retrieved without a purchase", async () => {
-  const calls = replies([{ orders: [done] }, { order: done }]);
-  expect(await insightRecoverDelivery(supplier, "46", 1, "original-key")).toEqual({ code: "6922", items: ["ACCOUNT"] });
-  expect(calls).toHaveLength(2);
+const fresh = (key: string) => ({ order_id: 8000, product_id: 46, quantity: 1, idempotency_key: key, status: "completed", codes: ["NEW-ACCOUNT"] });
+
+test("first purchase already delivered: retry returns it without buying", async () => {
+  const s = fakeSupplier([done], { 6922: done }, fresh);
+  expect(await insightRetryDelivery(supplier, "46", 1, "order-1", "original-key")).toEqual({ code: "6922", items: ["ACCOUNT"] });
+  expect(s.posts).toHaveLength(0);
 });
-test("missing legacy reference never guesses from product or timestamps", async () => {
-  const calls = replies([]);
-  await expect(insightRecoverDelivery(supplier, "46", 1)).rejects.toThrow("reference is unavailable");
-  expect(calls).toHaveLength(0);
+test("first purchase failed: retry buys once with the order's fixed key", async () => {
+  const failed = { ...done, status: "failed", codes: [] };
+  const s = fakeSupplier([failed], { 6922: failed }, fresh);
+  expect((await insightRetryDelivery(supplier, "46", 1, "order-1", "original-key")).items).toEqual(["NEW-ACCOUNT"]);
+  expect(s.posts).toEqual(["qorix-retry-order-1"]);
 });
-test("duplicate reference history remains blocked", async () => {
-  const calls = replies([{ orders: [done, { ...done, order_id: 6923 }] }]);
-  await expect(insightRecoverDelivery(supplier, "46", 1, "original-key")).rejects.toThrow("not uniquely");
-  expect(calls).toHaveLength(1);
+test("old order without a saved reference can be retried", async () => {
+  const s = fakeSupplier([], {}, fresh);
+  expect((await insightRetryDelivery(supplier, "46", 1, "order-1")).items).toEqual(["NEW-ACCOUNT"]);
+  expect(s.posts).toEqual(["qorix-retry-order-1"]);
 });
-test("provider GET must match reference and product", async () => {
-  replies([{ orders: [done] }, { order: { ...done, product_id: 47 } }]);
-  await expect(insightRecoverDelivery(supplier, "46", 1, "original-key")).rejects.toThrow("does not match");
+test("pressing Retry many times charges the supplier only once", async () => {
+  const s = fakeSupplier([], {}, fresh);
+  for (let i = 0; i < 3; i++) await insightRetryDelivery(supplier, "46", 1, "order-1");
+  expect(new Set(s.posts)).toEqual(new Set(["qorix-retry-order-1"]));
+  expect(s.charged.size).toBe(1);
 });
-test("failed refunded purchase cannot be marked completed or repurchased", async () => {
-  const calls = replies([{ orders: [done] }, { order: { ...done, status: "failed", codes: [], amount_usdt: 4 } }, { recent_transactions: [
-    { ref_type: "api_order", ref_id: 6922, kind: "order_debit", amount_usdt: -4 },
-    { ref_type: "api_order", ref_id: 6922, kind: "refund", amount_usdt: 4 },
-  ] }]);
-  await expect(insightRecoverDelivery(supplier, "46", 1, "original-key")).rejects.toThrow("fully refunded");
-  expect(calls).toHaveLength(3);
+test("first purchase still processing: no new purchase", async () => {
+  const pending = { ...done, status: "processing", codes: [] };
+  const s = fakeSupplier([pending], { 6922: pending }, fresh);
+  await expect(insightRetryDelivery(supplier, "46", 1, "order-1", "original-key")).rejects.toThrow("still processing");
+  expect(s.posts).toHaveLength(0);
 });
