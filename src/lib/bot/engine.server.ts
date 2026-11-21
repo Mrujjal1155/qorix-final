@@ -6106,35 +6106,16 @@ async function coPayView(chatId: number, websiteOwner: number | null = null) {
       kb: [[{ text: "🧺 Cart", callback_data: "cart" }], [uiBtn(settings, "com_shop", "shop:0")], [uiBtn(settings, "com_home", "home")]] as Button[][],
     };
   }
-  const kb: Button[][] = [await websiteButtonRow(settings, websiteOwner, telegramCheckoutDestination(meta.items, "pay"))];
+  // Bot payment step shows only Wallet, Direct Payment (website) and Stars.
+  // Other gateways stay available on the website; their handlers remain intact.
+  const kb: Button[][] = [];
   const payStyle: ButtonStyle = "primary";
   if (Number(user.balance) >= total && total > 0)
     kb.push([styled(uiBtn(settings, "pay_balance", "copm:balance", `(${money(user.balance)})`), payStyle)]);
+  const directRow = await websiteButtonRow(settings, websiteOwner, telegramCheckoutDestination(meta.items, "pay"));
+  if (directRow.length) kb.push(directRow.map((b) => ({ ...b, text: "Direct Payment · Pay Another Method" })));
   if (starsEnabled(settings) && total > 0) kb.push([styled(uiBtn(settings, "wal_stars", "copm:stars", `· ${usdToStars(total, starsPerUsd(settings))} Stars`), payStyle)]);
-  if (cfg.active && cfg.payid) kb.push([styled(uiBtn(settings, "pay_payid", "copm:payid"), payStyle)]);
-  const bybit = await bybitSettings();
-  if (bybitEnabled(bybit)) kb.push([styled(uiBtn({ ...settings, bybit_icon: bybit["bybit_icon"] ?? settings["bybit_icon"] ?? "" }, "wal_bybit", "copm:bybit"), payStyle)]);
-  for (const gateway of await blockchainGateways().catch(() => [])) if (gateway.enabled && gateway.verified) kb.push([styled(uiBtn(settings, gateway.network === "trc20" ? "wal_chain_trc20" : "wal_chain_bep20", `copm:chain_${gateway.network}`), payStyle)]);
-  if (cfg.active && cfg.crypto) {
-    kb.push([styled(uiBtn(settings, "pay_bep20", "copm:BSC"), payStyle)]);
-    kb.push([styled(uiBtn(settings, "pay_trc20", "copm:TRX"), payStyle)]);
-  }
-  {
-    const { oxapayEnabled } = await import("@/lib/oxapay.server");
-    const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
-    if (oxapayEnabled(await oxapaySettings()))
-      kb.push([styled(uiBtn(settings, "wal_oxapay", "copm:oxapay"), payStyle)]);
-  }
-  {
-    const { epsConfig } = await import("@/lib/eps.server");
-    const eps = epsConfig(settings);
-    if (eps.enabled) {
-      kb.push([styled(mfsBtn(settings, "pay_mfs", "copm:eps_mfs"), payStyle)]);
-      kb.push([styled(cardBtn(settings, "pay_card", "copm:eps_card"), payStyle)]);
-    } else {
-    }
-  }
-
+  void cfg;
   kb.push([uiBtn(settings, "pay_back", "co")]);
 
 
