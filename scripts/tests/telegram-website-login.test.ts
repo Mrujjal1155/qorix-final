@@ -1,11 +1,24 @@
 import { expect, test } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
 import { readFile } from "node:fs/promises";
-import { loginCodeAvailable, parseTelegramLoginFragment, telegramWebsiteLoginUrl, telegramWebsiteDestination, telegramCheckoutDestination } from "../../src/lib/telegram-website-login";
+import { loginCodeAvailable, parseTelegramLoginFragment, telegramWebsiteLoginUrl, telegramWebsiteDestination, telegramCheckoutDestination, telegramConsentReturnPath } from "../../src/lib/telegram-website-login";
 import { issueTelegramWebsiteLogin, previewTelegramWebsiteLogin, telegramLoginHash } from "../../src/lib/telegram-website-login.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const code = "a".repeat(24), secret = "b".repeat(48);
+
+test("expired-link reconnect retains product quantity and payment stage without the old credential", () => {
+  const next = "/checkout?id=p1&qty=5&step=pay";
+  const clean = new URL(telegramConsentReturnPath(next), "https://qorixlab.com");
+  expect(clean.pathname).toBe("/tg");
+  expect(clean.searchParams.get("next")).toBe(next);
+  expect(clean.hash).toBe("");
+});
+
+test("reconnect return path rejects external destinations and keeps deposit destination", () => {
+  expect(telegramConsentReturnPath("https://attacker.example")).toBe("/tg");
+  expect(new URL(telegramConsentReturnPath("/account?deposit=1"), "https://qorixlab.com").searchParams.get("next")).toBe("/account?deposit=1");
+});
 
 test("quantity handoff preserves the product and selected quantity of 5", () => {
   const next = "/store/gemini-plus-6-months?stage=quantity&qty=5";

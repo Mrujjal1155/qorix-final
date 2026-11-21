@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { productionUrlFor } from "@/lib/site-url";
 import { ORGANIZATION_ID, breadcrumbJsonLd } from "@/lib/seo";
 import { BOT_COMMANDS, BOT_HANDLE, BOT_PAGE_PATH, BOT_URL } from "@/lib/telegram-bot";
+import { BotFrame, useMobileTemplate } from "@/components/mobile/BotFrame";
+import { TelegramConnect } from "@/components/mobile/BotStorefront";
+import { useRouter } from "@tanstack/react-router";
 
 const TITLE = "QORIX Telegram Bot — @QORIX3_bot | Shop AI Tools on Telegram";
 const DESC =
@@ -56,6 +59,10 @@ const FEATURES = [
 ];
 
 function BotPage() {
+  const mobile = useMobileTemplate();
+  const router = useRouter();
+  const home = () => { void router.navigate({ to: "/" }); };
+  if (mobile) return <BotFrame onBack={home} onMenu={home}><TelegramConnect onBack={home} onDone={() => { void router.invalidate().then(home); }} /></BotFrame>;
   return (
     <StoreShell>
       <section className="mx-auto max-w-5xl px-4 py-14">

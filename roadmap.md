@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Keep expired/reused Telegram links in the active Mobile View; fresh bot authorization and shopping/back exits replace the legacy information page. Safe product/quantity/stage destinations survive reload without bearer credentials. Sixteen login/security tests pass; real fresh login issuance, reload, reconnect, back and main-menu paths verified at 1280/393/320 without overflow or runtime errors. No purchase or publication.
+- [ ] Verify fresh reconnect after actual Telegram START and signed-in destination readback on the deployed site; external unmanaged authentication and separate deployment permission block this check.
+
 - [x] Preserve selected product, quantity and quantity/checkout/payment-method stage across Telegram consent with bounded same-origin destinations. Seventy bot/login/payment regressions pass; real public product → quantity 5 → checkout and guest payment-method view verified at 1280/393 with no runtime errors or overflow. Basic guest requirements, gateway availability and settlement unchanged; no purchases or publication.
 - [ ] Verify successful real Telegram consent → same checkout/payment-method stage; external unmanaged authentication prevents session minting, and live rollout needs separate deployment permission.
 

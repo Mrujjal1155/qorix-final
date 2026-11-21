@@ -24,6 +24,12 @@ export function telegramCheckoutDestination(items: { product_id: string; qty: nu
   return item ? telegramWebsiteDestination(`/checkout?id=${item.product_id}&qty=${item.qty}&step=${step}`) : "/store";
 }
 
+/** Remove single-use credentials but retain the safe shopping destination on reload. */
+export function telegramConsentReturnPath(value: unknown): string {
+  const next = telegramWebsiteDestination(value);
+  return next === "/" ? "/tg" : `/tg?${new URLSearchParams({ next }).toString()}`;
+}
+
 /** Post-consent navigation only; one bounded catalogue segment, never arbitrary URLs. */
 export function telegramWebsiteDestination(value: unknown): TelegramWebsiteDestination {
   if (value === "/account" || value === "/account?deposit=1" || value === "/store") return value;
