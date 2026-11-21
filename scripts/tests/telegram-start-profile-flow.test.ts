@@ -106,6 +106,25 @@ for (const action of ["p:p1", "qty:p1", "co", "copay"]) {
   });
 }
 
+test("wallet website deposit link preserves the active deposit methods and balance", async () => {
+  await click("wallet");
+  const originalMethods = buttons.flat().filter(b => b.callback_data?.startsWith("dep:")).map(b => b.callback_data);
+  const originalBalance = user.balance;
+  const originalCheckout = JSON.stringify(user.state.co);
+  await click("adm:mi:website");
+  await reply("🌐", "5400280896311944963");
+  websiteIssuedFor = [];
+  await click("wallet");
+  expect(buttons[0]?.[0]?.url).toBe("https://qorixlab.com/account");
+  expect(buttons[0]?.[0]?.callback_data).toBeUndefined();
+  expect(buttons[0]?.[0]?.web_app).toBeUndefined();
+  expect(buttons.flat().filter(b => b.callback_data?.startsWith("dep:")).map(b => b.callback_data)).toEqual(originalMethods);
+  expect(originalMethods).toContain("dep:bybit");
+  expect(user.balance).toBe(originalBalance);
+  expect(JSON.stringify(user.state.co)).toBe(originalCheckout);
+  expect(websiteIssuedFor).toEqual([]);
+});
+
 test("private vendor button completes seven bot steps and submits only once", async () => {
   vendorReceipts = [];
   await click("ven:open");

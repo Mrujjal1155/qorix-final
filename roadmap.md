@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Add the website-icon Deposit on Website link above bot wallet deposit methods, pointing to the existing website /account wallet/deposit page; payment actions and balance unchanged. No live sends, payments or publication.
+- [ ] Verify the wallet website button in live Telegram and a signed-in website account; requires separately approved deployment and external account access.
+
 - [x] Reuse the full-width blue website row and Bot Admin website Premium icon above product detail actions, quantity choices, checkout actions and payment methods. Existing checkout state and gateway behavior preserved; 30 mocked bot/button tests and build pass. No live messages, purchases or publication.
 - [ ] Verify the four website rows visually in live Telegram; requires separately approved deployment and real bot interaction.
 

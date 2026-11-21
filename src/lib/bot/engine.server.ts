@@ -2284,7 +2284,11 @@ async function walletView(user: any) {
     `<i>Choose a payment method below to add funds to your wallet.</i>`;
   const walStyle: ButtonStyle = "primary";
   const wBtn = (b: Button) => styled(b, walStyle);
-  const kb: Button[][] = [];
+  const depositWebsiteRow = websiteButtonRow(s, `${siteUrl(s)}/account`).map((button) => ({
+    ...button,
+    text: button.icon_custom_emoji_id ? "Deposit on Website" : "🌐 Deposit on Website",
+  }));
+  const kb: Button[][] = [depositWebsiteRow];
   if (cfg.active && cfg.payid)
     kb.push([wBtn(uiBtn(s, "wal_binance", "dep:binance", cfg.live ? "(auto)" : "(manual)"))]);
   if (cfg.active && cfg.crypto && cfg.live) kb.push([wBtn(uiBtn(s, "wal_usdt", "dep:usdt"))]);
