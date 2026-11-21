@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Add side-by-side Sign in / Sign up links below Guest and Connect Telegram on the Mobile View Start choice screen; each opens its existing form through optional auth mode search. Existing Telegram, guest and authentication behavior unchanged; no publication.
+
 - [x] Native Telegram-style customer sign-in/sign-up/forgot/reset and reseller access pages, with existing TelegramConnect option on customer auth. Mobile-only fallback information cards flattened into message content; Basic/Admin unchanged. Preserved existing signup, recovery, guest name/email checkout and branded order-receipt emails with secure delivery links. Seven recovery/delivery regressions pass; 1280/393/320 forms/navigation, fresh Telegram issuance, eleven public routes, real invalid-login rejection and blocked-send recovery verified without overflow/runtime errors. No purchase, actual email send or publication.
 - [ ] Verify successful real signup/email confirmation/password recovery/signed-in checkout and inbox delivery; external unmanaged authentication and no real-send/purchase/deployment permission block these checks. Existing emails contain order summaries and secure tracking links, not a separate completion email containing credentials; no new completion-email pipeline added in this presentation change.
 

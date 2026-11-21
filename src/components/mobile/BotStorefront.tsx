@@ -2,8 +2,8 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft, Bell, BookOpen, Boxes, ChevronLeft, ChevronRight, CircleCheck, CircleX, Code2,
-  Gift, Home, LayoutGrid, LifeBuoy, Mail, Megaphone, Minus, Package, Plus, RefreshCw, Send,
-  ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, User, Users, Wallet, Zap, type LucideIcon,
+  Gift, Home, LayoutGrid, LifeBuoy, LogIn, Mail, Megaphone, Minus, Package, Plus, RefreshCw, Send,
+  ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, User, UserPlus, Users, Wallet, Zap, type LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { startTelegramLogin, claimTelegramLogin } from "@/lib/telegram-login.functions";
@@ -109,6 +109,10 @@ export function BotStorefront(props: {
         <Keys cols={1}>
           <Key icon={User} onClick={() => { localStorage.setItem("qorix_guest", "1"); setView({ k: "menu" }); }}>Continue as Guest</Key>
           <Key tone="green" icon={Send} onClick={() => setView({ k: "tg" })}>Connect Telegram</Key>
+        </Keys>
+        <Keys cols={2}>
+          <KeyLink icon={LogIn} to="/auth" search={{ mode: "in" }}>Sign in</KeyLink>
+          <KeyLink tone="green" icon={UserPlus} to="/auth" search={{ mode: "up" }}>Sign up</KeyLink>
         </Keys>
       </>
     );

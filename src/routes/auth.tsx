@@ -16,6 +16,8 @@ import { Bubble, Key, Keys, TelegramConnect, Title } from "@/components/mobile/B
 import { ArrowLeft, LogIn, Mail, Send, UserPlus } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
+  validateSearch: (search: Record<string, unknown>): { mode?: "in" | "up" } =>
+    search["mode"] === "up" ? { mode: "up" } : search["mode"] === "in" ? { mode: "in" } : {},
   head: () => ({
     meta: [
       { title: "Sign in or create an account — QORIX Store" },
@@ -37,17 +39,25 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const t = useT();
+  const { mode: requestedMode } = Route.useSearch();
   const navigate = useNavigate();
   const mobile = useMobileTemplate();
   const [connecting, setConnecting] = useState(false);
   const [forgotView, setForgotView] = useState(false);
   const [notice, setNotice] = useState("");
-  const [mode, setMode] = useState<"in" | "up">("in");
+  const [mode, setMode] = useState<"in" | "up">(requestedMode ?? "in");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
+
+  useEffect(() => {
+    setMode(requestedMode ?? "in");
+    setForgotView(false);
+    setConnecting(false);
+    setNotice("");
+  }, [requestedMode]);
 
   async function forgot() {
     const target = email.trim();
