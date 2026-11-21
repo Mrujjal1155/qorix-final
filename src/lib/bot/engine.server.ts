@@ -2288,7 +2288,6 @@ export async function binanceConfig() {
 }
 
 async function walletView(user: any, websiteOwner: number | null = null) {
-  const cfg = await binanceConfig();
   const s = await getSettings();
   const text =
     `${sectionHead(s, "wallet", `${pageIconHtml(s, "wallet")} <b>W A L L E T</b>`)}\n\n` +
@@ -2305,32 +2304,8 @@ async function walletView(user: any, websiteOwner: number | null = null) {
     text: button.icon_custom_emoji_id ? "Deposit on Website" : "🌐 Deposit on Website",
   }));
   const kb: Button[][] = [depositWebsiteRow];
-  if (cfg.active && cfg.payid)
-    kb.push([wBtn(uiBtn(s, "wal_binance", "dep:binance", cfg.live ? "(auto)" : "(manual)"))]);
-  if (cfg.active && cfg.crypto && cfg.live) kb.push([wBtn(uiBtn(s, "wal_usdt", "dep:usdt"))]);
-  const bybit = await bybitSettings();
-  if (bybitEnabled(bybit)) kb.push([wBtn(uiBtn({ ...s, bybit_icon: bybit["bybit_icon"] ?? s["bybit_icon"] ?? "" }, "wal_bybit", "dep:bybit"))]);
+  // Bot wallet shows only Website + Stars; other gateways stay available on the website.
   if (starsEnabled(s)) kb.push([wBtn(uiBtn(s, "wal_stars", "dep:stars"))]);
-  for (const gateway of await blockchainGateways().catch(() => [])) if (gateway.enabled && gateway.verified) kb.push([wBtn(uiBtn(s, gateway.network === "trc20" ? "wal_chain_trc20" : "wal_chain_bep20", `dep:chain_${gateway.network}`))]);
-  {
-    // Merged EPS rows: one for bKash/Nagad/Rocket, one for cards.
-    const { epsConfig } = await import("@/lib/eps.server");
-    const eps = epsConfig(s);
-    if (eps.enabled) {
-      kb.push([wBtn(mfsBtn(s, "wal_mfs", "dep:eps:mfs", "(auto)"))]);
-      kb.push([wBtn(cardBtn(s, "wal_card", "dep:eps:card", "(auto)"))]);
-    } else {
-      kb.push([wBtn(uiBtn(s, "wal_bkash", "dep:bkash")), wBtn(uiBtn(s, "wal_nagad", "dep:nagad"))]);
-    }
-  }
-
-
-  {
-    const { oxapayEnabled } = await import("@/lib/oxapay.server");
-    const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
-    // Gateway visibility must reflect admin saves even on another worker isolate.
-    if (oxapayEnabled(await oxapaySettings())) kb.push([wBtn(uiBtn(s, "wal_oxapay", "dep:oxapay"))]);
-  }
   kb.push([wBtn(uiBtn(s, "wal_redeem", "redeem"))]);
   kb.push([wBtn(uiBtn(s, "wal_history", "hist:0"))]);
   kb.push([uiBtn(s, "wal_home", "home")]);
