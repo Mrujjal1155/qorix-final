@@ -1,11 +1,30 @@
 import { expect, test } from "bun:test";
 import { PGlite } from "@electric-sql/pglite";
 import { readFile } from "node:fs/promises";
-import { loginCodeAvailable, parseTelegramLoginFragment, telegramWebsiteLoginUrl, telegramWebsiteDestination } from "../../src/lib/telegram-website-login";
+import { loginCodeAvailable, parseTelegramLoginFragment, telegramWebsiteLoginUrl, telegramWebsiteDestination, telegramCheckoutDestination } from "../../src/lib/telegram-website-login";
 import { issueTelegramWebsiteLogin, previewTelegramWebsiteLogin, telegramLoginHash } from "../../src/lib/telegram-website-login.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 const code = "a".repeat(24), secret = "b".repeat(48);
+
+test("quantity handoff preserves the product and selected quantity of 5", () => {
+  const next = "/store/gemini-plus-6-months?stage=quantity&qty=5";
+  expect(telegramWebsiteDestination(next)).toBe(next);
+  expect(new URL(telegramWebsiteLoginUrl("https://qorixlab.com", code, secret, next)).searchParams.get("next")).toBe(next);
+});
+
+test("checkout handoff retains quantity 5 without going back to product selection", () => {
+  expect(telegramCheckoutDestination([{ product_id: "p1", qty: 5 }], "details")).toBe("/checkout?id=p1&qty=5&step=details");
+});
+
+test("payment-method handoff retains the same product and quantity 10", () => {
+  expect(telegramCheckoutDestination([{ product_id: "p1", qty: 10 }], "pay")).toBe("/checkout?id=p1&qty=10&step=pay");
+});
+
+test("handoffs reject forged paths, extra payment instructions and invalid quantities", () => {
+  for (const next of ["/checkout?id=p1&qty=0&step=pay", "/checkout?id=p1&qty=100001&step=pay", "/checkout?id=p1&qty=1.5&step=pay", "/checkout?id=p1&qty=1&step=pay&paid=true", "/checkout?id=../admin&qty=1&step=pay", "/store/p1?stage=quantity&qty=100001"]) expect(telegramWebsiteDestination(next)).toBe("/");
+  expect(telegramCheckoutDestination([{ product_id: "p1", qty: 1 }, { product_id: "p2", qty: 2 }], "pay")).toBe("/store");
+});
 
 test("website link goes directly to HTTPS website consent, with credential outside query/path", () => {
   const url = new URL(telegramWebsiteLoginUrl("https://qorixlab.com", code, secret));

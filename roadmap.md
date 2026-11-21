@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Preserve selected product, quantity and quantity/checkout/payment-method stage across Telegram consent with bounded same-origin destinations. Seventy bot/login/payment regressions pass; real public product → quantity 5 → checkout and guest payment-method view verified at 1280/393 with no runtime errors or overflow. Basic guest requirements, gateway availability and settlement unchanged; no purchases or publication.
+- [ ] Verify successful real Telegram consent → same checkout/payment-method stage; external unmanaged authentication prevents session minting, and live rollout needs separate deployment permission.
+
 - [x] Fix direct product/catalogue URLs to render native Mobile View messages and shared quantity keyboards; preserve first-render catalogue data to prevent hydration mismatch. Account/reseller fallback shells honor Mobile View, Basic/admin unchanged. Product → quantity 2 → checkout and catalogue → detail verified at 393/320/1280 widths with no runtime errors; public customer routes use bot frames/consent, five regressions and build pass. No purchase or publication.
 - [ ] Verify signed-in account/deposit/referral/reseller screens and real Telegram consent on the deployed site; external unmanaged authentication prevents authenticated checks, and deployment requires separate permission.
 

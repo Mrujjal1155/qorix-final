@@ -104,7 +104,7 @@ for (const action of ["p:p1", "qty:p1", "co", "copay"]) {
     const row = buttons[0];
     expect(row).toHaveLength(1);
     expect(new URL(row?.[0]?.url).pathname).toBe("/tg");
-    expect(new URL(row?.[0]?.url).searchParams.get("next")).toBe("/store/p1");
+    expect(new URL(row?.[0]?.url).searchParams.get("next")).toBe(action === "co" ? "/checkout?id=p1&qty=1&step=details" : action === "copay" ? "/checkout?id=p1&qty=1&step=pay" : action === "qty:p1" ? "/store/p1?stage=quantity&qty=1" : "/store/p1");
     expect(new URL(row?.[0]?.url).hash).toBe("#" + "a".repeat(24) + "." + "b".repeat(48));
     expect(row?.[0]?.style).toBe("primary");
     expect(row?.[0]?.icon_custom_emoji_id).toBe("5400280896311944963");
@@ -143,7 +143,7 @@ for (const action of ["p:p1", "qty:p1", "co", "copay"]) {
     user.state.co = { items: [{ product_id: "p1", qty: 2 }] };
     try {
       await click(action);
-      expect(new URL(buttons[0]?.[0]?.url).searchParams.get("next")).toBe("/store/gemini-plus-6-months");
+      expect(new URL(buttons[0]?.[0]?.url).searchParams.get("next")).toBe(action === "co" ? "/checkout?id=p1&qty=2&step=details" : action === "copay" ? "/checkout?id=p1&qty=2&step=pay" : action === "qty:p1" ? "/store/gemini-plus-6-months?stage=quantity&qty=2" : "/store/gemini-plus-6-months");
     } finally { productSlug = null; }
   });
 }
@@ -152,7 +152,7 @@ test("slug lookup failure preserves product destination and bot checkout", async
   slugReadFails = true;
   try {
     await click("qty:p1");
-    expect(new URL(buttons[0]?.[0]?.url).searchParams.get("next")).toBe("/store/p1");
+    expect(new URL(buttons[0]?.[0]?.url).searchParams.get("next")).toBe("/store/p1?stage=quantity&qty=2");
     expect(buttons.flat().some(b => b.callback_data === "buy:p1:1")).toBe(true);
   } finally { slugReadFails = false; }
 });

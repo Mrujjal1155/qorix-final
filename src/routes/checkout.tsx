@@ -237,6 +237,7 @@ function CheckoutPage() {
     ];
     return (
       <BotCheckout
+        key={`${id}:${step}`} initialStage={step === "pay" ? "methods" : "summary"}
         productId={id} productName={product?.name ?? "Loading…"} productImg={product?.image_url ?? undefined}
         unit={Number(product?.price ?? 0)} qty={qty} total={total} money={money}
         methods={botMethods} method={method} setMethod={setMethod}

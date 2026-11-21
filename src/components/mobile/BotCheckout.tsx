@@ -26,13 +26,15 @@ export function BotCheckout(p: {
   botUser: string; epsBdt: number; placing: boolean; redirecting: boolean; connected?: boolean; checkingConnection?: boolean; connectionError?: boolean;
   onPlace: () => void; onEps: () => void; onOxa: () => void;
   walletBalance?: number; walletAllowed?: boolean; walletBusy?: boolean; onWallet?: () => void;
+  initialStage?: "summary" | "methods";
 }) {
   const navigate = useNavigate();
-  const [stage, setStage] = useState<Stage>("summary");
+  const [stage, setStage] = useState<Stage>(p.initialStage ?? "summary");
   const [customQty, setCustomQty] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   // Connected status may load after the buyer taps Pay now — never leave them on the email form.
   useEffect(() => { if (p.connected && stage === "details") setStage("methods"); }, [p.connected, stage]);
+  useEffect(() => { if (stage === "methods" && !p.checkingConnection && !p.connectionError && !p.connected && (!p.name.trim() || !/^\S+@\S+\.\S+$/.test(p.email.trim()))) setStage("details"); }, [p.connected, p.checkingConnection, p.connectionError, p.name, p.email, stage]);
   useEffect(() => { scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" }); }, [stage]);
 
   const m = p.methods.find((x) => x.id === p.method);
@@ -119,7 +121,7 @@ export function BotCheckout(p: {
           </Bubble>
           {p.connected && <Key premium="ui_icon_pay_balance" icon={Wallet} disabled={!p.walletAllowed || Boolean(p.walletBusy)} onClick={() => p.onWallet?.()}>{p.walletBusy ? "Purchasing…" : `Pay with Wallet · ${(p.walletBalance ?? 0).toFixed(2)} USDT`}</Key>}
           {p.methods.map((x) => (
-            <Key key={x.id} leading={<PaymentGatewayIcon gateway={x.id} img={x.img} icon={x.icon} />} onClick={() => { p.setMethod(x.id); setStage("pay"); }}>{x.label}</Key>
+            <Key key={x.id} disabled={Boolean(p.checkingConnection || p.connectionError)} leading={<PaymentGatewayIcon gateway={x.id} img={x.img} icon={x.icon} />} onClick={() => { p.setMethod(x.id); setStage("pay"); }}>{x.label}</Key>
           ))}
           {p.methods.length === 0 && <Bubble><p className="text-sm">No payment method is available right now — please contact support.</p></Bubble>}
           <Key premium="ui_icon_pay_back" tone="red" icon={ChevronLeft} onClick={() => setStage(p.connected ? "summary" : "details")}>Back</Key>

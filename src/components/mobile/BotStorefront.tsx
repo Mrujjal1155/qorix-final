@@ -376,8 +376,8 @@ export function TelegramConnect({ onDone, onBack }: { onDone: () => void; onBack
   );
 }
 
-export function QtyPicker({ p, onBack }: { p: Prod; onBack: () => void }) {
-  const [qty, setQty] = useState(1);
+export function QtyPicker({ p, onBack, initialQuantity = 1 }: { p: Prod; onBack: () => void; initialQuantity?: number }) {
+  const [qty, setQty] = useState(initialQuantity);
   const [custom, setCustom] = useState("");
   const max = p.stock == null ? 100000 : Math.max(1, Number(p.stock) || 1);
   const total = useMemo(() => Number(p.price) * qty, [p.price, qty]);

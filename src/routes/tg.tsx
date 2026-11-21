@@ -66,8 +66,11 @@ function TelegramWebsiteConsent() {
       credentials.current = null;
       await router.invalidate();
       const next = destination.current;
-      if (next.startsWith("/store/")) {
-        await router.navigate({ to: "/store/$id", params: { id: next.slice("/store/".length) } });
+      const target = new URL(next, window.location.origin);
+      if (target.pathname === "/checkout") {
+        await router.navigate({ to: "/checkout", search: { id: target.searchParams.get("id") ?? "", qty: Number(target.searchParams.get("qty")), step: target.searchParams.get("step") === "pay" ? "pay" : "details" } });
+      } else if (next.startsWith("/store/")) {
+        await router.navigate({ to: "/store/$id", params: { id: target.pathname.slice("/store/".length) }, search: target.searchParams.get("stage") === "quantity" ? { stage: "quantity", qty: Number(target.searchParams.get("qty")) } : {} });
       } else if (next === "/account?deposit=1") {
         await router.navigate({ to: "/account", search: { deposit: true } });
       } else {

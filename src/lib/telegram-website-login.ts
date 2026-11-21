@@ -12,12 +12,28 @@ export function parseTelegramLoginFragment(fragment: string) {
   return parsed.success ? parsed.data : null;
 }
 
-export type TelegramWebsiteDestination = "/" | "/store" | "/account" | "/account?deposit=1" | `/store/${string}`;
+export type TelegramWebsiteDestination = "/" | "/store" | "/account" | "/account?deposit=1" | `/store/${string}` | `/checkout?${string}`;
+
+export function websiteQuantity(value: unknown): number {
+  const qty = Number(value);
+  return Number.isSafeInteger(qty) && qty >= 1 && qty <= 100000 ? qty : 1;
+}
+
+export function telegramCheckoutDestination(items: { product_id: string; qty: number }[], step: "details" | "pay"): TelegramWebsiteDestination {
+  const item = items.length === 1 ? items[0] : undefined;
+  return item ? telegramWebsiteDestination(`/checkout?id=${item.product_id}&qty=${item.qty}&step=${step}`) : "/store";
+}
 
 /** Post-consent navigation only; one bounded catalogue segment, never arbitrary URLs. */
 export function telegramWebsiteDestination(value: unknown): TelegramWebsiteDestination {
   if (value === "/account" || value === "/account?deposit=1" || value === "/store") return value;
   if (typeof value === "string" && value.length <= 240 && /^\/store\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value)) return value as `/store/${string}`;
+  if (typeof value === "string" && value.length <= 320) {
+    const quantity = value.match(/^(\/store\/[a-z0-9]+(?:-[a-z0-9]+)*)\?stage=quantity&qty=([1-9][0-9]{0,5})$/);
+    if (quantity && Number(quantity[2]) <= 100000) return value as `/store/${string}`;
+    const checkout = value.match(/^\/checkout\?id=([a-z0-9]+(?:-[a-z0-9]+)*)&qty=([1-9][0-9]{0,5})&step=(details|pay)$/);
+    if (checkout && Number(checkout[2]) <= 100000) return value as `/checkout?${string}`;
+  }
   return "/";
 }
 

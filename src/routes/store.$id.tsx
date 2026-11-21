@@ -35,6 +35,7 @@ import { productionUrlFor } from "@/lib/site-url";
 import { breadcrumbJsonLd, metaText, productMetaDescription, productImageUrl } from "@/lib/seo";
 import { useMobileTemplate } from "@/components/mobile/BotFrame";
 import { BotProductPage } from "@/components/mobile/BotProductPage";
+import { websiteQuantity } from "@/lib/telegram-website-login";
 
 
 
@@ -142,8 +143,10 @@ export const Route = createFileRoute("/store/$id")({
       </section>
     </StoreShell>
   ),
-  validateSearch: (search: Record<string, unknown>): { buy?: boolean } =>
-    search["buy"] === true || search["buy"] === "true" || search["buy"] === "1" ? { buy: true } : {},
+  validateSearch: (search: Record<string, unknown>): { buy?: boolean; stage?: string; qty?: number } => ({
+    ...(search["buy"] === true || search["buy"] === "true" || search["buy"] === "1" ? { buy: true } : {}),
+    ...(search["stage"] === "quantity" ? { stage: "quantity", qty: websiteQuantity(search["qty"]) } : {}),
+  }),
   component: ProductPage,
 });
 
@@ -151,7 +154,7 @@ function ProductPage() {
   const t = useT();
   const mobile = useMobileTemplate();
   const { productId: id, product: initialProduct } = Route.useLoaderData();
-  const { buy } = Route.useSearch();
+  const { buy, stage, qty: initialQuantity } = Route.useSearch();
   const navigate = useNavigate();
   const fetchProduct = useServerFn(getStoreProduct);
   const fetchPay = useServerFn(getStorePayInfo);
@@ -166,7 +169,8 @@ function ProductPage() {
   });
   const { data: pay } = useQuery({ queryKey: ["store-pay"], queryFn: () => fetchPay() });
 
-  const [qty, setQty] = useState(1);
+  const [qty, setQty] = useState(initialQuantity ?? 1);
+  useEffect(() => { setQty(initialQuantity ?? 1); }, [id, initialQuantity]);
   const { money, usd, currency } = usePrefs();
 
   const total = Number(product?.price ?? 0) * qty;
@@ -198,7 +202,7 @@ function ProductPage() {
     toast.success("Copied");
   }
 
-  if (mobile && product) return <BotProductPage product={product} quantity={qty} botUsername={botUser} refresh={() => { void refetch(); }} />;
+  if (mobile && product) return <BotProductPage key={`${id}:${stage ?? "product"}:${initialQuantity ?? 1}`} product={product} quantity={qty} quantityStep={stage === "quantity"} botUsername={botUser} refresh={() => { void refetch(); }} />;
 
   return (
     <StoreShell>

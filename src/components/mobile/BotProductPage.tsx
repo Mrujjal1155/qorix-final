@@ -12,14 +12,14 @@ type Product = Parameters<typeof BotProductMessage>[0]["product"] & {
 };
 
 /** Direct product links use the same messages and quantity keyboard as the home catalogue. */
-export function BotProductPage({ product, quantity, botUsername, refresh }: {
-  product: Product; quantity: number; botUsername: string; refresh: () => void;
+export function BotProductPage({ product, quantity, botUsername, refresh, quantityStep = false }: {
+  product: Product; quantity: number; botUsername: string; refresh: () => void; quantityStep?: boolean;
 }) {
-  const [choosingQuantity, setChoosingQuantity] = useState(false);
+  const [choosingQuantity, setChoosingQuantity] = useState(quantityStep && product.in_stock === true);
   const navigate = useNavigate();
   const back = () => choosingQuantity ? setChoosingQuantity(false) : void navigate({ to: "/store" });
   return <BotFrame onBack={back}>
-    {choosingQuantity ? <QtyPicker p={product} onBack={() => setChoosingQuantity(false)} /> : <div className="w-full self-start">
+    {choosingQuantity ? <QtyPicker p={product} initialQuantity={quantity} onBack={() => setChoosingQuantity(false)} /> : <div className="w-full self-start">
       <BotProductMessage product={product} />
       <div className="mt-px grid grid-cols-2 gap-px [&_button]:rounded-md [&_a]:rounded-md [&_button]:text-base [&_a]:text-base [&_button]:font-medium [&_a]:font-medium [&_button]:shadow-none [&_a]:shadow-none [&_span]:whitespace-normal [&_span]:break-words">
         {product.in_stock === true ? <>
