@@ -5,6 +5,7 @@ export const WEBSITE_PREMIUM_ICONS = [
   { key: "site_web_icon_connect_heading", label: "Connect Telegram · Heading", area: "Connection, deposit and consent messages" },
   { key: "site_web_icon_connect_menu", label: "Connect Telegram · Start menu description", area: "How do you want to continue?" },
   { key: "site_web_icon_connect_button", label: "Connect Telegram · Button", area: "Start menu, deposit and sign-in" },
+  { key: "site_web_icon_open_telegram", label: "Open Telegram · Button", area: "Telegram connection and reconnect" },
   { key: "site_web_icon_consent_confirm", label: "Connect as account · Authorization button", area: "Telegram account consent" },
   { key: "site_web_icon_main_menu", label: "Main Menu · Button", area: "Telegram consent and sign-in pages" },
 ] as const;

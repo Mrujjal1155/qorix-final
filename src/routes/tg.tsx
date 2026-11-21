@@ -8,7 +8,7 @@ import { previewBotWebsiteLogin, claimTelegramLogin } from "@/lib/telegram-login
 import { parseTelegramLoginFragment, telegramConsentReturnPath, telegramWebsiteDestination, type TelegramWebsiteDestination } from "@/lib/telegram-website-login";
 import { supabase } from "@/integrations/supabase/client";
 import { BotFrame, useMobileTemplate } from "@/components/mobile/BotFrame";
-import { Bubble, Key, Keys, TelegramConnect } from "@/components/mobile/BotStorefront";
+import { Key, Keys, TelegramConnect } from "@/components/mobile/BotStorefront";
 import { ButtonPremiumIcon } from "@/components/mobile/ButtonPremiumIcon";
 
 export const Route = createFileRoute("/tg")({
@@ -90,19 +90,19 @@ function TelegramWebsiteConsent() {
   };
 
   if (mobile) return <BotFrame onBack={cancel} onMenu={cancel}>
-    {reconnecting ? <TelegramConnect onDone={() => void continueShopping()} onBack={() => setReconnecting(false)} /> : <>
-      <Bubble>
-        <p className="flex items-center gap-2 text-lg font-bold"><ButtonPremiumIcon setting="site_web_icon_connect_heading" fallback={Send} />{name && state !== "invalid" ? `Continue as ${name}` : "Connect Telegram"}</p>
-        <p className="mt-3 text-sm">{state === "ready" ? "Connect this Telegram account to QORIX Store — same wallet, balance and orders." : message}</p>
+    {reconnecting ? <TelegramConnect onDone={() => void continueShopping()} onBack={() => setReconnecting(false)} /> : <Dialog open onOpenChange={open => { if (!open) cancel(); }}>
+      <DialogContent className="border-border bg-tg-bubble text-tg-bubble-fg" onEscapeKeyDown={e => { if (busy.current) e.preventDefault(); }} onPointerDownOutside={e => e.preventDefault()}>
+        <DialogTitle className="flex items-center gap-2 pr-6 text-lg leading-snug tracking-normal"><ButtonPremiumIcon setting="site_web_icon_connect_heading" fallback={Send} /><span className="min-w-0 break-words">{name && state !== "invalid" ? `Continue as ${name}` : "Connect Telegram"}</span></DialogTitle>
+        <DialogDescription className="text-sm text-tg-bubble-fg">{state === "ready" ? "Connect this Telegram account to QORIX Store — same wallet, balance and orders." : message}</DialogDescription>
         <p className="mt-3 flex items-center gap-2 text-xs text-tg-muted"><LockKeyhole className="h-4 w-4 shrink-0" />One-time link · expires in 10 minutes</p>
-      </Bubble>
       <Keys cols={1}>
         {(state === "ready" || state === "connecting") && <Key premium="site_web_icon_consent_confirm" tone="green" icon={ShieldCheck} disabled={state === "connecting"} onClick={() => void connect()}>{state === "connecting" ? "Connecting…" : `Connect as ${name}`}</Key>}
         {state === "invalid" && <Key icon={RefreshCw} onClick={() => { credentials.current = null; setReconnecting(true); }}>Reconnect Telegram</Key>}
         <Key icon={Store} disabled={state === "connecting"} onClick={() => void continueShopping()}>Continue shopping</Key>
         <Key premium="site_web_icon_main_menu" tone="red" icon={ArrowLeft} disabled={state === "connecting"} onClick={cancel}>Main Menu</Key>
       </Keys>
-    </>}
+      </DialogContent>
+    </Dialog>}
   </BotFrame>;
 
   if (reconnecting) return <main className="min-h-dvh bg-tg-chat p-4 text-tg-bubble-fg"><div className="mx-auto flex max-w-md flex-col gap-2"><TelegramConnect onDone={() => void continueShopping()} onBack={() => setReconnecting(false)} /></div></main>;
@@ -111,12 +111,12 @@ function TelegramWebsiteConsent() {
     <div className="px-5 py-5 text-lg font-bold">QORIX Store</div>
     <Dialog open onOpenChange={open => { if (!open) cancel(); }}>
       <DialogContent className="border-border bg-tg-bubble text-tg-bubble-fg" onEscapeKeyDown={e => { if (busy.current) e.preventDefault(); }} onPointerDownOutside={e => e.preventDefault()}>
-        <div className="mx-auto grid h-16 w-16 place-items-center rounded-lg bg-tg-btn text-tg-btn-fg"><Send className="h-8 w-8" /></div>
+        <div className="mx-auto grid h-16 w-16 place-items-center rounded-lg bg-tg-btn text-tg-btn-fg"><ButtonPremiumIcon setting="site_web_icon_connect_heading" fallback={Send} /></div>
         <DialogTitle className="break-words text-center text-xl leading-snug">{name ? `Continue as ${name}` : "Connect Telegram"}</DialogTitle>
         <DialogDescription className="text-center text-tg-muted">
           {state === "ready" ? "Connect this Telegram account to QORIX Store — same wallet, balance and orders." : message}
         </DialogDescription>
-        {(state === "ready" || state === "connecting") && <Button className="h-auto min-h-12 w-full whitespace-normal bg-tg-btn text-tg-btn-fg hover:bg-tg-btn/90" disabled={state === "connecting"} onClick={() => void connect()}><ShieldCheck className="h-4 w-4 shrink-0" /><span className="min-w-0 break-words">{state === "connecting" ? "Connecting…" : `Connect as ${name}`}</span></Button>}
+        {(state === "ready" || state === "connecting") && <Button className="h-auto min-h-12 w-full whitespace-normal bg-tg-btn text-tg-btn-fg hover:bg-tg-btn/90" disabled={state === "connecting"} onClick={() => void connect()}><ButtonPremiumIcon setting="site_web_icon_consent_confirm" fallback={ShieldCheck} /><span className="min-w-0 break-words">{state === "connecting" ? "Connecting…" : `Connect as ${name}`}</span></Button>}
         {state === "invalid" && <Button className="bg-tg-btn text-tg-btn-fg" onClick={() => { credentials.current = null; setReconnecting(true); }}><RefreshCw className="h-4 w-4" />Reconnect Telegram</Button>}
         {state === "invalid" && <Button variant="outline" onClick={() => void continueShopping()}><Store className="h-4 w-4" />Continue shopping</Button>}
         <Button variant="ghost" disabled={state === "connecting"} onClick={cancel}>Not you? Cancel</Button>

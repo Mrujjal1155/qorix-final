@@ -373,7 +373,7 @@ export function TelegramConnect({ onDone, onBack }: { onDone: () => void; onBack
         <p className="mt-1 text-xs text-tg-muted">The link works once and expires in 10 minutes.</p>
       </Bubble>
       <Keys cols={1}>
-        {href && <a href={href} target="_blank" rel="noreferrer" className={keyCls("green")}><KeyInner icon={Send}>Open Telegram</KeyInner></a>}
+        {href && <Button asChild variant="ghost" className={`${keyCls("green")} h-auto hover:opacity-90`}><a href={href} target="_blank" rel="noreferrer"><KeyInner premium="site_web_icon_open_telegram" icon={Send}>Open Telegram</KeyInner></a></Button>}
         <Key icon={RefreshCw} onClick={start}>Try again</Key>
         <Key premium="ui_icon_qty_back" tone="red" icon={ArrowLeft} onClick={onBack}>Back</Key>
       </Keys>

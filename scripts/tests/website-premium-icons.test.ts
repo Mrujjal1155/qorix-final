@@ -4,8 +4,9 @@ import { WEBSITE_PREMIUM_ICONS, websiteIconInput, websiteIconMedia } from "../..
 const id = "5400280896311944960";
 const publicUrl = `https://zohumyfxfhyzwjzxjdzi.supabase.co/storage/v1/object/public/public-images/website-premium/${id}.webp`;
 
-test("website editor accepts only its five named placements, never bot menu or payment settings", () => {
-  expect(WEBSITE_PREMIUM_ICONS).toHaveLength(5);
+test("website editor accepts its named placements including Open Telegram, never bot menu or payment settings", () => {
+  expect(WEBSITE_PREMIUM_ICONS).toHaveLength(6);
+  expect(websiteIconInput.parse({ values: { site_web_icon_open_telegram: id } }).values["site_web_icon_open_telegram"]).toBe(id);
   for (const icon of WEBSITE_PREMIUM_ICONS) expect(websiteIconInput.parse({ values: { [icon.key]: id } }).values[icon.key]).toBe(id);
   for (const key of ["menu_icon_back", "stars_enabled", "ui_icon_wal_stars", "site_brand_name"]) expect(websiteIconInput.safeParse({ values: { [key]: id } }).success).toBe(false);
 });
