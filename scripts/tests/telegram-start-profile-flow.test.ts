@@ -28,7 +28,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
       eq: (field: string, value: string) => { if (field === "key") key = value; return chain; },
       update: (value: any) => { if (table === "bot_users" && value.state) user.state = value.state; return chain; },
       upsert: (value: any) => { if (table === "bot_settings") settings[value.key] = value.value; return chain; },
-      maybeSingle: async () => result(), single: async () => result(), then: (resolve: any) => Promise.resolve(result()).then(resolve),
+      maybeSingle: async () => table === "products" ? { ...result(), data: result().data?.[0] } : result(), single: async () => result(), then: (resolve: any) => Promise.resolve(result()).then(resolve),
     };
     return chain;
   },
@@ -83,6 +83,28 @@ test("forwarded/group Home cannot issue another customer's login link", async ()
   await handleUpdate({ callback_query: { id: "foreign", data: "home", from: { id: 456, first_name: "Other" }, message: { message_id: 1, chat: { id: 123, type: "private" } } } });
   expect(websiteIssuedFor).toEqual([]);
 });
+
+for (const action of ["p:p1", "qty:p1", "co", "copay"]) {
+  test(`${action}: website navigation uses the main-menu icon and leaves checkout untouched`, async () => {
+    await click("adm:mi:website");
+    await reply("🌐", "5400280896311944963");
+    user.state.co = { items: [{ product_id: "p1", qty: 1 }], coupon: null };
+    const checkout = JSON.stringify(user.state.co);
+    websiteIssuedFor = [];
+    await click(action);
+    const row = buttons[0];
+    expect(row).toHaveLength(1);
+    expect(row?.[0]?.url).toBe("https://qorixlab.com");
+    expect(row?.[0]?.style).toBe("primary");
+    expect(row?.[0]?.icon_custom_emoji_id).toBe("5400280896311944963");
+    expect(row?.[0]?.callback_data).toBeUndefined();
+    expect(row?.[0]?.web_app).toBeUndefined();
+    expect(JSON.stringify(user.state.co)).toBe(checkout);
+    expect(websiteIssuedFor).toEqual([]);
+    expect(buttons.flat().length).toBeLessThanOrEqual(100);
+    for (const buttonsInRow of buttons) expect(buttonsInRow.length).toBeLessThanOrEqual(8);
+  });
+}
 
 test("private vendor button completes seven bot steps and submits only once", async () => {
   vendorReceipts = [];

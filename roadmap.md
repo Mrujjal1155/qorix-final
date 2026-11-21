@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Reuse the full-width blue website row and Bot Admin website Premium icon above product detail actions, quantity choices, checkout actions and payment methods. Existing checkout state and gateway behavior preserved; 30 mocked bot/button tests and build pass. No live messages, purchases or publication.
+- [ ] Verify the four website rows visually in live Telegram; requires separately approved deployment and real bot interaction.
+
 - [x] Move website order to first home row and add bottom Vendor Application; private-chat seven-step single/multiple wizard, durable idempotent submission, paginated admin review and approved-only supply proposals without automatic listing. RLS remains enabled; approval RPC is service-only after authenticated admin validation. Isolated rules/SQL and bot flow tests pass; build OK.
 - [ ] Verify vendor submission → admin approval → supply in real Telegram and signed-in admin; external unmanaged authentication prevents session minting, and live bot rollout requires separate publication permission. Existing three security findings predate this work.
 

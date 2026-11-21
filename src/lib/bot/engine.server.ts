@@ -847,6 +847,10 @@ async function getUser(telegramId: number) {
 
 /* ------------------------------------------------------------------ views */
 
+function websiteButtonRow(settings: Record<string, string>, url = siteUrl(settings)): Button[] {
+  return websiteOrderRow(iconUrlButton(settings, "website", url));
+}
+
 async function homeKeyboard(settings: Record<string, string>, websiteOwner: number | null): Promise<Button[][]> {
   const topColor = btnColor(settings, "menu");
   const btn = (key: HomeMenuKey, b: Button) => styled(b, homeMenuColor(key, topColor));
@@ -856,7 +860,7 @@ async function homeKeyboard(settings: Record<string, string>, websiteOwner: numb
     catch { /* Keep the ordinary website link if secure login preparation fails. */ }
   }
   return [
-    websiteOrderRow(btn("website", iconUrlButton(settings, "website", websiteUrl))),
+    websiteButtonRow(settings, websiteUrl),
     [
       btn("shop", iconButton(settings, "shop", "shop:0")),
       btn("cart", iconButton(settings, "cart", "cart")),
@@ -2114,7 +2118,7 @@ async function productView(productId: string, chatId?: number) {
       : `${uiTag(settings, "prod_stock")}: <b>${stock} available</b>\n<i>${uiTag(settings, "prod_auto_note")}</i>`;
 
   const available = (p.delivery_type === "manual" && !p.manual_stock_limited) || stock > 0;
-  const kb: Button[][] = [];
+  const kb: Button[][] = [websiteButtonRow(settings)];
   if (available)
     kb.push([
       uiBtn(settings, "prod_buy", `qty:${p.id}`),
@@ -5995,7 +5999,7 @@ async function coView(chatId: number) {
   if (meta.coupon) text += `🏷 Coupon <code>${escapeHtml(meta.coupon.code)}</code>: −${money(Math.max(0, discount - tierOff))}\n`;
   text += `${uiTag(settings, "co_total")}: <b>${money(total)}</b>\n\n<i>No wallet deposit needed — pay directly and it will be verified automatically.</i>`;
 
-  const kb: Button[][] = [];
+  const kb: Button[][] = [websiteButtonRow(settings)];
   kb.push([
     meta.coupon
       ? uiBtn(settings, "co_coupon_rm", "cocrm")
@@ -6033,7 +6037,7 @@ async function coPayView(chatId: number) {
       kb: [[{ text: "🧺 Cart", callback_data: "cart" }], [uiBtn(settings, "com_shop", "shop:0")], [uiBtn(settings, "com_home", "home")]] as Button[][],
     };
   }
-  const kb: Button[][] = [];
+  const kb: Button[][] = [websiteButtonRow(settings)];
   const payStyle: ButtonStyle = "primary";
   if (Number(user.balance) >= total && total > 0)
     kb.push([styled(uiBtn(settings, "pay_balance", "copm:balance", `(${money(user.balance)})`), payStyle)]);
@@ -6953,6 +6957,7 @@ async function handleCallback(cq: any) {
     const qs = await getSettings();
     const qtyStyle: ButtonStyle = "primary";
     const kb: Button[][] = [
+      websiteButtonRow(qs),
       [1, 2, 3].map((n) => styled({ text: `${n}×`, callback_data: `buy:${productId}:${n}` }, qtyStyle)),
       [5, 10].map((n) => styled({ text: `${n}×`, callback_data: `buy:${productId}:${n}` }, qtyStyle)),
       [styled(uiBtn(qs, "qty_custom", `cq:${productId}`), qtyStyle)],
