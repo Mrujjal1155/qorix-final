@@ -287,6 +287,42 @@ export type Database = {
           },
         ]
       }
+      bot_direct_pay_links: {
+        Row: {
+          claimed_at: string | null
+          created_at: string
+          deposit_id: string | null
+          expires_at: string
+          id: string
+          meta: Json
+          method: string | null
+          telegram_id: number
+          total: number
+        }
+        Insert: {
+          claimed_at?: string | null
+          created_at?: string
+          deposit_id?: string | null
+          expires_at: string
+          id?: string
+          meta: Json
+          method?: string | null
+          telegram_id: number
+          total: number
+        }
+        Update: {
+          claimed_at?: string | null
+          created_at?: string
+          deposit_id?: string | null
+          expires_at?: string
+          id?: string
+          meta?: Json
+          method?: string | null
+          telegram_id?: number
+          total?: number
+        }
+        Relationships: []
+      }
       bot_settings: {
         Row: {
           key: string

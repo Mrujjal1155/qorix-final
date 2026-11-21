@@ -6100,31 +6100,9 @@ async function coPayView(chatId: number, websiteOwner: number | null = null) {
   const payStyle: ButtonStyle = "primary";
   if (Number(user.balance) >= total && total > 0)
     kb.push([styled(uiBtn(settings, "pay_balance", "copm:balance", `(${money(user.balance)})`), payStyle)]);
+  // Bot list: Wallet → Direct Payment (website link) → Stars. Other gateways live on the website pay page.
+  if (total > 0) kb.push([styled({ text: `🔗 Direct Payment · ${money(total)}`, callback_data: "copm:direct" }, payStyle)]);
   if (starsEnabled(settings) && total > 0) kb.push([styled(uiBtn(settings, "wal_stars", "copm:stars", `· ${usdToStars(total, starsPerUsd(settings))} Stars`), payStyle)]);
-  if (cfg.active && cfg.payid) kb.push([styled(uiBtn(settings, "pay_payid", "copm:payid"), payStyle)]);
-  const bybit = await bybitSettings();
-  if (bybitEnabled(bybit)) kb.push([styled(uiBtn({ ...settings, bybit_icon: bybit["bybit_icon"] ?? settings["bybit_icon"] ?? "" }, "wal_bybit", "copm:bybit"), payStyle)]);
-  for (const gateway of await blockchainGateways().catch(() => [])) if (gateway.enabled && gateway.verified) kb.push([styled(uiBtn(settings, gateway.network === "trc20" ? "wal_chain_trc20" : "wal_chain_bep20", `copm:chain_${gateway.network}`), payStyle)]);
-  if (cfg.active && cfg.crypto) {
-    kb.push([styled(uiBtn(settings, "pay_bep20", "copm:BSC"), payStyle)]);
-    kb.push([styled(uiBtn(settings, "pay_trc20", "copm:TRX"), payStyle)]);
-  }
-  {
-    const { oxapayEnabled } = await import("@/lib/oxapay.server");
-    const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
-    if (oxapayEnabled(await oxapaySettings()))
-      kb.push([styled(uiBtn(settings, "wal_oxapay", "copm:oxapay"), payStyle)]);
-  }
-  {
-    const { epsConfig } = await import("@/lib/eps.server");
-    const eps = epsConfig(settings);
-    if (eps.enabled) {
-      kb.push([styled(mfsBtn(settings, "pay_mfs", "copm:eps_mfs"), payStyle)]);
-      kb.push([styled(cardBtn(settings, "pay_card", "copm:eps_card"), payStyle)]);
-    } else {
-    }
-  }
-
   kb.push([uiBtn(settings, "pay_back", "co")]);
 
 
@@ -7148,6 +7126,34 @@ async function handleCallback(cq: any) {
       }
       const res = await fulfillCheckout(chatId, meta, "balance", "wallet");
       await edit(res.text, res.kb);
+      return;
+    }
+
+    if (method === "direct") {
+      const { lines } = await coTotals(meta, chatId);
+      const stockProblems = await checkoutStockIssues(lines);
+      if (stockProblems.length) {
+        await edit(`⚠️ <b>Out of stock</b>\n${stockProblems.join("\n")}\nNothing was charged.`, [[{ text: "⬅️ Back", callback_data: "copay" }]]);
+        return;
+      }
+      const ds = await getSettings();
+      const { data: link, error } = await db.from("bot_direct_pay_links").insert({
+        telegram_id: chatId, meta: { items: meta.items, coupon: meta.coupon ?? null, summary: meta.summary ?? "" }, total,
+        expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+      }).select("id").single();
+      if (error || !link) { await edit("❌ Could not create the payment link. Please try again.", [[{ text: "⬅️ Back", callback_data: "copay" }]]); return; }
+      const url = `${siteUrl(ds)}/pay/${link.id}`;
+      const itemLines = lines.map((l: any) => `• ${escapeHtml(l.product.name)} × ${l.qty} — ${money(l.subtotal)}`).join("\n");
+      await edit(
+        `🔗 <b>Direct Payment</b>\n──────────────\n${itemLines}\n\n<b>Total:</b> ${money(total)}\n\n` +
+          `Open the link, choose a payment method and pay. Your order is delivered here in the bot automatically after the payment is confirmed.\n` +
+          `⏳ <i>The link is valid for 30 minutes and can be paid only once.</i>\n\n<code>${escapeHtml(url)}</code>`,
+        [
+          [{ text: "📋 Copy link", copy_text: { text: url } } as any],
+          [styled({ text: "💳 Pay now", url } as any, "success")],
+          [{ text: "⬅️ Back", callback_data: "copay" }],
+        ],
+      );
       return;
     }
 
@@ -9271,5 +9277,101 @@ async function handleStarsPaid(msg: any) {
     console.error("Stars settlement failed", error);
     const { data: again } = await db.from("binance_deposits").select("status").eq("id", row.id).maybeSingle();
     if (again?.status !== "credited") await refund("We could not complete this payment.");
+  }
+}
+
+
+// ============= Direct Payment (website link for a bot checkout) =============
+async function loadDirectLink(id: string) {
+  const { data } = await db.from("bot_direct_pay_links").select("*").eq("id", id).maybeSingle();
+  return data as any;
+}
+
+/** Public, token-scoped summary for the website pay page (no personal data). */
+export async function directPayInfo(id: string) {
+  const link = await loadDirectLink(id);
+  if (!link) return { status: "invalid" as const };
+  const settings = await getSettings();
+  const { lines } = await coTotals(link.meta as CoMeta, Number(link.telegram_id));
+  const items = lines.map((l: any) => ({ name: String(l.product.name), qty: Number(l.qty), subtotal: Number(l.subtotal) }));
+  const methods: { id: string; label: string }[] = [];
+  const cfg = await binanceConfig();
+  if (cfg.active && cfg.payid) methods.push({ id: "payid", label: "Binance Pay" });
+  if (bybitEnabled(await bybitSettings())) methods.push({ id: "bybit", label: "Bybit Pay" });
+  for (const g of await blockchainGateways().catch(() => [])) if (g.enabled && g.verified) methods.push({ id: `chain_${g.network}`, label: `USDT ${String(g.network).toUpperCase()}` });
+  if (cfg.active && cfg.crypto) { methods.push({ id: "BSC", label: "USDT BEP20" }); methods.push({ id: "TRX", label: "USDT TRC20" }); }
+  { const { oxapayEnabled } = await import("@/lib/oxapay.server"); const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
+    if (oxapayEnabled(await oxapaySettings())) methods.push({ id: "oxapay", label: "Crypto (OxaPay)" }); }
+  { const { epsConfig } = await import("@/lib/eps.server"); if (epsConfig(settings).enabled) { methods.push({ id: "eps_mfs", label: "Mobile banking" }); methods.push({ id: "eps_card", label: "Card" }); } }
+  const expired = new Date(link.expires_at).getTime() <= Date.now();
+  const payment = link.deposit_id ? await directPaymentView(String(link.deposit_id)) : null;
+  return {
+    status: payment ? "started" as const : expired ? "expired" as const : "open" as const,
+    total: Number(link.total), items, methods, expiresAt: String(link.expires_at), payment,
+    botLink: (settings["bot_link"] || "").trim() || null,
+  };
+}
+
+async function directPaymentView(depositId: string) {
+  const { data: row } = await db.from("binance_deposits").select("id,kind,network,address,amount_usdt,status,expires_at,meta").eq("id", depositId).maybeSingle();
+  if (!row) return null;
+  const r: any = row;
+  const redirect = r.kind === "oxapay" || r.kind === "eps";
+  return {
+    kind: String(r.kind), status: String(r.status), expiresAt: String(r.expires_at),
+    payUrl: redirect ? String(r.address ?? "") : null,
+    address: redirect ? null : String(r.address ?? ""),
+    amount: Number(r.amount_usdt), bdt: r.kind === "eps" ? Number(r.meta?.bdt ?? 0) : null,
+  };
+}
+
+/** Starts exactly one gateway attempt per link; the existing bot settlement delivers in the bot. */
+export async function startDirectPay(id: string, method: string) {
+  const allowed = ["payid", "bybit", "chain_trc20", "chain_bep20", "BSC", "TRX", "oxapay", "eps_mfs", "eps_card"];
+  if (!allowed.includes(method)) return { error: "This payment method is not available." };
+  const { data: claimed } = await db.from("bot_direct_pay_links")
+    .update({ claimed_at: new Date().toISOString(), method })
+    .eq("id", id).is("claimed_at", null).gt("expires_at", new Date().toISOString())
+    .select("*").maybeSingle();
+  if (!claimed) {
+    const link = await loadDirectLink(id);
+    if (link?.deposit_id) return { ok: true as const };
+    return { error: link ? "This link has expired or a payment is already being created. Open a fresh link from the bot." : "Invalid link." };
+  }
+  const link: any = claimed;
+  const chatId = Number(link.telegram_id);
+  const meta = link.meta as CoMeta;
+  const release = () => db.from("bot_direct_pay_links").update({ claimed_at: null, method: null }).eq("id", id);
+  try {
+    const { lines } = await coTotals(meta, chatId);
+    const problems = await checkoutStockIssues(lines);
+    if (problems.length) { await release(); return { error: "Some items are out of stock. Nothing was charged." }; }
+    const total = Number(link.total);
+    const ck = { items: meta.items, coupon: meta.coupon ?? null, summary: meta.summary ?? "", total, direct_link_id: id };
+    const s = await getSettings();
+    let row: any; let text = ""; let kb: Button[][] = []; let gateway = method;
+    if (method === "oxapay") {
+      const r: any = await startOxapayDeposit(chatId, total, ck);
+      if (r.error) { await release(); return { error: String(r.error).replace(/<[^>]+>/g, "") }; }
+      row = r.row; text = r.text; kb = r.kb;
+    } else if (method === "eps_mfs" || method === "eps_card") {
+      const ch: EpsChannel = method === "eps_card" ? "card" : "mfs";
+      const r: any = await startEpsDeposit(chatId, ch, total, ck);
+      if (r.error) { await release(); return { error: String(r.error) }; }
+      row = r.row; const v = epsView(row, s); text = v.text; kb = v.kb; gateway = `eps_${ch}`;
+    } else {
+      const kind = method.startsWith("chain_") ? method : method === "bybit" ? "bybit" : method === "payid" ? "payid" : "crypto";
+      const r: any = await startBinanceDeposit(chatId, kind as any, total, kind === "crypto" ? method : undefined, ck);
+      if (r.error) { await release(); return { error: String(r.error) }; }
+      row = r.row; const v = binanceView(row, s); text = v.text; kb = v.kb; gateway = kind;
+    }
+    const orders = await createAwaitingOrders(chatId, meta, String(row.id), gateway);
+    await db.from("bot_direct_pay_links").update({ deposit_id: row.id }).eq("id", id);
+    // Same payment card in the bot, so TXID gateways can be verified there.
+    await say(chatId, `🔗 <b>Direct Payment started on the website</b>\n` + awaitingOrderNote(orders) + `\n${text}`, kb).catch(() => {});
+    return { ok: true as const };
+  } catch {
+    await release();
+    return { error: "Could not start the payment. Please try again." };
   }
 }
