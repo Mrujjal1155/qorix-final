@@ -1,1 +1,0 @@
-CREATE POLICY bot_browser_payments_service_only ON public.bot_browser_payments FOR ALL TO service_role USING (true) WITH CHECK (true);

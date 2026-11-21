@@ -19,7 +19,6 @@ import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
-import { Route as PayRouteImport } from './routes/pay'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as RefundRouteImport } from './routes/refund'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
@@ -131,11 +130,6 @@ const FaqRoute = FaqRouteImport.update({
 const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
   id: '/llms.txt',
   path: '/llms.txt',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PayRoute = PayRouteImport.update({
-  id: '/pay',
-  path: '/pay',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -481,7 +475,6 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
   '/llms.txt': typeof LlmsDottxtRoute
-  '/pay': typeof PayRoute
   '/privacy': typeof PrivacyRoute
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -555,7 +548,6 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
   '/llms.txt': typeof LlmsDottxtRoute
-  '/pay': typeof PayRoute
   '/privacy': typeof PrivacyRoute
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -632,7 +624,6 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/faq': typeof FaqRoute
   '/llms.txt': typeof LlmsDottxtRoute
-  '/pay': typeof PayRoute
   '/privacy': typeof PrivacyRoute
   '/refund': typeof RefundRoute
   '/reset-password': typeof ResetPasswordRoute
@@ -709,7 +700,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/faq'
     | '/llms.txt'
-    | '/pay'
     | '/privacy'
     | '/refund'
     | '/reset-password'
@@ -783,7 +773,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/faq'
     | '/llms.txt'
-    | '/pay'
     | '/privacy'
     | '/refund'
     | '/reset-password'
@@ -859,7 +848,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/faq'
     | '/llms.txt'
-    | '/pay'
     | '/privacy'
     | '/refund'
     | '/reset-password'
@@ -936,7 +924,6 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   FaqRoute: typeof FaqRoute
   LlmsDottxtRoute: typeof LlmsDottxtRoute
-  PayRoute: typeof PayRoute
   PrivacyRoute: typeof PrivacyRoute
   RefundRoute: typeof RefundRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
@@ -1042,13 +1029,6 @@ declare module '@tanstack/react-router' {
       path: '/llms.txt'
       fullPath: '/llms.txt'
       preLoaderRoute: typeof LlmsDottxtRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pay': {
-      id: '/pay'
-      path: '/pay'
-      fullPath: '/pay'
-      preLoaderRoute: typeof PayRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -1609,7 +1589,6 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   FaqRoute: FaqRoute,
   LlmsDottxtRoute: LlmsDottxtRoute,
-  PayRoute: PayRoute,
   PrivacyRoute: PrivacyRoute,
   RefundRoute: RefundRoute,
   ResetPasswordRoute: ResetPasswordRoute,

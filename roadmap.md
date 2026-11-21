@@ -1,7 +1,5 @@
 # Roadmap
 
-- [ ] Add bot checkout Wallet → Direct Payment → Stars, private 30-minute browser payment links with copy/open buttons, login-free gateway selection, original-order settlement and Telegram delivery; preserve website checkout/deposit behavior. Verify security, duplication, expiry and mobile rendering without real payments or publication.
-
 - [x] Add a distinct Open Telegram website Premium icon control and restore Telegram-style consent popup with existing connection/confirmation artwork; preserve authorization and all other flows. Thirty icon/security/login tests pass; 1280/393/320 popup, explicit confirmation, failed claim, reconnect, saved-artwork fixtures and shopping exit verified without runtime errors. Actual Telegram authorization/admin save remains blocked by external unmanaged authentication; no publication or live messages.
 
 - [x] Add Website Premium Icons section to Telegram Bot Admin and web Admin Settings; five named controls cover screenshot-marked connection heading/menu/button, consent confirmation and Main Menu. Save public image/video/Lottie artwork server-side into existing storage, render website-only settings with original fallback icons, preserve header arrow and bot/auth/payment behavior. Fourteen new security/editor/media tests and 28 regressions pass; real Telegram static/TGS/video downloads verified; 1280/393/320 saved-media fixtures render all five placements without overflow/runtime errors. No real messages, account authorization, payment or publication.

@@ -69,7 +69,6 @@ import { epsWalletCredit } from "@/lib/eps-payment";
 import { PAYMENT_WINDOW_MS, paymentAttemptOpen } from "@/lib/payment-deadline";
 import { orderTimezone } from "@/lib/order-time";
 import { reservedCheckout } from "@/lib/bot/paid-checkout";
-import { browserOrderRows, browserPaymentUrl, checkoutPaymentMethods } from "@/lib/bot/browser-payment";
 import { buildStartMessage, buildProfileDetails, referralCopyButton, referralShareAnchor } from "@/lib/bot/home-message";
 import { homeMenuColor, type HomeMenuKey } from "@/lib/bot/home-menu-colors";
 import { buildWalletHistory, historyOwner, historyPage } from "@/lib/bot/wallet-history";
@@ -5924,7 +5923,7 @@ async function admCreateProduct(chatId: number, d: ProdDraft) {
 /* --------------------------------------------- direct checkout (pay per order) */
 
 type Coupon = { code: string; percent: number; amount_off: number };
-type CoMeta = { items: CartLine[]; coupon?: Coupon | null; summary?: string; total?: number; inputs?: Record<string, string[]>; browserToken?: string };
+type CoMeta = { items: CartLine[]; coupon?: Coupon | null; summary?: string; total?: number; inputs?: Record<string, string[]> };
 
 /** Admin-set custom unit prices for one bot user: product_id -> { price, min_qty }. Never throws. */
 async function userPricesFor(chatId: number | undefined, ids: string[]) {
@@ -6084,6 +6083,7 @@ async function coPayView(chatId: number, websiteOwner: number | null = null) {
   const meta = await readCo(chatId);
   if (!meta) return await coView(chatId, websiteOwner);
   const { total, lines } = await coTotals(meta, chatId);
+  const cfg = await binanceConfig();
   const settings = await getSettings();
   const user = await getUser(chatId);
   // Verify real availability before any payment button is offered.
@@ -6096,12 +6096,33 @@ async function coPayView(chatId: number, websiteOwner: number | null = null) {
       kb: [[{ text: "🧺 Cart", callback_data: "cart" }], [uiBtn(settings, "com_shop", "shop:0")], [uiBtn(settings, "com_home", "home")]] as Button[][],
     };
   }
-  const kb: Button[][] = [];
+  const kb: Button[][] = [await websiteButtonRow(settings, websiteOwner, telegramCheckoutDestination(meta.items, "pay"))];
   const payStyle: ButtonStyle = "primary";
-  for (const method of checkoutPaymentMethods(starsEnabled(settings))) {
-    if (method === "balance") kb.push([styled(uiBtn(settings, "pay_balance", "copm:balance", `(${money(user?.balance)})`), "success")]);
-    else if (method === "browser") kb.push([styled({ text: "🌐 Direct Payment", callback_data: "copm:browser" }, payStyle)]);
-    else if (total > 0) kb.push([styled(uiBtn(settings, "wal_stars", "copm:stars", `· ${usdToStars(total, starsPerUsd(settings))} Stars`), payStyle)]);
+  if (Number(user.balance) >= total && total > 0)
+    kb.push([styled(uiBtn(settings, "pay_balance", "copm:balance", `(${money(user.balance)})`), payStyle)]);
+  if (starsEnabled(settings) && total > 0) kb.push([styled(uiBtn(settings, "wal_stars", "copm:stars", `· ${usdToStars(total, starsPerUsd(settings))} Stars`), payStyle)]);
+  if (cfg.active && cfg.payid) kb.push([styled(uiBtn(settings, "pay_payid", "copm:payid"), payStyle)]);
+  const bybit = await bybitSettings();
+  if (bybitEnabled(bybit)) kb.push([styled(uiBtn({ ...settings, bybit_icon: bybit["bybit_icon"] ?? settings["bybit_icon"] ?? "" }, "wal_bybit", "copm:bybit"), payStyle)]);
+  for (const gateway of await blockchainGateways().catch(() => [])) if (gateway.enabled && gateway.verified) kb.push([styled(uiBtn(settings, gateway.network === "trc20" ? "wal_chain_trc20" : "wal_chain_bep20", `copm:chain_${gateway.network}`), payStyle)]);
+  if (cfg.active && cfg.crypto) {
+    kb.push([styled(uiBtn(settings, "pay_bep20", "copm:BSC"), payStyle)]);
+    kb.push([styled(uiBtn(settings, "pay_trc20", "copm:TRX"), payStyle)]);
+  }
+  {
+    const { oxapayEnabled } = await import("@/lib/oxapay.server");
+    const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
+    if (oxapayEnabled(await oxapaySettings()))
+      kb.push([styled(uiBtn(settings, "wal_oxapay", "copm:oxapay"), payStyle)]);
+  }
+  {
+    const { epsConfig } = await import("@/lib/eps.server");
+    const eps = epsConfig(settings);
+    if (eps.enabled) {
+      kb.push([styled(mfsBtn(settings, "pay_mfs", "copm:eps_mfs"), payStyle)]);
+      kb.push([styled(cardBtn(settings, "pay_card", "copm:eps_card"), payStyle)]);
+    } else {
+    }
   }
 
   kb.push([uiBtn(settings, "pay_back", "co")]);
@@ -7107,12 +7128,6 @@ async function handleCallback(cq: any) {
     return;
   }
 
-  if (data.startsWith("bpcancel:")) {
-    const { data: cancelled, error } = await db.rpc("cancel_bot_browser_payment", { _id: data.slice(9), _telegram_id: chatId });
-    await edit(error || !cancelled ? "This payment cannot be cancelled now. Check My Orders; do not pay twice." : "Payment link cancelled. Nothing was charged by this action.", [[{ text: "⬅️ Back", callback_data: "copay" }]]);
-    return;
-  }
-
   if (data.startsWith("copm:")) {
     const method = data.slice(5);
     const meta = await readCo(chatId);
@@ -7122,41 +7137,6 @@ async function handleCallback(cq: any) {
       return;
     }
     const { total } = await coTotals(meta, chatId);
-
-    if (method === "browser") {
-      try {
-        const { lines } = await coTotals(meta, chatId);
-        const issues = await checkoutStockIssues(lines);
-        if (issues.length || !(total > 0)) throw new Error("This checkout is unavailable. Nothing was charged.");
-        const { issueBrowserPayment } = await import("@/lib/bot/browser-payment.server");
-        const snapshot = { items: meta.items, coupon: meta.coupon ?? null, inputs: meta.inputs ?? {}, summary: meta.summary ?? "", total };
-        const link = await issueBrowserPayment(chatId, snapshot, total, browserOrderRows(lines, total, meta.coupon?.code ?? null), meta.browserToken);
-        await writeCo(chatId, { ...meta, browserToken: link.token });
-        const s = await getSettings();
-        const url = browserPaymentUrl(siteUrl(s), link.token);
-        const { data: rows } = await db.from("orders").select("id,order_no").eq("telegram_id", chatId).eq("meta->>browser_link_id", link.id).order("order_no");
-        await edit(`🌐 <b>DIRECT PAYMENT</b>\n──────────────\n${escapeHtml(String(link.snapshot.summary))}\nTotal: <b>${money(link.total)}</b>\n${awaitingOrderNote(rows ?? [])}\n<blockquote>Open this link on any device and complete payment on our website. No Telegram connection or website login is required. Delivery stays in this Telegram chat.</blockquote>\n\n⏳ Open until ${escapeHtml(new Date(link.expires_at).toISOString())}.\n⚠️ Keep the link private — anyone with it can pay this order.`, [
-          [{ text: "📋 Copy payment link", copy_text: { text: url } }],
-          [styled({ text: "🌐 Open payment page", url }, "primary")],
-          [styled({ text: "❌ Cancel", callback_data: `bpcancel:${link.id}` }, "danger")],
-        ]);
-      } catch (error) {
-        await edit(escapeHtml(error instanceof Error ? error.message : "Could not create the payment link."), [[{ text: "⬅️ Back", callback_data: "copay" }]]);
-      }
-      return;
-    }
-
-    // Old Telegram messages must not open the gateways that have moved to the browser.
-    if (method !== "balance" && method !== "stars") {
-      const view = await coPayView(chatId, websiteOwner);
-      await edit(view.text, view.kb);
-      return;
-    }
-    const { data: activeBrowser } = await db.from("bot_browser_payments").select("id").eq("telegram_id", chatId).in("status", ["ready", "starting", "pending"]).gt("expires_at", new Date().toISOString()).maybeSingle();
-    if (activeBrowser) {
-      await edit("A Direct Payment link is already open. Complete or cancel that link before paying with Wallet or Stars.", [[{ text: "🌐 Direct Payment", callback_data: "copm:browser" }]]);
-      return;
-    }
 
     if (method === "balance") {
       const fresh = await getUser(chatId);
@@ -7185,6 +7165,73 @@ async function handleCallback(cq: any) {
       return;
     }
 
+    if (method === "oxapay") {
+      const { lines } = await coTotals(meta, chatId);
+      const stockProblems = await checkoutStockIssues(lines);
+      if (stockProblems.length) {
+        await edit(`⚠️ <b>Out of stock</b>\n${stockProblems.join("\n")}\nNothing was charged.`, [
+          [{ text: "⬅️ Back", callback_data: "copay" }],
+        ]);
+        return;
+      }
+      const r = await startOxapayDeposit(chatId, total, { ...meta, total });
+      if ("error" in r) {
+        await edit(r.error.startsWith("ℹ️") ? r.error : `❌ ${escapeHtml(r.error)}`, [[{ text: "⬅️ Back", callback_data: "copay" }]]);
+        return;
+      }
+      const orders = await createAwaitingOrders(chatId, meta, String(r.row.id), "oxapay");
+      await edit(awaitingOrderNote(orders) + r.text, r.kb);
+      return;
+    }
+
+    if (method === "eps_mfs" || method === "eps_card") {
+      const channel: EpsChannel = method === "eps_card" ? "card" : "mfs";
+      const er = await startEpsDeposit(chatId, channel, total, {
+        items: meta.items,
+        coupon: meta.coupon ?? null,
+        summary: meta.summary ?? "",
+        total,
+      });
+      if ("error" in er && er.error) {
+        await edit(`❌ ${escapeHtml(er.error)}`, [[{ text: "⬅️ Back", callback_data: "copay" }]]);
+        return;
+      }
+      const es = await getSettings();
+      const ev = epsView((er as any).row, es);
+      const epsOrders = await createAwaitingOrders(chatId, meta, String((er as any).row.id), `eps_${channel}`);
+      await edit(
+        `${uiIconHtml(es, "dep_order_tag")} <b>${escapeHtml(uiText(es, "dep_order_tag"))}:</b> ${escapeHtml(meta.summary ?? "")}\n` +
+          awaitingOrderNote(epsOrders) +
+          `\n${ev.text}`,
+        ev.kb,
+      );
+      return;
+    }
+
+    const kind = method === "chain_trc20" || method === "chain_bep20" ? method : method === "bybit" ? "bybit" : method === "payid" ? "payid" : "crypto";
+
+    const network = method === "payid" ? undefined : method;
+    const r = await startBinanceDeposit(chatId, kind as any, total, network, {
+      items: meta.items,
+      coupon: meta.coupon ?? null,
+      summary: meta.summary ?? "",
+      total,
+    });
+    if ("error" in r && r.error) {
+      await edit(`❌ ${escapeHtml(r.error)}`, [[{ text: "⬅️ Back", callback_data: "copay" }]]);
+      return;
+    }
+    const s2 = await getSettings();
+    const view = binanceView((r as any).row, s2);
+    const binOrders = await createAwaitingOrders(chatId, meta, String((r as any).row.id), kind);
+    await edit(
+      `${uiIconHtml(s2, "dep_order_tag")} <b>${escapeHtml(uiText(s2, "dep_order_tag"))}:</b> ${escapeHtml(meta.summary ?? "")}\n` +
+        awaitingOrderNote(binOrders) +
+        `\n${view.text}`,
+      view.kb,
+    );
+
+    return;
   }
 
   if (data === "orders" || data.startsWith("ord:p:")) {
@@ -9060,13 +9107,13 @@ export async function handleProductEditState(chatId: number, msg: any, text: str
 export type WebGateway = "payid" | "bybit" | "chain_trc20" | "chain_bep20" | "usdt_trc20" | "usdt_bep20" | "eps_mfs" | "eps_card" | "oxapay";
 const stripTags = (t: string) => String(t ?? "").replace(/<[^>]+>/g, "").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").trim();
 
-export async function webStartDeposit(chatId: number, gw: WebGateway, amount: number, checkout: Record<string, unknown> = {}) {
+export async function webStartDeposit(chatId: number, gw: WebGateway, amount: number) {
   if (!Number.isFinite(amount) || amount <= 0 || amount > 10000) return { error: "Enter a valid amount." };
   let r: any;
-  if (gw === "eps_mfs" || gw === "eps_card") r = await startEpsDeposit(chatId, gw === "eps_card" ? "card" : "mfs", amount, checkout);
-  else if (gw === "oxapay") r = await startOxapayDeposit(chatId, amount, checkout);
-  else if (gw === "usdt_trc20" || gw === "usdt_bep20") r = await startBinanceDeposit(chatId, "crypto", amount, gw === "usdt_trc20" ? "TRX" : "BSC", checkout);
-  else r = await startBinanceDeposit(chatId, gw, amount, undefined, checkout);
+  if (gw === "eps_mfs" || gw === "eps_card") r = await startEpsDeposit(chatId, gw === "eps_card" ? "card" : "mfs", amount);
+  else if (gw === "oxapay") r = await startOxapayDeposit(chatId, amount);
+  else if (gw === "usdt_trc20" || gw === "usdt_bep20") r = await startBinanceDeposit(chatId, "crypto", amount, gw === "usdt_trc20" ? "TRX" : "BSC");
+  else r = await startBinanceDeposit(chatId, gw, amount);
   if (r?.error) return { error: stripTags(r.error) };
   const row = r?.row;
   if (!row) return { error: "Could not create the deposit. Please try again." };
@@ -9078,49 +9125,6 @@ export async function webSubmitDepositTxid(chatId: number, depId: string, txid: 
   const r = await submitBinanceTxid(chatId, depId, txid, null);
   const { data: row } = await db.from("binance_deposits").select("status").eq("id", depId).eq("telegram_id", chatId).maybeSingle();
   return { message: stripTags(r.message), credited: row?.status === "credited" };
-}
-
-/** Browser checkout only: expose active methods, never provider credentials or buyer identity. */
-export async function webBrowserGateways() {
-  const s = await getSettings();
-  const cfg = await binanceConfig();
-  const gateways: { id: WebGateway; label: string }[] = [];
-  if (cfg.active && cfg.payid) gateways.push({ id: "payid", label: "Binance Pay" });
-  if (bybitEnabled(await bybitSettings())) gateways.push({ id: "bybit", label: "Bybit Pay" });
-  const chains = await blockchainGateways().catch(() => []);
-  for (const g of chains) if (g.enabled && g.verified) gateways.push({ id: g.network === "trc20" ? "chain_trc20" : "chain_bep20", label: `USDT · ${g.network.toUpperCase()}` });
-  if (cfg.active && cfg.crypto) {
-    if (!gateways.some(g => g.id === "chain_trc20")) gateways.push({ id: "usdt_trc20", label: "USDT · TRC20" });
-    if (!gateways.some(g => g.id === "chain_bep20")) gateways.push({ id: "usdt_bep20", label: "USDT · BEP20" });
-  }
-  const { oxapayEnabled } = await import("@/lib/oxapay.server");
-  const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
-  if (oxapayEnabled(await oxapaySettings())) gateways.push({ id: "oxapay", label: "Crypto · OxaPay" });
-  const { epsConfig } = await import("@/lib/eps.server");
-  if (epsConfig(s).enabled) gateways.push({ id: "eps_mfs", label: "bKash · Nagad · Rocket" }, { id: "eps_card", label: "Visa · Mastercard" });
-  return gateways;
-}
-
-export async function webBrowserStockCheck(snapshot: CoMeta) {
-  const ids = snapshot.items.map(i => i.product_id);
-  const { data: products, error } = await db.from("products").select("*").eq("is_active", true).in("id", ids);
-  if (error || products?.length !== ids.length) throw new Error("This checkout is unavailable.");
-  const issues = await checkoutStockIssues(snapshot.items.map(i => ({ product: products.find((p: any) => p.id === i.product_id), qty: i.qty })));
-  if (issues.length) throw new Error("Not enough stock is available. Nothing was charged.");
-}
-
-export async function webVerifyBrowserDeposit(chatId: number, id: string, txid: string) {
-  const { data: row } = await db.from("binance_deposits").select("*").eq("id", id).eq("telegram_id", chatId).maybeSingle();
-  if (!row || !row.meta?.browser_link_id || !paymentAttemptOpen(row)) return;
-  if (row.kind === "eps") { await creditEpsRow(row); return; }
-  if (row.kind === "oxapay") {
-    const { oxapayKey, oxapayPaymentInfo } = await import("@/lib/oxapay.server");
-    const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
-    const r = await oxapayPaymentInfo(oxapayKey({ ...(await getSettings()), ...(await oxapaySettings()) }), String(row.meta.track_id ?? ""));
-    if (r.ok) await creditOxapayRow(row, r.info);
-    return;
-  }
-  if (txid) await webSubmitDepositTxid(chatId, id, txid);
 }
 
 /* ---------- Website Mobile View: Support / Referral Store / Freebies for the connected bot user ---------- */
