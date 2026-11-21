@@ -2731,6 +2731,20 @@ export type Database = {
       }
       expire_bot_checkouts: { Args: { _cutoff: string }; Returns: number }
       expire_payment_attempts: { Args: never; Returns: number }
+      find_tracking_orders: {
+        Args: { _kind: string; _value: string }
+        Returns: {
+          created_at: string
+          customer_email: string
+          delivered_content: string
+          order_code: string
+          order_no: number
+          product_name: string
+          quantity: number
+          status: string
+          total: number
+        }[]
+      }
       finish_referral_delivery: {
         Args: { _request: string; _success: boolean; _token: string }
         Returns: boolean

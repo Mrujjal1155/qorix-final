@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Native Telegram-style tracking with one order-ID-or-email field; accepts 1042, stored QX references and existing ORD codes, email returns latest 20 matching website orders. Service-only bounded lookup excludes reseller orders; public results expose status only, buyer session/secure link required for product/amount/delivery. Six rules/isolated SQL tests pass; real #4817 status, code/email empty states and 1280/393/320 layouts verified without overflow/runtime errors. Existing buyer links preserved; no purchases or publication.
+- [ ] Verify signed-in tracking delivery on the deployed site; external unmanaged authentication and deployment permission remain blockers. Three pre-existing security findings unchanged.
+
 - [x] Keep expired/reused Telegram links in the active Mobile View; fresh bot authorization and shopping/back exits replace the legacy information page. Safe product/quantity/stage destinations survive reload without bearer credentials. Sixteen login/security tests pass; real fresh login issuance, reload, reconnect, back and main-menu paths verified at 1280/393/320 without overflow or runtime errors. No purchase or publication.
 - [ ] Verify fresh reconnect after actual Telegram START and signed-in destination readback on the deployed site; external unmanaged authentication and separate deployment permission block this check.
 

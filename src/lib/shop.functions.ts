@@ -4,6 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { resolveSiteOrigin } from "@/lib/site-url";
 import { bybitTxidSchema } from "@/lib/bybit-payment";
 import { chainSchema, chainTxid } from "@/lib/blockchain-payment";
+import { trackingInput, trackingQuery, trackingProjection } from "@/lib/order-tracking";
 
 /* Public storefront server functions — no auth required.
    Reads use the publishable key (anon RLS), writes are validated then
@@ -508,6 +509,24 @@ export const trackWebsiteOrder = createServerFn({ method: "POST" })
     const owner = verifyOrderAccessToken(data.order_no, data.email, data.token) || (await callerEmail()) === data.email;
     const { customer_email, delivered_content, ...safe } = row as any;
     return { ...safe, delivered_content: owner ? delivered_content : null, locked: !owner && Boolean(delivered_content) };
+  });
+
+export const searchTrackingOrders = createServerFn({ method: "POST" })
+  .inputValidator((input: { query: string; token?: string }) => trackingInput.parse(input))
+  .handler(async ({ data }) => {
+    const { setResponseHeader } = await import("@tanstack/react-start/server");
+    setResponseHeader("Cache-Control", "no-store");
+    const search = trackingQuery(data.query);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin.rpc("find_tracking_orders", { _kind: search.kind, _value: search.value });
+    if (error) throw new Error("Could not check order status. Please try again.");
+    const { verifyOrderAccessToken, callerEmail } = await import("@/lib/order-access.server");
+    const signedInEmail = await callerEmail();
+    return (rows ?? []).map(row => {
+      const email = String(row.customer_email ?? "").trim().toLowerCase();
+      const owner = Boolean(email) && (signedInEmail === email || verifyOrderAccessToken(row.order_no, email, data.token));
+      return trackingProjection(row, owner);
+    });
   });
 
 /* ------------------------------------------------- editable site content */
