@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Add paid-only Insight admin Retry GET recovery with exact provider reference/history/detail matching and no purchase calls; 31 isolated tests and build pass. Read-only provider checks show candidate #6922 failed with exact $4 debit/refund, no codes, and no returned original reference. ORD-79192548 remains pending; no wallet change, delivery or deployment.
+- [ ] Complete ORD-79192548: original purchase identity is missing and candidate provider purchase failed/refunded with no delivery. Requires provider reconciliation and separately approved replacement spending; no blind retry. Authenticated UI/live rollout also requires external access/deployment approval.
+
 - [x] Fix Insight delivery after provider failed/refunded orders: matched real failed orders to exact provider debit/refund evidence through read-only GETs. One bounded deterministic replacement after full refund verification; recover completed readback without another buy; preserve unknown/partial/test review, paid metadata and saved retry references. Adapter/fulfil/regression tests pass; no real purchase, historical repair or deployment.
 - [ ] Verify Insight paid checkout and auto-delivery on the deployed bot; requires separate deployment and real-purchase permission. Older pending orders without original references require reconciliation, never blind repurchase.
 

@@ -31,25 +31,23 @@ test("shared helper never adds another Insight purchase on HTTP rejection", asyn
 });
 test("legacy uncertain Insight order cannot be bought again without its original reference", async () => {
   order = { id: "fixture-order", status: "pending", product_id: "product", meta: { paid: true, supplier_error: "delivery needs review" } };
-  globalThis.fetch = mock(async () => { purchases++; throw new Error("Unexpected purchase"); }) as unknown as typeof fetch;
-  expect(await retrySupplierDelivery(order.id)).toEqual({ ok: false, reason: "Previous Insight Store purchase has no saved reference; reconcile it before retrying" });
+  globalThis.fetch = mock(async (_url: unknown, init?: RequestInit) => { if (init?.method === "POST") purchases++; return new Response(JSON.stringify({ balance_usdt: 100 })); }) as unknown as typeof fetch;
+  expect((await retrySupplierDelivery(order.id)).reason).toContain("Original purchase reference is unavailable");
   expect(purchases).toBe(0);
 });
-test("failed reference save prevents the initial supplier purchase", async () => {
+test("retry never creates an initial purchase for a missing reference", async () => {
   order = { id: "fixture-order", status: "pending", product_id: "product", meta: { paid: true } };
   failSave = true;
-  globalThis.fetch = mock(async () => { purchases++; throw new Error("Unexpected purchase"); }) as unknown as typeof fetch;
+  globalThis.fetch = mock(async (_url: unknown, init?: RequestInit) => { if (init?.method === "POST") purchases++; return new Response(JSON.stringify({ balance_usdt: 100 })); }) as unknown as typeof fetch;
   expect((await retrySupplierDelivery(order.id)).ok).toBe(false);
   expect(purchases).toBe(0);
 });
 test("paid retry reuses the original key and reads completed delivery back from the order", async () => {
   order = { id: "fixture-order", status: "pending", product_id: "product", quantity: 1, meta: { paid: true, insight_reference: "original-key", supplier_error: "previous uncertain result" } };
   globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
-    if (init?.method === "POST") {
-      purchases++;
-      expect(JSON.parse(String(init.body)).idempotency_key).toBe("original-key");
-      return new Response(JSON.stringify({ order: { order_id: 7000, product_id: 46, quantity: 1, status: "completed", codes: ["ACCOUNT\nPASSWORD"] } }));
-    }
+    if (init?.method === "POST") { purchases++; throw new Error("Unexpected purchase"); }
+    if (String(_url).endsWith("/orders")) return new Response(JSON.stringify({ orders: [{ order_id: 7000, idempotency_key: "original-key" }] }));
+    if (String(_url).endsWith("/orders/7000")) return new Response(JSON.stringify({ order: { order_id: 7000, idempotency_key: "original-key", product_id: 46, quantity: 1, status: "completed", codes: ["ACCOUNT\nPASSWORD"] } }));
     return new Response(JSON.stringify({ balance_usdt: 100 }));
   }) as unknown as typeof fetch;
   expect(await retrySupplierDelivery(order.id)).toEqual({ ok: true, items: ["ACCOUNT\nPASSWORD"] });
@@ -57,20 +55,26 @@ test("paid retry reuses the original key and reads completed delivery back from 
   expect(order.delivered_content).toBe("ACCOUNT\nPASSWORD");
   expect(order.meta.insight_reference).toBe("original-key");
   expect(order.meta.supplier_error).toBeUndefined();
-  expect(purchases).toBe(1);
+  expect(purchases).toBe(0);
 });
 test("post-purchase save failure is not reported as completed and keeps the original reference", async () => {
   order = { id: "fixture-order", status: "pending", product_id: "product", quantity: 1, meta: { paid: true, insight_reference: "original-key" } };
   failSave = true;
   globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
-    if (init?.method === "POST") {
-      purchases++;
-      return new Response(JSON.stringify({ order: { order_id: 7000, product_id: 46, quantity: 1, status: "completed", codes: ["ACCOUNT"] } }));
-    }
+    if (init?.method === "POST") { purchases++; throw new Error("Unexpected purchase"); }
+    if (String(_url).endsWith("/orders")) return new Response(JSON.stringify({ orders: [{ order_id: 7000, idempotency_key: "original-key" }] }));
+    if (String(_url).endsWith("/orders/7000")) return new Response(JSON.stringify({ order: { order_id: 7000, idempotency_key: "original-key", product_id: 46, quantity: 1, status: "completed", codes: ["ACCOUNT"] } }));
     return new Response(JSON.stringify({ balance_usdt: 100 }));
   }) as unknown as typeof fetch;
   expect((await retrySupplierDelivery(order.id)).ok).toBe(false);
   expect(order.status).toBe("pending");
   expect(order.meta.insight_reference).toBe("original-key");
-  expect(purchases).toBe(1);
+  expect(purchases).toBe(0);
+});
+
+test("unpaid Insight retry never retrieves or purchases credentials", async () => {
+  order = { id: "fixture-order", status: "pending", product_id: "product", meta: { paid: false, insight_reference: "original-key" } };
+  globalThis.fetch = mock(async () => { purchases++; throw new Error("Unexpected request"); }) as unknown as typeof fetch;
+  expect((await retrySupplierDelivery(order.id)).ok).toBe(false);
+  expect(purchases).toBe(0);
 });

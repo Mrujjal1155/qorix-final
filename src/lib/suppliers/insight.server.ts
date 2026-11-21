@@ -60,6 +60,25 @@ function insightDelivery(order: any, productId: number, qty: number) {
   return { code: String(id), items: codes as string[] };
 }
 
+/** Read-only recovery: a retry may retrieve an existing purchase, never create one. */
+export async function insightRecoverDelivery(s: SupplierRow, externalId: string, qty: number, reference?: string) {
+  const productId = Number(externalId);
+  if (!Number.isSafeInteger(productId) || productId <= 0 || !Number.isSafeInteger(qty) || qty <= 0) throw new Error("Invalid Insight Store recovery request");
+  if (!reference?.trim()) throw new Error("Original purchase reference is unavailable. Provider reconciliation is required; no new purchase attempted");
+  const history = await insightRequest(s, "orders");
+  if (!Array.isArray(history?.orders)) throw new Error("Invalid Insight Store history response; no new purchase attempted");
+  const matches = history.orders.filter((o: any) => o?.idempotency_key === reference);
+  if (matches.length !== 1) throw new Error("Original purchase is not uniquely present in provider history; no new purchase attempted");
+  const id = Number(matches[0]?.order_id ?? matches[0]?.id);
+  if (!Number.isSafeInteger(id) || id <= 0) throw new Error("Invalid original purchase identity; no new purchase attempted");
+  const order = (await insightRequest(s, `orders/${id}`)).order;
+  if (Number(order?.order_id ?? order?.id) !== id || order?.idempotency_key !== reference || Number(order?.product_id) !== productId || Number(order?.quantity) !== qty) throw new Error("Provider purchase does not match this order; no new purchase attempted");
+  const delivery = insightDelivery(order, productId, qty);
+  if (delivery) return delivery;
+  if (await insightRefunded(s, order)) throw new Error("Original purchase failed and was fully refunded by the supplier. No delivery exists; a separately approved new purchase is required");
+  throw new Error("Original purchase has no verified complete delivery; no new purchase attempted");
+}
+
 /** A failed order is safe to replace only after the provider proves its full debit was refunded. */
 async function insightRefunded(s: SupplierRow, order: any) {
   const amount = Number(order?.amount_usdt ?? order?.total_usdt);

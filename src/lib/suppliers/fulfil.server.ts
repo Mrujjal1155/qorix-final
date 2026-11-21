@@ -158,18 +158,13 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
   const { data: sup } = await db.from("suppliers").select("*").eq("id", product.supplier_id).maybeSingle();
   if (!sup) return { ok: false, reason: "Supplier record not found" };
   if (!sup.is_enabled) return { ok: false, reason: `Supplier “${sup.name ?? sup.key}” is disabled in admin` };
-  const { isInsightStore } = await import("@/lib/suppliers/insight.server");
+  const { isInsightStore, insightRecoverDelivery } = await import("@/lib/suppliers/insight.server");
   const insight = isInsightStore(sup);
-  if (insight && order.meta?.supplier_error && !order.meta?.insight_reference)
-    return { ok: false, reason: "Previous Insight Store purchase has no saved reference; reconcile it before retrying" };
+  if (insight && (order.meta?.paid !== true || order.meta?.refunded === true || order.meta?.awaiting_payment === true || order.status !== "pending"))
+    return { ok: false, reason: "Only paid, non-refunded pending orders can recover Insight delivery" };
   const reference = insight
-    ? order.meta?.insight_reference || `qorix-insight-${order.id}`
+    ? order.meta?.insight_reference
     : `qorix-retry-${order.id}-${Date.now()}`;
-  if (insight && !order.meta?.insight_reference) {
-    const { error } = await db.from("orders").update({ meta: { ...order.meta, insight_reference: reference } }).eq("id", order.id);
-    if (error) return { ok: false, reason: "Could not save the purchase reference; no purchase attempted" };
-    order.meta = { ...order.meta, insight_reference: reference };
-  }
 
   // Advisory only: some supplier balance endpoints under-report (or return 0)
   // even when the API wallet is funded, so never block the purchase on it —
@@ -185,7 +180,9 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
     : { ok: true };
 
   try {
-    const res = await supplierOrderWithRetry(
+    const res = insight ? await insightRecoverDelivery(
+      sup, String(product.supplier_external_id), Number(order.quantity ?? 1), order.meta?.insight_reference,
+    ) : await supplierOrderWithRetry(
       sup as any,
       String(product.supplier_external_id),
       Number(order.quantity ?? 1),
