@@ -1,0 +1,26 @@
+import type { LiveKind } from "@/lib/live-update";
+
+export type LiveEventKind = LiveKind | "payment";
+
+export function liveDestinations(
+  event: { kind: LiveEventKind; general_enabled?: boolean; live_sent?: boolean; general_sent?: boolean; delivery_errors?: Record<string, { status: string }> },
+  settings: Record<string, string>,
+) {
+  const key = event.kind === "purchase" ? "live_purchase" : event.kind === "member" ? "live_member" : "live_topup";
+  const liveOn = (settings[key] ?? "on").toLowerCase() === "on";
+  const generalOn = event.kind === "purchase"
+    ? (settings["announce_sales"] ?? "on").toLowerCase() !== "off"
+    : liveOn;
+  return {
+    live: !event.live_sent && !["failed", "review"].includes(event.delivery_errors?.["live"]?.status ?? "") && liveOn ? (settings["live_channel_id"] ?? "").trim() : "",
+    general: !event.general_sent && !["failed", "review"].includes(event.delivery_errors?.["general"]?.status ?? "") && event.general_enabled && generalOn
+      ? (settings["announce_chat_id"] ?? "").trim() : "",
+  };
+}
+
+// Retry only Telegram's explicit rate-limit refusal. A transport failure can
+// mean the post was accepted; blind replay would leak duplicates into groups.
+export function liveFailure(result: { error_code?: number; parameters?: { retry_after?: number } }) {
+  if (result.error_code === 429) return { status: "pending", delay: Math.max(1, Number(result.parameters?.retry_after ?? 30)) };
+  return { status: result.error_code === 400 || result.error_code === 403 ? "failed" : "review", delay: 0 };
+}

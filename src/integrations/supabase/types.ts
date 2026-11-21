@@ -636,9 +636,14 @@ export type Database = {
         Row: {
           attempts: number
           created_at: string
+          delivery_errors: Json
+          general_enabled: boolean
+          general_sent: boolean
           id: string
           kind: string
           last_error: string | null
+          live_sent: boolean
+          next_attempt_at: string
           payload: Json
           ref: string
           sent_at: string | null
@@ -647,9 +652,14 @@ export type Database = {
         Insert: {
           attempts?: number
           created_at?: string
+          delivery_errors?: Json
+          general_enabled?: boolean
+          general_sent?: boolean
           id?: string
           kind: string
           last_error?: string | null
+          live_sent?: boolean
+          next_attempt_at?: string
           payload?: Json
           ref: string
           sent_at?: string | null
@@ -658,9 +668,14 @@ export type Database = {
         Update: {
           attempts?: number
           created_at?: string
+          delivery_errors?: Json
+          general_enabled?: boolean
+          general_sent?: boolean
           id?: string
           kind?: string
           last_error?: string | null
+          live_sent?: boolean
+          next_attempt_at?: string
           payload?: Json
           ref?: string
           sent_at?: string | null

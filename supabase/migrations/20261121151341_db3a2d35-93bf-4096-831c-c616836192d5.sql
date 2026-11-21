@@ -1,0 +1,1 @@
+ALTER TABLE public.live_update_events ADD COLUMN next_attempt_at timestamptz NOT NULL DEFAULT now();

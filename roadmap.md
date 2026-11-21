@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Preserve existing general-group sale and live-update formats for website/bot successful top-ups and deliveries. New verified direct website payments use the same top-up layout with accurate Paid wording (no false wallet credit/delivery claim); only the compatible sender releases them. Existing destination settings, supplier-scoped sale routes and switches remain intact; independent durable receipts, explicit retry_after, six-send budget and uncertain-send review prevent duplicates. Isolated SQL/gateway and mocked two-group sender tests pass; no historical broadcast, real payment/send or deployment.
+- [ ] Verify actual paid website flow and both Telegram group receipts after separately approved deployment/payment; no real sends or payment authorized for this task.
+
 - [x] Send completed connected website order summaries and saved credentials to the checkout-authorized Telegram private chat through a service-only completion-triggered queue and shared credential helper. Gateway/in-house, wallet/supplier and admin completion converge; durable claims prevent concurrent/repeated sends, uncertain failures require review without repurchase/debit. Sixteen new rule/SQL/integration tests plus 42 regressions pass; build OK. Live readback confirms RLS enabled, no customer queue/claim access and zero historical queued orders. No real payment, Telegram send or deployment.
 - [ ] Verify real Telegram-connected website payment → website delivery → Telegram summary/credentials on the deployed site; requires separate deployment permission, external authenticated account access and an approved real payment.
 

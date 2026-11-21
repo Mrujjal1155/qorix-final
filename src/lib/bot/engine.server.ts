@@ -3311,9 +3311,9 @@ const SALE_TAGS: Record<SaleSource, [AlertIconKey, string]> = {
 };
 
 /** Group "new sale" post — one design for every sales channel. */
-export async function announcePurchase(user: any, product: any, qty: number, source: SaleSource = "bot") {
+export async function announcePurchase(user: any, product: any, qty: number, source: SaleSource = "bot", durableDelivery = false) {
   const s = await getSettings();
-  if (!s["announce_chat_id"] || (s["announce_sales"] ?? "on").toLowerCase() === "off") return;
+  if (!s["announce_chat_id"] || (s["announce_sales"] ?? "on").toLowerCase() === "off") return { ok: false, error_code: 400, description: "Sales announcements disabled or destination missing" };
   const [tagIcon, tagLabel] = SALE_TAGS[source] ?? SALE_TAGS.bot;
   const who = escapeHtml(maskUsername(user?.username, user?.first_name));
   const text = saleTable({
@@ -3321,25 +3321,36 @@ export async function announcePurchase(user: any, product: any, qty: number, sou
     qtyIcon: alertIcon(s, "sale_qty"), qty, productIcon: productIconHtml(product),
     product: escapeHtml(String(product?.name ?? "")), doneIcon: alertIcon(s, "sale_done"),
   });
-  await postToChannel(s, text, await channelProductButton(s, product));
+  const keyboard = await channelProductButton(s, product);
+  if (durableDelivery) {
+    const scoped = product?.supplier_id ? s[`announce_chat_supplier:${product.supplier_id}`] : s["announce_chat_inhouse"];
+    const chat = (scoped ?? "").trim() || s["announce_chat_id"];
+    return await sendAlertMessage(chat, text, keyboard);
+  }
+  await postToChannel(s, text, keyboard);
+  return { ok: true };
 }
 
 /** Announce a completed non-bot order (website / reseller API) by id. Never throws. */
-export async function announceOrderSale(orderId: string) {
+export async function announceOrderSale(orderId: string, queuedDelivery = false) {
   try {
     const { data: o } = await (supabaseAdmin as any)
       .from("orders")
       .select("id,product_id,quantity,source,customer_name,reseller_id,status")
       .eq("id", orderId)
       .maybeSingle();
-    if (!o || o.status !== "completed") return;
+    if (!o || o.status !== "completed") return { ok: false };
+    // Website completions are delivered by the DB-triggered live event queue,
+    // not by each fulfil/retry callback (which could repeat or miss a post).
+    if (o.source === "website" && !queuedDelivery) return { ok: true, queued: true };
     const src: SaleSource =
       o.source === "api_bot" ? "api_bot" : o.source === "api_website" ? "api_website" : "website";
     const { data: p } = await (supabaseAdmin as any).from("products").select("*").eq("id", o.product_id).maybeSingle();
-    if (!p) return;
-    await announcePurchase({ first_name: o.customer_name || "Customer" }, p, Number(o.quantity ?? 1), src);
+    if (!p) return { ok: false };
+    return await announcePurchase({ first_name: o.customer_name || "Customer" }, p, Number(o.quantity ?? 1), src, queuedDelivery);
   } catch (e) {
     console.error("[sale-announce]", e);
+    return { ok: false, description: e instanceof Error ? e.message : String(e) };
   }
 }
 

@@ -10,6 +10,7 @@ export type LivePayload = {
   qty?: number;
   method?: string;
   source?: string;
+  paymentOnly?: boolean;
 };
 
 export const LIVE_EMOJI_SLOTS: { slot: string; glyph: string; label: string }[] = [
@@ -98,15 +99,15 @@ export function buildLivePost(
       `<p>${e("member_spark")} <i>We're glad to have you — explore, shop and enjoy!</i></p>`;
   }
   if (kind === "topup") {
-    return `<h3>${e("topup_title")} Balance Top-up Confirmed</h3>` +
+    return `<h3>${e("topup_title")} ${p.paymentOnly ? "Payment Confirmed" : "Balance Top-up Confirmed"}</h3>` +
       table([
         [`${e("id")} Account`, maskId(p.uid)],
         [`${e("customer")} Customer`, name],
         [`${e("paid")} Method`, paymentLabel(p.method)],
-        [`${e("topup_status")} Status`, `<b>Credited</b>`],
+        [`${e("topup_status")} Status`, `<b>${p.paymentOnly ? "Paid" : "Credited"}</b>`],
         [`${e("time")} Time`, formatLiveTime(when)],
       ]) +
-      `<p>${e("ok")} Wallet credited successfully</p>` +
+      `<p>${e("ok")} ${p.paymentOnly ? "Order payment verified successfully" : "Wallet credited successfully"}</p>` +
       `<p>${e("topup_shield")} <i>Secure &amp; verified payment</i></p>`;
   }
   return `<h3>${e("buy_title")} Thank You for Your Purchase!</h3>` +

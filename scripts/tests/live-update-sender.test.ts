@@ -1,7 +1,7 @@
 import { expect, mock, test } from "bun:test";
 
 const ids = ["11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222", "33333333-3333-4333-8333-333333333333"];
-const rows = ids.map((id, i) => ({ id: `event-${i}`, ref: `order:${id}`, kind: "purchase", status: "pending", attempts: 0,
+const rows = ids.map((id, i) => ({ id: `event-${i}`, ref: `order:${id}`, kind: "purchase", status: "pending", attempts: 0, live_sent: false,
   created_at: "2026-10-24T19:00:00Z", payload: { product: "Same name", source: ["telegram", "website", "api_bot"][i] } }));
 const sent: any[] = [];
 const reads: Array<{ table: string; columns: string; values?: unknown[] }> = [];
@@ -36,7 +36,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
       eq: (key: string, value: unknown) => { filters[key] = value; return chain; },
       in: (_key: string, values: unknown[]) => { wanted = values; return chain; },
       update: (value: unknown) => { update = value; return chain; },
-      or: () => chain, order: () => chain, limit: () => chain,
+      or: () => chain, order: () => chain, limit: () => chain, lte: () => chain,
       then: (resolve: any, reject: any) => Promise.resolve().then(result).then(resolve, reject),
     };
     return chain;
@@ -58,7 +58,7 @@ test("scheduled sender uses each exact purchased product icon across bot, websit
   ]);
 });
 test("icon lookup failure keeps events pending for retry without posting a wrong icon", async () => {
-  rows.forEach((r) => { r.status = "pending"; });
+  rows.forEach((r) => { r.status = "pending"; r.live_sent = false; });
   iconFailure = true;
   const before = sent.length;
   try {

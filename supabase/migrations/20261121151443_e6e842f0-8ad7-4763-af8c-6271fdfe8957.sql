@@ -1,0 +1,1 @@
+ALTER TABLE public.live_update_events ADD COLUMN delivery_errors jsonb NOT NULL DEFAULT '{}'::jsonb;

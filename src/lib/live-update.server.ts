@@ -1,11 +1,7 @@
 // Drains live_update_events into the configured public channel.
 import { buildLivePost, LIVE_EMOJI_SLOTS, livePostKeyboard, type LiveKind } from "@/lib/live-update";
-
-const KIND_KEY: Record<LiveKind, string> = {
-  purchase: "live_purchase",
-  topup: "live_topup",
-  member: "live_member",
-};
+import { liveDestinations, liveFailure, type LiveEventKind } from "@/lib/live-update-delivery";
+import type { TgResult } from "@/lib/telegram.server";
 
 async function adminDb() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -16,7 +12,7 @@ async function loadLiveSettings(db: any) {
   const { data } = await db
     .from("bot_settings")
     .select("key,value")
-    .or("key.like.live_%,key.eq.bot_username");
+    .or("key.like.live_%,key.like.announce_%,key.eq.bot_username");
   const map: Record<string, string> = {};
   for (const r of (data ?? []) as any[]) map[r.key] = String(r.value ?? "");
   const emoji: Record<string, string> = {};
@@ -47,24 +43,35 @@ async function loadPurchaseIcons(db: any, rows: any[]): Promise<Map<string, stri
 
 export async function drainLiveUpdates(limit = 20) {
   const db = await adminDb();
-  const { map, channel, emoji, bot } = await loadLiveSettings(db);
+  const { map, emoji, bot } = await loadLiveSettings(db);
+  // Older deployed senders must not mistake payment-only cards for delivered
+  // purchases. Only this compatible sender releases those future events.
+  const { error: releaseError } = await db.from("live_update_events").update({ status: "pending" }).eq("status", "awaiting_sender").eq("kind", "payment");
+  if (releaseError) throw new Error("Could not release verified payment alerts");
   const { data: rows } = await db
     .from("live_update_events")
-    .select("id,ref,kind,payload,created_at,attempts")
+    .select("id,ref,kind,payload,created_at,attempts,live_sent,general_sent,general_enabled,delivery_errors")
     .eq("status", "pending")
+    .lte("next_attempt_at", new Date().toISOString())
     .order("created_at", { ascending: true })
     .limit(limit);
   if (!rows?.length) return { sent: 0 };
-  const purchaseIcons = await loadPurchaseIcons(db, rows.filter((r: any) => channel && (map[KIND_KEY[r.kind as LiveKind]] ?? "on").toLowerCase() === "on"));
+  const purchaseIcons = await loadPurchaseIcons(db, rows.filter((r: any) => liveDestinations(r, map).live));
   const { sendAlertMessage } = await import("@/lib/telegram.server");
   let sent = 0;
+  let sends = 0;
   for (const r of rows as any[]) {
-    const kind = r.kind as LiveKind;
-    // Channel not set or this type switched off: mark skipped so the queue never piles up.
-    if (!channel || (map[KIND_KEY[kind]] ?? "on").toLowerCase() !== "on") {
-      await db.from("live_update_events").update({ status: "skipped" }).eq("id", r.id).eq("status", "pending");
+    const eventKind = r.kind as LiveEventKind;
+    const kind: LiveKind = eventKind === "payment" ? "topup" : eventKind;
+    const targets = liveDestinations(r, map);
+    if (!targets.live && !targets.general) {
+      const errors = Object.values(r.delivery_errors ?? {}) as Array<{ status: string }>;
+      const status = errors.some((e) => e.status === "review") ? "review" : errors.some((e) => e.status === "failed") ? "failed" : r.live_sent || r.general_sent ? "sent" : "skipped";
+      await db.from("live_update_events").update({ status }).eq("id", r.id).eq("status", "pending");
       continue;
     }
+    // Leave untouched events pending when this tick's six-send budget is used.
+    if (sends + Number(Boolean(targets.live)) + Number(Boolean(targets.general)) > 6) break;
     // Claim first so two ticks never post the same card.
     const { data: claimed } = await db
       .from("live_update_events")
@@ -73,22 +80,46 @@ export async function drainLiveUpdates(limit = 20) {
       .eq("status", "pending")
       .select("id");
     if (!claimed?.length) continue;
-    const text = buildLivePost(kind, r.payload ?? {}, new Date(r.created_at), emoji);
+    const text = buildLivePost(kind, { ...(r.payload ?? {}), ...(eventKind === "payment" ? { paymentOnly: true } : {}) }, new Date(r.created_at), emoji);
     // Purchase posts carry a tappable Buy Now button straight into the bot.
     const keyboard = livePostKeyboard(kind, bot, purchaseIcons.get(r.ref));
-    const res = await sendAlertMessage(channel, text, keyboard).catch((e: any) => ({ ok: false, description: String(e) }));
-    const ok = !!res?.ok;
-    const giveUp = !ok && (r.attempts ?? 0) + 1 >= 5;
-    await db
-      .from("live_update_events")
-      .update(
-        ok
-          ? { status: "sent", sent_at: new Date().toISOString(), last_error: null }
-          : { status: giveUp ? "failed" : "pending", last_error: String(res?.description ?? "send failed").slice(0, 300) },
-      )
-      .eq("id", r.id);
-    if (ok) sent++;
-    else break; // channel problem: stop this tick, retry next one
+    const deliveryErrors: Record<string, { status: string; delay: number; description: string }> = { ...(r.delivery_errors ?? {}) };
+    for (const destination of ["general", "live"] as const) {
+      const target = targets[destination];
+      if (!target) continue;
+      sends++;
+      const res: TgResult | undefined = await (async () => {
+        if (destination === "general" && eventKind === "purchase") {
+          const { announceOrderSale } = await import("@/lib/bot/engine.server");
+          return await announceOrderSale(String(r.ref).slice(6), true);
+        }
+        return await sendAlertMessage(target, text, keyboard);
+      })().catch((e: unknown) => ({ ok: false, description: String(e) }));
+      if (res?.ok) {
+        delete deliveryErrors[destination];
+        // Save this receipt BEFORE trying the other group. A failed write
+        // leaves the claim in sending, never blindly replays an accepted post.
+        const { error } = await db.from("live_update_events").update({ [`${destination}_sent`]: true }).eq("id", r.id).eq("status", "sending");
+        if (error) throw new Error("Could not save accepted group delivery receipt");
+        if (destination === "general" && targets.live === target && eventKind !== "purchase") {
+          const { error: sameError } = await db.from("live_update_events").update({ live_sent: true }).eq("id", r.id).eq("status", "sending");
+          if (sameError) throw new Error("Could not save shared group delivery receipt");
+          targets.live = "";
+        }
+      } else {
+        deliveryErrors[destination] = { ...liveFailure(res ?? {}), description: String(res?.description ?? "Uncertain group send; review required").slice(0, 300) };
+        const { error } = await db.from("live_update_events").update({ delivery_errors: deliveryErrors }).eq("id", r.id).eq("status", "sending");
+        if (error) throw new Error("Could not save group delivery failure");
+      }
+    }
+    const problems = Object.values(deliveryErrors);
+    const retry = problems.filter((p) => p.status === "pending");
+    const status = retry.length ? "pending" : problems.some((p) => p.status === "review") ? "review" : problems.length ? "failed" : "sent";
+    const { error: finishError } = await db.from("live_update_events").update(
+      { status, delivery_errors: deliveryErrors, next_attempt_at: new Date(Date.now() + Math.max(0, ...retry.map((p) => p.delay)) * 1000).toISOString(), last_error: problems.length ? problems.map((p) => p.description).join(" | ").slice(0, 300) : null, ...(status === "sent" ? { sent_at: new Date().toISOString() } : {}) },
+    ).eq("id", r.id).eq("status", "sending");
+    if (finishError) throw new Error("Could not finish group delivery claim");
+    if (status === "sent") sent++;
   }
   return { sent };
 }
