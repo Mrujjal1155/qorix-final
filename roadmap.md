@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Fix direct product/catalogue URLs to render native Mobile View messages and shared quantity keyboards; preserve first-render catalogue data to prevent hydration mismatch. Account/reseller fallback shells honor Mobile View, Basic/admin unchanged. Product → quantity 2 → checkout and catalogue → detail verified at 393/320/1280 widths with no runtime errors; public customer routes use bot frames/consent, five regressions and build pass. No purchase or publication.
+- [ ] Verify signed-in account/deposit/referral/reseller screens and real Telegram consent on the deployed site; external unmanaged authentication prevents authenticated checks, and deployment requires separate permission.
+
 - [x] Preserve selected product destinations across all four bot order website buttons after Telegram consent; canonical slug with UUID fallback, multi-item checkout goes to catalogue. Deposit links explicitly open the existing wallet deposit flow, including Basic template. 53 tests pass; consent/failed authorization/cancel verified at 1280/393 widths without runtime errors; build OK. No purchases, live sends or deployment.
 - [ ] Verify successful real Telegram consent → selected product or deposit readback; external unmanaged authentication prevents session minting, and live bot rollout requires separate deployment permission.
 

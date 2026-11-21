@@ -40,9 +40,10 @@ const money = (v: unknown) => `$${Number(v ?? 0).toFixed(2)}`;
 export function BotStorefront(props: {
   name: string; logo: string; users: number | null; categories: Cat[]; products: Prod[];
   images: Record<string, string>; catImages: Record<string, string>; loading: boolean;
+  initialProducts?: boolean; initialCategory?: string | null;
 }) {
   const { categories, products, images } = props;
-  const [view, setView] = useState<View>({ k: "start" });
+  const [view, setView] = useState<View>(() => props.initialProducts ? { k: "prods", cat: props.initialCategory ?? null, page: 0 } : { k: "start" });
   const scroller = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -375,7 +376,7 @@ export function TelegramConnect({ onDone, onBack }: { onDone: () => void; onBack
   );
 }
 
-function QtyPicker({ p, onBack }: { p: Prod; onBack: () => void }) {
+export function QtyPicker({ p, onBack }: { p: Prod; onBack: () => void }) {
   const [qty, setQty] = useState(1);
   const [custom, setCustom] = useState("");
   const max = p.stock == null ? 100000 : Math.max(1, Number(p.stock) || 1);

@@ -21,6 +21,8 @@ import { ThemeToggle } from "@/components/theme";
 import { cn } from "@/lib/utils";
 import { useSiteContent } from "@/lib/use-site-content";
 import { BrandLogo } from "@/components/BrandLogo";
+import { BotFrame, useMobileTemplate } from "@/components/mobile/BotFrame";
+import { Bubble, Key, Keys } from "@/components/mobile/BotStorefront";
 
 export type ResellerTab =
   | "analytics"
@@ -74,6 +76,7 @@ export function ResellerShell({
   children: ReactNode;
 }) {
   const navigate = useNavigate();
+  const mobile = useMobileTemplate();
   const queryClient = useQueryClient();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -105,6 +108,19 @@ export function ResellerShell({
   }
 
   const labelCls = collapsed ? "lg:hidden" : "";
+
+  if (mobile) return <BotFrame>
+    <Bubble className="w-full max-w-full">
+      <h1 className="break-words text-lg font-bold">{title}</h1>
+      {subtitle && <p className="mt-1 text-sm text-tg-muted">{subtitle}</p>}
+      {actions && <div className="mt-2 flex flex-wrap gap-2">{actions}</div>}
+    </Bubble>
+    <Keys cols={2}>
+      {NAV_GROUPS.flatMap((group) => group.items).map((item) => <Key key={item.id} tone={active === item.id ? "green" : "blue"} active={active === item.id} leading={<item.icon className="h-4 w-4 shrink-0" />} onClick={() => onSelect(item.id)}>{item.label}</Key>)}
+    </Keys>
+    <div className="tg-page w-full rounded-2xl rounded-bl-md bg-tg-bubble px-3 py-3 shadow-sm">{children}</div>
+    <Key tone="red" icon={LogOut} onClick={() => { void signOut(); }}>Sign out</Key>
+  </BotFrame>;
 
   return (
     <div className="admin-theme flex min-h-screen">

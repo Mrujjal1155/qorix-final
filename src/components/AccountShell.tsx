@@ -18,6 +18,7 @@ import { ThemeToggle } from "@/components/theme";
 import { cn } from "@/lib/utils";
 import { useSiteContent } from "@/lib/use-site-content";
 import { BrandLogo } from "@/components/BrandLogo";
+import { BotPage, useMobileTemplate } from "@/components/mobile/BotFrame";
 
 const NAV_GROUPS = [
   {
@@ -50,6 +51,7 @@ export function AccountShell({
   children: ReactNode;
 }) {
   const navigate = useNavigate();
+  const mobile = useMobileTemplate();
   const queryClient = useQueryClient();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -81,6 +83,15 @@ export function AccountShell({
   }
 
   const labelCls = collapsed ? "lg:hidden" : "";
+
+  if (mobile) return <BotPage>
+    <section className="px-3 py-3">
+      <h1 className="break-words text-lg font-bold">{title}</h1>
+      {subtitle && <p className="mt-1 text-sm text-tg-muted">{subtitle}</p>}
+      {actions && <div className="mt-2 flex flex-wrap gap-2">{actions}</div>}
+      <div className="mt-3">{children}</div>
+    </section>
+  </BotPage>;
 
   return (
     <div className="admin-theme flex min-h-screen">

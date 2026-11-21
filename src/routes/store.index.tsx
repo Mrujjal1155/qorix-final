@@ -16,6 +16,10 @@ import { Input } from "@/components/ui/input";
 import { productionUrlFor } from "@/lib/site-url";
 import { catalogPriceRange, storeJsonLd } from "@/lib/seo";
 import { useT } from "@/lib/i18n";
+import { useBotHeader, useMobileTemplate } from "@/components/mobile/BotFrame";
+import { BotStorefront } from "@/components/mobile/BotStorefront";
+import { useSiteContent } from "@/lib/use-site-content";
+import { MOBILE_CAT_IMAGES_KEY, MOBILE_IMAGES_KEY, parseMobileImages } from "@/lib/mobile-template";
 
 export const Route = createFileRoute("/store/")({
   validateSearch: (search: Record<string, unknown>): { c?: string; q?: string } => {
@@ -27,11 +31,11 @@ export const Route = createFileRoute("/store/")({
   loader: async ({ context }) => {
     // Server-render the real catalogue so names, prices and stock are in the first HTML.
     try {
-      const data: any = await context.queryClient.ensureQueryData(storefrontQuery);
-      return { priceRange: catalogPriceRange(data?.products ?? []) };
+      const data = await context.queryClient.ensureQueryData(storefrontQuery);
+      return { priceRange: catalogPriceRange(data?.products ?? []), storefront: data };
     } catch {
       /* fall back to client loading with skeletons */
-      return { priceRange: null };
+      return { priceRange: null, storefront: null };
     }
   },
   head: ({ loaderData }) => ({
@@ -52,9 +56,14 @@ export const Route = createFileRoute("/store/")({
 
 function StorePage() {
   const t = useT();
+  const { storefront } = Route.useLoaderData();
+  const mobile = useMobileTemplate();
+  const header = useBotHeader();
+  const { v } = useSiteContent();
   const fetchStore = useServerFn(listStorefront);
   const { data, isLoading } = useQuery({
     ...storefrontQuery,
+    ...(storefront ? { initialData: storefront } : {}),
     queryFn: () => fetchStore(),
     refetchInterval: 10_000,
     refetchIntervalInBackground: true,
@@ -96,6 +105,17 @@ function StorePage() {
               ? Number(b.price) - Number(a.price)
               : String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")),
         );
+
+  if (mobile) return <BotStorefront
+    {...header}
+    categories={categories}
+    products={(data?.products ?? []).filter((p) => !q || p.name.toLowerCase().includes(q.toLowerCase()))}
+    images={parseMobileImages(v(MOBILE_IMAGES_KEY))}
+    catImages={parseMobileImages(v(MOBILE_CAT_IMAGES_KEY))}
+    loading={isLoading}
+    initialProducts
+    initialCategory={activeCat === "all" ? null : activeCat}
+  />;
 
   return (
     <StoreShell>

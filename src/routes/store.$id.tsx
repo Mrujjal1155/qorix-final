@@ -33,6 +33,8 @@ import { toast } from "sonner";
 import { usePrefs } from "@/lib/prefs";
 import { productionUrlFor } from "@/lib/site-url";
 import { breadcrumbJsonLd, metaText, productMetaDescription, productImageUrl } from "@/lib/seo";
+import { useMobileTemplate } from "@/components/mobile/BotFrame";
+import { BotProductPage } from "@/components/mobile/BotProductPage";
 
 
 
@@ -147,6 +149,7 @@ export const Route = createFileRoute("/store/$id")({
 
 function ProductPage() {
   const t = useT();
+  const mobile = useMobileTemplate();
   const { productId: id, product: initialProduct } = Route.useLoaderData();
   const { buy } = Route.useSearch();
   const navigate = useNavigate();
@@ -155,7 +158,7 @@ function ProductPage() {
   const fetchStore = useServerFn(listStorefront);
 
 
-  const { data: product } = useQuery({
+  const { data: product, refetch } = useQuery({
     ...productQuery(id, fetchProduct as any),
     initialData: initialProduct,
     refetchInterval: 5_000,
@@ -195,6 +198,7 @@ function ProductPage() {
     toast.success("Copied");
   }
 
+  if (mobile && product) return <BotProductPage product={product} quantity={qty} botUsername={botUser} refresh={() => { void refetch(); }} />;
 
   return (
     <StoreShell>
