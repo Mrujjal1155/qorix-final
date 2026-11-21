@@ -109,6 +109,7 @@ const MENU_ICON_FIELDS = [
   ["menu_icon_api", "Reseller API"],
   ["menu_icon_clear", "Clear Chat"],
   ["menu_icon_website", "Order from Website"],
+  ["menu_icon_vendor", "Vendor Application"],
   ["menu_icon_refresh", "Refresh"],
   ["menu_icon_back", "Back / Main Menu"],
   ["menu_icon_next", "Shop · Next page"],

@@ -19,7 +19,7 @@ test("the single referral store button keeps telegram's normal colour", () => {
   }
 });
 
-test("support, emails, reseller api and clear chat are green", () => {
+test("support, emails, reseller api, clear chat and vendor application are green", () => {
   for (const key of HOME_MENU_GREEN_KEYS) {
     expect(homeMenuColor(key, "primary")).toBe("success");
   }
@@ -29,6 +29,6 @@ test("every home menu key is classified exactly once", () => {
   const all = [...HOME_MENU_TOP_KEYS, ...HOME_MENU_GREEN_KEYS, ...HOME_MENU_NORMAL_KEYS];
   expect(new Set(all).size).toBe(all.length);
   expect([...all].sort()).toEqual(
-    ["shop", "cart", "orders", "wallet", "freebies", "profile", "referral", "support", "emails", "api", "clear"].sort(),
+    ["shop", "cart", "orders", "wallet", "freebies", "profile", "referral", "support", "emails", "api", "clear", "vendor"].sort(),
   );
 });

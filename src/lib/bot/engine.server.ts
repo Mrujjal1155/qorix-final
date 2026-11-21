@@ -113,7 +113,7 @@ const MENU_ICONS = {
   wallet: ["💰", "Wallet"], freebies: ["🎁", "Freebies"], profile: ["👤", "Profile"],
   referral: ["🏪", "Referral Store"], support: ["🆘", "Support"], emails: ["📧", "Emails & Trials"],
   api: ["🔌", "Reseller API"], clear: ["🧹", "Clear Chat"], refresh: ["🔄", "Refresh Stock"],
-  website: ["🌐", "Order from Website"],
+  website: ["🌐", "Order from Website"], vendor: ["🏪", "Vendor Application"],
   back: ["◀️", "Main Menu"],
   next: ["➡️", "Next"], prev: ["⬅️", "Previous"],
   bottom_products: ["🛍", "Products"], bottom_deposit: ["💳", "Deposit"], bottom_orders: ["📦", "My Orders"],
@@ -885,7 +885,7 @@ async function homeKeyboard(settings: Record<string, string>, websiteOwner: numb
       btn("api", iconButton(settings, "api", "api")),
       btn("clear", iconButton(settings, "clear", "clear")),
     ],
-    [{ text: "🏪 Vendor Application", callback_data: "ven:open", style: "primary" }],
+    [btn("vendor", iconButton(settings, "vendor", "ven:open"))],
   ];
 }
 
