@@ -2,9 +2,9 @@
  * The bot's home-menu "Order from Website" row.
  *
  * Rule: exactly one button, full width, native Telegram blue (primary), and it
- * is a plain https link — tapping it opens the shop website in Telegram's
- * in-app browser. It never carries callback_data, so it cannot change bot
- * state. When no usable website link is configured the row is skipped entirely
+ * is a plain https link — tapping it opens the shop website consent screen
+ * (or the ordinary shop if secure link preparation failed). It never carries
+ * callback_data or web_app. When no usable website link is configured the row is skipped entirely
  * instead of sending a keyboard Telegram would reject.
  */
 

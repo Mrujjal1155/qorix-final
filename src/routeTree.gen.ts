@@ -25,6 +25,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as TelegramBotRouteImport } from './routes/telegram-bot'
 import { Route as TermsRouteImport } from './routes/terms'
+import { Route as TgRouteImport } from './routes/tg'
 import { Route as TrackRouteImport } from './routes/track'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAlertsRouteImport } from './routes/admin/alerts'
@@ -158,6 +159,11 @@ const TelegramBotRoute = TelegramBotRouteImport.update({
 const TermsRoute = TermsRouteImport.update({
   id: '/terms',
   path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TgRoute = TgRouteImport.update({
+  id: '/tg',
+  path: '/tg',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TrackRoute = TrackRouteImport.update({
@@ -469,6 +475,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/telegram-bot': typeof TelegramBotRoute
   '/terms': typeof TermsRoute
+  '/tg': typeof TgRoute
   '/track': typeof TrackRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
@@ -540,6 +547,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/telegram-bot': typeof TelegramBotRoute
   '/terms': typeof TermsRoute
+  '/tg': typeof TgRoute
   '/track': typeof TrackRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
@@ -614,6 +622,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/telegram-bot': typeof TelegramBotRoute
   '/terms': typeof TermsRoute
+  '/tg': typeof TgRoute
   '/track': typeof TrackRoute
   '/admin/alerts': typeof AdminAlertsRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
@@ -688,6 +697,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/telegram-bot'
     | '/terms'
+    | '/tg'
     | '/track'
     | '/admin/alerts'
     | '/admin/analytics'
@@ -759,6 +769,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/telegram-bot'
     | '/terms'
+    | '/tg'
     | '/track'
     | '/admin/alerts'
     | '/admin/analytics'
@@ -832,6 +843,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/telegram-bot'
     | '/terms'
+    | '/tg'
     | '/track'
     | '/admin/alerts'
     | '/admin/analytics'
@@ -906,6 +918,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TelegramBotRoute: typeof TelegramBotRoute
   TermsRoute: typeof TermsRoute
+  TgRoute: typeof TgRoute
   TrackRoute: typeof TrackRoute
   OrderConfirmationRoute: typeof OrderConfirmationRoute
   ResellerDocsRoute: typeof ResellerDocsRoute
@@ -1046,6 +1059,13 @@ declare module '@tanstack/react-router' {
       path: '/terms'
       fullPath: '/terms'
       preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tg': {
+      id: '/tg'
+      path: '/tg'
+      fullPath: '/tg'
+      preLoaderRoute: typeof TgRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/track': {
@@ -1554,6 +1574,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TelegramBotRoute: TelegramBotRoute,
   TermsRoute: TermsRoute,
+  TgRoute: TgRoute,
   TrackRoute: TrackRoute,
   OrderConfirmationRoute: OrderConfirmationRoute,
   ResellerDocsRoute: ResellerDocsRoute,

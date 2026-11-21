@@ -58,6 +58,7 @@ import { parseStock } from "@/lib/stock-format";
 import { MANUAL_INPUT_PREFIX, parseManualInput, validateManualReply, type ManualInputConfig } from "@/lib/manual-input";
 import { SITE_ORIGIN } from "@/lib/site-url";
 import { websiteOrderRow } from "@/lib/bot/website-order-button";
+import { issueTelegramWebsiteLogin } from "@/lib/telegram-website-login.server";
 import { backgroundWaitUntil } from "@/lib/bg.server";
 import { enqueueAdminBroadcast } from "@/lib/bot/admin-broadcast.server";
 import { binancePaymentAmount, exactBinanceAmount } from "@/lib/binance-payment";
@@ -845,9 +846,14 @@ async function getUser(telegramId: number) {
 
 /* ------------------------------------------------------------------ views */
 
-function homeKeyboard(settings: Record<string, string>): Button[][] {
+async function homeKeyboard(settings: Record<string, string>, websiteOwner: number | null): Promise<Button[][]> {
   const topColor = btnColor(settings, "menu");
   const btn = (key: HomeMenuKey, b: Button) => styled(b, homeMenuColor(key, topColor));
+  let websiteUrl = siteUrl(settings);
+  if (websiteOwner) {
+    try { websiteUrl = await issueTelegramWebsiteLogin(db, websiteOwner, websiteUrl); }
+    catch { /* Keep the ordinary website link if secure login preparation fails. */ }
+  }
   return [
     [
       btn("shop", iconButton(settings, "shop", "shop:0")),
@@ -877,8 +883,8 @@ function homeKeyboard(settings: Record<string, string>): Button[][] {
       btn("api", iconButton(settings, "api", "api")),
       btn("clear", iconButton(settings, "clear", "clear")),
     ],
-    // One full-width blue button: opens the shop website, never a callback.
-    websiteOrderRow(btn("website", iconUrlButton(settings, "website", siteUrl(settings)))),
+    // Private-chat link opens the named website consent screen, never a Mini App.
+    websiteOrderRow(btn("website", iconUrlButton(settings, "website", websiteUrl))),
   ];
 }
 
@@ -3812,7 +3818,7 @@ async function handleMessage(msg: any) {
       }
     }
     const settings = await getSettings();
-    await sayWithBottomMenu(chatId, await homeText(user), settings, homeKeyboard(settings));
+    await sayWithBottomMenu(chatId, await homeText(user), settings, await homeKeyboard(settings, chatId));
     return;
   }
 
@@ -3842,7 +3848,7 @@ async function handleMessage(msg: any) {
       await say(chatId, v.text, v.kb);
     } else if (cmd === "menu") {
       const settings = await getSettings();
-      await sayWithBottomMenu(chatId, await homeText(fresh), settings, homeKeyboard(settings));
+      await sayWithBottomMenu(chatId, await homeText(fresh), settings, await homeKeyboard(settings, chatId));
     } else if (cmd === "products") {
       const v = await shopView(0, chatId);
       await say(chatId, v.text, v.kb);
@@ -6792,6 +6798,7 @@ async function handleCallback(cq: any) {
   // Fire the spinner-stopping ack without waiting for Telegram's round trip.
   defer(() => answerCallback(cq.id));
   if (!chatId) return;
+  const websiteOwner = cq.message?.chat?.type === "private" && cq.from?.id === chatId ? chatId : null;
   const user = await upsertUser(cq.from);
   if (!user || user.is_banned) return;
 
@@ -6815,7 +6822,7 @@ async function handleCallback(cq: any) {
       return;
     }
     const okUser = await getUser(chatId);
-    await edit(`${joinSuccessText(s)}\n\n${await homeText(okUser)}`, homeKeyboard(s));
+    await edit(`${joinSuccessText(s)}\n\n${await homeText(okUser)}`, await homeKeyboard(s, websiteOwner));
     return;
   }
 
@@ -6836,7 +6843,7 @@ async function handleCallback(cq: any) {
   if (data === "home") {
     // `user` was just loaded by upsertUser — no second read needed.
     const s = await getSettings();
-    await edit(await homeText(user), homeKeyboard(s));
+    await edit(await homeText(user), await homeKeyboard(s, websiteOwner));
     return;
   }
 
@@ -7690,7 +7697,7 @@ async function handleCallback(cq: any) {
     msgsCache.set(chatId, []);
     await setState(chatId, { ...state, msgs: [] });
     const fresh = await getUser(chatId);
-    await say(chatId, await homeText(fresh), homeKeyboard(await getSettings()));
+    await say(chatId, await homeText(fresh), await homeKeyboard(await getSettings(), websiteOwner));
     return;
   }
 

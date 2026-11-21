@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Add approved private-chat bot-issued single-use website links with named Connect consent, reuse existing linked-account claims and wallet/orders; six security/SQL tests, nineteen mocked bot flow tests and fifteen login/button/payment regressions pass. Real invalid-link rejection plus named consent/cancel/failure fixtures verified at 1280/393/320 widths with no runtime errors or overflow; build OK. No live sends, spending or publication.
+- [ ] Verify real Telegram button → consent → authenticated wallet/orders in two browsers; external unmanaged authentication prevents session minting and live rollout requires separate deployment permission. Existing account/profile rules preserved; three pre-existing security findings unchanged.
+
 - [x] Add paid-only Insight admin Retry GET recovery with exact provider reference/history/detail matching and no purchase calls; 31 isolated tests and build pass. Read-only provider checks show candidate #6922 failed with exact $4 debit/refund, no codes, and no returned original reference. ORD-79192548 remains pending; no wallet change, delivery or deployment.
 - [ ] Complete ORD-79192548: original purchase identity is missing and candidate provider purchase failed/refunded with no delivery. Requires provider reconciliation and separately approved replacement spending; no blind retry. Authenticated UI/live rollout also requires external access/deployment approval.
 

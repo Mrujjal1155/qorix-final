@@ -1,4 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
+import { setResponseHeader } from "@tanstack/react-start/server";
+import { telegramLoginCredentials } from "./telegram-website-login";
 
 /**
  * Website "Connect Telegram" login. The browser keeps a private secret; only its hash is stored.
@@ -24,14 +26,13 @@ export const startTelegramLogin = createServerFn({ method: "POST" }).handler(asy
 });
 
 export const claimTelegramLogin = createServerFn({ method: "POST" })
-  .inputValidator((d: { code: string; secret: string }) => ({
-    code: String(d?.code ?? "").replace(/[^a-f0-9]/g, "").slice(0, 40),
-    secret: String(d?.secret ?? "").replace(/[^a-f0-9]/g, "").slice(0, 64),
-  }))
+  .inputValidator((d: { code: string; secret: string }) => telegramLoginCredentials.parse(d))
   .handler(async ({ data }) => {
+    setResponseHeader("Cache-Control", "no-store");
     const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
     const { data: row } = await db.from("web_login_codes" as any).select("confirmed_at,expires_at").eq("code", data.code).maybeSingle();
     if (!row) return { status: "invalid" as const };
+    if (Date.parse((row as any).expires_at) <= Date.now()) return { status: "expired" as const };
     if (!(row as any).confirmed_at) return { status: new Date((row as any).expires_at) < new Date() ? "expired" as const : "waiting" as const };
 
     const { data: tidRaw } = await db.rpc("claim_web_login_code" as any, { _code: data.code, _secret_hash: await sha256(data.secret) });
@@ -63,4 +64,13 @@ export const claimTelegramLogin = createServerFn({ method: "POST" })
     const token_hash = link?.properties?.hashed_token;
     if (le || !token_hash) return { status: "error" as const };
     return { status: "ok" as const, token_hash };
+  });
+
+export const previewBotWebsiteLogin = createServerFn({ method: "POST" })
+  .inputValidator((d: { code: string; secret: string }) => telegramLoginCredentials.parse(d))
+  .handler(async ({ data }) => {
+    setResponseHeader("Cache-Control", "no-store");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { previewTelegramWebsiteLogin } = await import("./telegram-website-login.server");
+    return previewTelegramWebsiteLogin(supabaseAdmin, data);
   });

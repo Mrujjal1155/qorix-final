@@ -7,6 +7,11 @@ let rendered = "";
 let reads: string[] = [];
 let profileCounts = 0;
 let enabled = true;
+let websiteIssuedFor: number[] = [];
+mock.module("@/lib/telegram-website-login.server", () => ({ issueTelegramWebsiteLogin: async (_db: unknown, id: number) => {
+  websiteIssuedFor.push(id);
+  return "https://qorixlab.com/tg#" + "a".repeat(24) + "." + "b".repeat(48);
+} }));
 const legacy = "5400280896311944999";
 mock.module("@/lib/bybit.server", () => ({ bybitSettings: async () => ({ bybit_enabled: enabled ? "1" : "0", bybit_api_verified: "1", bybit_uid: "98765", bybit_icon: legacy }), findBybitPayment: async () => { throw new Error("Unexpected payment verification"); } }));
 mock.module("@/lib/blockchain.server", () => ({ blockchainGateways: async () => ["trc20", "bep20"].map((network) => ({ network, enabled, verified: true })), findChainPayment: async () => { throw new Error("Unexpected payment verification"); } }));
@@ -56,6 +61,25 @@ test("start and return-home never read order details or include private referral
   await click("home");
   expect(profileCounts).toBe(0);
   expect(buttons.flat().some(b => b.copy_text)).toBe(false);
+});
+
+test("private start and Home expose one blue direct website consent link bound to the sender", async () => {
+  websiteIssuedFor = [];
+  await reply("/start");
+  await click("home");
+  expect(websiteIssuedFor).toEqual([123, 123]);
+  const website = buttons.flat().find(b => b.url?.startsWith("https://qorixlab.com/tg#"));
+  expect(website?.style).toBe("primary");
+  expect(website?.web_app).toBeUndefined();
+  expect(website?.callback_data).toBeUndefined();
+  expect(buttons.at(-1)).toHaveLength(1);
+});
+
+test("forwarded/group Home cannot issue another customer's login link", async () => {
+  websiteIssuedFor = [];
+  await handleUpdate({ callback_query: { id: "group", data: "home", from: { id: 123, first_name: "Test" }, message: { message_id: 1, chat: { id: -999, type: "group" } } } });
+  await handleUpdate({ callback_query: { id: "foreign", data: "home", from: { id: 456, first_name: "Other" }, message: { message_id: 1, chat: { id: 123, type: "private" } } } });
+  expect(websiteIssuedFor).toEqual([]);
 });
 
 test("profile loads the customer's order aggregate and copies their exact referral link", async () => {
