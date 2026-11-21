@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Move website order to first home row and add bottom Vendor Application; private-chat seven-step single/multiple wizard, durable idempotent submission, paginated admin review and approved-only supply proposals without automatic listing. RLS remains enabled; approval RPC is service-only after authenticated admin validation. Isolated rules/SQL and bot flow tests pass; build OK.
+- [ ] Verify vendor submission → admin approval → supply in real Telegram and signed-in admin; external unmanaged authentication prevents session minting, and live bot rollout requires separate publication permission. Existing three security findings predate this work.
+
 - [x] Add approved private-chat bot-issued single-use website links with named Connect consent, reuse existing linked-account claims and wallet/orders; six security/SQL tests, nineteen mocked bot flow tests and fifteen login/button/payment regressions pass. Real invalid-link rejection plus named consent/cancel/failure fixtures verified at 1280/393/320 widths with no runtime errors or overflow; build OK. No live sends, spending or publication.
 - [ ] Verify real Telegram button → consent → authenticated wallet/orders in two browsers; external unmanaged authentication prevents session minting and live rollout requires separate deployment permission. Existing account/profile rules preserved; three pre-existing security findings unchanged.
 

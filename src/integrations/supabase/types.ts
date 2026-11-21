@@ -44,6 +44,38 @@ export type Database = {
         }
         Relationships: []
       }
+      approved_vendors: {
+        Row: {
+          application_id: string
+          created_at: string
+          is_active: boolean
+          telegram_id: number
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          is_active?: boolean
+          telegram_id: number
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          is_active?: boolean
+          telegram_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approved_vendors_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "vendor_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       binance_credentials: {
         Row: {
           api_key: string
@@ -2319,6 +2351,60 @@ export type Database = {
         }
         Relationships: []
       }
+      vendor_applications: {
+        Row: {
+          admin_note: string
+          applicant_name: string
+          contact_note: string
+          created_at: string
+          id: string
+          kind: string
+          mode: string
+          products: Json
+          request_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          telegram_id: number
+          updated_at: string
+          username: string | null
+        }
+        Insert: {
+          admin_note?: string
+          applicant_name: string
+          contact_note?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          mode: string
+          products: Json
+          request_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          telegram_id: number
+          updated_at?: string
+          username?: string | null
+        }
+        Update: {
+          admin_note?: string
+          applicant_name?: string
+          contact_note?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          mode?: string
+          products?: Json
+          request_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          telegram_id?: number
+          updated_at?: string
+          username?: string | null
+        }
+        Relationships: []
+      }
       visibility_alerts: {
         Row: {
           created_at: string
@@ -2856,6 +2942,15 @@ export type Database = {
         Args: { _approve: boolean; _request: string }
         Returns: Json
       }
+      review_vendor_application: {
+        Args: {
+          p_admin_id: string
+          p_approve: boolean
+          p_id: string
+          p_note?: string
+        }
+        Returns: string
+      }
       save_reseller_delivery: {
         Args: { _content?: string; _order_id: string; _supplier_error?: string }
         Returns: Json
@@ -2936,6 +3031,17 @@ export type Database = {
           available: number
           product_id: string
         }[]
+      }
+      submit_vendor_application: {
+        Args: {
+          p_contact_note: string
+          p_kind: string
+          p_mode: string
+          p_products: Json
+          p_request_id: string
+          p_telegram_id: number
+        }
+        Returns: string
       }
       take_manual_stock: {
         Args: { _pid: string; _qty: number }

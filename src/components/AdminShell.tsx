@@ -63,6 +63,7 @@ const NAV_GROUPS = [
       { to: "/admin/referrals", label: "Referral Commissions", icon: HandCoins },
       { to: "/admin/referral-requests", label: "Referral Requests", icon: HandCoins },
       { to: "/admin/resellers", label: "Resellers", icon: KeyRound },
+      { to: "/admin/vendors", label: "Vendor Applications", icon: Boxes },
       { to: "/admin/codes", label: "Codes", icon: Ticket },
       { to: "/admin/bulk", label: "Bulk Discount", icon: Percent },
       { to: "/admin/site", label: "Website", icon: Globe },

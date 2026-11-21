@@ -8,6 +8,7 @@ let reads: string[] = [];
 let profileCounts = 0;
 let enabled = true;
 let websiteIssuedFor: number[] = [];
+let vendorReceipts: Record<string, unknown>[] = [];
 mock.module("@/lib/telegram-website-login.server", () => ({ issueTelegramWebsiteLogin: async (_db: unknown, id: number) => {
   websiteIssuedFor.push(id);
   return "https://qorixlab.com/tg#" + "a".repeat(24) + "." + "b".repeat(48);
@@ -21,9 +22,9 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
   from: (table: string) => {
     reads.push(table);
     let key = "";
-    const result = () => ({ data: table === "bot_settings" ? (key ? { value: settings[key] } : Object.entries(settings).map(([key, value]) => ({ key, value }))) : table === "bot_users" ? user : table === "products" ? [{ id: "p1", name: "Test product", is_active: true, delivery_type: "manual", price: 2 }] : [], error: null, count: table === "orders" ? 7 : null });
+    const result = () => ({ data: table === "approved_vendors" || table === "vendor_applications" ? null : table === "bot_settings" ? (key ? { value: settings[key] } : Object.entries(settings).map(([key, value]) => ({ key, value }))) : table === "bot_users" ? user : table === "products" ? [{ id: "p1", name: "Test product", is_active: true, delivery_type: "manual", price: 2 }] : [], error: null, count: table === "orders" ? 7 : null });
     const chain: any = {
-      select: (_columns: string, options?: { head?: boolean; count?: string }) => { if (table === "orders" && options?.head && options.count === "exact") profileCounts++; return chain; }, order: () => chain, range: () => chain, in: () => chain, neq: () => chain, limit: () => chain, gte: () => chain, lt: () => chain, or: () => chain,
+      select: (_columns: string, options?: { head?: boolean; count?: string }) => { if (table === "orders" && options?.head && options.count === "exact") profileCounts++; return chain; }, order: () => chain, range: () => chain, in: () => chain, neq: () => chain, limit: () => chain, gt: () => chain, gte: () => chain, lt: () => chain, or: () => chain,
       eq: (field: string, value: string) => { if (field === "key") key = value; return chain; },
       update: (value: any) => { if (table === "bot_users" && value.state) user.state = value.state; return chain; },
       upsert: (value: any) => { if (table === "bot_settings") settings[value.key] = value.value; return chain; },
@@ -31,7 +32,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
     };
     return chain;
   },
-  rpc: async () => ({ data: null, error: null }),
+  rpc: async (name: string, args: Record<string, unknown>) => { if (name === "submit_vendor_application") { vendorReceipts.push(args); return { data: "receipt", error: null }; } return { data: null, error: null }; },
 } }));
 const show = async (_chat: number, _text: string, kb: any[][] = []) => { buttons = kb; rendered = _text; return { ok: true, result: { message_id: 1 } }; };
 mock.module("@/lib/telegram.server", () => ({
@@ -72,7 +73,8 @@ test("private start and Home expose one blue direct website consent link bound t
   expect(website?.style).toBe("primary");
   expect(website?.web_app).toBeUndefined();
   expect(website?.callback_data).toBeUndefined();
-  expect(buttons.at(-1)).toHaveLength(1);
+  expect(buttons[0]).toEqual([website]);
+  expect(buttons.at(-1)?.[0]?.callback_data).toBe("ven:open");
 });
 
 test("forwarded/group Home cannot issue another customer's login link", async () => {
@@ -80,6 +82,27 @@ test("forwarded/group Home cannot issue another customer's login link", async ()
   await handleUpdate({ callback_query: { id: "group", data: "home", from: { id: 123, first_name: "Test" }, message: { message_id: 1, chat: { id: -999, type: "group" } } } });
   await handleUpdate({ callback_query: { id: "foreign", data: "home", from: { id: 456, first_name: "Other" }, message: { message_id: 1, chat: { id: 123, type: "private" } } } });
   expect(websiteIssuedFor).toEqual([]);
+});
+
+test("private vendor button completes seven bot steps and submits only once", async () => {
+  vendorReceipts = [];
+  await click("ven:open");
+  await click("ven:start:single");
+  for (const answer of ["Canva Pro", "3 Months", "No Warranty", "0.65 USDT", "10 - 50 pcs", "10 - 30 / day", "Email : Password"]) await reply(answer);
+  expect(buttons.flat().some(b => b.callback_data === "ven:submit")).toBe(true);
+  await click("ven:submit");
+  expect(vendorReceipts).toHaveLength(1);
+  expect(vendorReceipts[0]?.["p_telegram_id"]).toBe(123);
+  expect(user.state.vendor).toBeNull();
+  await click("ven:submit");
+  expect(vendorReceipts).toHaveLength(1);
+});
+
+test("foreign private sender cannot operate another user's vendor form", async () => {
+  const previous = vendorReceipts.length;
+  await handleUpdate({ callback_query: { id: "foreign", data: "ven:start:single", from: { id: 456 }, message: { message_id: 1, chat: { id: 123, type: "private" } } } });
+  expect(vendorReceipts).toHaveLength(previous);
+  expect(user.state.vendor).toBeNull();
 });
 
 test("profile loads the customer's order aggregate and copies their exact referral link", async () => {

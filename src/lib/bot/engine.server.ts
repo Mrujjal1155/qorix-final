@@ -59,6 +59,7 @@ import { MANUAL_INPUT_PREFIX, parseManualInput, validateManualReply, type Manual
 import { SITE_ORIGIN } from "@/lib/site-url";
 import { websiteOrderRow } from "@/lib/bot/website-order-button";
 import { issueTelegramWebsiteLogin } from "@/lib/telegram-website-login.server";
+import { vendorInteraction } from "@/lib/bot/vendor.server";
 import { backgroundWaitUntil } from "@/lib/bg.server";
 import { enqueueAdminBroadcast } from "@/lib/bot/admin-broadcast.server";
 import { binancePaymentAmount, exactBinanceAmount } from "@/lib/binance-payment";
@@ -855,6 +856,7 @@ async function homeKeyboard(settings: Record<string, string>, websiteOwner: numb
     catch { /* Keep the ordinary website link if secure login preparation fails. */ }
   }
   return [
+    websiteOrderRow(btn("website", iconUrlButton(settings, "website", websiteUrl))),
     [
       btn("shop", iconButton(settings, "shop", "shop:0")),
       btn("cart", iconButton(settings, "cart", "cart")),
@@ -883,8 +885,7 @@ async function homeKeyboard(settings: Record<string, string>, websiteOwner: numb
       btn("api", iconButton(settings, "api", "api")),
       btn("clear", iconButton(settings, "clear", "clear")),
     ],
-    // Private-chat link opens the named website consent screen, never a Mini App.
-    websiteOrderRow(btn("website", iconUrlButton(settings, "website", websiteUrl))),
+    [{ text: "🏪 Vendor Application", callback_data: "ven:open", style: "primary" }],
   ];
 }
 
@@ -3891,6 +3892,16 @@ async function handleMessage(msg: any) {
 
   // state machine
   const state = (user.state ?? {}) as any;
+  if (state.vendor) {
+    try {
+      const v = await vendorInteraction(chatId, state, null, text);
+      await setState(chatId, v.state);
+      await say(chatId, v.text, v.kb);
+    } catch (e) {
+      await say(chatId, escapeHtml(e instanceof Error ? e.message : "Could not save answer. Please try again."), [[{text:"Resume Application",callback_data:"ven:custom",style:"primary"},{text:"Cancel",callback_data:"ven:cancel",style:"danger"}]]);
+    }
+    return;
+  }
   if (state.awaiting === "sup_new" || state.awaiting === "sup_reply" || state.awaiting === "adm_tk_reply") {
     const kind = String(state.awaiting);
     state.awaiting = null;
@@ -6809,6 +6820,18 @@ async function handleCallback(cq: any) {
   const edit = async (text: string, kb?: Button[][]) => {
     await renderText(chatId, messageId, text, kb, fromMedia);
   };
+
+  if (data.startsWith("ven:")) {
+    if (websiteOwner !== chatId) return;
+    try {
+      const v = await vendorInteraction(chatId, (user.state ?? {}) as Record<string, unknown>, data.slice(4));
+      await setState(chatId, v.state);
+      await edit(v.text, v.kb);
+    } catch (e) {
+      await edit(escapeHtml(e instanceof Error ? e.message : "Could not save application. Please try again."), [[{text:"Vendor Application",callback_data:"ven:open",style:"primary"},{text:"Cancel",callback_data:"ven:cancel",style:"danger"}]]);
+    }
+    return;
+  }
 
   if (data === "jg:v") {
     const s = await getSettings();

@@ -48,6 +48,7 @@ import { Route as AdminSuppliersRouteImport } from './routes/admin/suppliers'
 import { Route as AdminSupportRouteImport } from './routes/admin/support'
 import { Route as AdminUserPricesRouteImport } from './routes/admin/user-prices'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminVendorsRouteImport } from './routes/admin/vendors'
 import { Route as AdminWebhookRouteImport } from './routes/admin/webhook'
 import { Route as OrderConfirmationRouteImport } from './routes/order.confirmation'
 import { Route as ResellerIndexRouteImport } from './routes/reseller.index'
@@ -276,6 +277,11 @@ const AdminUsersRoute = AdminUsersRouteImport.update({
   path: '/users',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminVendorsRoute = AdminVendorsRouteImport.update({
+  id: '/vendors',
+  path: '/vendors',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminWebhookRoute = AdminWebhookRouteImport.update({
   id: '/webhook',
   path: '/webhook',
@@ -497,6 +503,7 @@ export interface FileRoutesByFullPath {
   '/admin/support': typeof AdminSupportRoute
   '/admin/user-prices': typeof AdminUserPricesRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/vendors': typeof AdminVendorsRoute
   '/admin/webhook': typeof AdminWebhookRoute
   '/order/confirmation': typeof OrderConfirmationRoute
   '/reseller/docs': typeof ResellerDocsRoute
@@ -569,6 +576,7 @@ export interface FileRoutesByTo {
   '/admin/support': typeof AdminSupportRoute
   '/admin/user-prices': typeof AdminUserPricesRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/vendors': typeof AdminVendorsRoute
   '/admin/webhook': typeof AdminWebhookRoute
   '/order/confirmation': typeof OrderConfirmationRoute
   '/reseller/docs': typeof ResellerDocsRoute
@@ -644,6 +652,7 @@ export interface FileRoutesById {
   '/admin/support': typeof AdminSupportRoute
   '/admin/user-prices': typeof AdminUserPricesRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/vendors': typeof AdminVendorsRoute
   '/admin/webhook': typeof AdminWebhookRoute
   '/order/confirmation': typeof OrderConfirmationRoute
   '/reseller/docs': typeof ResellerDocsRoute
@@ -719,6 +728,7 @@ export interface FileRouteTypes {
     | '/admin/support'
     | '/admin/user-prices'
     | '/admin/users'
+    | '/admin/vendors'
     | '/admin/webhook'
     | '/order/confirmation'
     | '/reseller/docs'
@@ -791,6 +801,7 @@ export interface FileRouteTypes {
     | '/admin/support'
     | '/admin/user-prices'
     | '/admin/users'
+    | '/admin/vendors'
     | '/admin/webhook'
     | '/order/confirmation'
     | '/reseller/docs'
@@ -865,6 +876,7 @@ export interface FileRouteTypes {
     | '/admin/support'
     | '/admin/user-prices'
     | '/admin/users'
+    | '/admin/vendors'
     | '/admin/webhook'
     | '/order/confirmation'
     | '/reseller/docs'
@@ -1222,6 +1234,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminUsersRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/vendors': {
+      id: '/admin/vendors'
+      path: '/vendors'
+      fullPath: '/admin/vendors'
+      preLoaderRoute: typeof AdminVendorsRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/webhook': {
       id: '/admin/webhook'
       path: '/webhook'
@@ -1496,6 +1515,7 @@ interface AdminRouteRouteChildren {
   AdminSupportRoute: typeof AdminSupportRoute
   AdminUserPricesRoute: typeof AdminUserPricesRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  AdminVendorsRoute: typeof AdminVendorsRoute
   AdminWebhookRoute: typeof AdminWebhookRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
@@ -1521,6 +1541,7 @@ const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminSupportRoute: AdminSupportRoute,
   AdminUserPricesRoute: AdminUserPricesRoute,
   AdminUsersRoute: AdminUsersRoute,
+  AdminVendorsRoute: AdminVendorsRoute,
   AdminWebhookRoute: AdminWebhookRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
