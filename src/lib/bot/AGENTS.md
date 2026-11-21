@@ -1,0 +1,3 @@
+- Browser payment links authorize only payment of a server-reserved checkout; hash bearer tokens, keep them out of URL queries, and never return buyer identity or credentials.
+- Gateway deposits attach to original browser-link orders inside the insert transaction before any provider call; reuse existing verification, atomic settlement and Telegram delivery to prevent duplicate charges or orders.
+- Claim browser gateway creation once and retain uncertain attempts for review rather than releasing them for replay; every gateway inherits the original link's 30-minute deadline.

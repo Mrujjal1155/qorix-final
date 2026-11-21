@@ -52,6 +52,13 @@ test("legacy Bybit icon is preserved before bot override", async () => {
   expect(buttons.flat().find((b) => b.callback_data === "dep:bybit")?.icon_custom_emoji_id).toBe(legacy);
 });
 
+test("checkout offers Wallet then Direct Payment then Stars, not legacy gateway callbacks", async () => {
+  settings["stars_enabled"] = "1";
+  invalidateSettings();
+  await click("copay");
+  expect(buttons.flat().filter(b => String(b.callback_data).startsWith("copm:")).map(b => b.callback_data)).toEqual(["copm:balance", "copm:browser", "copm:stars"]);
+});
+
 for (const [slot, gateway, emojiId] of slots) {
   test(`${gateway}: admin edit → Premium entity save → wallet and checkout readback → reset`, async () => {
     await click("adm:paymenticons");
@@ -63,6 +70,11 @@ for (const [slot, gateway, emojiId] of slots) {
     for (const [page, prefix] of [["wallet", "dep"], ["copay", "copm"]]) {
       await click(page ?? "");
       const button = buttons.flat().find((b) => b.callback_data === `${prefix}:${gateway}`);
+      if (page === "copay" && gateway !== "stars") {
+        expect(button).toBeUndefined();
+        expect(buttons.flat().some(b => b.callback_data === "copm:browser")).toBe(true);
+        continue;
+      }
       expect(button?.icon_custom_emoji_id).toBe(emojiId);
       expect(button?.style).toBe("primary");
       expect(new TextEncoder().encode(button.callback_data).length).toBeLessThanOrEqual(64);
