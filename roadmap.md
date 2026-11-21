@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Fix Insight delivery after provider failed/refunded orders: matched real failed orders to exact provider debit/refund evidence through read-only GETs. One bounded deterministic replacement after full refund verification; recover completed readback without another buy; preserve unknown/partial/test review, paid metadata and saved retry references. Adapter/fulfil/regression tests pass; no real purchase, historical repair or deployment.
+- [ ] Verify Insight paid checkout and auto-delivery on the deployed bot; requires separate deployment and real-purchase permission. Older pending orders without original references require reconciliation, never blind repurchase.
+
 - [x] Add shared Bot Admin Stars Premium emoji editor through `wal_stars`; mocked real admin save/reset and wallet/checkout readback, disabled-gateway and non-admin protections pass (9 flow + 6 pricing tests), build OK. Website/payment behavior unchanged; no real Telegram sends or deployment.
 - [ ] Verify Stars Premium emoji visually in live Telegram after separately approved deployment and actual bot interaction.
 

@@ -6283,6 +6283,7 @@ async function fulfillCheckout(
     let deliveredItems: string[] = [];
     let status = "pending";
     let autoFailReason = "";
+    let insightReference: string | null = null;
     const miLines = meta.inputs?.[p.id] ?? null;
     const miCfg = p.delivery_type === "manual" ? await manualInputFor(p.id) : null;
     if (p.delivery_type === "manual" && p.manual_stock_limited) {
@@ -6298,6 +6299,19 @@ async function fulfillCheckout(
         else if (!sup.is_enabled) autoFailReason = `Supplier “${sup.name ?? sup.code}” is disabled in admin`;
         else {
           try {
+            const { isInsightStore } = await import("@/lib/suppliers/insight.server");
+            if (isInsightStore(sup)) {
+              const reserved = awaitingRows.find((row: any) => row.product_id === p.id && Number(row.quantity) === Number(l.qty));
+              if (reserved) {
+                const { data: current, error: readError } = await db.from("orders").select("meta").eq("id", reserved.id).maybeSingle();
+                if (readError || !current) throw new Error("Could not read the paid order; no purchase attempted");
+                reserved.meta = current.meta ?? {};
+                insightReference = reserved.meta.insight_reference ?? `qorix-insight-${reserved.id}`;
+                const { error } = await db.from("orders").update({ meta: { ...reserved.meta, insight_reference: insightReference } }).eq("id", reserved.id);
+                if (error) throw new Error("Could not save the purchase reference; no purchase attempted");
+                reserved.meta = { ...reserved.meta, insight_reference: insightReference };
+              } else insightReference = `qorix-${chatId}-${p.id}-${Date.now()}`;
+            }
             // Buy against the supplier's live product id (it can rotate between
             // syncs) so a fresh order never hits a dead id.
             let externalId = String(p.supplier_external_id);
@@ -6325,7 +6339,7 @@ async function fulfillCheckout(
               sup as any,
               externalId,
               l.qty,
-              `qorix-${chatId}-${p.id}-${Date.now()}`,
+              insightReference ?? `qorix-${chatId}-${p.id}-${Date.now()}`,
             );
             if (res.items.length) {
               deliveredItems = res.items;
@@ -6386,10 +6400,11 @@ async function fulfillCheckout(
       coupon_code: meta.coupon?.code ?? null,
       discount: prepaid ? Number(l.order.discount || 0) : Math.round(share * 100) / 100,
       ...(prepaid ? { meta: { ...claimRow?.meta, paid: true, awaiting_payment: false, paid_at: new Date().toISOString() } } : {}),
-      ...(miLines?.length || p.delivery_type === "manual" || (status !== "completed" && autoFailReason)
+      ...(insightReference || miLines?.length || p.delivery_type === "manual" || (status !== "completed" && autoFailReason)
         ? {
             meta: {
               ...((claimRow?.meta as any) ?? {}),
+              ...(insightReference ? { insight_reference: insightReference } : {}),
               ...(prepaid ? { paid: true, awaiting_payment: false, paid_at: new Date().toISOString() } : {}),
               ...(miLines?.length || p.delivery_type === "manual" ? { manual: true } : {}),
               ...(miLines?.length ? { manual_input: miLines } : {}),

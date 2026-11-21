@@ -10,6 +10,73 @@ function respond(data: unknown, status = 200) {
   return fn;
 }
 describe("Insight Store documented contract", () => {
+  function sequence(responses: unknown[]) {
+    let index = 0;
+    const fn = mock(async (_input: string | URL | Request, _init?: RequestInit) => {
+      if (index >= responses.length) throw new Error("Unexpected extra supplier request");
+      return new Response(JSON.stringify(responses[index++]), { status: 200 });
+    });
+    globalThis.fetch = fn as unknown as typeof fetch;
+    return fn;
+  }
+  const failed = { order_id: 6922, product_id: 46, quantity: 1, status: "failed", amount_usdt: 4, codes: [] };
+  const completed = { ...failed, order_id: 6923, status: "completed", codes: ["ACCOUNT\nPASSWORD"] };
+  const debit = { kind: "order_debit", amount_usdt: -4, ref_type: "api_order", ref_id: "6922" };
+  const refund = { kind: "refund", amount_usdt: 4, ref_type: "api_order", ref_id: "6922" };
+  test("failed and fully refunded purchase automatically delivers through one deterministic replacement", async () => {
+    const fn = sequence([{ order: failed }, { order: failed }, { recent_transactions: [debit, refund] }, { order: completed }]);
+    expect(await supplierOrder(supplier, "46", 1, "original-reference")).toEqual({ code: "6923", items: ["ACCOUNT\nPASSWORD"] });
+    expect(fn.mock.calls.map(([url]) => url)).toEqual([
+      "https://api.insightxpro.store/api/v1/orders", "https://api.insightxpro.store/api/v1/orders/6922",
+      "https://api.insightxpro.store/api/v1/balance", "https://api.insightxpro.store/api/v1/orders",
+    ]);
+    const bodies = fn.mock.calls.filter(([, init]) => init?.method === "POST").map(([, init]) => JSON.parse(String(init?.body)));
+    expect(bodies).toEqual([
+      { product_id: 46, quantity: 1, idempotency_key: "original-reference" },
+      { product_id: 46, quantity: 1, idempotency_key: "original-reference:refunded:6922" },
+    ]);
+  });
+  for (const [label, transactions] of [
+    ["missing refund", [debit]], ["partial refund", [debit, { ...refund, amount_usdt: 3 }]],
+    ["other order refund", [debit, { ...refund, ref_id: "9999" }]],
+    ["missing debit", [refund]], ["duplicate refund evidence", [debit, refund, refund]],
+  ] as const) {
+    test(`${label} never starts another purchase`, async () => {
+      const fn = sequence([{ order: failed }, { order: failed }, { recent_transactions: transactions }]);
+      await expect(supplierOrder(supplier, "46", 1, "stable")).rejects.toThrow("needs review");
+      expect(fn.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+    });
+  }
+  test("pending purchase readback completes delivery without another POST", async () => {
+    const fn = sequence([{ order: { ...failed, status: "pending" } }, { order: { ...completed, order_id: 6922, coupons: completed.codes, codes: [] } }]);
+    expect(await supplierOrder(supplier, "46", 1, "stable")).toEqual({ code: "6922", items: ["ACCOUNT\nPASSWORD"] });
+    expect(fn.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(1);
+  });
+  test("repeating the same order reuses both keys instead of creating a third purchase identity", async () => {
+    const replies = [{ order: failed }, { order: failed }, { recent_transactions: [debit, refund] }, { order: completed }];
+    const fn = sequence([...replies, ...replies]);
+    await supplierOrder(supplier, "46", 1, "original-reference");
+    await supplierOrder(supplier, "46", 1, "original-reference");
+    const keys = fn.mock.calls.filter(([, init]) => init?.method === "POST").map(([, init]) => JSON.parse(String(init?.body)).idempotency_key);
+    expect(keys).toEqual(["original-reference", "original-reference:refunded:6922", "original-reference", "original-reference:refunded:6922"]);
+    expect(new Set(keys).size).toBe(2);
+  });
+  test("second failed purchase stops rather than forming an endless retry loop", async () => {
+    const second = { ...failed, order_id: 6923 };
+    const fn = sequence([{ order: failed }, { order: failed }, { recent_transactions: [debit, refund] }, { order: second }, { order: second }]);
+    await expect(supplierOrder(supplier, "46", 1, "stable")).rejects.toThrow("needs review");
+    expect(fn.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(2);
+  });
+  test("partial failed delivery never becomes a replacement purchase", async () => {
+    const fn = sequence([{ order: { ...failed, quantity: 2, codes: ["ONE-ACCOUNT"] } }]);
+    await expect(supplierOrder(supplier, "46", 2, "stable")).rejects.toThrow("needs review");
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+  test("mismatched readback order cannot authorize another purchase", async () => {
+    const fn = sequence([{ order: failed }, { order: { ...failed, order_id: 9999 } }]);
+    await expect(supplierOrder(supplier, "46", 1, "stable")).rejects.toThrow("needs review");
+    expect(fn).toHaveBeenCalledTimes(2);
+  });
   test("uses the wallet cost, not the reseller selling price, and includes sold-out rows", async () => {
     const fn = respond({ products: [
       { id: 14, name: "Gemini", price: 1.5, price_usdt: 1.5, base_price_usdt: 1, stock: 250, available: true, description: "<blockquote>18 Months</blockquote>", how_to_use: "Redeem" },

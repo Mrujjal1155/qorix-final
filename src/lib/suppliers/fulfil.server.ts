@@ -76,6 +76,9 @@ export async function supplierOrderWithRetry(
   opts?: { customerEmail?: string | null },
 ) {
   const { supplierOrder } = await import("@/lib/suppliers/api.server");
+  const { isInsightStore } = await import("@/lib/suppliers/insight.server");
+  // Insight owns its bounded, refund-verified replacement; never add a transport retry.
+  if (isInsightStore(sup)) return supplierOrder(sup, externalId, qty, ref, opts as any);
   try {
     const res = await supplierOrder(sup, externalId, qty, ref, opts as any);
     if (res.items.length) return res;
@@ -155,6 +158,18 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
   const { data: sup } = await db.from("suppliers").select("*").eq("id", product.supplier_id).maybeSingle();
   if (!sup) return { ok: false, reason: "Supplier record not found" };
   if (!sup.is_enabled) return { ok: false, reason: `Supplier “${sup.name ?? sup.key}” is disabled in admin` };
+  const { isInsightStore } = await import("@/lib/suppliers/insight.server");
+  const insight = isInsightStore(sup);
+  if (insight && order.meta?.supplier_error && !order.meta?.insight_reference)
+    return { ok: false, reason: "Previous Insight Store purchase has no saved reference; reconcile it before retrying" };
+  const reference = insight
+    ? order.meta?.insight_reference || `qorix-insight-${order.id}`
+    : `qorix-retry-${order.id}-${Date.now()}`;
+  if (insight && !order.meta?.insight_reference) {
+    const { error } = await db.from("orders").update({ meta: { ...order.meta, insight_reference: reference } }).eq("id", order.id);
+    if (error) return { ok: false, reason: "Could not save the purchase reference; no purchase attempted" };
+    order.meta = { ...order.meta, insight_reference: reference };
+  }
 
   // Advisory only: some supplier balance endpoints under-report (or return 0)
   // even when the API wallet is funded, so never block the purchase on it —
@@ -174,7 +189,7 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
       sup as any,
       String(product.supplier_external_id),
       Number(order.quantity ?? 1),
-      `qorix-retry-${order.id}-${Date.now()}`,
+      reference,
       { customerEmail: (order as any).customer_email ?? null },
     );
 
@@ -182,7 +197,8 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
     const meta = { ...((order.meta as any) ?? {}) };
     delete meta.supplier_error;
     delete meta.supplier_error_at;
-    await db.from("orders").update({ status: "completed", delivered_content: content, meta }).eq("id", order.id);
+    const { error: saveError } = await db.from("orders").update({ status: "completed", delivered_content: content, meta }).eq("id", order.id);
+    if (insight && saveError) throw new Error("Delivery received but could not be saved; retry must reuse the saved purchase reference");
     // Bot orders are announced by the bot flow; website orders are announced here.
     if ((order as any).source === "website") {
       const { announceOrderSale } = await import("@/lib/bot/engine.server");

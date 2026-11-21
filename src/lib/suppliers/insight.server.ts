@@ -53,16 +53,50 @@ export async function insightProducts(s: SupplierRow): Promise<SupplierProduct[]
   });
 }
 
+function insightDelivery(order: any, productId: number, qty: number) {
+  const codes = [order?.codes, order?.delivered_codes, order?.coupons].find((value) => Array.isArray(value) && value.length);
+  const id = Number(order?.order_id ?? order?.id);
+  if (order?.test || order?.status !== "completed" || order?.error || Number(order?.product_id) !== productId || Number(order?.quantity) !== qty || !Array.isArray(codes) || codes.length !== qty || codes.some((code: unknown) => typeof code !== "string" || !code.trim() || code.startsWith("TEST-")) || !Number.isSafeInteger(id) || id <= 0) return null;
+  return { code: String(id), items: codes as string[] };
+}
+
+/** A failed order is safe to replace only after the provider proves its full debit was refunded. */
+async function insightRefunded(s: SupplierRow, order: any) {
+  const amount = Number(order?.amount_usdt ?? order?.total_usdt);
+  const id = String(order?.order_id ?? order?.id);
+  if (order?.status !== "failed" || order?.test || !Number.isFinite(amount) || amount <= 0 || [order?.codes, order?.delivered_codes, order?.coupons].some((v) => Array.isArray(v) && v.length)) return false;
+  const balance = await insightRequest(s, "balance");
+  const transactions = Array.isArray(balance?.recent_transactions) ? balance.recent_transactions : [];
+  const matches = transactions.filter((t: any) => t.ref_type === "api_order" && String(t.ref_id) === id);
+  const debit = matches.filter((t: any) => t.kind === "order_debit");
+  const refund = matches.filter((t: any) => t.kind === "refund");
+  return debit.length === 1 && refund.length === 1 && Number(debit[0]?.amount_usdt) === -amount && Number(refund[0]?.amount_usdt) === amount;
+}
+
 export async function insightOrder(s: SupplierRow, externalId: string, qty: number, reference: string) {
   const productId = Number(externalId);
   if (!Number.isSafeInteger(productId) || productId <= 0 || !Number.isSafeInteger(qty) || qty <= 0 || !reference.trim()) throw new Error("Invalid Insight Store order request");
-  const data = await insightRequest(s, "orders", { product_id: productId, quantity: qty, idempotency_key: reference });
-  const order = data.order;
-  const codes = Array.isArray(order?.codes) && order.codes.length ? order.codes : order?.delivered_codes;
-  if (order?.test || order?.status !== "completed" || order?.error || Number(order?.product_id) !== productId || Number(order?.quantity) !== qty || !Array.isArray(codes) || codes.length !== qty || codes.some((code: unknown) => typeof code !== "string" || !code.trim() || code.startsWith("TEST-"))) {
-    throw new Error("Insight Store delivery needs review; do not place another purchase");
+  let key = reference;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const data = await insightRequest(s, "orders", { product_id: productId, quantity: qty, idempotency_key: key });
+    let order = data.order;
+    const delivery = insightDelivery(order, productId, qty);
+    if (delivery) return delivery;
+    const id = Number(order?.order_id ?? order?.id);
+    // No second purchase for a timeout, partial delivery, mismatched order or test response.
+    const hasCodes = [order?.codes, order?.delivered_codes, order?.coupons].some((v) => Array.isArray(v) && v.length);
+    if (!hasCodes && !order?.test && Number.isSafeInteger(id) && id > 0 && Number(order?.product_id) === productId && Number(order?.quantity) === qty && ["pending", "processing", "failed"].includes(order?.status)) {
+      order = (await insightRequest(s, `orders/${id}`)).order;
+      if (Number(order?.order_id ?? order?.id) === id && Number(order?.product_id) === productId && Number(order?.quantity) === qty) {
+        const recovered = insightDelivery(order, productId, qty);
+        if (recovered) return recovered;
+        if (attempt === 0 && await insightRefunded(s, order)) {
+          key = `${reference}:refunded:${id}`;
+          continue;
+        }
+      }
+    }
+    break;
   }
-  const id = order.order_id ?? order.id;
-  if (!Number.isSafeInteger(id) || id <= 0) throw new Error("Invalid Insight Store order reference; delivery needs review");
-  return { code: String(id), items: codes as string[] };
+  throw new Error("Insight Store delivery needs review; do not place another purchase");
 }
