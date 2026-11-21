@@ -19,6 +19,7 @@ async function run({ request }: { request: Request }) {
   const { drainStockAudience } = await import("@/lib/bot/stock-audience.server");
   const { drainReferralRewards } = await import("@/lib/referral-rewards.server");
   const { reconcileProductPremiumIcons } = await import("@/lib/product-premium-sync.server");
+  const { drainWebsiteOrderDeliveries } = await import("@/lib/website-order-delivery.server");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   try {
     const [res, recovered, resellerRecovered, , , customerNotifications] = await Promise.all([
@@ -32,6 +33,7 @@ async function run({ request }: { request: Request }) {
       sweepBlockchainDeposits().catch(() => ({ error: "Blockchain verification will retry" })),
       drainReferralRewards().catch(() => ({ sent: 0 })),
       reconcileProductPremiumIcons().catch(() => ({ prepared: 0 })),
+      drainWebsiteOrderDeliveries().catch(() => ({ sent: 0 })),
     ]);
     return Response.json({ ok: true, ...res, recovered, resellerRecovered, customerNotifications });
   } catch (e) {

@@ -200,11 +200,13 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
     if ((order as any).source === "website") {
       const { announceOrderSale } = await import("@/lib/bot/engine.server");
       await announceOrderSale(String(order.id));
+      const { sendWebsiteOrderDelivery } = await import("@/lib/website-order-delivery.server");
+      await sendWebsiteOrderDelivery(String(order.id)).catch(() => false);
     }
 
     // The purchase is already paid for and stored — a Telegram hiccup must not
     // report the delivery as failed.
-    if (order.telegram_id) {
+    if (order.telegram_id && order.source !== "website") {
       try {
         const { sendMessage } = await import("@/lib/telegram.server");
         const { deliverItemsToChat } = await import("@/lib/bot/deliver-items.server");

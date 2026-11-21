@@ -18,6 +18,10 @@ export async function retryInhouseDelivery(orderId: string) {
   const { data: order, error: readError } = await db.from("orders").select("*").eq("id", orderId).maybeSingle();
   if (readError || !order?.delivered_content) return { ok: false, reason: "Delivery saved; reload the order and retry." };
   const items = String(order.delivered_content).split("\n---\n");
+  if (order.source === "website") {
+    const { sendWebsiteOrderDelivery } = await import("@/lib/website-order-delivery.server");
+    await sendWebsiteOrderDelivery(orderId).catch(() => false);
+  }
   if (order.telegram_id && order.source !== "website") {
     try {
       const { deliverItemsToChat } = await import("@/lib/bot/deliver-items.server");

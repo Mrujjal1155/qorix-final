@@ -69,6 +69,8 @@ export const purchaseWithWebWallet = createServerFn({ method: "POST" })
       const { deliverWebsiteWalletOrder } = await import("@/lib/website-wallet.server");
       await deliverWebsiteWalletOrder(r.id);
     }
+    const { sendWebsiteOrderDelivery } = await import("@/lib/website-order-delivery.server");
+    await sendWebsiteOrderDelivery(r.id).catch(() => false);
     const { orderAccessToken } = await import("@/lib/order-access.server");
     return { order_no: r.order_no, email: r.email, token: orderAccessToken(r.order_no, r.email) };
   });

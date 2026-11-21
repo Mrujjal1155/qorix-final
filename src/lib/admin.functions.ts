@@ -851,7 +851,12 @@ export const completeManualOrder = createServerFn({ method: "POST" })
     } catch (e) {
       console.error("sale announce failed", e);
     }
-    if (order.source === "website" || !order.telegram_id) return { ok: true };
+    if (order.source === "website") {
+      const { sendWebsiteOrderDelivery } = await import("@/lib/website-order-delivery.server");
+      await sendWebsiteOrderDelivery(String(order.id)).catch(() => false);
+      return { ok: true };
+    }
+    if (!order.telegram_id) return { ok: true };
     const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const { sendMessage } = await import("@/lib/telegram.server");
     const res: any = await sendMessage(
@@ -1018,6 +1023,8 @@ export const deliverOrder = createServerFn({ method: "POST" })
     if (order?.source === "website") {
       const { announceOrderSale } = await import("@/lib/bot/engine.server");
       await announceOrderSale(String(order.id));
+      const { sendWebsiteOrderDelivery } = await import("@/lib/website-order-delivery.server");
+      await sendWebsiteOrderDelivery(String(order.id)).catch(() => false);
     }
     if (order?.source === "website" || !order?.telegram_id) return { ok: true };
     const { sendMessage } = await import("@/lib/telegram.server");

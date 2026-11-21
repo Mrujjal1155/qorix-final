@@ -23,6 +23,8 @@ export async function deliverWebsiteWalletOrder(orderId: string) {
     }
     const { error } = await db.from("orders").update({ status: "completed", delivered_content: result.items.join("\n---\n") }).eq("id", orderId).eq("status", "pending");
     if (error) throw error;
+    const { sendWebsiteOrderDelivery } = await import("@/lib/website-order-delivery.server");
+    await sendWebsiteOrderDelivery(orderId).catch(() => false);
   } catch (error) {
     console.error("[website-wallet] delivery needs review", orderId, error);
     // Never replay an uncertain supplier buy. The paid row and wallet debit remain visible.

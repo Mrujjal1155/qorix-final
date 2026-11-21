@@ -2655,6 +2655,53 @@ export type Database = {
         }
         Relationships: []
       }
+      website_order_deliveries: {
+        Row: {
+          attempts: number
+          claim_token: string | null
+          claimed_at: string | null
+          created_at: string
+          next_attempt_at: string
+          order_id: string
+          status: string
+          summary_sent: boolean
+          telegram_id: number
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          claim_token?: string | null
+          claimed_at?: string | null
+          created_at?: string
+          next_attempt_at?: string
+          order_id: string
+          status?: string
+          summary_sent?: boolean
+          telegram_id: number
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          claim_token?: string | null
+          claimed_at?: string | null
+          created_at?: string
+          next_attempt_at?: string
+          order_id?: string
+          status?: string
+          summary_sent?: boolean
+          telegram_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "website_order_deliveries_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       public_products: {
@@ -2826,6 +2873,27 @@ export type Database = {
       claim_web_login_code: {
         Args: { _code: string; _secret_hash: string }
         Returns: number
+      }
+      claim_website_order_delivery: {
+        Args: { _order_id?: string }
+        Returns: {
+          attempts: number
+          claim_token: string | null
+          claimed_at: string | null
+          created_at: string
+          next_attempt_at: string
+          order_id: string
+          status: string
+          summary_sent: boolean
+          telegram_id: number
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "website_order_deliveries"
+          isOneToOne: false
+          isSetofReturn: true
+        }
       }
       cleanup_old_logs: { Args: never; Returns: Json }
       confirm_web_login_code: {
