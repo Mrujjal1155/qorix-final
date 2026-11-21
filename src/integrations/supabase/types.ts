@@ -536,6 +536,42 @@ export type Database = {
         }
         Relationships: []
       }
+      direct_pay_links: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          meta: Json
+          result: Json | null
+          started_at: string | null
+          started_method: string | null
+          telegram_id: number
+          total: number
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          meta: Json
+          result?: Json | null
+          started_at?: string | null
+          started_method?: string | null
+          telegram_id: number
+          total: number
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          meta?: Json
+          result?: Json | null
+          started_at?: string | null
+          started_method?: string | null
+          telegram_id?: number
+          total?: number
+        }
+        Relationships: []
+      }
       hero_items: {
         Row: {
           accent: string
