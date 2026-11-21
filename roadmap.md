@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Add Website Premium Icons section to Telegram Bot Admin and web Admin Settings; five named controls cover screenshot-marked connection heading/menu/button, consent confirmation and Main Menu. Save public image/video/Lottie artwork server-side into existing storage, render website-only settings with original fallback icons, preserve header arrow and bot/auth/payment behavior. Fourteen new security/editor/media tests and 28 regressions pass; real Telegram static/TGS/video downloads verified; 1280/393/320 saved-media fixtures render all five placements without overflow/runtime errors. No real messages, account authorization, payment or publication.
+- [ ] Verify real admin save → website readback in live Telegram/web admin; external unmanaged authentication and separately approved deployment prevent that end-to-end check.
+
 - [x] Add a Telegram-style connect-or-sign-in deposit notice above the customer auth form when opened from Deposit; preserve ordinary login and all payment behavior. Verified auth/home/track Deposit paths and ordinary login exclusion at 1280/393/320 widths, without overflow or runtime errors; password recovery regressions pass. No deposit or publication.
 
 - [x] Add side-by-side Sign in / Sign up links below Guest and Connect Telegram on the Mobile View Start choice screen; each opens its existing form through optional auth mode search. Existing Telegram, guest and authentication behavior unchanged; no publication.

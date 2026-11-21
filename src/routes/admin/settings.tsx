@@ -31,6 +31,7 @@ import { Wrench, Radio, LayoutTemplate } from "lucide-react";
 import { TemplateManagerCard } from "@/components/admin/TemplateManagerCard";
 import { LiveUpdateCard } from "@/components/LiveUpdateCard";
 import { PRODUCTION_SITE_URL } from "@/lib/site-url";
+import { WebsitePremiumIconsCard } from "@/components/admin/WebsitePremiumIconsCard";
 
 
 export const Route = createFileRoute("/admin/settings")({
@@ -949,6 +950,13 @@ function SettingsPage() {
       description: "Premium emoji IDs for every bot menu button.",
       icon: Smile,
       render: () => iconsCard,
+    },
+    {
+      id: "website-premium-icons",
+      title: "Website Premium Icons",
+      description: "Connect Telegram, authorization and Main Menu icons on the website.",
+      icon: Smile,
+      render: () => <WebsitePremiumIconsCard values={values} onSaved={refetchSettings} />,
     },
     {
       id: "hero",

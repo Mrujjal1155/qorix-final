@@ -103,12 +103,12 @@ export function BotStorefront(props: {
           <p className="flex items-center gap-2 text-base font-bold"><Sparkles className="h-5 w-5 text-tg-quote-bar" /> How do you want to continue?</p>
           <Quote>
             <MenuLine icon={User} t="Guest" d="Shop and order instantly — no account needed" />
-            <MenuLine icon={Send} t="Connect Telegram" d="Use your bot account: same ID, wallet balance, orders, deposits and referral link" />
+            <MenuLine premium="site_web_icon_connect_menu" icon={Send} t="Connect Telegram" d="Use your bot account: same ID, wallet balance, orders, deposits and referral link" />
           </Quote>
         </Bubble>
         <Keys cols={1}>
           <Key icon={User} onClick={() => { localStorage.setItem("qorix_guest", "1"); setView({ k: "menu" }); }}>Continue as Guest</Key>
-          <Key tone="green" icon={Send} onClick={() => setView({ k: "tg" })}>Connect Telegram</Key>
+          <Key premium="site_web_icon_connect_button" tone="green" icon={Send} onClick={() => setView({ k: "tg" })}>Connect Telegram</Key>
         </Keys>
         <Keys cols={2}>
           <KeyLink icon={LogIn} to="/auth" search={{ mode: "in" }}>Sign in</KeyLink>
@@ -122,14 +122,14 @@ export function BotStorefront(props: {
     body = (
       <>
         <Bubble>
-          <p className="flex items-center gap-2 font-bold"><Send className="h-4 w-4 text-tg-link" /> Connect Telegram</p>
+          <p className="flex items-center gap-2 font-bold"><ButtonPremiumIcon setting="site_web_icon_connect_heading" fallback={Send} /> Connect Telegram</p>
           <Quote>{view.what === "wallet" ? "To deposit, connect your Telegram account or sign in." : view.what === "referral"
             ? "Want to earn by referring friends? Connect your Telegram account to see your referral link and rewards."
             : "Your wallet, deposits and profile live in your Telegram bot account. Connect Telegram to use them here."}</Quote>
           <p className="mt-2 text-sm italic">As a guest you can still buy any product and track orders by email.</p>
         </Bubble>
         <Keys cols={1}>
-          <Key tone="green" icon={Send} onClick={() => setView({ k: "tg" })}>Connect Telegram</Key>
+          <Key premium="site_web_icon_connect_button" tone="green" icon={Send} onClick={() => setView({ k: "tg" })}>Connect Telegram</Key>
           {view.what === "wallet" && <KeyLink icon={LogIn} to="/auth" search={{ mode: "in", deposit: true }}>Sign in</KeyLink>}
           <KeyLink icon={Package} to="/track">Track my order</KeyLink>
           <Key premium="menu_icon_back" tone="red" icon={ChevronLeft} onClick={() => setView({ k: "menu" })}>Main Menu</Key>
@@ -207,7 +207,7 @@ export function BotStorefront(props: {
         <Keys cols={1}>
           {signedIn
             ? <Key tone="red" icon={CircleX} onClick={async () => { await supabase.auth.signOut(); localStorage.removeItem("qorix_guest"); setView({ k: "start" }); }}>Disconnect Telegram</Key>
-            : <Key tone="green" icon={Send} onClick={() => setView({ k: "tg" })}>Connect Telegram</Key>}
+            : <Key premium="site_web_icon_connect_button" tone="green" icon={Send} onClick={() => setView({ k: "tg" })}>Connect Telegram</Key>}
         </Keys>
       </>
     );
@@ -367,7 +367,7 @@ export function TelegramConnect({ onDone, onBack }: { onDone: () => void; onBack
   return (
     <>
       <Bubble>
-        <p className="flex items-center gap-2 font-bold"><Send className="h-4 w-4 text-tg-link" /> Connect Telegram</p>
+        <p className="flex items-center gap-2 font-bold"><ButtonPremiumIcon setting="site_web_icon_connect_heading" fallback={Send} /> Connect Telegram</p>
         <Quote>After you authorize in the bot, this website shows your same bot account — ID, wallet balance, orders, deposits and referral link.</Quote>
         <p className="mt-2 text-sm italic">{msg}</p>
         <p className="mt-1 text-xs text-tg-muted">The link works once and expires in 10 minutes.</p>

@@ -9,6 +9,7 @@ import { parseTelegramLoginFragment, telegramConsentReturnPath, telegramWebsiteD
 import { supabase } from "@/integrations/supabase/client";
 import { BotFrame, useMobileTemplate } from "@/components/mobile/BotFrame";
 import { Bubble, Key, Keys, TelegramConnect } from "@/components/mobile/BotStorefront";
+import { ButtonPremiumIcon } from "@/components/mobile/ButtonPremiumIcon";
 
 export const Route = createFileRoute("/tg")({
   head: () => ({ meta: [
@@ -91,15 +92,15 @@ function TelegramWebsiteConsent() {
   if (mobile) return <BotFrame onBack={cancel} onMenu={cancel}>
     {reconnecting ? <TelegramConnect onDone={() => void continueShopping()} onBack={() => setReconnecting(false)} /> : <>
       <Bubble>
-        <p className="flex items-center gap-2 text-lg font-bold"><Send className="h-5 w-5 shrink-0 text-tg-link" />{name && state !== "invalid" ? `Continue as ${name}` : "Connect Telegram"}</p>
+        <p className="flex items-center gap-2 text-lg font-bold"><ButtonPremiumIcon setting="site_web_icon_connect_heading" fallback={Send} />{name && state !== "invalid" ? `Continue as ${name}` : "Connect Telegram"}</p>
         <p className="mt-3 text-sm">{state === "ready" ? "Connect this Telegram account to QORIX Store — same wallet, balance and orders." : message}</p>
         <p className="mt-3 flex items-center gap-2 text-xs text-tg-muted"><LockKeyhole className="h-4 w-4 shrink-0" />One-time link · expires in 10 minutes</p>
       </Bubble>
       <Keys cols={1}>
-        {(state === "ready" || state === "connecting") && <Key tone="green" icon={ShieldCheck} disabled={state === "connecting"} onClick={() => void connect()}>{state === "connecting" ? "Connecting…" : `Connect as ${name}`}</Key>}
+        {(state === "ready" || state === "connecting") && <Key premium="site_web_icon_consent_confirm" tone="green" icon={ShieldCheck} disabled={state === "connecting"} onClick={() => void connect()}>{state === "connecting" ? "Connecting…" : `Connect as ${name}`}</Key>}
         {state === "invalid" && <Key icon={RefreshCw} onClick={() => { credentials.current = null; setReconnecting(true); }}>Reconnect Telegram</Key>}
         <Key icon={Store} disabled={state === "connecting"} onClick={() => void continueShopping()}>Continue shopping</Key>
-        <Key tone="red" icon={ArrowLeft} disabled={state === "connecting"} onClick={cancel}>Main Menu</Key>
+        <Key premium="site_web_icon_main_menu" tone="red" icon={ArrowLeft} disabled={state === "connecting"} onClick={cancel}>Main Menu</Key>
       </Keys>
     </>}
   </BotFrame>;

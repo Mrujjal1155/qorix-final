@@ -1,0 +1,1 @@
+- Website Premium Icons uses the shared browser-safe placement registry; only authorized bot/web saves prepare public artwork before storing website-only settings, so credentials never reach the renderer and bot icons stay independent.

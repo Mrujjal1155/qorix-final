@@ -14,6 +14,7 @@ import { sendPasswordResetEmail } from "@/lib/password-reset.functions";
 import { BotFrame, useMobileTemplate } from "@/components/mobile/BotFrame";
 import { Bubble, Key, Keys, TelegramConnect, Title } from "@/components/mobile/BotStorefront";
 import { ArrowLeft, LogIn, Mail, Send, UserPlus } from "lucide-react";
+import { ButtonPremiumIcon } from "@/components/mobile/ButtonPremiumIcon";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): { mode?: "in" | "up"; deposit?: boolean } => ({
@@ -116,7 +117,7 @@ function AuthPage() {
   }
 
   if (mobile) return <BotFrame onBack={() => { if (connecting) setConnecting(false); else if (forgotView) setForgotView(false); else void navigate({ to: "/" }); }}>
-    {depositNotice && <Bubble><p role="note" className="flex items-start gap-2 text-sm"><Send className="mt-0.5 h-4 w-4 shrink-0 text-tg-link" /><span>To deposit, connect your Telegram account or sign in.</span></p></Bubble>}
+    {depositNotice && <Bubble><p role="note" className="flex items-start gap-2 text-sm"><ButtonPremiumIcon setting="site_web_icon_connect_heading" fallback={Send} /><span>To deposit, connect your Telegram account or sign in.</span></p></Bubble>}
     {connecting ? <TelegramConnect onBack={() => setConnecting(false)} onDone={() => { void navigate({ to: "/account", replace: true }); }} /> : <>
       <form className="flex flex-col gap-2" onSubmit={e => { if (forgotView) { e.preventDefault(); void forgot(); } else void submit(e); }}>
         <Bubble className="w-full">
@@ -131,10 +132,10 @@ function AuthPage() {
         <Button type="submit" disabled={loading || resetting} className="min-h-12 w-full bg-tg-btn-green text-tg-btn-fg hover:bg-tg-btn-green/90">{forgotView ? <Mail /> : mode === "up" ? <UserPlus /> : <LogIn />}{loading || resetting ? "Please wait…" : forgotView ? "Send reset link" : mode === "up" ? "Create account" : "Sign in"}</Button>
       </form>
       <Keys cols={1}>
-        {!forgotView && <Key icon={Send} onClick={() => { setNotice(""); setConnecting(true); }}>Connect Telegram</Key>}
+        {!forgotView && <Key premium="site_web_icon_connect_button" icon={Send} onClick={() => { setNotice(""); setConnecting(true); }}>Connect Telegram</Key>}
         {!forgotView && <Key icon={mode === "in" ? UserPlus : LogIn} disabled={loading} onClick={() => { setMode(mode === "in" ? "up" : "in"); setNotice(""); }}>{mode === "in" ? "Sign up" : "Sign in"}</Key>}
         {!forgotView && <Key icon={Mail} onClick={() => { setForgotView(true); setNotice(""); }}>Forgot password?</Key>}
-        <Key tone="red" icon={ArrowLeft} onClick={() => { if (forgotView) { setForgotView(false); setNotice(""); } else void navigate({ to: "/" }); }}>{forgotView ? "Back to sign in" : "Main Menu"}</Key>
+        <Key premium={forgotView ? undefined : "site_web_icon_main_menu"} tone="red" icon={ArrowLeft} onClick={() => { if (forgotView) { setForgotView(false); setNotice(""); } else void navigate({ to: "/" }); }}>{forgotView ? "Back to sign in" : "Main Menu"}</Key>
       </Keys>
     </>}
   </BotFrame>;

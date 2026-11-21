@@ -83,6 +83,7 @@ import { blockchainGateways } from "@/lib/blockchain.server";
 import { chainSchema, chainTxid, chainTransactionKey } from "@/lib/blockchain-payment";
 import { confirmBlockchainBotDeposit, sweepBlockchainWebsiteOrders } from "@/lib/blockchain-settle.server";
 import { DEPOSIT_CONTROL_ICON_KEYS, changeGatewayButton, depositControls, depositNavigationButton, depositPaidButton, depositQrControls, depositQrUrl } from "@/lib/bot/deposit-controls";
+import { WEBSITE_PREMIUM_ICONS, websiteIconMedia, websiteEmojiId } from "@/lib/website-premium-icons";
 
 
 const db = supabaseAdmin as any;
@@ -4446,6 +4447,32 @@ async function handleMessage(msg: any) {
       );
       return;
     }
+    case "adm_website_icon": {
+      if (!(await isAdmin(chatId))) return;
+      const slot = WEBSITE_PREMIUM_ICONS.find(icon => icon.key === state.adm_website_icon);
+      if (!slot) return;
+      const input = readIconInput(msg, text, "🌐");
+      const parsed = parseIconValue(input.value, "🌐");
+      const emojiId = text.trim() === "-" ? "" : parsed.customId ?? "";
+      if (input.empty || (text.trim() !== "-" && (!emojiId || !websiteEmojiId.safeParse(emojiId).success))) {
+        await say(chatId, "Send a Telegram Premium emoji or its numeric ID. Send <code>-</code> to restore the default icon.", [[{ text: "Website Premium Icons", callback_data: "adm:webicons" }]]);
+        return;
+      }
+      try {
+        const { prepareWebsiteIconRows } = await import("@/lib/website-premium-icons.server");
+        const rows = await prepareWebsiteIconRows({ [slot.key]: emojiId });
+        const { error } = await db.from("bot_settings").upsert(rows, { onConflict: "key" });
+        if (error) throw new Error("Could not save website icon.");
+        invalidateSettings();
+        state.awaiting = null;
+        await setState(chatId, state);
+        const view = await admWebsiteIconsView();
+        await say(chatId, `✅ ${escapeHtml(slot.label)} saved.\n\n${view.text}`, view.kb);
+      } catch {
+        await say(chatId, "Could not save the website Premium icon. Check the ID and try again; the previous icon is unchanged.", [[{ text: "Website Premium Icons", callback_data: "adm:webicons" }]]);
+      }
+      return;
+    }
     case "adm_ui_icon":
     case "adm_ui_text": {
       const mode = state.awaiting;
@@ -4833,6 +4860,17 @@ async function adminStatsText() {
   );
 }
 
+async function admWebsiteIconsView() {
+  const settings = await getSettings();
+  const text = "<b>🌐 Website Premium Icons</b>\n\n" + WEBSITE_PREMIUM_ICONS.map(icon => {
+    const saved = websiteIconMedia(settings[icon.key] ?? "");
+    return `${escapeHtml(icon.label)}: ${saved ? `<code>${saved.emojiId}</code>` : "Default"}`;
+  }).join("\n");
+  const kb: Button[][] = WEBSITE_PREMIUM_ICONS.map(icon => [{ text: icon.label, callback_data: `adm:wii:${icon.key}` }]);
+  kb.push([{ text: "⬅️ Bot Admin", callback_data: "adm:stats" }]);
+  return { text, kb };
+}
+
 export function adminKeyboard(): Button[][] {
   return [
     [
@@ -4864,6 +4902,7 @@ export function adminKeyboard(): Button[][] {
     ],
     [{ text: "⌨️ Bottom menu buttons", callback_data: "adm:bottommenu" }],
     [{ text: "👋 Start & welcome emojis", callback_data: "adm:starticons" }],
+    [{ text: "🌐 Website Premium Icons", callback_data: "adm:webicons" }],
     [{ text: "🎁 Special price emojis", callback_data: "adm:specialicons" }],
 
     [
@@ -8043,6 +8082,15 @@ async function handleCallback(cq: any) {
       const v = await admPickView(kind, 0, "");
       await edit(v.text, v.kb);
 
+    } else if (action === "webicons") {
+      await setState(chatId, { ...st, awaiting: null });
+      const view = await admWebsiteIconsView();
+      await edit(view.text, view.kb);
+    } else if (action.startsWith("wii:")) {
+      const slot = WEBSITE_PREMIUM_ICONS.find(icon => icon.key === arg);
+      if (!slot) return;
+      await setState(chatId, { ...st, awaiting: "adm_website_icon", adm_website_icon: slot.key });
+      await say(chatId, `🌐 Send the Premium emoji for <b>${escapeHtml(slot.label)}</b>.\n\nSend a Telegram Premium emoji or its numeric ID. Send <code>-</code> to restore the default.`, [[{ text: "Website Premium Icons", callback_data: "adm:webicons" }]]);
     } else if (action === "pageicons") {
       const v = await admPageIconView();
       await edit(v.text, v.kb);
