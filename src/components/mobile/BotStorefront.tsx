@@ -123,13 +123,14 @@ export function BotStorefront(props: {
       <>
         <Bubble>
           <p className="flex items-center gap-2 font-bold"><Send className="h-4 w-4 text-tg-link" /> Connect Telegram</p>
-          <Quote>{view.what === "referral"
+          <Quote>{view.what === "wallet" ? "To deposit, connect your Telegram account or sign in." : view.what === "referral"
             ? "Want to earn by referring friends? Connect your Telegram account to see your referral link and rewards."
             : "Your wallet, deposits and profile live in your Telegram bot account. Connect Telegram to use them here."}</Quote>
           <p className="mt-2 text-sm italic">As a guest you can still buy any product and track orders by email.</p>
         </Bubble>
         <Keys cols={1}>
           <Key tone="green" icon={Send} onClick={() => setView({ k: "tg" })}>Connect Telegram</Key>
+          {view.what === "wallet" && <KeyLink icon={LogIn} to="/auth" search={{ mode: "in", deposit: true }}>Sign in</KeyLink>}
           <KeyLink icon={Package} to="/track">Track my order</KeyLink>
           <Key premium="menu_icon_back" tone="red" icon={ChevronLeft} onClick={() => setView({ k: "menu" })}>Main Menu</Key>
         </Keys>

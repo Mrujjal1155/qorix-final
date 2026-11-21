@@ -1,5 +1,5 @@
 import { ButtonPremiumIcon } from "@/components/mobile/ButtonPremiumIcon";
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, EllipsisVertical, Home, Moon, Sun, LayoutGrid, Package, ShieldCheck, ShoppingBag, Wallet } from "lucide-react";
@@ -80,6 +80,7 @@ export function BotFrame({ children, footer, onBack, onMenu, scrollRef, bare }: 
   scrollRef?: React.Ref<HTMLDivElement>;
 }) {
   const h = useBotHeader();
+  const location = useLocation();
   return (
     <div className="flex h-[100dvh] justify-center bg-tg-chat">
       <div className="tg-wallpaper relative flex h-full w-full max-w-md flex-col overflow-hidden text-tg-bubble-fg sm:border-x sm:border-tg-bubble-fg/10">
@@ -103,7 +104,9 @@ export function BotFrame({ children, footer, onBack, onMenu, scrollRef, bare }: 
           {footer ?? (
             <div className={bottomBarCls}>
               <Link to="/" onClick={() => localStorage.setItem("qorix_open", "products")} className={bottomCls}><ButtonPremiumIcon setting="menu_icon_bottom_products" fallback={LayoutGrid} /><span className="truncate">Products</span></Link>
-              <Link to="/account" className={bottomCls}><ButtonPremiumIcon setting="menu_icon_bottom_deposit" fallback={Wallet} /><span className="truncate">Deposit</span></Link>
+              {location.pathname === "/auth"
+                ? <Link to="/auth" search={{ mode: "in", deposit: true }} className={bottomCls}><ButtonPremiumIcon setting="menu_icon_bottom_deposit" fallback={Wallet} /><span className="truncate">Deposit</span></Link>
+                : <Link to="/account" onClick={() => sessionStorage.setItem("qorix_deposit_notice", String(Date.now()))} className={bottomCls}><ButtonPremiumIcon setting="menu_icon_bottom_deposit" fallback={Wallet} /><span className="truncate">Deposit</span></Link>}
               <Link to="/account/orders" className={bottomCls}><ButtonPremiumIcon setting="menu_icon_bottom_orders" fallback={Package} /><span className="truncate">My Orders</span></Link>
             </div>
           )}

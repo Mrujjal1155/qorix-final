@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Add a Telegram-style connect-or-sign-in deposit notice above the customer auth form when opened from Deposit; preserve ordinary login and all payment behavior. Verified auth/home/track Deposit paths and ordinary login exclusion at 1280/393/320 widths, without overflow or runtime errors; password recovery regressions pass. No deposit or publication.
+
 - [x] Add side-by-side Sign in / Sign up links below Guest and Connect Telegram on the Mobile View Start choice screen; each opens its existing form through optional auth mode search. Existing Telegram, guest and authentication behavior unchanged; no publication.
 
 - [x] Native Telegram-style customer sign-in/sign-up/forgot/reset and reseller access pages, with existing TelegramConnect option on customer auth. Mobile-only fallback information cards flattened into message content; Basic/Admin unchanged. Preserved existing signup, recovery, guest name/email checkout and branded order-receipt emails with secure delivery links. Seven recovery/delivery regressions pass; 1280/393/320 forms/navigation, fresh Telegram issuance, eleven public routes, real invalid-login rejection and blocked-send recovery verified without overflow/runtime errors. No purchase, actual email send or publication.

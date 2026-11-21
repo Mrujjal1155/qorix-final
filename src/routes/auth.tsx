@@ -16,8 +16,10 @@ import { Bubble, Key, Keys, TelegramConnect, Title } from "@/components/mobile/B
 import { ArrowLeft, LogIn, Mail, Send, UserPlus } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
-  validateSearch: (search: Record<string, unknown>): { mode?: "in" | "up" } =>
-    search["mode"] === "up" ? { mode: "up" } : search["mode"] === "in" ? { mode: "in" } : {},
+  validateSearch: (search: Record<string, unknown>): { mode?: "in" | "up"; deposit?: boolean } => ({
+    ...(search["mode"] === "up" ? { mode: "up" as const } : search["mode"] === "in" ? { mode: "in" as const } : {}),
+    ...(search["deposit"] === true || search["deposit"] === "1" || search["deposit"] === "true" ? { deposit: true } : {}),
+  }),
   head: () => ({
     meta: [
       { title: "Sign in or create an account — QORIX Store" },
@@ -39,7 +41,7 @@ export const Route = createFileRoute("/auth")({
 
 function AuthPage() {
   const t = useT();
-  const { mode: requestedMode } = Route.useSearch();
+  const { mode: requestedMode, deposit } = Route.useSearch();
   const navigate = useNavigate();
   const mobile = useMobileTemplate();
   const [connecting, setConnecting] = useState(false);
@@ -51,6 +53,14 @@ function AuthPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [depositNotice, setDepositNotice] = useState(false);
+
+  useEffect(() => {
+    const intentTime = Number(sessionStorage.getItem("qorix_deposit_notice"));
+    const fromDeposit = intentTime > 0 && Date.now() - intentTime >= 0 && Date.now() - intentTime < 15_000;
+    sessionStorage.removeItem("qorix_deposit_notice");
+    setDepositNotice(current => current || Boolean(deposit) || fromDeposit);
+  }, [deposit]);
 
   useEffect(() => {
     setMode(requestedMode ?? "in");
@@ -106,6 +116,7 @@ function AuthPage() {
   }
 
   if (mobile) return <BotFrame onBack={() => { if (connecting) setConnecting(false); else if (forgotView) setForgotView(false); else void navigate({ to: "/" }); }}>
+    {depositNotice && <Bubble><p role="note" className="flex items-start gap-2 text-sm"><Send className="mt-0.5 h-4 w-4 shrink-0 text-tg-link" /><span>To deposit, connect your Telegram account or sign in.</span></p></Bubble>}
     {connecting ? <TelegramConnect onBack={() => setConnecting(false)} onDone={() => { void navigate({ to: "/account", replace: true }); }} /> : <>
       <form className="flex flex-col gap-2" onSubmit={e => { if (forgotView) { e.preventDefault(); void forgot(); } else void submit(e); }}>
         <Bubble className="w-full">
