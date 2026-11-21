@@ -783,6 +783,28 @@
 .tg-page .pointer-events-none.absolute { display: none; }
 .tg-page { overflow-wrap: anywhere; }
 
+/* Remaining customer information pages read as chat messages, not website cards. */
+.tg-page [data-slot="card"] {
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.tg-page [data-slot="card-header"], .tg-page [data-slot="card-content"] { padding: 0.75rem; }
+.tg-page section > div[class*="rounded-"], .tg-page section > div > div[class*="rounded-"] {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+}
+.tg-wallpaper input, .tg-wallpaper textarea, .tg-wallpaper select {
+  background: var(--tg-bubble);
+  color: var(--tg-bubble-fg);
+  border-color: var(--tg-muted);
+  box-shadow: none;
+}
+.tg-wallpaper input:focus-visible, .tg-wallpaper textarea:focus-visible { outline-color: var(--tg-link); }
+.tg-page * { letter-spacing: 0; }
+
 .tg-scroll { scrollbar-width: none; }
 .tg-scroll::-webkit-scrollbar { display: none; }
 

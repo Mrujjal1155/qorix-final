@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Native Telegram-style customer sign-in/sign-up/forgot/reset and reseller access pages, with existing TelegramConnect option on customer auth. Mobile-only fallback information cards flattened into message content; Basic/Admin unchanged. Preserved existing signup, recovery, guest name/email checkout and branded order-receipt emails with secure delivery links. Seven recovery/delivery regressions pass; 1280/393/320 forms/navigation, fresh Telegram issuance, eleven public routes, real invalid-login rejection and blocked-send recovery verified without overflow/runtime errors. No purchase, actual email send or publication.
+- [ ] Verify successful real signup/email confirmation/password recovery/signed-in checkout and inbox delivery; external unmanaged authentication and no real-send/purchase/deployment permission block these checks. Existing emails contain order summaries and secure tracking links, not a separate completion email containing credentials; no new completion-email pipeline added in this presentation change.
+
 - [x] Native Telegram-style tracking with one order-ID-or-email field; accepts 1042, stored QX references and existing ORD codes, email returns latest 20 matching website orders. Service-only bounded lookup excludes reseller orders; public results expose status only, buyer session/secure link required for product/amount/delivery. Six rules/isolated SQL tests pass; real #4817 status, code/email empty states and 1280/393/320 layouts verified without overflow/runtime errors. Existing buyer links preserved; no purchases or publication.
 - [ ] Verify signed-in tracking delivery on the deployed site; external unmanaged authentication and deployment permission remain blockers. Three pre-existing security findings unchanged.
 

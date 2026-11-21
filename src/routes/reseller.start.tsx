@@ -11,6 +11,8 @@ import { productionUrlFor } from "@/lib/site-url";
 import { sendPasswordResetEmail } from "@/lib/password-reset.functions";
 import { signUpWithBrandedEmail } from "@/lib/auth-signup.functions";
 import { BotFrame, useMobileTemplate } from "@/components/mobile/BotFrame";
+import { Bubble, Key, Keys, Title } from "@/components/mobile/BotStorefront";
+import { ArrowLeft, LogIn, Mail, UserPlus } from "lucide-react";
 
 export const Route = createFileRoute("/reseller/start")({
   head: () => ({
@@ -79,6 +81,25 @@ function ResellerStartPage() {
       setLoading(false);
     }
   }
+
+  if (mobile) return <BotFrame bare>
+    <form className="flex flex-col gap-2" onSubmit={submit}>
+      <Bubble className="w-full"><Title>{mode === "forgot" ? "RESET PASSWORD" : mode === "up" ? "RESELLER SIGN UP" : "RESELLER SIGN IN"}</Title>
+        <div className="mt-4 space-y-3">
+          {resetSent && mode === "forgot" ? <p role="status" className="text-sm">If an account exists for this email, a reset link will arrive shortly. Check your inbox and spam folder.</p> : <>
+            {mode === "up" && <div className="space-y-1.5"><Label htmlFor="rs-mobile-name">Full name / business name</Label><Input id="rs-mobile-name" value={name} onChange={e => setName(e.target.value)} required /></div>}
+            <div className="space-y-1.5"><Label htmlFor="rs-mobile-email">Email</Label><Input id="rs-mobile-email" type="email" value={email} onChange={e => setEmail(e.target.value)} required /></div>
+            {mode !== "forgot" && <div className="space-y-1.5"><Label htmlFor="rs-mobile-password">Password</Label><Input id="rs-mobile-password" type="password" autoComplete={mode === "up" ? "new-password" : "current-password"} minLength={6} value={password} onChange={e => setPassword(e.target.value)} required /></div>}
+          </>}
+        </div>
+      </Bubble>
+      {!(resetSent && mode === "forgot") && <Button type="submit" disabled={loading} className="min-h-12 w-full bg-tg-btn-green text-tg-btn-fg hover:bg-tg-btn-green/90">{mode === "forgot" ? <Mail /> : mode === "up" ? <UserPlus /> : <LogIn />}{loading ? "Please wait…" : mode === "forgot" ? "Send reset link" : mode === "up" ? "Create account" : "Sign in"}</Button>}
+    </form>
+    <Keys cols={1}>
+      {mode !== "forgot" && <Key icon={Mail} disabled={loading} onClick={() => { setMode("forgot"); setResetSent(false); }}>Forgot password?</Key>}
+      <Key icon={mode === "in" ? UserPlus : ArrowLeft} disabled={loading} onClick={() => { setMode(mode === "in" ? "up" : "in"); setResetSent(false); }}>{mode === "in" ? "Create account" : "Back to sign in"}</Key>
+    </Keys>
+  </BotFrame>;
 
   return (
     <Wrap mobile={mobile}>

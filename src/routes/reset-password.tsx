@@ -7,13 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { isPasswordRecoveryHash, saveRecoveryPassword } from "@/lib/password-recovery";
+import { BotFrame, useMobileTemplate } from "@/components/mobile/BotFrame";
+import { Bubble, KeyLink, Keys, Title } from "@/components/mobile/BotStorefront";
+import { ArrowLeft, LockKeyhole } from "lucide-react";
 
 export const Route = createFileRoute("/reset-password")({
   head: () => ({ meta: [
-    { title: "Reset your reseller password — QORIX Store" },
-    { name: "description", content: "Securely set a new password for your QORIX reseller account." },
-    { property: "og:title", content: "Reset your reseller password — QORIX Store" },
-    { property: "og:description", content: "Recover access to your QORIX reseller account." },
+    { title: "Reset your password — QORIX Store" },
+    { name: "description", content: "Securely set a new password for your QORIX customer or reseller account." },
+    { property: "og:title", content: "Reset your password — QORIX Store" },
+    { property: "og:description", content: "Recover access to your QORIX account." },
     { property: "og:type", content: "website" },
     { name: "twitter:card", content: "summary" },
     { name: "robots", content: "noindex,nofollow" },
@@ -22,6 +25,7 @@ export const Route = createFileRoute("/reset-password")({
 });
 
 function ResetPasswordPage() {
+  const mobile = useMobileTemplate();
   const [state, setState] = useState<"checking" | "ready" | "invalid" | "saved">("checking");
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
@@ -59,6 +63,25 @@ function ResetPasswordPage() {
       setError(err instanceof Error ? err.message : "Could not reset your password. Please request a new link.");
     } finally { setLoading(false); }
   }
+
+  if (mobile) return <BotFrame>
+    <form className="flex flex-col gap-2" onSubmit={submit}>
+      <Bubble className="w-full"><Title>{state === "saved" ? "PASSWORD UPDATED" : "RESET PASSWORD"}</Title>
+        <div className="mt-4 space-y-3">
+          {state === "checking" && <p role="status" className="text-sm">Checking your reset link…</p>}
+          {state === "invalid" && <p role="alert" className="text-sm text-tg-btn-red">This reset link is invalid or expired. Request a new link from sign in.</p>}
+          {state === "saved" && <p role="status" className="text-sm">Your password has been changed successfully.</p>}
+          {state === "ready" && <>
+            <div className="space-y-1.5"><Label htmlFor="mobile-new-password">New password</Label><Input id="mobile-new-password" type="password" autoComplete="new-password" minLength={6} required value={password} onChange={e => setPassword(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label htmlFor="mobile-confirm-password">Confirm new password</Label><Input id="mobile-confirm-password" type="password" autoComplete="new-password" minLength={6} required value={confirmation} onChange={e => setConfirmation(e.target.value)} /></div>
+            {error && <p role="alert" className="text-sm text-tg-btn-red">{error}</p>}
+          </>}
+        </div>
+      </Bubble>
+      {state === "ready" && <Button type="submit" disabled={loading} className="min-h-12 w-full bg-tg-btn-green text-tg-btn-fg hover:bg-tg-btn-green/90"><LockKeyhole />{loading ? "Saving…" : "Update password"}</Button>}
+    </form>
+    <Keys cols={1}><KeyLink icon={ArrowLeft} to="/auth">Customer sign in</KeyLink><KeyLink icon={ArrowLeft} to="/reseller/start">Reseller sign in</KeyLink></Keys>
+  </BotFrame>;
 
   return <StoreShell>
     <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-4 py-12">
