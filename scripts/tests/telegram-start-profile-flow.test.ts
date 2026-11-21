@@ -8,10 +8,12 @@ let reads: string[] = [];
 let profileCounts = 0;
 let enabled = true;
 let websiteIssuedFor: number[] = [];
+let websiteIssueFails = false;
 let vendorReceipts: Record<string, unknown>[] = [];
-mock.module("@/lib/telegram-website-login.server", () => ({ issueTelegramWebsiteLogin: async (_db: unknown, id: number) => {
+mock.module("@/lib/telegram-website-login.server", () => ({ issueTelegramWebsiteLogin: async (_db: unknown, id: number, _site: string, destination = "/") => {
   websiteIssuedFor.push(id);
-  return "https://qorixlab.com/tg#" + "a".repeat(24) + "." + "b".repeat(48);
+  if (websiteIssueFails) throw new Error("Login unavailable");
+  return "https://qorixlab.com/tg" + (destination === "/account" ? "?next=%2Faccount" : "") + "#" + "a".repeat(24) + "." + "b".repeat(48);
 } }));
 const legacy = "5400280896311944999";
 mock.module("@/lib/bybit.server", () => ({ bybitSettings: async () => ({ bybit_enabled: enabled ? "1" : "0", bybit_api_verified: "1", bybit_uid: "98765", bybit_icon: legacy }), findBybitPayment: async () => { throw new Error("Unexpected payment verification"); } }));
@@ -94,13 +96,14 @@ for (const action of ["p:p1", "qty:p1", "co", "copay"]) {
     await click(action);
     const row = buttons[0];
     expect(row).toHaveLength(1);
-    expect(row?.[0]?.url).toBe("https://qorixlab.com");
+    expect(new URL(row?.[0]?.url).pathname).toBe("/tg");
+    expect(new URL(row?.[0]?.url).hash).toBe("#" + "a".repeat(24) + "." + "b".repeat(48));
     expect(row?.[0]?.style).toBe("primary");
     expect(row?.[0]?.icon_custom_emoji_id).toBe("5400280896311944963");
     expect(row?.[0]?.callback_data).toBeUndefined();
     expect(row?.[0]?.web_app).toBeUndefined();
     expect(JSON.stringify(user.state.co)).toBe(checkout);
-    expect(websiteIssuedFor).toEqual([]);
+    expect(websiteIssuedFor).toEqual([123]);
     expect(buttons.flat().length).toBeLessThanOrEqual(100);
     for (const buttonsInRow of buttons) expect(buttonsInRow.length).toBeLessThanOrEqual(8);
   });
@@ -115,15 +118,34 @@ test("wallet website deposit link preserves the active deposit methods and balan
   await reply("🌐", "5400280896311944963");
   websiteIssuedFor = [];
   await click("wallet");
-  expect(buttons[0]?.[0]?.url).toBe("https://qorixlab.com/account");
+  expect(new URL(buttons[0]?.[0]?.url).pathname).toBe("/tg");
+  expect(new URL(buttons[0]?.[0]?.url).searchParams.get("next")).toBe("/account");
   expect(buttons[0]?.[0]?.callback_data).toBeUndefined();
   expect(buttons[0]?.[0]?.web_app).toBeUndefined();
   expect(buttons.flat().filter(b => b.callback_data?.startsWith("dep:")).map(b => b.callback_data)).toEqual(originalMethods);
   expect(originalMethods).toContain("dep:bybit");
   expect(user.balance).toBe(originalBalance);
   expect(JSON.stringify(user.state.co)).toBe(originalCheckout);
-  expect(websiteIssuedFor).toEqual([]);
+  expect(websiteIssuedFor).toEqual([123]);
 });
+
+for (const action of ["home", "p:p1", "qty:p1", "co", "copay", "wallet"]) {
+  test(`${action}: group and foreign senders cannot receive a private website login`, async () => {
+    websiteIssuedFor = [];
+    for (const chat of [{ id: -999, type: "group" }, { id: 123, type: "private" }]) {
+      await handleUpdate({ callback_query: { id: "foreign", data: action, from: { id: 456 }, message: { message_id: 1, chat } } });
+      expect(buttons.flat().some(b => b.url?.includes("/tg"))).toBe(false);
+    }
+    expect(websiteIssuedFor).toEqual([]);
+  });
+  test(`${action}: failed login creation never falls back to a plain website URL`, async () => {
+    websiteIssueFails = true;
+    try {
+      await click(action);
+      expect(buttons.flat().some(b => b.url?.startsWith("https://qorixlab.com"))).toBe(false);
+    } finally { websiteIssueFails = false; }
+  });
+}
 
 test("private vendor button completes seven bot steps and submits only once", async () => {
   vendorReceipts = [];

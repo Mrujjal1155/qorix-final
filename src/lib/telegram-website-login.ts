@@ -12,10 +12,16 @@ export function parseTelegramLoginFragment(fragment: string) {
   return parsed.success ? parsed.data : null;
 }
 
-export function telegramWebsiteLoginUrl(site: string, code: string, secret: string) {
+/** Post-consent navigation only; never accept arbitrary redirect URLs. */
+export function telegramWebsiteDestination(value: unknown): "/" | "/account" {
+  return value === "/account" ? "/account" : "/";
+}
+
+export function telegramWebsiteLoginUrl(site: string, code: string, secret: string, destination: "/" | "/account" = "/") {
   const url = new URL("/tg", site);
   if (url.protocol !== "https:") throw new Error("Website login requires HTTPS");
   const credentials = telegramLoginCredentials.parse({ code, secret });
+  if (telegramWebsiteDestination(destination) === "/account") url.searchParams.set("next", "/account");
   url.hash = `${credentials.code}.${credentials.secret}`;
   return url.toString();
 }

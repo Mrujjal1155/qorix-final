@@ -8,13 +8,13 @@ export async function telegramLoginHash(secret: string) {
 }
 
 /** Called only for a verified private-chat sender. No username lookup grants access. */
-export async function issueTelegramWebsiteLogin(db: SupabaseClient, telegramId: number, site: string) {
+export async function issueTelegramWebsiteLogin(db: SupabaseClient, telegramId: number, site: string, destination: "/" | "/account" = "/") {
   if (!Number.isSafeInteger(telegramId) || telegramId <= 0) throw new Error("Invalid Telegram account");
   const { data: user, error: readError } = await db.from("bot_users").select("telegram_id,is_banned").eq("telegram_id", telegramId).maybeSingle();
   if (readError || !user || user.is_banned) throw new Error("Telegram account unavailable");
   const code = randomHex(12);
   const secret = randomHex(24);
-  const url = telegramWebsiteLoginUrl(site, code, secret);
+  const url = telegramWebsiteLoginUrl(site, code, secret, destination);
   const now = new Date();
   const { error } = await db.from("web_login_codes").insert({
     code, secret_hash: await telegramLoginHash(secret), telegram_id: telegramId,

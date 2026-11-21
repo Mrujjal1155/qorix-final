@@ -51,5 +51,5 @@
 - Mobile product messages use the existing safe full-product reader and React-rendered captured emoji tokens, never injected Telegram HTML; catalogue/payment behavior stays separate from presentation.
 - Mobile wallet connect reuses fresh Telegram login authorization to sign into the existing linked account across browsers, never reassigns its wallet. Hosted connected checkouts resolve identity server-side through authenticated wrappers and share gateway creation helpers with guest checkout.
 - Insight initial delivery permits one refund-verified replacement; admin Retry reuses a completed first purchase or buys with a fixed per-order idempotency key so repeats never double-charge.
-- Bot website login uses private-chat single-use links and existing account claims; never trusts usernames.
+- Bot website buttons use private-sender single-use consent and safe destinations; account claims never trust usernames.
 

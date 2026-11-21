@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Replace plain website links in all six bot placements with private-sender single-use Telegram consent; deposit links continue to allowlisted /account only after connection. No plain fallback on issuance failure; foreign/group senders cannot mint links. Sixty bot/login/payment regressions pass; real invalid-link rejection and named consent/cancel/failed-claim fixtures verified at 1280/393 widths. No live sends, payments or publication; authenticated live connection remains blocked by external account access and separate deployment permission.
+
 - [x] Add the website-icon Deposit on Website link above bot wallet deposit methods, pointing to the existing website /account wallet/deposit page; payment actions and balance unchanged. No live sends, payments or publication.
 - [ ] Verify the wallet website button in live Telegram and a signed-in website account; requires separately approved deployment and external account access.
 

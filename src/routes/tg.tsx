@@ -5,7 +5,7 @@ import { LockKeyhole, Send, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { previewBotWebsiteLogin, claimTelegramLogin } from "@/lib/telegram-login.functions";
-import { parseTelegramLoginFragment } from "@/lib/telegram-website-login";
+import { parseTelegramLoginFragment, telegramWebsiteDestination } from "@/lib/telegram-website-login";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/tg")({
@@ -27,6 +27,7 @@ function TelegramWebsiteConsent() {
   const preview = useServerFn(previewBotWebsiteLogin);
   const claim = useServerFn(claimTelegramLogin);
   const credentials = useRef<ReturnType<typeof parseTelegramLoginFragment>>(null);
+  const destination = useRef<"/" | "/account">("/");
   const initialized = useRef(false);
   const busy = useRef(false);
   const [name, setName] = useState("");
@@ -37,6 +38,7 @@ function TelegramWebsiteConsent() {
     if (initialized.current) return;
     initialized.current = true;
     credentials.current = parseTelegramLoginFragment(window.location.hash);
+    destination.current = telegramWebsiteDestination(new URLSearchParams(window.location.search).get("next"));
     // Never persist the bearer link in browser storage, history or outgoing referrers.
     window.history.replaceState(window.history.state, "", window.location.pathname);
     const data = credentials.current;
@@ -63,7 +65,7 @@ function TelegramWebsiteConsent() {
       if (error) throw error;
       credentials.current = null;
       await router.invalidate();
-      await router.navigate({ to: "/" });
+      await router.navigate({ to: destination.current });
     } catch {
       setState("invalid"); setMessage("Sign-in could not finish. Open a fresh website link from the bot.");
     } finally { busy.current = false; }

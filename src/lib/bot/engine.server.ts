@@ -847,20 +847,22 @@ async function getUser(telegramId: number) {
 
 /* ------------------------------------------------------------------ views */
 
-function websiteButtonRow(settings: Record<string, string>, url = siteUrl(settings)): Button[] {
-  return websiteOrderRow(iconUrlButton(settings, "website", url));
+async function websiteButtonRow(settings: Record<string, string>, websiteOwner: number | null, destination: "/" | "/account" = "/"): Promise<Button[]> {
+  if (!websiteOwner) return [];
+  try {
+    const url = await issueTelegramWebsiteLogin(db, websiteOwner, siteUrl(settings), destination);
+    return websiteOrderRow(iconUrlButton(settings, "website", url));
+  } catch {
+    // Never replace a failed private login link with an unauthenticated shop URL.
+    return [];
+  }
 }
 
 async function homeKeyboard(settings: Record<string, string>, websiteOwner: number | null): Promise<Button[][]> {
   const topColor = btnColor(settings, "menu");
   const btn = (key: HomeMenuKey, b: Button) => styled(b, homeMenuColor(key, topColor));
-  let websiteUrl = siteUrl(settings);
-  if (websiteOwner) {
-    try { websiteUrl = await issueTelegramWebsiteLogin(db, websiteOwner, websiteUrl); }
-    catch { /* Keep the ordinary website link if secure login preparation fails. */ }
-  }
   return [
-    websiteButtonRow(settings, websiteUrl),
+    await websiteButtonRow(settings, websiteOwner),
     [
       btn("shop", iconButton(settings, "shop", "shop:0")),
       btn("cart", iconButton(settings, "cart", "cart")),
@@ -2018,7 +2020,7 @@ function countdown(iso?: string | null) {
   return parts.join(" ");
 }
 
-async function productView(productId: string, chatId?: number) {
+async function productView(productId: string, chatId?: number, websiteOwner: number | null = null) {
   const { data: raw } = await db.from("products").select("*").eq("id", productId).maybeSingle();
   const p: any = raw ? (await applyUserPrices(chatId, [raw]))[0] : raw;
   // Products switched off in admin are hidden from the bot, exactly like the website.
@@ -2118,7 +2120,7 @@ async function productView(productId: string, chatId?: number) {
       : `${uiTag(settings, "prod_stock")}: <b>${stock} available</b>\n<i>${uiTag(settings, "prod_auto_note")}</i>`;
 
   const available = (p.delivery_type === "manual" && !p.manual_stock_limited) || stock > 0;
-  const kb: Button[][] = [websiteButtonRow(settings)];
+  const kb: Button[][] = [await websiteButtonRow(settings, websiteOwner)];
   if (available)
     kb.push([
       uiBtn(settings, "prod_buy", `qty:${p.id}`),
@@ -2271,7 +2273,7 @@ export async function binanceConfig() {
   };
 }
 
-async function walletView(user: any) {
+async function walletView(user: any, websiteOwner: number | null = null) {
   const cfg = await binanceConfig();
   const s = await getSettings();
   const text =
@@ -2284,7 +2286,7 @@ async function walletView(user: any) {
     `<i>Choose a payment method below to add funds to your wallet.</i>`;
   const walStyle: ButtonStyle = "primary";
   const wBtn = (b: Button) => styled(b, walStyle);
-  const depositWebsiteRow = websiteButtonRow(s, `${siteUrl(s)}/account`).map((button) => ({
+  const depositWebsiteRow = (await websiteButtonRow(s, websiteOwner, "/account")).map((button) => ({
     ...button,
     text: button.icon_custom_emoji_id ? "Deposit on Website" : "🌐 Deposit on Website",
   }));
@@ -3747,6 +3749,7 @@ export async function handleUpdate(update: any) {
 async function handleMessage(msg: any) {
   if (!msg.from || msg.chat?.type !== "private") return;
   const chatId = msg.chat.id as number;
+  const websiteOwner = msg.from.id === chatId ? chatId : null;
   const text: string = msg.text ?? msg.caption ?? "";
   const payload = text.startsWith("/start ") ? text.slice(7).trim() : undefined;
   // Load the user and settings together so the first reply is not delayed.
@@ -3820,14 +3823,14 @@ async function handleMessage(msg: any) {
     }
     // Deep link from a channel post: /start p_<product-id> opens that product.
     if (payload?.startsWith("p_")) {
-      const view = await productView(payload.slice(2), chatId);
+      const view = await productView(payload.slice(2), chatId, websiteOwner);
       if (view) {
         await showView(chatId, undefined, view);
         return;
       }
     }
     const settings = await getSettings();
-    await sayWithBottomMenu(chatId, await homeText(user), settings, await homeKeyboard(settings, chatId));
+    await sayWithBottomMenu(chatId, await homeText(user), settings, await homeKeyboard(settings, websiteOwner));
     return;
   }
 
@@ -3857,12 +3860,12 @@ async function handleMessage(msg: any) {
       await say(chatId, v.text, v.kb);
     } else if (cmd === "menu") {
       const settings = await getSettings();
-      await sayWithBottomMenu(chatId, await homeText(fresh), settings, await homeKeyboard(settings, chatId));
+      await sayWithBottomMenu(chatId, await homeText(fresh), settings, await homeKeyboard(settings, websiteOwner));
     } else if (cmd === "products") {
       const v = await shopView(0, chatId);
       await say(chatId, v.text, v.kb);
     } else if (cmd === "wallet") {
-      const v = await walletView(fresh);
+      const v = await walletView(fresh, websiteOwner);
       await say(chatId, v.text, v.kb);
     } else {
       const v = await supportView();
@@ -3879,7 +3882,7 @@ async function handleMessage(msg: any) {
       const v = await allProductsView(0, "all", chatId);
       await say(chatId, v.text, v.kb);
     } else if (menuChoice === "deposit") {
-      const v = await walletView(user);
+      const v = await walletView(user, websiteOwner);
       await say(chatId, v.text, v.kb);
     } else {
       const v = await ordersView(chatId, 0);
@@ -4108,7 +4111,7 @@ async function handleMessage(msg: any) {
       state.awaiting = null;
       delete state.mi_qty;
       await setState(chatId, state);
-      const view = await startCheckout(chatId, [{ product_id: pid, qty }], { [pid]: res.lines });
+      const view = await startCheckout(chatId, [{ product_id: pid, qty }], { [pid]: res.lines }, websiteOwner);
       if (view) await say(chatId, view.text, view.kb);
       return;
     }
@@ -4128,7 +4131,7 @@ async function handleMessage(msg: any) {
           return;
         }
       }
-      const view = await startCheckout(chatId, [{ product_id: state.product_id, qty }]);
+      const view = await startCheckout(chatId, [{ product_id: state.product_id, qty }], undefined, websiteOwner);
       if (view) await say(chatId, view.text, view.kb);
       return;
     }
@@ -4157,7 +4160,7 @@ async function handleMessage(msg: any) {
       }
       meta.coupon = { code: c.code, percent: Number(c.percent), amount_off: Number(c.amount_off) };
       await writeCo(chatId, meta);
-      const view = await coView(chatId);
+      const view = await coView(chatId, websiteOwner);
       await say(chatId, `✅ Coupon <code>${escapeHtml(c.code)}</code> applied!\n\n${view.text}`, view.kb);
       return;
     }
@@ -5984,7 +5987,7 @@ async function writeCo(chatId: number, meta: CoMeta | null) {
   await db.from("bot_users").update({ state }).eq("telegram_id", chatId);
 }
 
-async function coView(chatId: number) {
+async function coView(chatId: number, websiteOwner: number | null = null) {
   const meta = await readCo(chatId);
   if (!meta) {
     return {
@@ -6003,7 +6006,7 @@ async function coView(chatId: number) {
   if (meta.coupon) text += `🏷 Coupon <code>${escapeHtml(meta.coupon.code)}</code>: −${money(Math.max(0, discount - tierOff))}\n`;
   text += `${uiTag(settings, "co_total")}: <b>${money(total)}</b>\n\n<i>No wallet deposit needed — pay directly and it will be verified automatically.</i>`;
 
-  const kb: Button[][] = [websiteButtonRow(settings)];
+  const kb: Button[][] = [await websiteButtonRow(settings, websiteOwner)];
   kb.push([
     meta.coupon
       ? uiBtn(settings, "co_coupon_rm", "cocrm")
@@ -6024,9 +6027,9 @@ async function coView(chatId: number) {
   return { text, kb };
 }
 
-async function coPayView(chatId: number) {
+async function coPayView(chatId: number, websiteOwner: number | null = null) {
   const meta = await readCo(chatId);
-  if (!meta) return await coView(chatId);
+  if (!meta) return await coView(chatId, websiteOwner);
   const { total, lines } = await coTotals(meta, chatId);
   const cfg = await binanceConfig();
   const settings = await getSettings();
@@ -6041,7 +6044,7 @@ async function coPayView(chatId: number) {
       kb: [[{ text: "🧺 Cart", callback_data: "cart" }], [uiBtn(settings, "com_shop", "shop:0")], [uiBtn(settings, "com_home", "home")]] as Button[][],
     };
   }
-  const kb: Button[][] = [websiteButtonRow(settings)];
+  const kb: Button[][] = [await websiteButtonRow(settings, websiteOwner)];
   const payStyle: ButtonStyle = "primary";
   if (Number(user.balance) >= total && total > 0)
     kb.push([styled(uiBtn(settings, "pay_balance", "copm:balance", `(${money(user.balance)})`), payStyle)]);
@@ -6520,7 +6523,7 @@ async function fulfillCheckout(
 }
 
 /** Start a checkout for a single product or the whole cart. */
-async function startCheckout(chatId: number, items: CartLine[], inputs?: Record<string, string[]>) {
+async function startCheckout(chatId: number, items: CartLine[], inputs?: Record<string, string[]>, websiteOwner: number | null = null) {
   if (!items.length) return null;
   const meta: CoMeta = { items, coupon: null, ...(inputs ? { inputs } : {}) };
   const { lines, total } = await coTotals(meta, chatId);
@@ -6528,7 +6531,7 @@ async function startCheckout(chatId: number, items: CartLine[], inputs?: Record<
   meta.summary = lines.map((l) => `${l.qty}x ${l.product.name}`).join(", ");
   meta.total = total;
   await writeCo(chatId, meta);
-  return await coView(chatId);
+  return await coView(chatId, websiteOwner);
 }
 
 const ORDERS_PER_PAGE = 7;
@@ -6932,7 +6935,7 @@ async function handleCallback(cq: any) {
 
   if (data.startsWith("p:")) {
     defer(() => awardReferralCredit(user));
-    const view = await productView(data.slice(2), chatId);
+    const view = await productView(data.slice(2), chatId, websiteOwner);
     if (!view) return;
     await showView(chatId, messageId, view, fromMedia);
     return;
@@ -6943,7 +6946,7 @@ async function handleCallback(cq: any) {
     const productId = data.slice("notify:".length);
     const msg = await toggleStockAlert(chatId, productId);
     await say(chatId, msg);
-    const view = await productView(productId, chatId);
+    const view = await productView(productId, chatId, websiteOwner);
     if (view) await showView(chatId, messageId, view, fromMedia);
     return;
   }
@@ -6961,7 +6964,7 @@ async function handleCallback(cq: any) {
     const qs = await getSettings();
     const qtyStyle: ButtonStyle = "primary";
     const kb: Button[][] = [
-      websiteButtonRow(qs),
+      await websiteButtonRow(qs, websiteOwner),
       [1, 2, 3].map((n) => styled({ text: `${n}×`, callback_data: `buy:${productId}:${n}` }, qtyStyle)),
       [5, 10].map((n) => styled({ text: `${n}×`, callback_data: `buy:${productId}:${n}` }, qtyStyle)),
       [styled(uiBtn(qs, "qty_custom", `cq:${productId}`), qtyStyle)],
@@ -7037,13 +7040,13 @@ async function handleCallback(cq: any) {
   if (data === "cchk" || data === "cgo") {
     const fresh = await getUser(chatId);
     const cart = readCart(fresh);
-    const view = (await startCheckout(chatId, cart)) ?? (await cartView(fresh));
+    const view = (await startCheckout(chatId, cart, undefined, websiteOwner)) ?? (await cartView(fresh));
     await edit(view.text, view.kb);
     return;
   }
 
   if (data === "co") {
-    const view = await coView(chatId);
+    const view = await coView(chatId, websiteOwner);
     await edit(view.text, view.kb);
     return;
   }
@@ -7060,13 +7063,13 @@ async function handleCallback(cq: any) {
       meta.coupon = null;
       await writeCo(chatId, meta);
     }
-    const view = await coView(chatId);
+    const view = await coView(chatId, websiteOwner);
     await edit(view.text, view.kb);
     return;
   }
 
   if (data === "copay") {
-    const view = await coPayView(chatId);
+    const view = await coPayView(chatId, websiteOwner);
     await edit(view.text, view.kb);
     return;
   }
@@ -7075,7 +7078,7 @@ async function handleCallback(cq: any) {
     const method = data.slice(5);
     const meta = await readCo(chatId);
     if (!meta) {
-      const view = await coView(chatId);
+      const view = await coView(chatId, websiteOwner);
       await edit(view.text, view.kb);
       return;
     }
@@ -7308,16 +7311,17 @@ async function handleCallback(cq: any) {
 
   if (data.startsWith("buy:")) {
     const [, productId, n] = data.split(":");
+    if (!productId) return;
     const bq = Math.max(1, Number(n) || 1);
-    const bCfg = await manualInputFor(productId!);
+    const bCfg = await manualInputFor(productId);
     if (bCfg.kind !== "none") {
-      const { data: mp } = await db.from("products").select("delivery_type").eq("id", productId!).maybeSingle();
+      const { data: mp } = await db.from("products").select("delivery_type").eq("id", productId).maybeSingle();
       if (mp?.delivery_type === "manual") {
-        await askManualInput(chatId, user.state, productId!, bq);
+        await askManualInput(chatId, user.state, productId, bq);
         return;
       }
     }
-    const view = await startCheckout(chatId, [{ product_id: productId!, qty: bq }]);
+    const view = await startCheckout(chatId, [{ product_id: productId, qty: bq }], undefined, websiteOwner);
     if (view) await edit(view.text, view.kb);
     return;
   }
@@ -7325,7 +7329,7 @@ async function handleCallback(cq: any) {
 
   if (data === "wallet") {
     const fresh = await getUser(chatId);
-    const view = await walletView(fresh);
+    const view = await walletView(fresh, websiteOwner);
     await edit(view.text, view.kb);
     return;
   }
@@ -7468,7 +7472,7 @@ async function handleCallback(cq: any) {
   if (data === "depchange") {
     if (cq.message?.chat?.type !== "private" || cq.from?.id !== chatId) return;
     await setState(chatId, { ...(user.state ?? {}), awaiting: null, bin_kind: null, bin_network: null, bin_dep_id: null });
-    const view = await walletView(user);
+    const view = await walletView(user, websiteOwner);
     await edit(view.text, view.kb);
     return;
   }
