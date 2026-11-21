@@ -75,7 +75,7 @@ function TrackPage() {
         : <p className="text-sm text-muted-foreground">{order.status === "completed" ? "Delivery is being prepared." : "Your order is being processed."}</p>}
     </div>)}
   </>;
-  const field = <div className="space-y-2"><Label htmlFor="tracking-query">Order ID or email</Label><Input id="tracking-query" value={query} maxLength={160} onChange={e => { setQuery(e.target.value); setOrders(null); setError(""); }} placeholder="1042 / QX-93ru3 / email@example.com" autoComplete="off" className="w-full" /></div>;
+  const field = <div className="space-y-2"><Label htmlFor="tracking-query">Order ID or email</Label><Input id="tracking-query" value={query} maxLength={160} onChange={e => { setQuery(e.target.value); setOrders(null); setError(""); }} placeholder="1042 / ORD-9992082D / email@example.com" autoComplete="off" className="w-full" /></div>;
   const home = () => { void router.navigate({ to: "/" }); };
   if (mobile) return <BotFrame onBack={home} onMenu={home}>
     <form className="flex flex-col gap-2" onSubmit={e => { e.preventDefault(); if (query.trim() && !mut.isPending) mut.mutate(); }}>
