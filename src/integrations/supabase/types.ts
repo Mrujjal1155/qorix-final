@@ -237,92 +237,6 @@ export type Database = {
           },
         ]
       }
-      bot_browser_payments: {
-        Row: {
-          created_at: string
-          deposit_id: string | null
-          expires_at: string
-          gateway: string | null
-          id: string
-          snapshot: Json
-          status: string
-          telegram_id: number
-          token_hash: string
-          total: number
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          deposit_id?: string | null
-          expires_at?: string
-          gateway?: string | null
-          id?: string
-          snapshot: Json
-          status?: string
-          telegram_id: number
-          token_hash: string
-          total: number
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          deposit_id?: string | null
-          expires_at?: string
-          gateway?: string | null
-          id?: string
-          snapshot?: Json
-          status?: string
-          telegram_id?: number
-          token_hash?: string
-          total?: number
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bot_browser_payments_deposit_id_fkey"
-            columns: ["deposit_id"]
-            isOneToOne: true
-            referencedRelation: "binance_deposits"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      bot_direct_pay_links: {
-        Row: {
-          claimed_at: string | null
-          created_at: string
-          deposit_id: string | null
-          expires_at: string
-          id: string
-          meta: Json
-          method: string | null
-          telegram_id: number
-          total: number
-        }
-        Insert: {
-          claimed_at?: string | null
-          created_at?: string
-          deposit_id?: string | null
-          expires_at: string
-          id?: string
-          meta: Json
-          method?: string | null
-          telegram_id: number
-          total: number
-        }
-        Update: {
-          claimed_at?: string | null
-          created_at?: string
-          deposit_id?: string | null
-          expires_at?: string
-          id?: string
-          meta?: Json
-          method?: string | null
-          telegram_id?: number
-          total?: number
-        }
-        Relationships: []
-      }
       bot_settings: {
         Row: {
           key: string
@@ -533,42 +447,6 @@ export type Database = {
           rate?: number
           sort_order?: number
           updated_at?: string
-        }
-        Relationships: []
-      }
-      direct_pay_links: {
-        Row: {
-          created_at: string
-          expires_at: string
-          id: string
-          meta: Json
-          result: Json | null
-          started_at: string | null
-          started_method: string | null
-          telegram_id: number
-          total: number
-        }
-        Insert: {
-          created_at?: string
-          expires_at?: string
-          id?: string
-          meta: Json
-          result?: Json | null
-          started_at?: string | null
-          started_method?: string | null
-          telegram_id: number
-          total: number
-        }
-        Update: {
-          created_at?: string
-          expires_at?: string
-          id?: string
-          meta?: Json
-          result?: Json | null
-          started_at?: string | null
-          started_method?: string | null
-          telegram_id?: number
-          total?: number
         }
         Relationships: []
       }
@@ -2719,10 +2597,6 @@ export type Database = {
         }
         Returns: Json
       }
-      bind_bot_browser_payment: {
-        Args: { _deposit_id: string; _id: string }
-        Returns: undefined
-      }
       bot_user_admin_adjust: {
         Args: { _amount: number; _note?: string; _telegram_id: number }
         Returns: Json
@@ -2747,10 +2621,6 @@ export type Database = {
           _telegram_id: number
         }
         Returns: Json
-      }
-      cancel_bot_browser_payment: {
-        Args: { _id: string; _telegram_id: number }
-        Returns: boolean
       }
       claim_referral_deliveries: { Args: never; Returns: Json[] }
       claim_stock_items: {
@@ -2904,16 +2774,6 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
-      }
-      issue_bot_browser_payment: {
-        Args: {
-          _hash: string
-          _orders: Json
-          _snapshot: Json
-          _telegram_id: number
-          _total: number
-        }
-        Returns: Json
       }
       live_update_enqueue: {
         Args: { _kind: string; _payload: Json; _ref: string }
