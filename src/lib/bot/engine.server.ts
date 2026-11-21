@@ -113,7 +113,7 @@ const MENU_ICONS = {
   wallet: ["💰", "Wallet"], freebies: ["🎁", "Freebies"], profile: ["👤", "Profile"],
   referral: ["🏪", "Referral Store"], support: ["🆘", "Support"], emails: ["📧", "Emails & Trials"],
   api: ["🔌", "Reseller API"], clear: ["🧹", "Clear Chat"], refresh: ["🔄", "Refresh Stock"],
-  website: ["🌐", "Order from Website"], vendor: ["🏪", "Vendor Application"],
+  website: ["🌐", "Buy on Website"], vendor: ["🏪", "Become Our Vendor"],
   back: ["◀️", "Main Menu"],
   next: ["➡️", "Next"], prev: ["⬅️", "Previous"],
   bottom_products: ["🛍", "Products"], bottom_deposit: ["💳", "Deposit"], bottom_orders: ["📦", "My Orders"],
