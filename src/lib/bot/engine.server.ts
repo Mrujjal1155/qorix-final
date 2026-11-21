@@ -4539,6 +4539,10 @@ async function handleMessage(msg: any) {
         await say(chatId, saveFailText(pErr), ADM_BACK);
         return;
       }
+      if (p) {
+        const { syncProductPremiumIcon } = await import("@/lib/product-premium-sync.server");
+        await syncProductPremiumIcon(productId).catch(() => {});
+      }
       await say(
         chatId,
         p ? `✅ Icon updated: ${customEmojiId ? `<tg-emoji emoji-id="${customEmojiId}">${escapeHtml(icon)}</tg-emoji>` : escapeHtml(icon)} <b>${escapeHtml(p.name)}</b>` : "❌ Product not found.",
@@ -4808,14 +4812,18 @@ async function handleMessage(msg: any) {
         await say(chatId, "❌ Format: <code>icon | name | price | auto/manual</code>", ADM_BACK);
         return;
       }
-      const { error } = await db.from("products").insert({
+      const { data: created, error } = await db.from("products").insert({
         name,
         emoji: icon || "📦",
         telegram_custom_emoji_id: customEmojiId || null,
         price,
         delivery_type: kind === "manual" ? "manual" : "auto",
         is_active: true,
-      });
+      }).select("id").maybeSingle();
+      if (!error && created) {
+        const { syncProductPremiumIcon } = await import("@/lib/product-premium-sync.server");
+        await syncProductPremiumIcon(created.id).catch(() => {});
+      }
       await say(
         chatId,
         error ? `❌ ${escapeHtml(error.message)}` : `✅ Product created: ${icon || "📦"} <b>${escapeHtml(name)}</b> — ${money(price)}`,
@@ -5906,6 +5914,8 @@ async function admCreateProduct(chatId: number, d: ProdDraft) {
     return;
   }
 
+  const { syncProductPremiumIcon } = await import("@/lib/product-premium-sync.server");
+  await syncProductPremiumIcon(created.id).catch(() => {});
   const kb: Button[][] = [];
   if (d.delivery_type !== "manual") kb.push([{ text: "📦 Add stock now", callback_data: `adm:sp:${created.id}` }]);
   kb.push([{ text: "🆕 Add another product", callback_data: "adm:npw" }]);

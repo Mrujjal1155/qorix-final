@@ -585,6 +585,8 @@ export const saveProduct = createServerFn({ method: "POST" })
           await enqueueNewProduct(sb, id, "admin_reenable", `admin:${id}:${String((updated as any).updated_at ?? Date.now())}`);
         }
       }
+      const { syncProductPremiumIcon } = await import("@/lib/product-premium-sync.server");
+      await syncProductPremiumIcon(id).catch(() => { /* Scheduled artwork reconciliation retries without affecting saves. */ });
       return { ok: true };
     }
 
@@ -599,6 +601,8 @@ export const saveProduct = createServerFn({ method: "POST" })
     if (created) {
       const { pushResellerEvent } = await import("@/lib/reseller/webhook.server");
       await pushResellerEvent((created as any).is_active === false ? "removed" : "new", created);
+      const { syncProductPremiumIcon } = await import("@/lib/product-premium-sync.server");
+      await syncProductPremiumIcon(created.id).catch(() => {});
     }
     return { ok: true, id: (created as any)?.id as string | undefined };
   });
@@ -1974,6 +1978,16 @@ export const applyProductIcon = createServerFn({ method: "POST" })
       const { data: rows, error } = await q;
       if (error) throw new Error(error.message);
       updated = rows?.length ?? 0;
+      if (rows?.length) {
+        // Clear old captures immediately, even for bulk removal; preparation is retryable.
+        await sb.from("bot_settings").upsert(rows.map((row: { id: string }) => ({
+          key: `site_product_icon_${row.id}`, value: customId ? JSON.stringify({ emojiId: customId }) : "",
+        })), { onConflict: "key" });
+        if (customId) {
+          const { syncProductPremiumIcon } = await import("@/lib/product-premium-sync.server");
+          for (const row of rows.slice(0, 8)) await syncProductPremiumIcon(row.id).catch(() => {});
+        }
+      }
     }
 
     return { ok: true, updated, value: stored };

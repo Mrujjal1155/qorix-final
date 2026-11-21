@@ -16,7 +16,6 @@ import { mobileImageFor, stripEmoji } from "@/lib/mobile-template";
 import { BotFrame, BotLogo, bottomBarCls, bottomCls } from "@/components/mobile/BotFrame";
 import { CategoryPremiumIcon } from "@/components/mobile/CategoryPremiumIcon";
 import { categoryPremiumMedia } from "@/lib/category-premium-media";
-import { productPremiumMedia } from "@/lib/product-premium-media";
 import { ProductPremiumIcon } from "@/components/mobile/ProductPremiumIcon";
 import { ButtonPremiumIcon } from "@/components/mobile/ButtonPremiumIcon";
 import { Button } from "@/components/ui/button";
@@ -150,7 +149,7 @@ export function BotStorefront(props: {
           {free.length ? <p className="text-sm">Every product below can be claimed <b>FREE</b> once per its free window.</p>
             : <><p className="text-sm">No freebies right now. Check back later!</p><p className="mt-2 text-sm italic">No offer found — no free offers are running right now.</p></>}
         </Bubble>
-        {free.length > 0 && <Keys cols={1}>{free.map((p) => <Key key={p.id} leading={productPremiumMedia(p.id) ? <ProductPremiumIcon productId={p.id} /> : undefined} img={imgOf(p)} icon={Gift} onClick={() => setView({ k: "prod", id: p.id, from: view })}>{stripEmoji(p.name)} | FREE</Key>)}</Keys>}
+        {free.length > 0 && <Keys cols={1}>{free.map((p) => <Key key={p.id} leading={<ProductPremiumIcon productId={p.id} fallback={imgOf(p) ? <img src={imgOf(p)} alt="" className="h-6 w-6 shrink-0 rounded-md object-cover" /> : <Gift className="h-4 w-4 shrink-0" />} />} img={imgOf(p)} icon={Gift} onClick={() => setView({ k: "prod", id: p.id, from: view })}>{stripEmoji(p.name)} | FREE</Key>)}</Keys>}
         <Keys cols={1}><Key premium="ui_icon_prod_refresh" tone="green" icon={RefreshCw} onClick={() => setView({ k: "free" })}>Refresh</Key></Keys>
         <Keys cols={2}>
           <Key tone="green" icon={ShoppingCart} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>Open Shop</Key>
@@ -252,7 +251,7 @@ export function BotStorefront(props: {
         <Keys cols={1}>
           {slice.map((p) => (
             <Key key={p.id} tone={p.in_stock === false ? "red" : "blue"} img={imgOf(p)} icon={Package}
-              leading={productPremiumMedia(p.id) ? <ProductPremiumIcon productId={p.id} /> : undefined}
+              leading={<ProductPremiumIcon productId={p.id} fallback={imgOf(p) ? <img src={imgOf(p)} alt="" className="h-6 w-6 shrink-0 rounded-md object-cover" /> : <Package className="h-4 w-4 shrink-0" />} />}
               onClick={() => setView({ k: "prod", id: p.id, from: view })}>
               {stripEmoji(p.name)} | {money(p.price)} | <ButtonPremiumIcon setting="ui_icon_prod_stock" fallback={Boxes} /> {Number(p.stock ?? 0)}
             </Key>

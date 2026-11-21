@@ -139,6 +139,10 @@ export async function applySupplierProductUpdate(sb: any, data: SupplierListingI
   // only visible through the admin bell feed.
   const wasListed = Boolean(row.is_listed);
   const productId = patch.product_id ?? merged.product_id;
+  if (productId) {
+    const { syncProductPremiumIcon } = await import("@/lib/product-premium-sync.server");
+    await syncProductPremiumIcon(productId).catch(() => { /* Scheduled reconciliation retries artwork only. */ });
+  }
   if (!wasListed && merged.is_listed && productId) {
     const { enqueueNewProduct } = await import("@/lib/suppliers/sync.server");
     await enqueueNewProduct(sb, productId, `supplier_listing:${row.supplier_id}`, `listing:${data.id}`);

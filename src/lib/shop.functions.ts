@@ -535,9 +535,13 @@ export const getSiteContent = createServerFn({ method: "GET" }).handler(async ()
   const map: Record<string, string> = {};
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin.from("bot_settings").select("key,value").like("key", "site_%");
-    if (error) throw error;
-    for (const r of data ?? []) map[r.key as string] = (r.value as string) ?? "";
+    for (let offset = 0; ; offset += 500) {
+      const { data, error } = await supabaseAdmin.from("bot_settings").select("key,value").like("key", "site_%")
+        .order("key").range(offset, offset + 499);
+      if (error) throw error;
+      for (const r of data ?? []) map[r.key as string] = (r.value as string) ?? "";
+      if ((data?.length ?? 0) < 500) break;
+    }
   } catch (e) {
     console.error("[storefront] site content via admin unavailable:", e);
   }

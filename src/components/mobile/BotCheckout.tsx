@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import { BotFrame } from "@/components/mobile/BotFrame";
 import { Bubble, Key, KeyLink, Keys, Quote, Title } from "@/components/mobile/BotStorefront";
 import { ProductPremiumIcon } from "@/components/mobile/ProductPremiumIcon";
-import { productPremiumMedia } from "@/lib/product-premium-media";
 import { ButtonPremiumIcon } from "@/components/mobile/ButtonPremiumIcon";
 import { Button } from "@/components/ui/button";
 import { PaymentGatewayIcon } from "@/components/mobile/PaymentGatewayIcon";
@@ -58,7 +57,7 @@ export function BotCheckout(p: {
             <Title>CHECKOUT</Title>
             <div className="my-1.5 h-px w-40 bg-tg-bubble-fg/40" />
             <p className="flex items-center gap-2 font-semibold">
-              {productPremiumMedia(p.productId) ? <ProductPremiumIcon productId={p.productId} /> : p.productImg ? <img src={p.productImg} alt="" className="h-5 w-5 rounded object-cover" /> : <Ico i={Package} />}
+              <ProductPremiumIcon productId={p.productId} fallback={p.productImg ? <img src={p.productImg} alt="" className="h-5 w-5 rounded object-cover" /> : <Ico i={Package} />} />
               <span className="min-w-0 break-words">{p.productName}</span>
             </p>
             <p className="pl-7 text-sm">{p.qty} × {p.money(p.unit)} = <b>{p.money(p.total)}</b></p>
