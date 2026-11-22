@@ -6,6 +6,8 @@ let failSave = false;
 let purchases = 0;
 const originalFetch = globalThis.fetch;
 mock.module("@/lib/suppliers/live-stock.server", () => ({ refreshLiveStock: async () => null }));
+mock.module("@/lib/bot/engine.server", () => ({ announceOrderSale: async () => {} }));
+mock.module("@/lib/website-order-delivery.server", () => ({ sendWebsiteOrderDelivery: async () => true }));
 mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
   from(table: string) {
     let patch: any;
@@ -41,8 +43,8 @@ test("legacy Insight order without a reference retries once with a fixed per-ord
   expect(keys).toEqual(["qorix-retry-fixture-order"]);
   expect(order.status).toBe("completed");
 });
-test("paid retry reuses the original key and reads completed delivery back from the order", async () => {
-  order = { id: "fixture-order", status: "pending", product_id: "product", quantity: 1, meta: { paid: true, insight_reference: "original-key", supplier_error: "previous uncertain result" } };
+test("paid legacy website retry reuses the original key and reads completed delivery without a new purchase", async () => {
+  order = { id: "fixture-order", source: "website", status: "pending", product_id: "product", quantity: 1, meta: { paid: true, insight_reference: "original-key", supplier_error: "previous uncertain result" } };
   globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
     if (init?.method === "POST") { purchases++; throw new Error("Unexpected purchase"); }
     if (String(_url).endsWith("/orders")) return new Response(JSON.stringify({ orders: [{ order_id: 7000, idempotency_key: "original-key" }] }));

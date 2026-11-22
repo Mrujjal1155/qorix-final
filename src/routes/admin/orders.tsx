@@ -107,6 +107,10 @@ function paymentInfo(o: any): { label: string; detail: string; paid: boolean; re
     Boolean(meta.paid) ||
     Boolean(meta.eps_paid) ||
     Boolean(meta.paid_at) ||
+    meta.binance?.status === "verified" ||
+    meta.bybit?.status === "verified" ||
+    meta.blockchain?.status === "verified" ||
+    Boolean(meta.oxapay_paid) ||
     o.status === "completed" ||
     o.status === "refunded" ||
     // Website orders are paid only when a gateway/admin verified the money

@@ -47,6 +47,7 @@ export async function settleEpsPayment(
   const { data: order } = await db.from("orders").select("*").eq("txid", `EPS-${mtid}`).maybeSingle();
   if (!order) return { ok: false, reason: "Order not found for this payment." };
   if (order.status === "completed" || (order.meta as any)?.eps_paid) {
+    if (order.status === "pending" && order.delivery_type === "auto") await autoDeliver(order);
     return { ok: true, orderNo: order.order_no, email: order.customer_email };
   }
   if (!paymentAttemptOpen(order)) return { ok: false, reason: "Payment expired. Contact support if funds were sent." };
@@ -79,28 +80,10 @@ export async function settleEpsPayment(
   }
 
   // Replay protection — one merchant transaction id can only settle once.
-  const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: `eps:${mtid}` });
-  if (usedErr) return { ok: true, orderNo: order.order_no, email: order.customer_email };
-  // One gateway transaction can pay for one order only.
-  if (info.epsTransactionId) {
-    const { error: txErr } = await db.from("binance_used_txs").insert({ tx_id: `eps-tx:${info.epsTransactionId}` });
-    if (txErr) return { ok: false, orderNo: order.order_no, email: order.customer_email, reason: "This payment was already used for another order." };
-  }
-
-  const { error: paidError } = await db
-    .from("orders")
-    .update({
-      payment_method: `EPS${info.financialEntity ? ` · ${info.financialEntity}` : ""}`,
-      meta: {
-        ...((order.meta as any) ?? {}),
-        eps_paid: true,
-        eps_transaction_id: info.epsTransactionId,
-        eps_entity: info.financialEntity,
-        paid_bdt: info.amount,
-        paid_at: new Date().toISOString(),
-      },
-    })
-    .eq("id", order.id);
+  const { error: paidError } = await db.rpc("settle_verified_website_payment", {
+    _order_id: order.id, _gateway: "eps", _amount: info.amount, _reference: mtid,
+    _secondary: info.epsTransactionId ?? null, _details: { entity: info.financialEntity },
+  });
 
   if (paidError) return { ok: false, reason: "Payment could not be settled. Contact support." };
 
@@ -113,31 +96,9 @@ export async function settleEpsPayment(
 /** Supplier API purchase or in-house stock claim; manual products stay pending. */
 export async function autoDeliver(order: any) {
   try {
-    const { data: product } = await db
-      .from("products")
-      .select("id,delivery_type,supplier_id,supplier_external_id")
-      .eq("id", order.product_id)
-      .maybeSingle();
-    if (!product) return;
-
-    if (product.supplier_id && product.supplier_external_id) {
-      const { retrySupplierDelivery } = await import("@/lib/suppliers/fulfil.server");
-      const r = await retrySupplierDelivery(order.id);
-      if (!r.ok) console.error(`[eps] supplier delivery pending for #${order.order_no}: ${r.reason}`);
-      return;
-    }
-
-    if (product.delivery_type === "manual") {
-      await db.rpc("take_manual_stock", { _pid: product.id, _qty: Number(order.quantity ?? 1) });
-      return;
-    }
-
-    if (product.delivery_type === "auto") {
-      // Gateway delivery and admin Retry must lock the same order atomically.
-      const { retryInhouseDelivery } = await import("@/lib/inhouse-retry.server");
-      const result = await retryInhouseDelivery(String(order.id));
-      if (!result.ok) console.error(`[eps] in-house delivery pending for #${order.order_no}`);
-    }
+    const { fulfillWebsiteOrder } = await import("@/lib/website-fulfillment.server");
+    const result = await fulfillWebsiteOrder(String(order.id));
+    if (!result.ok) console.error(`[website] delivery pending for #${order.order_no}: ${result.reason}`);
   } catch (e) {
     console.error("[eps] auto delivery failed:", e);
   }

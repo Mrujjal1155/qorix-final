@@ -109,6 +109,11 @@ export async function recordSupplierError(orderId: string, reason: string | null
 export async function retrySupplierDelivery(orderId: string): Promise<RetryResult> {
   const { data: order } = await db.from("orders").select("*").eq("id", orderId).maybeSingle();
   if (!order) return { ok: false, reason: "Order not found" };
+  if (order.source === "website" && order.payment_method !== "wallet" &&
+    (order.meta?.website_supplier_attempt || (!order.meta?.supplier_error && !order.meta?.insight_reference))) {
+    const { fulfillWebsiteOrder } = await import("@/lib/website-fulfillment.server");
+    return fulfillWebsiteOrder(orderId);
+  }
   if (order.payment_method === "wallet" && order.meta?.wallet_supplier_attempt)
     return { ok: false, reason: "Wallet delivery attempt requires review before another purchase" };
   if (order.reseller_id && (order.meta?.refunded === true || ["failed", "refunded", "cancelled", "expired"].includes(order.status)))
@@ -160,6 +165,10 @@ export async function retrySupplierDelivery(orderId: string): Promise<RetryResul
   if (!sup.is_enabled) return { ok: false, reason: `Supplier “${sup.name ?? sup.key}” is disabled in admin` };
   const { isInsightStore, insightRetryDelivery } = await import("@/lib/suppliers/insight.server");
   const insight = isInsightStore(sup);
+  // Legacy Insight recovery is provider-idempotent. Never replay legacy buys
+  // for another provider when the earlier delivery outcome is unknown.
+  if (order.source === "website" && !insight)
+    return { ok: false, reason: "Earlier delivery requires reconciliation before another purchase" };
   if (insight && (order.meta?.paid !== true || order.meta?.refunded === true || order.meta?.awaiting_payment === true || order.status !== "pending"))
     return { ok: false, reason: "Only paid, non-refunded pending orders can recover Insight delivery" };
   const reference = insight

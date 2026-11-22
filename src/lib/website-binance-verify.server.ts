@@ -26,7 +26,12 @@ export async function verifyWebsiteOrderTxid(orderId: string): Promise<WebsiteBi
     return verifyBybitWebsiteOrder(orderId);
   }
   const meta = (o.meta ?? {}) as Record<string, any>;
-  if (meta["binance"]?.status === "verified") return meta["binance"] as WebsiteBinanceCheck;
+  if (!["binance", "usdt_BSC", "usdt_TRX", "usdt_bep20", "usdt_trc20"].includes(o.payment_method ?? "")) return null;
+  if (meta["binance"]?.status === "verified") {
+    const { fulfillWebsiteOrder } = await import("@/lib/website-fulfillment.server");
+    await fulfillWebsiteOrder(orderId);
+    return meta["binance"] as WebsiteBinanceCheck;
+  }
   if (!paymentAttemptOpen(o)) return { status: "error", checked_at: new Date().toISOString(), note: "Payment expired; automatic settlement disabled." };
 
   const txId = String(o.txid).trim();
@@ -43,14 +48,23 @@ export async function verifyWebsiteOrderTxid(orderId: string): Promise<WebsiteBi
     } else if (!exactBinanceAmount(Number(o.total), m.amount)) {
       result = { status: "mismatch", amount: m.amount, currency: m.currency, checked_at: now, note: `Expected ${Number(o.total)} USDT` };
     } else {
-      const { error } = await db.from("binance_used_txs").insert({ tx_id: txId });
+      const { error } = await db.rpc("settle_verified_website_payment", {
+        _order_id: orderId, _gateway: "binance", _amount: m.amount, _reference: txId,
+      });
       result = error
-        ? { status: "used", amount: m.amount, currency: m.currency, checked_at: now, note: "ID already used by another payment" }
+        ? { status: "error", amount: m.amount, currency: m.currency, checked_at: now, note: "Payment settlement unavailable or ID already used." }
         : { status: "verified", amount: m.amount, currency: m.currency, checked_at: now };
     }
   } catch (e) {
     result = { status: "error", checked_at: now, note: e instanceof Error ? e.message : "Binance unreachable" };
   }
-  await db.from("orders").update({ meta: { ...meta, binance: result } as any }).eq("id", o.id);
+  if (result.status === "verified") {
+    const { fulfillWebsiteOrder } = await import("@/lib/website-fulfillment.server");
+    await fulfillWebsiteOrder(orderId);
+  } else {
+    // A failed check must not replace a concurrent verified settlement.
+    await db.from("orders").update({ meta: { ...meta, binance: result } as any }).eq("id", o.id)
+      .eq("status", "pending").is("meta->>paid", null).is("meta->binance->>status", null);
+  }
   return result;
 }

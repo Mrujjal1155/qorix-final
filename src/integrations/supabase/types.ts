@@ -2889,6 +2889,7 @@ export type Database = {
         Args: { _code: string; _secret_hash: string }
         Returns: number
       }
+      claim_website_fulfillment: { Args: { _order_id: string }; Returns: Json }
       claim_website_order_delivery: {
         Args: { _order_id?: string }
         Returns: {
@@ -2975,6 +2976,15 @@ export type Database = {
           p_supplier_order: string
         }
         Returns: undefined
+      }
+      finish_website_fulfillment: {
+        Args: {
+          _items: Json
+          _order_id: string
+          _reason?: string
+          _token: string
+        }
+        Returns: Json
       }
       fulfill_charged_reseller_stock: {
         Args: { _order_id: string }
@@ -3258,6 +3268,17 @@ export type Database = {
         Args: { _charge_id: string; _deposit_id: string; _stars: number }
         Returns: Json
       }
+      settle_verified_website_payment: {
+        Args: {
+          _amount: number
+          _details?: Json
+          _gateway: string
+          _order_id: string
+          _reference: string
+          _secondary?: string
+        }
+        Returns: Json
+      }
       stock_counter_bump: {
         Args: { _d: number; _pid: string }
         Returns: undefined
@@ -3291,6 +3312,12 @@ export type Database = {
       update_stock_notification_progress: {
         Args: { _channel_sent?: boolean; _dm_cursor?: number; _id: string }
         Returns: undefined
+      }
+      website_fulfillment_candidates: {
+        Args: { _limit?: number }
+        Returns: {
+          id: string
+        }[]
       }
     }
     Enums: {

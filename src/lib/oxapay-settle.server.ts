@@ -46,7 +46,11 @@ async function settleWebsite(info: import("@/lib/oxapay.server").OxapayInfo, set
   // The invoice must be the one we created for this order.
   if ((order.meta as any)?.oxapay_track_id !== info.trackId)
     return { ok: false, kind: "website", orderNo: order.order_no, reason: "Payment does not belong to this order." };
-  if ((order.meta as any)?.oxapay_paid) return { ok: true, kind: "website", orderNo: order.order_no };
+  if ((order.meta as any)?.oxapay_paid) {
+    const { autoDeliver } = await import("@/lib/eps-settle.server");
+    if (order.delivery_type === "auto") await autoDeliver(order);
+    return { ok: true, kind: "website", orderNo: order.order_no };
+  }
   if (!paymentAttemptOpen(order)) return { ok: false, kind: "website", reason: "Payment expired. Contact support if funds were sent." };
   if (!oxapayIsPaid(info.status))
     return { ok: false, kind: "website", orderNo: order.order_no, reason: `Payment not confirmed yet (status: ${info.status || "pending"}).` };
@@ -55,15 +59,14 @@ async function settleWebsite(info: import("@/lib/oxapay.server").OxapayInfo, set
   if (!oxapayCovers(info.amount, Number(order.total ?? 0)))
     return { ok: false, kind: "website", orderNo: order.order_no, reason: "Paid amount is lower than the order total." };
 
-  const { error: usedErr } = await db.from("binance_used_txs").insert({ tx_id: `oxapay:${info.trackId}` });
-  if (usedErr) return { ok: true, kind: "website", orderNo: order.order_no };
-
-  const meta = { ...((order.meta as any) ?? {}), oxapay_paid: true, oxapay_coin: info.coin, oxapay_tx: info.txHash, paid_at: new Date().toISOString() };
-  const { error: paidError } = await db.from("orders").update({ meta }).eq("id", order.id);
+  const { error: paidError } = await db.rpc("settle_verified_website_payment", {
+    _order_id: order.id, _gateway: "oxapay", _amount: info.amount, _reference: info.trackId,
+    _details: { coin: info.coin, tx: info.txHash },
+  });
   if (paidError) return { ok: false, kind: "website", reason: "Payment could not be settled. Contact support." };
 
   const { autoDeliver, sendPaidEmails } = await import("@/lib/eps-settle.server");
-  await autoDeliver({ ...order, meta });
+  await autoDeliver(order);
   await sendPaidEmails(order, settings, info.coin, "OxaPay");
   return { ok: true, kind: "website", orderNo: order.order_no };
 }

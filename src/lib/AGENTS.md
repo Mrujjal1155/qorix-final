@@ -1,0 +1,1 @@
+- Verified website gateways converge on order-locked payment/fulfillment RPCs and one shared server dispatcher; supplier purchase claims are permanent and uncertain outcomes require review, preventing duplicate charges across callbacks, recovery and admin actions.

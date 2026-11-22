@@ -55,7 +55,7 @@ function ConfirmationPage() {
     queryFn: () => fetchOrder({ data: { order_no: orderNo, email, token: t ?? "" } }),
     enabled: Boolean(orderNo && email),
     retry: false,
-    refetchInterval: (q) => (mobile && (q.state.data as any)?.order?.status === "pending" ? 8000 : false),
+    refetchInterval: (q) => ((q.state.data as any)?.order?.status === "pending" ? 2000 : false),
   });
 
   const o = data?.order as any;
