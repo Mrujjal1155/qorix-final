@@ -13,6 +13,7 @@ mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
       select: () => chain, order: () => chain, range: () => chain, limit: () => chain,
       eq: () => chain, in: () => chain, overlaps: () => chain, update: () => chain,
       gt: () => chain, gte: () => chain, lt: () => chain, lte: () => chain, not: () => chain,
+      or: () => chain, neq: () => chain, is: () => chain,
       maybeSingle: async () => result(), single: async () => result(),
       then: (resolve: (value: unknown) => unknown) => Promise.resolve(result()).then(resolve),
     };
