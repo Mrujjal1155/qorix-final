@@ -8896,25 +8896,6 @@ export async function handleApiIconState(chatId: number, msg: any, text: string,
 }
 
 /**
- * Post a supplier announcement (from a supplier's announcement API) to the
- * configured announcement channel/group. Plain notice card — no product data.
- */
-export async function announceSupplierNotice(supplierName: string, title: string, body: string) {
-  const s = await getSettings();
-  if (!legacySwitchOn(s, "announce_supplier_notice")) return { sent: false };
-  const line = "──────────────────────";
-  const heading = title || "Supplier announcement";
-  const text =
-    `<b>${escapeHtml(heading)}</b>\n${line}\n\n` +
-    (body ? `${escapeHtml(body)}\n\n` : "") +
-    `<i>${escapeHtml(supplierName)}</i>`;
-  return await postToChannel(s, text, undefined, null, undefined, "supplier_notice").catch((error) => {
-    console.error("Supplier announcement delivery failed:", error);
-    return { sent: false };
-  });
-}
-
-/**
  * Internal operations notice (supplier id change, removed product, blocked
  * disabled product). DASHBOARD ONLY — these are recorded as visibility alerts
  * and deliberately never sent to Telegram (bot chat or channel).

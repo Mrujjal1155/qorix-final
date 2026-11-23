@@ -18,7 +18,6 @@ export const NOTIFY_KINDS = [
   { key: "live_payment", label: "Payment / top-up" },
   { key: "live_member", label: "New member" },
   { key: "free_claim", label: "Free claim" },
-  { key: "supplier_notice", label: "Supplier notice" },
 ] as const;
 export type NotifyKind = (typeof NOTIFY_KINDS)[number]["key"];
 
