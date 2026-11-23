@@ -3313,6 +3313,10 @@ export type Database = {
         Args: { _channel_sent?: boolean; _dm_cursor?: number; _id: string }
         Returns: undefined
       }
+      website_bulk_unit: {
+        Args: { _product_id: string; _qty: number }
+        Returns: number
+      }
       website_fulfillment_candidates: {
         Args: { _limit?: number }
         Returns: {
