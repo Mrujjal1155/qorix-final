@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import { checkBinanceStatus, checkBotToken, getBotSettings, registerWebhook, saveBinanceKeys, saveBotSettings, sendTestEmail, getEmailStatus, testPaykori, testOxapay } from "@/lib/admin.functions";
 import { AdminShell } from "@/components/AdminShell";
+import { ImageUploadField } from "@/components/ImageUploadField";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +60,9 @@ const FIELDS: { key: string; label: string; long?: boolean; help?: string }[] = 
   { key: "nagad_number", label: "Nagad number (manual fallback)" },
 
   { key: "bot_link", label: "Bot link (https://t.me/...)" },
+  { key: "community_group_link", label: "Start · General Chat join link (https://t.me/...)" },
+  { key: "community_channel_link", label: "Start · Official Channel join link (https://t.me/...)" },
+  { key: "community_updates_link", label: "Start · Store Updates join link (https://t.me/...)" },
 
   // notify_email lives in the Email settings section
 
@@ -481,6 +485,12 @@ function SettingsPage() {
         <CardTitle>Bot configuration</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1 sm:col-span-2">
+          <Label>Start banner (bot /start)</Label>
+          <p className="text-xs text-muted-foreground">Recommended 1920×691 (wide banner). Shown above the welcome card; leave empty to hide.</p>
+          <ImageUploadField value={values["home_banner_url"] ?? ""} onChange={(url) => setValues({ ...values, home_banner_url: url })} placeholder="https://… banner image" />
+          {values["home_banner_url"] && <img src={values["home_banner_url"]} alt="Start banner preview" className="mt-2 aspect-[1920/691] w-full rounded-md border border-border object-cover" />}
+        </div>
         {FIELDS.map((f) => (
           <div key={f.key} className={`space-y-1 ${f.long ? "sm:col-span-2" : ""}`}>
             <Label>{f.label}</Label>

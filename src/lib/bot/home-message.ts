@@ -9,27 +9,48 @@ export type HomeMessageContent = {
 };
 
 export type StartMessageContent = {
-  header: string;
   greeting: string;
+  /** Label/value cells, already escaped (values usually wrapped in <code> for tap-to-copy). */
+  rows: Array<[string, string]>;
   choose: string;
-  description: string;
-  menu: Array<{ label: string; description: string }>;
-  community: string;
-  groupIcon: string;
-  channelIcon: string;
-  updatesIcon: string;
 };
 
-/** Lightweight ordinary HTML: no account tables or private referral links. */
+export const COMMUNITY_DEFAULTS = {
+  group: "https://t.me/QORIXCHAT",
+  channel: "https://t.me/qorixlab",
+  updates: "https://t.me/qorixstoreupdate",
+} as const;
+
+/** Compact Qamify-style start card: greeting, account table, copy hint. */
 export function buildStartMessage(content: StartMessageContent): string {
-  return `${content.header}\n\n${content.greeting}\n\n` +
-    `${content.description}\n\n` +
-    `<blockquote>${content.menu.map(({ label, description }) => `${label} — ${description}`).join("\n")}</blockquote>\n\n` +
-    `<b>${content.community}</b>\nJoin for stock alerts and updates.\n` +
-    `${content.groupIcon} <a href="https://t.me/QORIXCHAT">Community Group</a>\n` +
-    `${content.channelIcon} <a href="https://t.me/qorixlab">Official Channel</a>\n` +
-    `${content.updatesIcon} <a href="https://t.me/qorixstoreupdate">Store Updates Channel</a>\n\n` +
-    content.choose;
+  return `<p>${content.greeting}</p>` +
+    `<table bordered striped compact>${content.rows.map(([label, value]) =>
+      `<tr><td>${label}</td><td>${value}</td></tr>`).join("")}</table>` +
+    `<p>Tap any value to copy it.</p><p>${content.choose}</p>`;
+}
+
+/** Plain invite copy button — Telegram already shows a copy glyph, so no emoji. */
+export function inviteCopyButton(link: string): { text: string; copy_text: { text: string } } {
+  return { text: "Copy invite link", copy_text: { text: link.slice(0, 256) } };
+}
+
+/** Three join buttons; only https t.me links are accepted, else the default is used. */
+export function communityJoinRow(settings: Record<string, string>): Array<{ text: string; url: string }> {
+  const pick = (key: string, fallback: string) => {
+    const v = (settings[key] || "").trim();
+    return /^https:\/\/t\.me\/[A-Za-z0-9_+/-]+$/.test(v) ? v : fallback;
+  };
+  return [
+    { text: "General Chat", url: pick("community_group_link", COMMUNITY_DEFAULTS.group) },
+    { text: "Official Channel", url: pick("community_channel_link", COMMUNITY_DEFAULTS.channel) },
+    { text: "Store Updates", url: pick("community_updates_link", COMMUNITY_DEFAULTS.updates) },
+  ];
+}
+
+/** Only an https image URL may be used as the start banner. */
+export function startBannerUrl(settings: Record<string, string>): string | null {
+  const v = (settings["home_banner_url"] || "").trim();
+  return /^https:\/\/\S+$/.test(v) ? v : null;
 }
 
 /** Profile cells are escaped by the caller, preserving configured Premium icons. */

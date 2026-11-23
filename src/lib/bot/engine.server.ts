@@ -73,7 +73,7 @@ import { epsWalletCredit } from "@/lib/eps-payment";
 import { PAYMENT_WINDOW_MS, paymentAttemptOpen } from "@/lib/payment-deadline";
 import { orderTimezone } from "@/lib/order-time";
 import { reservedCheckout } from "@/lib/bot/paid-checkout";
-import { buildStartMessage, buildProfileDetails, referralCopyButton, referralShareAnchor } from "@/lib/bot/home-message";
+import { buildStartMessage, buildProfileDetails, referralCopyButton, referralShareAnchor, inviteCopyButton, communityJoinRow, startBannerUrl } from "@/lib/bot/home-message";
 import { homeMenuColor, type HomeMenuKey } from "@/lib/bot/home-menu-colors";
 import { buildWalletHistory, historyOwner, historyPage } from "@/lib/bot/wallet-history";
 import { readWalletHistory } from "@/lib/bot/wallet-history.server";
@@ -877,11 +877,12 @@ async function websiteButtonRow(settings: Record<string, string>, websiteOwner: 
   }
 }
 
-async function homeKeyboard(settings: Record<string, string>, websiteOwner: number | null): Promise<Button[][]> {
+async function homeKeyboard(settings: Record<string, string>, _websiteOwner: number | null, user?: any): Promise<Button[][]> {
   const topColor = btnColor(settings, "menu");
   const btn = (key: HomeMenuKey, b: Button) => styled(b, homeMenuColor(key, topColor));
   return [
-    await websiteButtonRow(settings, websiteOwner),
+    ...(user?.ref_code ? [[inviteCopyButton(refLink(settings, user)) as Button]] : []),
+    communityJoinRow(settings) as Button[],
     [
       btn("shop", iconButton(settings, "shop", "shop:0")),
       btn("cart", iconButton(settings, "cart", "cart")),
@@ -916,35 +917,31 @@ async function homeKeyboard(settings: Record<string, string>, websiteOwner: numb
 
 async function homeText(user: any) {
   const s = await getSettings();
-  const botName = s["bot_name"] || "QORIX STORE";
-  const menu = [
-    ["shop", "Browse products & buy"],
-    ["cart", "Review items added to your cart"],
-    ["orders", "View order status & delivery"],
-    ["wallet", "Check balance & add funds"],
-    ["freebies", "View available free offers"],
-    ["profile", "Account, wallet, orders & referral details"],
-    ["referral", "Invite friends & view rewards"],
-    ["support", "Contact support for help"],
-    ["emails", "Open the Emails & Trials page"],
-    ["api", "Access the reseller API & guide"],
-    ["clear", "Remove tracked bot chat messages"],
-  ] as const;
+  const { current } = tierInfo(user?.total_spent);
   return buildStartMessage({
-    header: sectionHead(s, "home", `<b>Welcome to ${escapeHtml(botName)}!</b>`),
-    greeting: `${uiIconHtml(s, "home_greet")} ${escapeHtml(uiText(s, "home_greet"))}, <b>${escapeHtml(user.first_name ?? "friend")}</b>!`,
+    greeting: `${uiIconHtml(s, "home_greet")} ${escapeHtml(uiText(s, "home_greet"))}, <b>${escapeHtml(user?.first_name ?? "friend")}</b>`,
+    rows: [
+      [uiTag(s, "prof_username"), user?.username ? `<code>@${escapeHtml(user.username)}</code>` : "—"],
+      [uiTag(s, "prof_userid"), `<code>${escapeHtml(String(user?.telegram_id ?? "—"))}</code>`],
+      [uiTag(s, "prof_member"), `<b>${escapeHtml(current.name)}</b>${current.discount ? ` · ${current.discount}% off` : ""}`],
+      [uiTag(s, "prof_balance"), `<code>${money(user?.balance)}</code>`],
+      [uiTag(s, "prof_spent"), `<code>${money(user?.total_spent)}</code>`],
+    ],
     choose: uiTag(s, "home_choose"),
-    description: uiTag(s, "home_description"),
-    menu: menu.map(([key, description]) => {
-      const { customId, glyph } = menuButtonText(s, key);
-      const icon = customId ? `<tg-emoji emoji-id="${customId}">${escapeHtml(glyph)}</tg-emoji>` : escapeHtml(glyph);
-      return { label: `${icon} <b>${escapeHtml(MENU_ICONS[key][1])}</b>`, description };
-    }),
-    community: uiTag(s, "home_community"),
-    groupIcon: uiIconHtml(s, "home_group"),
-    channelIcon: uiIconHtml(s, "home_channel"),
-    updatesIcon: uiIconHtml(s, "home_updates"),
   });
+}
+
+/** Start screen: optional admin banner (carries the bottom menu), then the table card with buttons. */
+async function sendHome(chatId: number, user: any, settings: Record<string, string>, websiteOwner: number | null) {
+  const banner = startBannerUrl(settings);
+  if (banner) {
+    const res = await tg("sendPhoto", { chat_id: chatId, photo: banner, reply_markup: bottomMenuMarkup(settings) });
+    if (res?.ok) {
+      defer(() => trackMessage(chatId, res?.result?.message_id));
+      return say(chatId, await homeText(user), await homeKeyboard(settings, websiteOwner, user));
+    }
+  }
+  return sayWithBottomMenu(chatId, await homeText(user), settings, await homeKeyboard(settings, websiteOwner, user));
 }
 
 /* --------------------------------------------------- profile & referrals */
@@ -3831,7 +3828,7 @@ async function handleMessage(msg: any) {
       }
     }
     const settings = await getSettings();
-    await sayWithBottomMenu(chatId, await homeText(user), settings, await homeKeyboard(settings, websiteOwner));
+    await sendHome(chatId, user, settings, websiteOwner);
     return;
   }
 
@@ -3861,7 +3858,7 @@ async function handleMessage(msg: any) {
       await say(chatId, v.text, v.kb);
     } else if (cmd === "menu") {
       const settings = await getSettings();
-      await sayWithBottomMenu(chatId, await homeText(fresh), settings, await homeKeyboard(settings, websiteOwner));
+      await sendHome(chatId, fresh, settings, websiteOwner);
     } else if (cmd === "products") {
       const v = await shopView(0, chatId);
       await say(chatId, v.text, v.kb);
@@ -6908,7 +6905,7 @@ async function handleCallback(cq: any) {
       return;
     }
     const okUser = await getUser(chatId);
-    await edit(`${joinSuccessText(s)}\n\n${await homeText(okUser)}`, await homeKeyboard(s, websiteOwner));
+    await edit(`${joinSuccessText(s)}\n\n${await homeText(okUser)}`, await homeKeyboard(s, websiteOwner, okUser));
     return;
   }
 
@@ -6929,7 +6926,7 @@ async function handleCallback(cq: any) {
   if (data === "home") {
     // `user` was just loaded by upsertUser — no second read needed.
     const s = await getSettings();
-    await edit(await homeText(user), await homeKeyboard(s, websiteOwner));
+    await edit(await homeText(user), await homeKeyboard(s, websiteOwner, user));
     return;
   }
 
@@ -7787,7 +7784,7 @@ async function handleCallback(cq: any) {
     msgsCache.set(chatId, []);
     await setState(chatId, { ...state, msgs: [] });
     const fresh = await getUser(chatId);
-    await say(chatId, await homeText(fresh), await homeKeyboard(await getSettings(), websiteOwner));
+    await sendHome(chatId, fresh, await getSettings(), websiteOwner);
     return;
   }
 
