@@ -3971,6 +3971,10 @@ async function handleMessage(msg: any) {
     await handleProductEditState(chatId, msg, text, state);
     return;
   }
+  if (state.awaiting === "adm_join_emoji") {
+    await handleJoinEmojiState(chatId, msg, text, state);
+    return;
+  }
   if (state.awaiting === "adm_live_emoji") {
     await handleLiveEmojiState(chatId, msg, text, state);
     return;
@@ -4927,6 +4931,7 @@ export function adminKeyboard(): Button[][] {
       { text: "🗂 Category icons", callback_data: "adm:caticons" },
     ],
     [{ text: "📡 Live Update Emojis", callback_data: "adm:liveemo" }],
+    [{ text: "🔐 Join Gate Emojis", callback_data: "adm:joinemo" }],
     [{ text: "📝 Active Products", callback_data: "adm:pe:l:0" }],
     [{ text: "🎨 Button colors", callback_data: "adm:bcolors" }],
 
@@ -4998,16 +5003,16 @@ function joinGateView(s: Record<string, string>, missing: JoinChannel[]) {
   const lines: string[] = [];
   all.forEach((c, i) => {
     const done = !pending.has(c.chat);
-    lines.push(`${done ? "✅" : "🔸"} <b>${i + 1}.</b> ${escapeHtml(c.label)}${done ? " — joined" : ""}`);
+    lines.push(`${done ? je(s, "joined") : je(s, "item")} <b>${i + 1}.</b> ${escapeHtml(c.label)}${done ? " — joined" : ""}`);
     if (done) return;
     kb.push([
       c.url
-        ? { text: `📢 ${i + 1}. Join ${c.label}`, url: c.url }
-        : { text: `📢 ${i + 1}. ${c.label}`, callback_data: "jg:v" },
+        ? jeBtn(s, "join", `${i + 1}. Join ${c.label}`, { url: c.url })
+        : jeBtn(s, "join", `${i + 1}. ${c.label}`, { callback_data: "jg:v" }),
     ]);
   });
-  kb.push([{ text: "✅ Verify & continue", callback_data: "jg:v" }]);
-  const title = (s["join_gate_title"] || "🔒 <b>Membership required</b>").trim();
+  kb.push([jeBtn(s, "verify", "Verify & continue", { callback_data: "jg:v" })]);
+  const title = (s["join_gate_title"] || `${je(s, "lock")} <b>Membership required</b>`).trim();
   const body =
     (s["join_gate_text"] || "").trim() ||
     "Join our official community below to unlock the bot.\nJoin them <b>one by one</b>, then tap <b>Verify &amp; continue</b> — membership is checked live.";
@@ -5018,9 +5023,9 @@ function joinGateView(s: Record<string, string>, missing: JoinChannel[]) {
 function joinSuccessText(s: Record<string, string>) {
   return (
     (s["join_gate_success"] || "").trim() ||
-    "🎉 <b>Verification successful!</b>\n──────────────\n" +
-      "✅ Your community membership is confirmed.\n" +
-      "🔓 Full access unlocked — browse products, top up your wallet and place orders.\n\n" +
+    `${je(s, "party")} <b>Verification successful!</b>\n──────────────\n` +
+      `${je(s, "confirmed")} Your community membership is confirmed.\n` +
+      `${je(s, "unlock")} Full access unlocked`+" — browse products, top up your wallet and place orders.\n\n" +
       "<i>Thanks for joining us. Happy shopping!</i>"
   );
 }
@@ -5038,6 +5043,7 @@ async function admJoinGateView() {
     kb.push([{ text: `🗑 Remove ${c.label}`, callback_data: `adm:jgdel:${i}` }]);
   });
   kb.push([{ text: "🧪 Test my membership", callback_data: "adm:jgtest" }]);
+  kb.push([{ text: "🎨 Join Gate Emojis", callback_data: "adm:joinemo" }]);
   kb.push(ADM_BACK[0]!);
   return {
     text:
@@ -6959,6 +6965,11 @@ async function handleCallback(cq: any) {
 
   if (data.startsWith("adm:pe:")) {
     await handleProductEditCallback(chatId, data, user.state ?? {}, edit);
+    return;
+  }
+
+  if (data === "adm:joinemo" || data.startsWith("adm:je:")) {
+    await handleJoinEmojiCallback(chatId, data, user.state ?? {}, edit);
     return;
   }
 
@@ -8975,6 +8986,110 @@ export async function handleLiveEmojiState(chatId: number, msg: any, text: strin
     return true;
   }
   const v = await admLiveEmojiView();
+  await say(chatId, `✅ ${slot.label} ${reset ? "reset" : "updated"}.\n\n${v.text}`, v.kb);
+  return true;
+}
+
+
+/* ---------- Join gate Premium emojis (admin-editable, default glyph fallback) ---------- */
+
+const JOIN_EMOJI_SLOTS = [
+  { slot: "lock", glyph: "🔒", label: "Membership required title" },
+  { slot: "item", glyph: "🔸", label: "List item (not joined)" },
+  { slot: "joined", glyph: "✅", label: "List item (joined)" },
+  { slot: "join", glyph: "📢", label: "Join button" },
+  { slot: "verify", glyph: "✅", label: "Verify & continue button" },
+  { slot: "party", glyph: "🎉", label: "Verification successful title" },
+  { slot: "confirmed", glyph: "✅", label: "Membership confirmed line" },
+  { slot: "unlock", glyph: "🔓", label: "Full access unlocked line" },
+] as const;
+
+function joinEmojiId(s: Record<string, string>, slot: string) {
+  return String(s[`join_emoji_${slot}`] ?? "").trim();
+}
+
+/** Inline HTML for a join-gate emoji (Premium when configured). */
+function je(s: Record<string, string>, slot: string) {
+  const def = JOIN_EMOJI_SLOTS.find((x) => x.slot === slot)?.glyph ?? "";
+  const id = joinEmojiId(s, slot);
+  return id ? `<tg-emoji emoji-id="${id}">${def}</tg-emoji>` : def;
+}
+
+/** Join-gate button: Premium icon via icon_custom_emoji_id, else glyph prefix. */
+function jeBtn(s: Record<string, string>, slot: string, label: string, extra: Record<string, string>): Button {
+  const def = JOIN_EMOJI_SLOTS.find((x) => x.slot === slot)?.glyph ?? "";
+  const id = joinEmojiId(s, slot);
+  return (id
+    ? { text: label, ...extra, icon_custom_emoji_id: id }
+    : { text: `${def} ${label}`, ...extra }) as Button;
+}
+
+async function admJoinEmojiView() {
+  const { data } = await db.from("bot_settings").select("key,value").like("key", "join_emoji_%");
+  const map: Record<string, string> = {};
+  for (const r of (data ?? []) as any[]) map[String(r.key)] = String(r.value ?? "").trim();
+  const kb: Button[][] = JOIN_EMOJI_SLOTS.map((x) => {
+    const id = map[`join_emoji_${x.slot}`] ?? "";
+    return [{
+      text: `${id ? "" : x.glyph} ${x.label}${id ? " ✓" : ""}`.trim(),
+      callback_data: `adm:je:${x.slot}`,
+      ...(id ? { icon_custom_emoji_id: id } : {}),
+    }];
+  });
+  kb.push([{ text: "🔐 Force join gate", callback_data: "adm:jg" }]);
+  kb.push(ADM_BACK[0]!);
+  return {
+    text:
+      "🔐 <b>Join Gate Emojis</b>\n\nThese emojis appear in the Membership required and Verification successful messages.\n" +
+      "Tap one, then send a <b>Telegram Premium custom emoji</b>. Send <code>-</code> to reset.\n\n" +
+      `<b>Current</b>\n${JOIN_EMOJI_SLOTS.map((x) => `${je(map, x.slot)} ${x.label}${map[`join_emoji_${x.slot}`] ? "" : " (default)"}`).join("\n")}`,
+    kb,
+  };
+}
+
+export async function handleJoinEmojiCallback(
+  chatId: number,
+  data: string,
+  state: any,
+  edit: (text: string, kb?: Button[][]) => Promise<void>,
+): Promise<boolean> {
+  if (!(await isAdmin(chatId))) return true;
+  if (data === "adm:joinemo") {
+    const v = await admJoinEmojiView();
+    await edit(v.text, v.kb);
+    return true;
+  }
+  const slot = JOIN_EMOJI_SLOTS.find((x) => `adm:je:${x.slot}` === data);
+  if (!slot) return true;
+  await setState(chatId, { ...(state ?? {}), awaiting: "adm_join_emoji", adm_join_emoji: slot.slot });
+  await edit(
+    `🔐 Send the new premium emoji for <b>${slot.label}</b> (default ${slot.glyph}).\n\nSend <code>-</code> to reset.`,
+    [[{ text: "⬅️ Join Gate Emojis", callback_data: "adm:joinemo" }], ADM_BACK[0]!],
+  );
+  return true;
+}
+
+export async function handleJoinEmojiState(chatId: number, msg: any, text: string, state: any): Promise<boolean> {
+  if (state?.awaiting !== "adm_join_emoji") return false;
+  state.awaiting = null;
+  const slot = JOIN_EMOJI_SLOTS.find((x) => x.slot === String(state.adm_join_emoji ?? ""));
+  await setState(chatId, state);
+  if (!(await isAdmin(chatId)) || !slot) return true;
+  const reset = String(text ?? "").trim() === "-";
+  const id = reset ? "" : customEmojiIdFromMessage(msg);
+  if (!reset && !id) {
+    await say(chatId, "⚠️ Please send a <b>Telegram Premium custom emoji</b> (or <code>-</code> to reset).", [
+      [{ text: "⬅️ Join Gate Emojis", callback_data: "adm:joinemo" }],
+    ]);
+    return true;
+  }
+  try {
+    await saveIconSetting(`join_emoji_${slot.slot}`, id);
+  } catch (e) {
+    await say(chatId, saveFailText(e), ADM_BACK);
+    return true;
+  }
+  const v = await admJoinEmojiView();
   await say(chatId, `✅ ${slot.label} ${reset ? "reset" : "updated"}.\n\n${v.text}`, v.kb);
   return true;
 }
