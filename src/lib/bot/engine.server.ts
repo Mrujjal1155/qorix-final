@@ -877,10 +877,11 @@ async function websiteButtonRow(settings: Record<string, string>, websiteOwner: 
   }
 }
 
-async function homeKeyboard(settings: Record<string, string>, _websiteOwner: number | null, _user?: any): Promise<Button[][]> {
+async function homeKeyboard(settings: Record<string, string>, websiteOwner: number | null, _user?: any): Promise<Button[][]> {
   const topColor = btnColor(settings, "menu");
   const btn = (key: HomeMenuKey, b: Button) => styled(b, homeMenuColor(key, topColor));
   return [
+    await websiteButtonRow(settings, websiteOwner),
     [
       btn("shop", iconButton(settings, "shop", "shop:0")),
       btn("cart", iconButton(settings, "cart", "cart")),
@@ -910,7 +911,7 @@ async function homeKeyboard(settings: Record<string, string>, _websiteOwner: num
       btn("clear", iconButton(settings, "clear", "clear")),
     ],
     [btn("vendor", iconButton(settings, "vendor", "ven:open"))],
-  ];
+  ].filter((row) => row.length > 0);
 }
 
 async function homeText(user: any) {
