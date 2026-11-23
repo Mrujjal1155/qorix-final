@@ -1,3 +1,4 @@
 - Full-gateway visibility uses a live-read bot setting and a browser-safe default-on helper; it gates menu rows only, never gateway availability or settlement.
 - Join-gate admin serialization and bot enforcement share the pure parser with explicit per-chat required/optional modes; only required chats are queried to unlock access.
 - Bulk notices reuse the service-only catalogue recipient RPC and shared paced tick; snapshot rich content before sends so user/group delivery is durable and retryable without altering discount pricing.
+- Customer alert delivery runs in its own scheduler-called invocation and writes results through one batched checkpoint RPC; Workers cap open connections per invocation, so shared ticks or per-recipient writes throttle Telegram sends.
