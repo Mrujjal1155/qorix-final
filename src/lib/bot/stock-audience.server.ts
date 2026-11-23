@@ -1,3 +1,4 @@
+import { parseNotifyMatrix, stockKindToNotify } from "@/lib/telegram-notify-routes";
 import { sendAlertMessage } from "@/lib/telegram.server";
 import { sendAdminBroadcast } from "@/lib/bot/admin-broadcast.server";
 
@@ -17,7 +18,21 @@ export async function drainStockAudience(db: any, runtime = {
   if (error) throw new Error(`Customer notification claim failed: ${error.message}`);
   let sent = 0;
   let retry = 0;
-  const recipients = rows ?? [];
+  let recipients = rows ?? [];
+  // Admin matrix: stock DMs whose "Bot DM" switch is off are cancelled, never sent.
+  const { data: routeRow } = await db.from("bot_settings").select("value").eq("key", "notify_routes").maybeSingle();
+  const matrix = parseNotifyMatrix(routeRow?.value ?? null);
+  if (matrix) {
+    const keep: any[] = [];
+    for (const row of recipients) {
+      const nk = Number(row.telegram_id) > 0 ? stockKindToNotify(String(row.message?.kind ?? "")) : null;
+      if (nk && !matrix.dm[nk]) {
+        await db.from("stock_notification_recipients").update({ status: "cancelled", claimed_at: null, last_error: "Bot DM off in Telegram Notifications" })
+          .eq("event_id", row.event_id).eq("telegram_id", row.telegram_id).eq("status", "sending");
+      } else keep.push(row);
+    }
+    recipients = keep;
+  }
   let offset = 0;
   for (; offset < recipients.length; offset += STOCK_AUDIENCE_CONCURRENCY) {
     if (runtime.now() - started >= STOCK_AUDIENCE_BUDGET_MS) break;

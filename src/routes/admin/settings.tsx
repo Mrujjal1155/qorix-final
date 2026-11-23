@@ -31,6 +31,7 @@ import { MaintenanceCard } from "@/components/MaintenanceCard";
 import { Wrench, Radio, LayoutTemplate } from "lucide-react";
 import { TemplateManagerCard } from "@/components/admin/TemplateManagerCard";
 import { LiveUpdateCard } from "@/components/LiveUpdateCard";
+import { TelegramNotificationsCard } from "@/components/admin/TelegramNotificationsCard";
 import { PRODUCTION_SITE_URL } from "@/lib/site-url";
 import { WebsitePremiumIconsCard } from "@/components/admin/WebsitePremiumIconsCard";
 import { BOT_FULL_GATEWAYS_KEY, botFullGatewaysEnabled } from "@/lib/bot/full-gateways";
@@ -1005,6 +1006,13 @@ function SettingsPage() {
       description: "Separate on/off switches for the website and the Telegram bot.",
       icon: Wrench,
       render: () => <MaintenanceCard values={values} setValues={setValues} onSave={onSave} />,
+    },
+    {
+      id: "telegram-notifications",
+      title: "Telegram Notifications",
+      description: "Choose which notifications go to each group, channel and bot DM.",
+      icon: BellRing,
+      render: () => <TelegramNotificationsCard values={values} setValues={setValues} onSave={onSave} />,
     },
     {
       id: "stock-alerts",

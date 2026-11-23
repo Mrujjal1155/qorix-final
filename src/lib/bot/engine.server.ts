@@ -1,3 +1,4 @@
+import { notifyChatId, notifyRoute, type NotifyKind } from "@/lib/telegram-notify-routes";
 import { referralMode, referralCallbackAllowed } from "@/lib/referral-mode";
 import { cardToTable, saleTable } from "@/lib/bot/alert-table";
 import { bulkDiscountCard } from "@/lib/bot/bulk-discount-card";
@@ -3204,7 +3205,22 @@ async function postToChannel(
   kb?: Button[][],
   photo?: string | null,
   product?: any,
+  kind?: NotifyKind,
 ) {
+  // Admin routing matrix (Telegram Notifications) overrides legacy targets.
+  if (kind) {
+    const route = notifyRoute(settings, kind);
+    if (route.configured) {
+      if (!route.groups.length) return { sent: true };
+      const failures: string[] = [];
+      for (const chat of route.groups) {
+        const r = await sendAlertMessage(chat, text, kb);
+        if (!r.ok) failures.push(`${chat}: ${r.description ?? "Unknown Telegram error"}`);
+      }
+      if (failures.length === route.groups.length) throw new Error(`Telegram channel post failed: ${failures.join(" | ")}`);
+      return { sent: true };
+    }
+  }
   // Per-source recipient: supplier-specific first, then in-house, then default.
   const scoped = product
     ? product.supplier_id
@@ -3261,6 +3277,7 @@ async function deliverCard(
   banner: string | null,
   product: any,
   delivery?: CardDelivery,
+  kind?: NotifyKind,
 ) {
   // Alerts are text-only: sending banners made every card wait on Telegram
   // fetching the image, which blocked the queue. Images stay on product view.
@@ -3274,7 +3291,7 @@ async function deliverCard(
 
   if (!channelSent) {
     try {
-      const res = await postToChannel(s, text, kb, banner, product);
+      const res = await postToChannel(s, text, kb, banner, product, kind);
       if (res.sent) {
         channelSent = true;
         if (delivery?.markChannelSent) await delivery.markChannelSent();
@@ -3323,7 +3340,8 @@ const SALE_TAGS: Record<SaleSource, [AlertIconKey, string]> = {
 /** Group "new sale" post — one design for every sales channel. */
 export async function announcePurchase(user: any, product: any, qty: number, source: SaleSource = "bot", durableDelivery = false) {
   const s = await getSettings();
-  if (!s["announce_chat_id"] || (s["announce_sales"] ?? "on").toLowerCase() === "off") return { ok: false, error_code: 400, description: "Sales announcements disabled or destination missing" };
+  const routed = durableDelivery && notifyRoute(s, "live_purchase").configured;
+  if (!routed && (!s["announce_chat_id"] || (s["announce_sales"] ?? "on").toLowerCase() === "off")) return { ok: false, error_code: 400, description: "Sales announcements disabled or destination missing" };
   const [tagIcon, tagLabel] = SALE_TAGS[source] ?? SALE_TAGS.bot;
   const who = escapeHtml(maskUsername(user?.username, user?.first_name));
   const text = saleTable({
@@ -3333,8 +3351,10 @@ export async function announcePurchase(user: any, product: any, qty: number, sou
   });
   const keyboard = await channelProductButton(s, product);
   if (durableDelivery) {
+    // Under the admin matrix the general slot always means the General Chat group.
+    if (notifyRoute(s, "live_purchase").configured) return await sendAlertMessage(notifyChatId(s, "general"), text, keyboard);
     const scoped = product?.supplier_id ? s[`announce_chat_supplier:${product.supplier_id}`] : s["announce_chat_inhouse"];
-    const chat = (scoped ?? "").trim() || s["announce_chat_id"];
+    const chat = (scoped ?? "").trim() || s["announce_chat_id"] || "";
     return await sendAlertMessage(chat, text, keyboard);
   }
   await postToChannel(s, text, keyboard);
@@ -3373,7 +3393,7 @@ export async function announceClaim(user: any, product: any) {
     user: escapeHtml(maskUsername(user?.username, user?.first_name)),
     product: `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>`,
   });
-  await postToChannel(s, text, await channelProductButton(s, product));
+  await postToChannel(s, text, await channelProductButton(s, product), null, undefined, "free_claim");
 }
 
 /** "BACK IN STOCK" card — posted to the channel AND DM'd to every bot user. */
@@ -3402,7 +3422,7 @@ export async function announceRestock(
     `<i>${escapeHtml(footer)}</i>`;
 
   const banner = bannerFor(product, s);
-  return await deliverCard(s, text, await channelProductButton(s, product), banner, product, delivery);
+  return await deliverCard(s, text, await channelProductButton(s, product), banner, product, delivery, "restock");
 }
 
 /**
@@ -3432,7 +3452,7 @@ export async function announceNewProduct(
     `\n<i>${escapeHtml(footer)}</i>`;
 
   const banner = bannerFor(product, s);
-  return await deliverCard(s, text, await channelProductButton(s, product), banner, product, delivery);
+  return await deliverCard(s, text, await channelProductButton(s, product), banner, product, delivery, "new_product");
 }
 
 /**
@@ -3456,7 +3476,7 @@ export async function announceStillAvailable(
     `${alertIcon(s, "stock")} <b>Stock</b>  ${available} items\n` +
     (note ? `\n<b>Note:</b> ${escapeHtml(note.slice(0, 600))}\n` : "") +
     `\n${alertIcon(s, "delivery")} <i>In stock now — instant automatic delivery.</i>`;
-  return await deliverCard(s, text, await channelProductButton(s, product), null, product, delivery);
+  return await deliverCard(s, text, await channelProductButton(s, product), null, product, delivery, "still_available");
 }
 
 /**
@@ -3493,7 +3513,7 @@ export async function announceLowStock(
     `\n<i>${escapeHtml(footer)}</i>`;
 
   const banner = bannerFor(product, s);
-  return await deliverCard(s, text, await channelProductButton(s, product), banner, product, delivery);
+  return await deliverCard(s, text, await channelProductButton(s, product), banner, product, delivery, out ? "sold_out" : "low_stock");
 }
 
 /**
@@ -3540,7 +3560,7 @@ export async function announcePriceChange(
     `\n<i>${escapeHtml(footer)}</i>`;
 
   const banner = bannerFor(product, s);
-  return await deliverCard(s, text, await channelProductButton(s, product), banner, product, delivery);
+  return await deliverCard(s, text, await channelProductButton(s, product), banner, product, delivery, "price_change");
 }
 
 function flashLeft(endsAt: string | null | undefined) {
@@ -3584,7 +3604,7 @@ export async function announceFlashSale(
       `<i>The limited-time price has ended. Regular pricing is back.</i>`;
   }
   const banner = bannerFor(product, s);
-  return await deliverCard(s, text, await channelProductButton(s, product), banner, product, delivery);
+  return await deliverCard(s, text, await channelProductButton(s, product), banner, product, delivery, "flash_sale");
 }
 
 /** BULK DISCOUNT card — durable DM to every reachable user plus configured groups. */
@@ -3602,6 +3622,7 @@ export async function announceBulkDiscount(product: any, channel: string, tiers:
   });
   const { queueRichCatalogueNotice } = await import("@/lib/product-list.server");
   return queueRichCatalogueNotice({
+    kind: "bulk_discount",
     text, keyboard: await channelProductButton(s, product), adminId,
     requestId: `bulk:${requestId}:${product.id}`, title: `Bulk Discount · ${String(product.name ?? "")}`,
   });
@@ -3678,7 +3699,7 @@ export async function announceProductRemoved(product: any, delivery?: CardDelive
     `${alertIcon(s, "removed")} <b>${escapeHtml(title)}</b>\n${line}\n\n` +
     `${productIconHtml(product)} <b>${escapeHtml(String(product?.name ?? ""))}</b>\n\n` +
     `<i>${escapeHtml(footer)}</i>`;
-  return await deliverCard(s, text, undefined, null, product, delivery);
+  return await deliverCard(s, text, undefined, null, product, delivery, "product_removed");
 }
 
 
@@ -8885,7 +8906,7 @@ export async function announceSupplierNotice(supplierName: string, title: string
     `<b>${escapeHtml(heading)}</b>\n${line}\n\n` +
     (body ? `${escapeHtml(body)}\n\n` : "") +
     `<i>${escapeHtml(supplierName)}</i>`;
-  return await postToChannel(s, text).catch((error) => {
+  return await postToChannel(s, text, undefined, null, undefined, "supplier_notice").catch((error) => {
     console.error("Supplier announcement delivery failed:", error);
     return { sent: false };
   });

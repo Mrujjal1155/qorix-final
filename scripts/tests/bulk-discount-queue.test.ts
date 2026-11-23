@@ -26,7 +26,7 @@ beforeEach(() => { calls = []; failed = false; });
 
 test("bulk notice queues the full SQL-resolved audience, not a client-loaded user page", async () => {
   expect(await queueRichCatalogueNotice(input)).toEqual({ id: "event", total: 3086 });
-  expect(calls[0]?.name).toBe("enqueue_product_list");
+  expect(calls[0]?.name).toBe("enqueue_product_list_routed");
   expect(calls[0]?.args._groups).toEqual([-100111, -100222]);
   expect(calls[0]?.args._message.keyboard).toEqual(input.keyboard);
   expect(calls[0]?.args._message.admin_id).toBe("verified-admin");

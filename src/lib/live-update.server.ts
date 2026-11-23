@@ -93,7 +93,11 @@ export async function drainLiveUpdates(limit = 20) {
           const { announceOrderSale } = await import("@/lib/bot/engine.server");
           return await announceOrderSale(String(r.ref).slice(6), true);
         }
-        return await sendAlertMessage(target, text, keyboard);
+        const primary = await sendAlertMessage(target, text, keyboard);
+        if (destination === "live" && primary.ok) {
+          for (const extra of targets.liveExtra ?? []) await sendAlertMessage(extra, text, keyboard).catch(() => null);
+        }
+        return primary;
       })().catch((e: unknown) => ({ ok: false, description: String(e) }));
       if (res?.ok) {
         delete deliveryErrors[destination];

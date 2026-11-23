@@ -1,3 +1,4 @@
+import { notifyRoute } from "@/lib/telegram-notify-routes";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Button } from "@/lib/telegram.server";
 
@@ -92,13 +93,17 @@ export async function sendProductList(snapshot: ProductListSnapshot, adminId: st
 /** The existing service-only RPC snapshots ALL reachable users and configured groups atomically. */
 export async function queueRichCatalogueNotice(input: {
   text: string; keyboard: Button[][] | undefined; adminId: string; requestId: string; title: string;
+  kind?: "product_list" | "bulk_discount";
 }) {
   if (new TextEncoder().encode(input.text).length > 32768) throw new Error("This notice is too long. Shorten the text or select fewer products.");
-  const groups = productListGroups(await loadSettings()).filter(g => /^-\d+$/.test(g));
-  const { data, error } = await (supabaseAdmin as any).rpc("enqueue_product_list", {
+  const settings = await loadSettings();
+  const route = notifyRoute(settings, input.kind ?? "product_list");
+  const groups = (route.configured ? route.groups : productListGroups(settings)).filter(g => /^-\d+$/.test(g));
+  const { data, error } = await (supabaseAdmin as any).rpc("enqueue_product_list_routed", {
     _event_key: `broadcast:product-list:${input.adminId}:${input.requestId}`,
     _message: { kind: "product_list", text: input.text, keyboard: input.keyboard, admin_id: input.adminId, title: input.title },
     _groups: groups.map(Number),
+    _include_users: route.configured ? route.dm : true,
   });
   if (error || !data?.id) throw new Error(error?.message ?? "Could not queue catalogue notice");
   return data as { id: string; total: number };

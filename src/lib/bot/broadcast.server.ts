@@ -1,5 +1,7 @@
 // Shared broadcast engine used by both the Telegram admin panel and the website admin.
 import { sendMessage, sendPhoto } from "@/lib/telegram.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { notifyRoute } from "@/lib/telegram-notify-routes";
 import { loadAllBotUserIds, loadAnnounceGroups, sendPaced } from "@/lib/bot/audience.server";
 
 const CAPTION_LIMIT = 1024;
@@ -58,15 +60,19 @@ export async function runBroadcast(input: {
     return { sent: 0, failed: 0, total: 0, error: "Nothing to send (no text, no image)" };
   }
 
+  const { data: routeRow } = await (supabaseAdmin as any).from("bot_settings").select("key,value")
+    .in("key", ["notify_routes", "notify_chat_general", "notify_chat_updates", "notify_chat_channel", "announce_chat_id", "live_channel_id"]);
+  const routeSettings = Object.fromEntries(((routeRow ?? []) as any[]).map((r) => [r.key, String(r.value ?? "")]));
+  const route = notifyRoute(routeSettings, "admin_broadcast");
   let users: number[];
   try {
-    users = await loadAllBotUserIds();
+    users = route.configured && !route.dm ? [] : await loadAllBotUserIds();
   } catch (e: any) {
     return { sent: 0, failed: 0, total: 0, error: String(e?.message ?? e) };
   }
 
   // Groups/channels get one post each; every bot user gets it in their own chat.
-  const groups = await loadAnnounceGroups();
+  const groups = route.configured ? route.groups : await loadAnnounceGroups();
   const g = await sendPaced(groups, (id) => sendOne(id, text, photo));
   const u = await sendPaced(users, (id) => sendOne(id, text, photo));
 

@@ -1,4 +1,5 @@
 import type { LiveKind } from "@/lib/live-update";
+import { notifyChatId, parseNotifyMatrix } from "@/lib/telegram-notify-routes";
 
 export type LiveEventKind = LiveKind | "payment";
 
@@ -6,6 +7,22 @@ export function liveDestinations(
   event: { kind: LiveEventKind; general_enabled?: boolean; live_sent?: boolean; general_sent?: boolean; delivery_errors?: Record<string, { status: string }> },
   settings: Record<string, string>,
 ) {
+  const matrix = parseNotifyMatrix(settings["notify_routes"]);
+  if (matrix) {
+    // Admin matrix: "general" slot = General Chat, "live" slot = Store Updates
+    // then Official Channel (extra posts ride on the live slot).
+    const nk = event.kind === "purchase" ? "live_purchase" : event.kind === "member" ? "live_member" : "live_payment";
+    const blocked = (slot: string) => ["failed", "review"].includes(event.delivery_errors?.[slot]?.status ?? "");
+    const liveTargets = (["updates", "channel"] as const).filter((d) => matrix[d][nk]).map((d) => notifyChatId(settings, d)).filter(Boolean);
+    const generalId = matrix.general[nk] ? notifyChatId(settings, "general") : "";
+    const uniqueLive = [...new Set(liveTargets)].filter((id) => id !== generalId || !matrix.general[nk]);
+    return {
+      live: !event.live_sent && !blocked("live") ? (uniqueLive[0] ?? "") : "",
+      liveExtra: !event.live_sent && !blocked("live") ? uniqueLive.slice(1) : [],
+      // Purchases keep their general-slot opt-in; other kinds always may use it.
+      general: !event.general_sent && !blocked("general") && (event.kind !== "purchase" || event.general_enabled) ? generalId : "",
+    };
+  }
   const key = event.kind === "purchase" ? "live_purchase" : event.kind === "member" ? "live_member" : "live_topup";
   const liveOn = (settings[key] ?? "on").toLowerCase() === "on";
   const generalOn = event.kind === "purchase"

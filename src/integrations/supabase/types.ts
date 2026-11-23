@@ -2930,6 +2930,15 @@ export type Database = {
         Args: { _event_key: string; _groups: number[]; _message: Json }
         Returns: Json
       }
+      enqueue_product_list_routed: {
+        Args: {
+          _event_key: string
+          _groups: number[]
+          _include_users: boolean
+          _message: Json
+        }
+        Returns: Json
+      }
       enqueue_stock_notification: {
         Args: {
           _added_qty?: number
