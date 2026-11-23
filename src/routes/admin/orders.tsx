@@ -234,10 +234,13 @@ function OrdersPage() {
   const recheckFn = useServerFn(recheckOrderBinance);
   async function recheckBinance(id: string) {
     try {
+      const o: any = (data ?? []).find((x: any) => x.id === id);
+      const m = String(o?.payment_method ?? "");
+      const gw = m === "bybit" ? "Bybit" : m.startsWith("chain_") ? "blockchain" : "Binance";
       const r: any = await recheckFn({ data: { id } });
-      if (r == null) toast.info("This order was paid with another method — Binance check not needed");
-      else if (r?.status === "verified") toast.success("Payment found on Binance");
-      else toast.warning(r?.status === "error" ? "Could not reach Binance" : "Payment not confirmed on Binance");
+      if (r == null) toast.info("No gateway check needed for this payment method");
+      else if (r?.status === "verified") toast.success(`Payment found on ${gw}`);
+      else toast.warning(r?.status === "error" ? `Could not reach ${gw}` : `Payment not confirmed on ${gw}`);
       refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
