@@ -1,5 +1,6 @@
 import { referralMode, referralCallbackAllowed } from "@/lib/referral-mode";
 import { cardToTable, saleTable } from "@/lib/bot/alert-table";
+import { bulkDiscountCard } from "@/lib/bot/bulk-discount-card";
 // Server-only Telegram shop bot engine.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { membershipContact } from "@/lib/bot/contact";
@@ -3614,30 +3615,15 @@ export async function announceFlashSale(
 export async function announceBulkDiscount(product: any, channel: string, tiers: { min_qty: number; type: string; value: number }[]) {
   const s = await getSettings();
   if (!product || product.is_active === false || !tiers.length) return;
-  const { applyTier } = await import("@/lib/bulk-discount");
-  const base = Number(product.price);
-  const line = "━━━━━━━━━━━━━━━━";
-  const where = channel === "bot" ? "Telegram bot" : channel === "api" ? "API users" : "Telegram bot & API users";
-  const first = tiers[0]!.min_qty;
-  const arrow = alertIcon(s, "bulk_arrow");
-  const off = alertIcon(s, "bulk_off");
-  const rowIcon = alertIcon(s, "bulk_row");
-  const pad = (v: string, n: number) => escapeHtml(v.padEnd(n, " "));
-  let rows = `${alertIcon(s, "bulk_base")} <code>${pad("Base price", 12)}${money(base)}</code>\n`;
-  if (first > 1) rows += `${rowIcon} <code>${pad(`1–${first - 1} pcs`, 12)}</code>${arrow} <code>${money(base)}/each</code>\n`;
-  tiers.forEach((t, i) => {
-    const next = tiers[i + 1];
-    const range = next ? `${t.min_qty}–${next.min_qty - 1}` : `${t.min_qty}+`;
-    const unit = applyTier(base, t as any);
-    const pct = base > 0 ? Math.round(((base - unit) / base) * 100) : 0;
-    rows += `${rowIcon} <code>${pad(`${range} pcs`, 12)}</code>${arrow} <code>${money(unit)}/each</code> ${off} <b>-${pct}%</b>\n`;
+  const text = bulkDiscountCard({
+    productName: String(product.name ?? ""), productIcon: productIconHtml(product),
+    basePrice: Number(product.price), channel, tiers,
+    icons: {
+      badge: alertIcon(s, "bulk"), end: alertIcon(s, "bulk_end"), base: alertIcon(s, "bulk_base"),
+      row: alertIcon(s, "bulk_row"), arrow: alertIcon(s, "bulk_arrow"),
+      off: alertIcon(s, "bulk_off"), note: alertIcon(s, "bulk_note"),
+    },
   });
-  const text =
-    `${alertIcon(s, "bulk")} <b>BULK DISCOUNT</b> ${alertIcon(s, "bulk_end")}\n${line}\n\n` +
-    `${productIconHtml(product)} <b>${escapeHtml(String(product.name ?? ""))}</b>\n\n` +
-    rows +
-    `\n${alertIcon(s, "bulk_note")} <b>Buy more, save more!</b>\n` +
-    `<i>Valid on ${where}. Not combined with flash sales.</i>`;
   await deliverCard(s, text, await channelProductButton(s, product), bannerFor(product, s), product).catch((e) =>
     console.error("Bulk discount card failed:", e),
   );
