@@ -65,7 +65,8 @@ for (const status of ["member", "left"]) {
       homeKeyboard: async () => [[{callback_data: "shop"}]],
       edit: async (text: string, kb: unknown) => { edits.push({text, kb}); },
     };
-    await new Function(...Object.keys(deps), `return (async () => {${transpiler.transformSync(source.slice(begin, finish))}})();`)(...Object.values(deps));
+    const callback = transpiler.transformSync(`async function verifyCallback() {${source.slice(begin, finish)}}`);
+    await new Function(...Object.keys(deps), `${callback}; return verifyCallback();`)(...Object.values(deps));
     expect(edits).toHaveLength(1);
     if (status === "member") {
       expect(edits[0]?.text).toContain("Full access unlocked");
