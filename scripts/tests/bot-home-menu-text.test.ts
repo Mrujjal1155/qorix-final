@@ -39,18 +39,10 @@ test("the home menu no longer sends the heading and subtitle texts", async () =>
   expect(sent.some((m) => /home_menu_title|home_menu_subtitle/.test(m.text))).toBe(false);
 });
 
-test("the menu keyboard rides on a line with no visible characters", async () => {
+test("the menu buttons sit directly under the welcome card in one message", async () => {
   const { sent, send } = runHomeSend();
   await send();
-  const menu = sent[sent.length - 1];
-  expect(menu.text.replace(/[👇\s]/g, "")).toBe("");
-  expect(/[A-Za-z0-9\u0980-\u09FF]/.test(menu.text)).toBe(false);
-  expect(menu.keyboard).toEqual([[{ text: "SHOP", callback_data: "shop:0" }]]);
-});
-
-test("the welcome card still carries the persistent bottom menu", async () => {
-  const { sent, send } = runHomeSend();
-  await send();
-  expect(sent[0].text).toBe("<b>card</b>");
-  expect((sent[0].extra as { reply_markup: { is_persistent: boolean } }).reply_markup.is_persistent).toBe(true);
+  expect(sent.length).toBe(1);
+  expect(sent[0]!.text).toBe("<b>card</b>");
+  expect(sent[0]!.keyboard).toEqual([[{ text: "SHOP", callback_data: "shop:0" }]]);
 });

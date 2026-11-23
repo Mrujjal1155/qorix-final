@@ -186,11 +186,14 @@ function bottomMenuMarkup(settings: Record<string, string>) {
 }
 
 async function sayWithBottomMenu(chatId: number, text: string, settings: Record<string, string>, kb?: Button[][]) {
-  const res = await sendMessage(chatId, text, undefined, { reply_markup: bottomMenuMarkup(settings) });
+  // Like the reference bot: the menu buttons sit directly under the welcome
+  // card as its own inline keyboard, so no extra filler message is needed
+  // (Telegram rejects blank/invisible-only text). Without a menu the card
+  // keeps the persistent bottom keyboard.
+  const res = kb && kb.length
+    ? await sendMessage(chatId, text, kb)
+    : await sendMessage(chatId, text, undefined, { reply_markup: bottomMenuMarkup(settings) });
   defer(() => trackMessage(chatId, res?.result?.message_id));
-  // Telegram needs some text on a message that carries buttons, so the menu
-  // keyboard rides on a single pointer emoji (Telegram rejects blank or invisible-only text).
-  if (kb) await say(chatId, "👇", kb);
   return res;
 }
 
