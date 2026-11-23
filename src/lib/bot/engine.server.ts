@@ -190,7 +190,7 @@ async function sayWithBottomMenu(chatId: number, text: string, settings: Record<
   defer(() => trackMessage(chatId, res?.result?.message_id));
   // Telegram needs some text on a message that carries buttons, so the menu
   // keyboard rides on an invisible line instead of the old heading text.
-  if (kb) await say(chatId, "\u200b", kb);
+  if (kb) await say(chatId, "\u3164", kb);
   return res;
 }
 
