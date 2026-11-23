@@ -1,6 +1,7 @@
 import { referralMode, referralCallbackAllowed } from "@/lib/referral-mode";
 import { cardToTable, saleTable } from "@/lib/bot/alert-table";
 import { bulkDiscountCard } from "@/lib/bot/bulk-discount-card";
+import { productBulkTable } from "@/lib/bot/product-bulk-table";
 // Server-only Telegram shop bot engine.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { membershipContact } from "@/lib/bot/contact";
@@ -750,7 +751,8 @@ async function showView(
     return;
   }
 
-  const short = view.text.length <= CAPTION_LIMIT;
+  // Native tables must go through the rich text sender, never a media caption.
+  const short = view.text.length <= CAPTION_LIMIT && !/<table\b/i.test(view.text);
   const res = await sendAnimation(
     chatId,
     view.photo,
@@ -2088,6 +2090,10 @@ async function productView(productId: string, chatId?: number, websiteOwner: num
   } else {
     text += `${uiTag(settings, "prod_price")}: <b>${money(p.price)}</b>\n\n`;
   }
+
+  const { bulkTiersFor } = await import("@/lib/bulk-discount.server");
+  const bulk = await bulkTiersFor([p.id], "bot");
+  text += productBulkTable(p, bulk[p.id] ?? [], alertIcon(settings, "bulk"));
 
   if (sold > 0)
     text += `${uiIconHtml(settings, "prod_sold")} <b>${sold}</b> ${escapeHtml(uiText(settings, "prod_sold"))}\n\n`;
