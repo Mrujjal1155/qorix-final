@@ -6,7 +6,11 @@ export const STOCK_AUDIENCE_CONCURRENCY = 6;
 // Six starts per 200 ms targets Telegram's free ceiling of 30 starts/second.
 // Slow responses, other bot traffic and flood control can reduce actual delivery.
 export const STOCK_AUDIENCE_WAVE_MS = 200;
-export const STOCK_AUDIENCE_BUDGET_MS = 10_000;
+// Lease is 15s; leave ~2s for in-flight sends and the final batched checkpoint.
+export const STOCK_AUDIENCE_BUDGET_MS = 12_500;
+/** Results are written in batches: Workers allow only 6 open connections per
+ * invocation, so a per-recipient DB write halves the Telegram send rate. */
+export const STOCK_AUDIENCE_CHECKPOINT_BATCH = 30;
 export const DEFAULT_ALERT_RATE_PER_MINUTE = 1500;
 export const MAX_ALERT_RATE_PER_MINUTE = 1800; // Telegram free ceiling: 30/s
 export const MAX_FLOOD_WAITS_PER_RUN = 3;
@@ -58,6 +62,13 @@ export async function drainStockAudience(db: any, runtime = {
   let floodWaits = 0;
   const inflight = new Set<Promise<void>>();
   let failure: unknown = null;
+  let pending: any[] = [];
+  const flush = async () => {
+    if (!pending.length) return;
+    const batch = pending; pending = [];
+    const { error: saveError } = await db.rpc("checkpoint_stock_notification_recipients", { _rows: batch });
+    if (saveError) throw new Error(`Customer delivery checkpoint failed: ${saveError.message}`);
+  };
   // Waves start on a fixed cadence and overlap, so slow Telegram replies no longer
   // stretch each wave to ~1s; each wave still rechecks its own claims first.
   const runWave = async (wave: any[]) => {
@@ -80,20 +91,15 @@ export async function drainStockAudience(db: any, runtime = {
     if (!result.ok && floodWait > 0) floodWaits += 1;
     // Honour Telegram's exact flood wait; other temporary failures wait 60s.
     const retryAfter = floodWait > 0 ? floodWait : 60;
-    const { error: saveError } = await db.from("stock_notification_recipients").update({
+    pending.push({
+      event_id: row.event_id, telegram_id: row.telegram_id,
       status: result.ok ? "sent" : terminal ? "unreachable" : "retry",
-      claimed_at: null,
       next_attempt_at: new Date(runtime.now() + retryAfter * 1_000).toISOString(),
       last_error: result.ok ? null : (result.description ?? "Delivery failed").slice(0, 500),
-    }).eq("event_id", row.event_id).eq("telegram_id", row.telegram_id).eq("status", "sending");
-    if (saveError) throw new Error(`Customer delivery checkpoint failed: ${saveError.message}`);
-    if (result.ok) {
-      sent += 1;
-      if (row.message.kind === "restock") {
-        await db.from("stock_alerts").update({ notified_at: new Date().toISOString() })
-          .eq("telegram_id", row.telegram_id).eq("product_id", row.message.product_id).is("notified_at", null);
-      }
-    } else if (!terminal) retry += 1;
+      product_id: result.ok && row.message.kind === "restock" ? (row.message.product_id ?? null) : null,
+    });
+    if (result.ok) sent += 1;
+    else if (!terminal) retry += 1;
     }));
   };
   for (; offset < recipients.length; offset += STOCK_AUDIENCE_CONCURRENCY) {
@@ -102,6 +108,7 @@ export async function drainStockAudience(db: any, runtime = {
     while (inflight.size >= MAX_INFLIGHT_WAVES) await Promise.race(inflight);
     const waveStarted = runtime.now();
     const p: Promise<void> = runWave(recipients.slice(offset, offset + STOCK_AUDIENCE_CONCURRENCY))
+      .then(() => (pending.length >= STOCK_AUDIENCE_CHECKPOINT_BATCH ? flush() : undefined))
       .catch((e) => { failure ??= e; }).finally(() => inflight.delete(p));
     inflight.add(p);
     if (offset + STOCK_AUDIENCE_CONCURRENCY < recipients.length) {
@@ -111,11 +118,9 @@ export async function drainStockAudience(db: any, runtime = {
   await Promise.all(inflight);
   // Unattempted claims must remain available, not wait for a stale lease.
   for (const row of recipients.slice(offset)) {
-    const { error: releaseError } = await db.from("stock_notification_recipients")
-      .update({ status: "pending", claimed_at: null })
-      .eq("event_id", row.event_id).eq("telegram_id", row.telegram_id).eq("status", "sending");
-    if (releaseError) throw new Error("Customer notification release failed");
+    pending.push({ event_id: row.event_id, telegram_id: row.telegram_id, status: "pending", next_attempt_at: null, last_error: null, product_id: null });
   }
+  try { await flush(); } catch (e) { failure ??= e; }
   if (failure) throw failure;
   return { sent, retry };
 }

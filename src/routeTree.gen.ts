@@ -62,6 +62,7 @@ import { Route as AuthenticatedAccountProfileRouteImport } from './routes/_authe
 import { Route as AuthenticatedAccountReferralsRouteImport } from './routes/_authenticated/account.referrals'
 import { Route as AuthenticatedResellerPanelRouteImport } from './routes/_authenticated/reseller.panel'
 import { Route as ApiAdminImageUploadRouteImport } from './routes/api/admin/image-upload'
+import { Route as ApiPublicAlertsDrainRouteImport } from './routes/api/public/alerts/drain'
 import { Route as ApiPublicBinanceAutoVerifyRouteImport } from './routes/api/public/binance/auto-verify'
 import { Route as ApiPublicEpsBotReturnRouteImport } from './routes/api/public/eps/bot-return'
 import { Route as ApiPublicEpsIpnRouteImport } from './routes/api/public/eps/ipn'
@@ -352,6 +353,11 @@ const ApiAdminImageUploadRoute = ApiAdminImageUploadRouteImport.update({
   path: '/api/admin/image-upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicAlertsDrainRoute = ApiPublicAlertsDrainRouteImport.update({
+  id: '/api/public/alerts/drain',
+  path: '/api/public/alerts/drain',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicBinanceAutoVerifyRoute =
   ApiPublicBinanceAutoVerifyRouteImport.update({
     id: '/api/public/binance/auto-verify',
@@ -518,6 +524,7 @@ export interface FileRoutesByFullPath {
   '/reseller/panel': typeof AuthenticatedResellerPanelRoute
   '/api/admin/image-upload': typeof ApiAdminImageUploadRoute
   '/account/': typeof AuthenticatedAccountIndexRoute
+  '/api/public/alerts/drain': typeof ApiPublicAlertsDrainRoute
   '/api/public/binance/auto-verify': typeof ApiPublicBinanceAutoVerifyRoute
   '/api/public/eps/bot-return': typeof ApiPublicEpsBotReturnRoute
   '/api/public/eps/ipn': typeof ApiPublicEpsIpnRoute
@@ -591,6 +598,7 @@ export interface FileRoutesByTo {
   '/reseller/panel': typeof AuthenticatedResellerPanelRoute
   '/api/admin/image-upload': typeof ApiAdminImageUploadRoute
   '/account': typeof AuthenticatedAccountIndexRoute
+  '/api/public/alerts/drain': typeof ApiPublicAlertsDrainRoute
   '/api/public/binance/auto-verify': typeof ApiPublicBinanceAutoVerifyRoute
   '/api/public/eps/bot-return': typeof ApiPublicEpsBotReturnRoute
   '/api/public/eps/ipn': typeof ApiPublicEpsIpnRoute
@@ -667,6 +675,7 @@ export interface FileRoutesById {
   '/_authenticated/reseller/panel': typeof AuthenticatedResellerPanelRoute
   '/api/admin/image-upload': typeof ApiAdminImageUploadRoute
   '/_authenticated/account/': typeof AuthenticatedAccountIndexRoute
+  '/api/public/alerts/drain': typeof ApiPublicAlertsDrainRoute
   '/api/public/binance/auto-verify': typeof ApiPublicBinanceAutoVerifyRoute
   '/api/public/eps/bot-return': typeof ApiPublicEpsBotReturnRoute
   '/api/public/eps/ipn': typeof ApiPublicEpsIpnRoute
@@ -743,6 +752,7 @@ export interface FileRouteTypes {
     | '/reseller/panel'
     | '/api/admin/image-upload'
     | '/account/'
+    | '/api/public/alerts/drain'
     | '/api/public/binance/auto-verify'
     | '/api/public/eps/bot-return'
     | '/api/public/eps/ipn'
@@ -816,6 +826,7 @@ export interface FileRouteTypes {
     | '/reseller/panel'
     | '/api/admin/image-upload'
     | '/account'
+    | '/api/public/alerts/drain'
     | '/api/public/binance/auto-verify'
     | '/api/public/eps/bot-return'
     | '/api/public/eps/ipn'
@@ -891,6 +902,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reseller/panel'
     | '/api/admin/image-upload'
     | '/_authenticated/account/'
+    | '/api/public/alerts/drain'
     | '/api/public/binance/auto-verify'
     | '/api/public/eps/bot-return'
     | '/api/public/eps/ipn'
@@ -939,6 +951,7 @@ export interface RootRouteChildren {
   ResellerIndexRoute: typeof ResellerIndexRoute
   StoreIndexRoute: typeof StoreIndexRoute
   ApiAdminImageUploadRoute: typeof ApiAdminImageUploadRoute
+  ApiPublicAlertsDrainRoute: typeof ApiPublicAlertsDrainRoute
   ApiPublicBinanceAutoVerifyRoute: typeof ApiPublicBinanceAutoVerifyRoute
   ApiPublicEpsBotReturnRoute: typeof ApiPublicEpsBotReturnRoute
   ApiPublicEpsIpnRoute: typeof ApiPublicEpsIpnRoute
@@ -1332,6 +1345,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminImageUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/alerts/drain': {
+      id: '/api/public/alerts/drain'
+      path: '/api/public/alerts/drain'
+      fullPath: '/api/public/alerts/drain'
+      preLoaderRoute: typeof ApiPublicAlertsDrainRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/binance/auto-verify': {
       id: '/api/public/binance/auto-verify'
       path: '/api/public/binance/auto-verify'
@@ -1604,6 +1624,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResellerIndexRoute: ResellerIndexRoute,
   StoreIndexRoute: StoreIndexRoute,
   ApiAdminImageUploadRoute: ApiAdminImageUploadRoute,
+  ApiPublicAlertsDrainRoute: ApiPublicAlertsDrainRoute,
   ApiPublicBinanceAutoVerifyRoute: ApiPublicBinanceAutoVerifyRoute,
   ApiPublicEpsBotReturnRoute: ApiPublicEpsBotReturnRoute,
   ApiPublicEpsIpnRoute: ApiPublicEpsIpnRoute,

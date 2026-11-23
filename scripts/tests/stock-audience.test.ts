@@ -11,9 +11,22 @@ mock.module("@/lib/telegram.server", () => ({ sendAlertMessage: async (id: numbe
 const { drainStockAudience: drain } = await import("../../src/lib/bot/stock-audience.server");
 function drainStockAudience(db: any, runtime?: Parameters<typeof drain>[1]) {
   const original = db.rpc;
-  return drain({ ...db, rpc: async (name: string, args: any) => name === "active_stock_notification_claims"
-    ? { data: args._event_ids.map((event_id: string, i: number) => ({ event_id, telegram_id: args._telegram_ids[i] })) }
-    : original(name, args) }, runtime);
+  return drain({ ...db, rpc: async (name: string, args: any) => {
+    if (name === "active_stock_notification_claims")
+      return { data: args._event_ids.map((event_id: string, i: number) => ({ event_id, telegram_id: args._telegram_ids[i] })) };
+    if (name === "checkpoint_stock_notification_recipients") {
+      // Mirror the batched RPC as the per-row writes it replaces.
+      for (const r of args._rows) {
+        const value = r.status === "pending" ? { status: "pending", claimed_at: null }
+          : { status: r.status, claimed_at: null, next_attempt_at: r.next_attempt_at, last_error: r.last_error };
+        const res = await db.from("stock_notification_recipients").update(value).eq("event_id", r.event_id).eq("telegram_id", r.telegram_id).eq("status", "sending");
+        if (res?.error) return { error: res.error };
+        if (r.status === "sent" && r.product_id) await db.from("stock_alerts").update({ notified_at: "now" }).eq("telegram_id", r.telegram_id).eq("product_id", r.product_id).is("notified_at", null);
+      }
+      return { data: args._rows.length, error: null };
+    }
+    return original(name, args);
+  } }, runtime);
 }
 
 test("fast dispatch sends more than ten recipients in paced waves without losing anyone", async () => {
@@ -44,16 +57,15 @@ test("default 1500/min pacing starts twenty-five recipients per second", async (
   const db = {
     rpc: async () => ({ data: Array.from({ length: 60 }, (_, i) => ({ event_id: "pace", telegram_id: 300 + i, message: { text: "notice", kind: "new" } })) }),
     from: () => ({ update: () => {
-      count += 1;
       const chain: any = { eq: () => chain, then: (resolve: any) => resolve({ error: null }) };
       return chain;
     } }),
   };
   const result = await drainStockAudience(db, { now: () => clock, wait: async ms => {
     await new Promise(r => setTimeout(r, 0));
-    waves.push({ at: clock, count }); count = 0; clock += ms;
+    count = sentTo.length - count; waves.push({ at: clock, count }); count = sentTo.length; clock += ms;
   } });
-  waves.push({ at: clock, count });
+  waves.push({ at: clock, count: sentTo.length - count });
   expect(result.sent).toBe(60);
   expect(waves.every(w => w.count === 6)).toBe(true);
   expect(waves.filter(w => w.at < 1_000).reduce((n, w) => n + w.count, 0)).toBe(30);
@@ -133,7 +145,7 @@ test("time budget releases untouched recipients without falsely marking them sen
       return chain;
     } }),
   };
-  expect(await drainStockAudience(db, { now: () => clock, wait: async () => { clock = 10_000; } })).toEqual({ sent: 6, retry: 0 });
+  expect(await drainStockAudience(db, { now: () => clock, wait: async () => { clock = 13_000; } })).toEqual({ sent: 6, retry: 0 });
   expect(updates.filter(row => row.status === "pending")).toHaveLength(6);
   expect(sentTo.includes(206)).toBe(false);
 });
@@ -189,4 +201,21 @@ test("run stops after three flood waits and releases untouched claims", async ()
   expect(res.sent).toBe(0);
   expect(sentTo.length).toBeLessThan(30);
   expect(released.length).toBe(30 - sentTo.length);
+});
+
+test("delivery results are written in batches, not one database call per customer", async () => {
+  sentTo.length = 0;
+  let checkpoints = 0;
+  const { drainStockAudience: raw } = await import("../../src/lib/bot/stock-audience.server");
+  const db = {
+    rpc: async (name: string, args: any) => {
+      if (name === "active_stock_notification_claims") return { data: args._event_ids.map((event_id: string, i: number) => ({ event_id, telegram_id: args._telegram_ids[i] })) };
+      if (name === "checkpoint_stock_notification_recipients") { checkpoints += 1; return { data: args._rows.length, error: null }; }
+      return { data: Array.from({ length: 60 }, (_, i) => ({ event_id: "batch", telegram_id: 900 + i, message: { text: "n", kind: "new" } })) };
+    },
+    from: () => { throw new Error("per-row write"); },
+  };
+  let clock = 0;
+  expect((await raw(db, { now: () => clock, wait: async (ms) => { clock += ms; } })).sent).toBe(60);
+  expect(checkpoints).toBeLessThanOrEqual(3);
 });

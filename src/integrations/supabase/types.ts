@@ -2814,6 +2814,10 @@ export type Database = {
         Args: { _id: string; _telegram_id: number }
         Returns: boolean
       }
+      checkpoint_stock_notification_recipients: {
+        Args: { _rows: Json }
+        Returns: number
+      }
       claim_referral_deliveries: { Args: never; Returns: Json[] }
       claim_stock_items: {
         Args: { _product_id: string; _qty: number; _sold_to?: number }

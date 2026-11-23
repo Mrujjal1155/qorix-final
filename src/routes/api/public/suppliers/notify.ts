@@ -16,20 +16,17 @@ async function run({ request }: { request: Request }) {
   const { sweepBybitDeposits } = await import("@/lib/bot/engine.server");
   const { sweepBlockchainDeposits } = await import("@/lib/bot/engine.server");
   const { drainLiveUpdates } = await import("@/lib/live-update.server");
-  const { drainStockAudience } = await import("@/lib/bot/stock-audience.server");
   const { drainReferralRewards } = await import("@/lib/referral-rewards.server");
   const { reconcileProductPremiumIcons } = await import("@/lib/product-premium-sync.server");
   const { drainWebsiteOrderDeliveries } = await import("@/lib/website-order-delivery.server");
   const { recoverWebsiteFulfillment } = await import("@/lib/website-fulfillment.server");
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   try {
-    const [res, recovered, resellerRecovered, , , customerNotifications] = await Promise.all([
+    const [res, recovered, resellerRecovered] = await Promise.all([
       drainAllNotifications(),
       recoverPaidOrders().catch((e) => ({ error: String(e) })),
       recoverChargedResellerStock().catch(() => ({ error: "Stock recovery will retry" })),
       sweepEpsDeposits().catch(() => ({ error: "Payment verification will retry" })),
       drainLiveUpdates().catch(() => ({ error: "Live updates will retry" })),
-      drainStockAudience(supabaseAdmin),
       sweepBybitDeposits().catch(() => ({ error: "Bybit verification will retry" })),
       sweepBlockchainDeposits().catch(() => ({ error: "Blockchain verification will retry" })),
       drainReferralRewards().catch(() => ({ sent: 0 })),
@@ -37,7 +34,7 @@ async function run({ request }: { request: Request }) {
       drainWebsiteOrderDeliveries().catch(() => ({ sent: 0 })),
       recoverWebsiteFulfillment().catch(() => ({ checked: 0, delivered: 0 })),
     ]);
-    return Response.json({ ok: true, ...res, recovered, resellerRecovered, customerNotifications });
+    return Response.json({ ok: true, ...res, recovered, resellerRecovered });
   } catch (e) {
     return Response.json({ ok: false, error: e instanceof Error ? e.message : "failed" }, { status: 500 });
   }
