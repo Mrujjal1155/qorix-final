@@ -235,14 +235,15 @@ function OrdersPage() {
   async function recheckBinance(id: string) {
     try {
       const r: any = await recheckFn({ data: { id } });
-      if (r?.status === "verified") toast.success("Payment found on Binance");
+      if (r == null) toast.info("This order was paid with another method — Binance check not needed");
+      else if (r?.status === "verified") toast.success("Payment found on Binance");
       else toast.warning(r?.status === "error" ? "Could not reach Binance" : "Payment not confirmed on Binance");
       refresh();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     }
   }
-  const binanceUnverified = active?.source === "website" && !!active?.txid && active?.meta?.binance?.status !== "verified";
+  const binanceUnverified = active?.source === "website" && !!active?.txid && BINANCE_CHECK_METHODS.includes(String(active?.payment_method ?? "")) && active?.meta?.binance?.status !== "verified";
 
   const deliverMut = useMutation({
     mutationFn: () =>
@@ -768,8 +769,12 @@ function DeliveryToggle({ content, narrow }: { content: string; narrow?: boolean
 }
 
 
+const BINANCE_CHECK_METHODS = ["binance", "usdt_BSC", "usdt_TRX", "usdt_bep20", "usdt_trc20"];
+
 function BinanceCheckBadge({ o, onRecheck }: { o: any; onRecheck?: () => void }) {
   if (o.source !== "website" || !o.txid) return null;
+  // Only Binance-checked methods get this badge; the method that actually paid (e.g. Bybit after a switch) counts.
+  if (!BINANCE_CHECK_METHODS.includes(String(o.payment_method ?? ""))) return null;
   const b = o.meta?.binance;
   const map: Record<string, { label: string; cls: string }> = {
     verified: { label: `✅ Found on Binance${b?.amount ? ` · ${b.amount} ${b.currency ?? "USDT"}` : ""}`, cls: "border-success/40 bg-success/10 text-success" },
