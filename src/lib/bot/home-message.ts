@@ -62,7 +62,7 @@ export function homeMessageFallback(html: string): string {
       return `${first}${values.length ? `: ${values.join(" | ")}` : ""}\n`;
     })
     .replace(/<\/?table\b[^>]*>/gi, "")
-    .replace(/<p>/gi, "").replace(/<\/p>/gi, "\n")
+    .replace(/<p>/gi, "").replace(/<\/p>/gi, "\n").replace(/<br\s*\/?>/gi, "\n")
     .trim();
 }
 

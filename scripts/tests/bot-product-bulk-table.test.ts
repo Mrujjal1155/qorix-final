@@ -41,3 +41,8 @@ import { test as t2, expect as e2 } from "bun:test";
 t2("description newlines survive next to a table", () => {
   e2(krlb("a\n<table><tr><td>x\ny</td></tr></table>\nb\nc")).toBe("a<br/><table><tr><td>x\ny</td></tr></table><br/>b<br/>c");
 });
+
+import { homeMessageFallback as hmf } from "../../src/lib/bot/home-message";
+t2("fallback without tables turns line breaks back into newlines", () => {
+  e2(hmf("a<br/>b<br>c")).toBe("a\nb\nc");
+});
