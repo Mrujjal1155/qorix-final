@@ -55,7 +55,9 @@ export function buildHomeMessage(content: HomeMessageContent): string {
 
 /** Older Bot API servers get readable sections, never unsupported table tags. */
 export function homeMessageFallback(html: string): string {
-  return html.replace(/<h[1-6]>([\s\S]*?)<\/h[1-6]>/gi, "\n<b>$1</b>\n")
+  return html.replace(/<summary>([\s\S]*?)<\/summary>/gi, "\n<b>$1</b>\n")
+    .replace(/<\/?details\b[^>]*>/gi, "\n")
+    .replace(/<h[1-6]>([\s\S]*?)<\/h[1-6]>/gi, "\n<b>$1</b>\n")
     .replace(/<tr>([\s\S]*?)<\/tr>/gi, (_row, cells: string) => {
       const values = Array.from(cells.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/gi), (cell) => cell[1] ?? "");
       const first = values.shift() ?? "";

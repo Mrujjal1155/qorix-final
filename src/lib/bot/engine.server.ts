@@ -1,7 +1,8 @@
 import { referralMode, referralCallbackAllowed } from "@/lib/referral-mode";
 import { cardToTable, saleTable } from "@/lib/bot/alert-table";
 import { bulkDiscountCard } from "@/lib/bot/bulk-discount-card";
-import { productBulkTable, keepRichLineBreaks } from "@/lib/bot/product-bulk-table";
+import { productBulkTable } from "@/lib/bot/product-bulk-table";
+import { productDetailsMessage } from "@/lib/bot/product-details-message";
 // Server-only Telegram shop bot engine.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { membershipContact } from "@/lib/bot/contact";
@@ -2077,73 +2078,43 @@ async function productView(productId: string, chatId?: number, websiteOwner: num
   const ends =
     countdown(settings[`flash_ends_${p.id}`] ?? null) ?? countdown(settings["flash_ends_at"] ?? null);
 
-  let text = `${productIconHtml(p)} <b>${escapeHtml(p.name)}</b>\n\n`;
-
+  let price = `<b>${money(p.price)}</b>`;
   if (hasDrop) {
-    text += `${uiIconHtml(settings, "prod_flash")} <b>${escapeHtml(uiText(settings, "prod_flash"))} -${off}%</b>\n`;
-    text += `${escapeHtml(uiText(settings, "prod_price"))}: <s>${money(p.old_price)}</s> → <b>${money(p.price)}</b>\n`;
-    if (ends)
-      text += `${uiIconHtml(settings, "prod_ends")} <b>${escapeHtml(uiText(settings, "prod_ends"))}:</b> ${ends}\n`;
-    text += `\n`;
+    price = `<s>${money(p.old_price)}</s> → <b>${money(p.price)}</b> (-${off}%)`;
   } else if (p._custom) {
-    text += `${uiTag(settings, "prod_price")}: <s>${money(p._public_price)}</s> → <b>${money(p.price)}</b> <i>(your special price)</i>\n\n`;
-  } else {
-    text += `${uiTag(settings, "prod_price")}: <b>${money(p.price)}</b>\n\n`;
+    price = `<s>${money(p._public_price)}</s> → <b>${money(p.price)}</b> <i>(your special price)</i>`;
   }
-
   const { bulkTiersFor } = await import("@/lib/bulk-discount.server");
   const bulk = await bulkTiersFor([p.id], "bot");
-  text += productBulkTable(p, bulk[p.id] ?? [], alertIcon(settings, "bulk"));
-
-  if (sold > 0)
-    text += `${uiIconHtml(settings, "prod_sold")} <b>${sold}</b> ${escapeHtml(uiText(settings, "prod_sold"))}\n\n`;
-
-  const descHtml = renderRich(p.description);
-  if (descHtml)
-    text +=
-      `<b>${escapeHtml(uiText(settings, "prod_desc"))}</b>\n` +
-      `<blockquote expandable>${descHtml}</blockquote>\n`;
-
-  const important = renderRich(p.important_note ?? p.manual_note ?? "");
-  if (important)
-    text +=
-      `<b>${escapeHtml(uiText(settings, "prod_important"))}</b>\n` +
-      `<blockquote expandable>${uiIconHtml(settings, "prod_important_line")} ${important}</blockquote>\n`;
-
-  const guide = renderRich(
-    p.quick_guide ?? settings[`guide_${p.id}`] ?? settings["quick_guide_text"] ?? "",
-  );
-  if (guide)
-    text +=
-      `<blockquote expandable>${uiIconHtml(settings, "prod_guide")} <b>${escapeHtml(uiText(settings, "prod_guide"))}</b>\n` +
-      `${guide}</blockquote>\n`;
-
-  // Same supplier detail rows the website product page shows, so both surfaces
-  // present identical product information.
+  const rows: Array<[string, string]> = [[uiTag(settings, "prod_price"), price]];
+  if (hasDrop && ends) rows.push([uiTag(settings, "prod_ends"), escapeHtml(ends)]);
+  if (p.delivery_type !== "manual" || p.manual_stock_limited)
+    rows.push([uiTag(settings, "prod_stock"), `<b>${stock} available</b>`]);
+  // Use the existing saved facts, without inventing warranty or account type.
   const detailRows = Array.isArray((p as any).details)
     ? ((p as any).details as any[])
         .map((d) => ({ label: String(d?.label ?? "").trim(), value: String(d?.value ?? "").trim() }))
         .filter((d) => d.label && d.value)
         .slice(0, 12)
     : [];
-  if (detailRows.length)
-    text +=
-      `<blockquote expandable>` +
-      detailRows.map((d) => `• <b>${escapeHtml(d.label)}:</b> ${escapeHtml(d.value)}`).join("\n") +
-      `</blockquote>\n`;
-
+  rows.push(...detailRows.map((d): [string, string] => [escapeHtml(d.label), escapeHtml(d.value)]));
   if (String(p.delivery_time ?? "").trim())
-    text += `${uiTag(settings, "prod_delivery")}: <b>${escapeHtml(String(p.delivery_time).trim())}</b>\n\n`;
-
-
-  text +=
-    p.delivery_type === "manual"
-      ? (p.manual_stock_limited ? `${uiTag(settings, "prod_stock")}: <b>${stock} available</b>\n` : "") + `<i>${uiTag(settings, "prod_manual_note")}</i>`
-      : `${uiTag(settings, "prod_stock")}: <b>${stock} available</b>\n<i>${uiTag(settings, "prod_auto_note")}</i>`;
-
-  // A native table switches Telegram to rich layout, where bare newlines collapse;
-  // keep the description/guide line breaks with explicit <br/> outside the table.
-  if (text.includes("<table")) text = keepRichLineBreaks(text);
+    rows.push([uiTag(settings, "prod_delivery"), escapeHtml(String(p.delivery_time).trim())]);
+  rows.push([uiIconHtml(settings, p.delivery_type === "manual" ? "prod_manual_note" : "prod_auto_note") + " Delivery",
+    p.delivery_type === "manual" ? "Manual" : "Automatic"]);
+  if (sold > 0) rows.push([uiTag(settings, "prod_sold"), `<b>${sold}</b>`]);
+  const important = renderRich(p.important_note ?? p.manual_note ?? "");
+  let text = productDetailsMessage({
+    heading: `${productIconHtml(p)} <b>${escapeHtml(p.name)}</b>`,
+    rows,
+    bulk: productBulkTable(p, bulk[p.id] ?? [], alertIcon(settings, "bulk")),
+    sections: [
+      { heading: uiTag(settings, "prod_desc"), body: renderRich(p.description) },
+      { heading: uiTag(settings, "prod_guide"), body: renderRich(p.quick_guide ?? settings[`guide_${p.id}`] ?? settings["quick_guide_text"] ?? "") },
+      { heading: uiTag(settings, "prod_important"), body: important ? `${uiIconHtml(settings, "prod_important_line")} ${important}` : "" },
+    ],
+    deliveryNote: uiTag(settings, p.delivery_type === "manual" ? "prod_manual_note" : "prod_auto_note"),
+  });
   const available = (p.delivery_type === "manual" && !p.manual_stock_limited) || stock > 0;
   const kb: Button[][] = [await websiteButtonRow(settings, websiteOwner, await productWebsiteDestination(p.id))];
   if (available)
@@ -2156,8 +2127,8 @@ async function productView(productId: string, chatId?: number, websiteOwner: num
     if (p.preorder_enabled) {
       const pct = Number(p.preorder_percent ?? 5);
       text +=
-        `\n\n🕒 <b>Pre-order available</b> (+${pct}%)\n` +
-        `<i>Pay now and get it automatically when stock arrives. Earlier pre-orders are delivered first. You can cancel any time for a full wallet refund.</i>`;
+        `<p>🕒 <b>Pre-order available</b> (+${pct}%)<br/>` +
+        `<i>Pay now and get it automatically when stock arrives. Earlier pre-orders are delivered first. You can cancel any time for a full wallet refund.</i></p>`;
       kb.push([{ text: `🕒 Pre-order (+${pct}%)`, callback_data: `po:${p.id}`, style: "success" }]);
     }
     kb.push([uiBtn(settings, "prod_notify", `notify:${p.id}`)]);

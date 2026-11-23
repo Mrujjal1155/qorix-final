@@ -1,6 +1,13 @@
 import { afterAll, expect, mock, test } from "bun:test";
 
-const product = { id: "linkedin", name: "LinkedIn Premium Career — 3 Months (Link)", price: 0.35, is_active: true, delivery_type: "auto", bot_media_url: null as string | null };
+const product = {
+  id: "linkedin", name: "LinkedIn Premium Career — 3 Months (Link)", price: 0.35,
+  is_active: true, delivery_type: "auto", bot_media_url: null as string | null,
+  description: "Premium Career access\nAccount activation details",
+  quick_guide: "1. Open your activation link\n2. Follow the setup steps",
+  important_note: "Use your own account\nKeep your activation details safe",
+  delivery_time: "3 months", details: [{ label: "Type", value: "Activation link" }],
+};
 const tiers = [{ min_qty: 5, type: "flat", value: 0.05 }, { min_qty: 10, type: "flat", value: 0.1 }, { min_qty: 15, type: "flat", value: 0.15 }];
 const user = { telegram_id: 123, first_name: "Test", state: {}, total_spent: 0 };
 mock.module("@/lib/bot/contact.server", () => ({ recordContact: async () => {} }));
