@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { buildStartMessage, communityJoinRow, inviteCopyButton, startBannerUrl } from "./home-message";
+import { describe, expect, it } from "bun:test";
+import { buildStartMessage, communityJoinRow, inviteCopyButton, startBannerUrl } from "../../src/lib/bot/home-message";
 
 describe("start card", () => {
   it("copy invite button has no emoji and copies the link", () => {
