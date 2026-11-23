@@ -13,7 +13,12 @@ export type StartMessageContent = {
   /** Label/value cells, already escaped (values usually wrapped in <code> for tap-to-copy). */
   rows: Array<[string, string]>;
   choose: string;
+  banner?: string | null;
+  inviteLink?: string | null;
+  community?: Array<{ text: string; url: string }>;
 };
+
+const attr = (v: string) => v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
 
 export const COMMUNITY_DEFAULTS = {
   group: "https://t.me/QORIXCHAT",
@@ -23,10 +28,18 @@ export const COMMUNITY_DEFAULTS = {
 
 /** Compact Qamify-style start card: greeting, account table, copy hint. */
 export function buildStartMessage(content: StartMessageContent): string {
-  return `<p>${content.greeting}</p>` +
+  const invite = content.inviteLink
+    ? `<tg-button-row><tg-button type="copy_text" text="${attr(content.inviteLink.slice(0, 256))}">Copy invite link</tg-button></tg-button-row>`
+    : "";
+  const join = content.community?.length
+    ? `<tg-button-row>${content.community.map((b) =>
+      `<tg-button type="url" style="success" url="${attr(b.url)}">${attr(b.text)}</tg-button>`).join("")}</tg-button-row>`
+    : "";
+  return (content.banner ? `<img src="${attr(content.banner)}"/>` : "") +
+    `<p>${content.greeting}</p>` +
     `<table bordered striped compact>${content.rows.map(([label, value]) =>
       `<tr><td>${label}</td><td>${value}</td></tr>`).join("")}</table>` +
-    `<p>Tap any value to copy it.</p><p>${content.choose}</p>`;
+    `<p>Tap any value to copy it.</p>${invite}${join}<p>${content.choose}</p>`;
 }
 
 /** Plain invite copy button — Telegram already shows a copy glyph, so no emoji. */
@@ -76,7 +89,8 @@ export function buildHomeMessage(content: HomeMessageContent): string {
 
 /** Older Bot API servers get readable sections, never unsupported table tags. */
 export function homeMessageFallback(html: string): string {
-  return html.replace(/<summary>([\s\S]*?)<\/summary>/gi, "\n<b>$1</b>\n")
+  return html.replace(/<img\b[^>]*\/?>/gi, "").replace(/<tg-button-row\b[^>]*>[\s\S]*?<\/tg-button-row>/gi, "")
+    .replace(/<summary>([\s\S]*?)<\/summary>/gi, "\n<b>$1</b>\n")
     .replace(/<\/?details\b[^>]*>/gi, "\n")
     .replace(/<h[1-6]>([\s\S]*?)<\/h[1-6]>/gi, "\n<b>$1</b>\n")
     .replace(/<tr>([\s\S]*?)<\/tr>/gi, (_row, cells: string) => {

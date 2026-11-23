@@ -73,7 +73,7 @@ import { epsWalletCredit } from "@/lib/eps-payment";
 import { PAYMENT_WINDOW_MS, paymentAttemptOpen } from "@/lib/payment-deadline";
 import { orderTimezone } from "@/lib/order-time";
 import { reservedCheckout } from "@/lib/bot/paid-checkout";
-import { buildStartMessage, buildProfileDetails, referralCopyButton, referralShareAnchor, inviteCopyButton, communityJoinRow, startBannerUrl } from "@/lib/bot/home-message";
+import { buildStartMessage, buildProfileDetails, referralCopyButton, referralShareAnchor, communityJoinRow, startBannerUrl } from "@/lib/bot/home-message";
 import { homeMenuColor, type HomeMenuKey } from "@/lib/bot/home-menu-colors";
 import { buildWalletHistory, historyOwner, historyPage } from "@/lib/bot/wallet-history";
 import { readWalletHistory } from "@/lib/bot/wallet-history.server";
@@ -877,12 +877,10 @@ async function websiteButtonRow(settings: Record<string, string>, websiteOwner: 
   }
 }
 
-async function homeKeyboard(settings: Record<string, string>, _websiteOwner: number | null, user?: any): Promise<Button[][]> {
+async function homeKeyboard(settings: Record<string, string>, _websiteOwner: number | null, _user?: any): Promise<Button[][]> {
   const topColor = btnColor(settings, "menu");
   const btn = (key: HomeMenuKey, b: Button) => styled(b, homeMenuColor(key, topColor));
   return [
-    ...(user?.ref_code ? [[inviteCopyButton(refLink(settings, user)) as Button]] : []),
-    communityJoinRow(settings) as Button[],
     [
       btn("shop", iconButton(settings, "shop", "shop:0")),
       btn("cart", iconButton(settings, "cart", "cart")),
@@ -928,19 +926,14 @@ async function homeText(user: any) {
       [uiTag(s, "prof_spent"), `<code>${money(user?.total_spent)}</code>`],
     ],
     choose: uiTag(s, "home_choose"),
+    banner: startBannerUrl(s),
+    inviteLink: user?.ref_code ? refLink(s, user) : null,
+    community: communityJoinRow(s),
   });
 }
 
-/** Start screen: optional admin banner (carries the bottom menu), then the table card with buttons. */
+/** Start screen: one card (banner, table, copy/join buttons) carrying the bottom menu, then the menu buttons. */
 async function sendHome(chatId: number, user: any, settings: Record<string, string>, websiteOwner: number | null) {
-  const banner = startBannerUrl(settings);
-  if (banner) {
-    const res = await tg("sendPhoto", { chat_id: chatId, photo: banner, reply_markup: bottomMenuMarkup(settings) });
-    if (res?.ok) {
-      defer(() => trackMessage(chatId, res?.result?.message_id));
-      return say(chatId, await homeText(user), await homeKeyboard(settings, websiteOwner, user));
-    }
-  }
   return sayWithBottomMenu(chatId, await homeText(user), settings, await homeKeyboard(settings, websiteOwner, user));
 }
 
