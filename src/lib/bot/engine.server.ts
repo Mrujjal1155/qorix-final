@@ -1,7 +1,7 @@
 import { referralMode, referralCallbackAllowed } from "@/lib/referral-mode";
 import { cardToTable, saleTable } from "@/lib/bot/alert-table";
 import { bulkDiscountCard } from "@/lib/bot/bulk-discount-card";
-import { productBulkTable } from "@/lib/bot/product-bulk-table";
+import { productBulkTable, keepRichLineBreaks } from "@/lib/bot/product-bulk-table";
 // Server-only Telegram shop bot engine.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { membershipContact } from "@/lib/bot/contact";
@@ -2141,6 +2141,9 @@ async function productView(productId: string, chatId?: number, websiteOwner: num
       ? (p.manual_stock_limited ? `${uiTag(settings, "prod_stock")}: <b>${stock} available</b>\n` : "") + `<i>${uiTag(settings, "prod_manual_note")}</i>`
       : `${uiTag(settings, "prod_stock")}: <b>${stock} available</b>\n<i>${uiTag(settings, "prod_auto_note")}</i>`;
 
+  // A native table switches Telegram to rich layout, where bare newlines collapse;
+  // keep the description/guide line breaks with explicit <br/> outside the table.
+  if (text.includes("<table")) text = keepRichLineBreaks(text);
   const available = (p.delivery_type === "manual" && !p.manual_stock_limited) || stock > 0;
   const kb: Button[][] = [await websiteButtonRow(settings, websiteOwner, await productWebsiteDestination(p.id))];
   if (available)

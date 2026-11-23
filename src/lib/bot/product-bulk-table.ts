@@ -26,3 +26,9 @@ export function productBulkTable(product: ProductPrice, tiers: BulkTier[], badge
     rows.map(row => `<tr><td>${row.min_qty}+ pcs</td><td align="right">$${row.unit.toFixed(2)}</td></tr>`).join("") +
     `</table>\n\n`;
 }
+
+/** Convert newlines to <br/> outside <table> blocks so rich layout keeps paragraphs. */
+export function keepRichLineBreaks(html: string): string {
+  return html.split(/(<table[\s\S]*?<\/table>)/).map(part =>
+    part.startsWith("<table") ? part : part.replace(/\n/g, "<br/>")).join("");
+}

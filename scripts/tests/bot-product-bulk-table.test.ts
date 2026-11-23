@@ -36,3 +36,8 @@ test("special prices are never bulk-discounted a second time", () => {
 test("per-piece price retains the existing one-cent minimum", () => {
   expect(productBulkRows({ price: 0.35 }, [{ min_qty: 5, type: "flat", value: 1 }])).toEqual([{ min_qty: 5, unit: 0.01 }]);
 });
+import { keepRichLineBreaks as krlb } from "../../src/lib/bot/product-bulk-table";
+import { test as t2, expect as e2 } from "bun:test";
+t2("description newlines survive next to a table", () => {
+  e2(krlb("a\n<table><tr><td>x\ny</td></tr></table>\nb\nc")).toBe("a<br/><table><tr><td>x\ny</td></tr></table><br/>b<br/>c");
+});
