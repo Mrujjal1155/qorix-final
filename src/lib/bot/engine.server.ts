@@ -189,8 +189,8 @@ async function sayWithBottomMenu(chatId: number, text: string, settings: Record<
   const res = await sendMessage(chatId, text, undefined, { reply_markup: bottomMenuMarkup(settings) });
   defer(() => trackMessage(chatId, res?.result?.message_id));
   // Telegram needs some text on a message that carries buttons, so the menu
-  // keyboard rides on an invisible line instead of the old heading text.
-  if (kb) await say(chatId, "\u3164", kb);
+  // keyboard rides on a single pointer emoji (Telegram rejects blank or invisible-only text).
+  if (kb) await say(chatId, "👇", kb);
   return res;
 }
 

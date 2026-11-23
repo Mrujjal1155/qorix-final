@@ -43,7 +43,7 @@ test("the menu keyboard rides on a line with no visible characters", async () =>
   const { sent, send } = runHomeSend();
   await send();
   const menu = sent[sent.length - 1];
-  expect(menu.text.replace(/[\u3164\s]/g, "")).toBe("");
+  expect(menu.text.replace(/[👇\s]/g, "")).toBe("");
   expect(/[A-Za-z0-9\u0980-\u09FF]/.test(menu.text)).toBe(false);
   expect(menu.keyboard).toEqual([[{ text: "SHOP", callback_data: "shop:0" }]]);
 });
