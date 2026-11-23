@@ -1145,14 +1145,13 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
       }
 
       // Stock dropping inside the alert zone (or hitting zero) gets its own card.
-      // Any real drop that leaves the product at/below the threshold counts —
-      // not only the first crossing — so "almost gone" style updates (3 → 2)
-      // still reach the channel. The per-product cooldown stops repeats.
+      // "Almost gone" fires once, only when stock crosses from above the
+      // threshold to at/below it; it re-arms after stock rises above again.
       const prevStock = Number(prev.stock ?? 0);
       const nowStock = Number(p.stock ?? 0);
       if (nowStock <= 0 && prevStock > 0) {
         lowPosts.push({ product_id: prev.product_id, stock: 0, event_id: `low:${transitionId}` });
-      } else if (nowStock > 0 && nowStock < prevStock && nowStock <= lowThreshold) {
+      } else if (nowStock > 0 && prevStock > lowThreshold && nowStock <= lowThreshold) {
         lowPosts.push({ product_id: prev.product_id, stock: nowStock, event_id: `low:${transitionId}` });
       }
 
