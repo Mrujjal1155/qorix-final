@@ -188,7 +188,9 @@ function bottomMenuMarkup(settings: Record<string, string>) {
 async function sayWithBottomMenu(chatId: number, text: string, settings: Record<string, string>, kb?: Button[][]) {
   const res = await sendMessage(chatId, text, undefined, { reply_markup: bottomMenuMarkup(settings) });
   defer(() => trackMessage(chatId, res?.result?.message_id));
-  if (kb) await say(chatId, `<b>${uiTag(settings, "home_menu_title")}</b>\n${uiTag(settings, "home_menu_subtitle")}`, kb);
+  // Telegram needs some text on a message that carries buttons, so the menu
+  // keyboard rides on an invisible line instead of the old heading text.
+  if (kb) await say(chatId, "\u200b", kb);
   return res;
 }
 
