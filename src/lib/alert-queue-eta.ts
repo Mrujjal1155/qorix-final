@@ -1,13 +1,14 @@
-/** Scheduler runs once a minute and each run sends at most this many customer notices. */
-export const NOTICES_PER_MINUTE = 300;
+/** Default admin send rate (alert_send_rate_per_minute); Telegram caps free sends at 1800/min. */
+export const NOTICES_PER_MINUTE = 1500;
 
 /** Minimum minutes to clear the waiting customer notices (best case, no Telegram slowdowns). */
-export function minQueueMinutes(pendingRecipients: number, pendingEvents = 0): number {
+export function minQueueMinutes(pendingRecipients: number, pendingEvents = 0, ratePerMinute = NOTICES_PER_MINUTE): number {
+  const rate = Number.isFinite(ratePerMinute) && ratePerMinute > 0 ? Math.min(1800, ratePerMinute) : NOTICES_PER_MINUTE;
   const r = Math.max(0, Math.floor(pendingRecipients));
   const e = Math.max(0, Math.floor(pendingEvents));
   if (r === 0 && e === 0) return 0;
   // Pending events must first post to the group; that takes at least one tick.
-  return Math.max(e > 0 ? 1 : 0, Math.ceil(r / NOTICES_PER_MINUTE));
+  return Math.max(e > 0 ? 1 : 0, Math.ceil(r / rate));
 }
 
 export function formatEta(minutes: number): string {

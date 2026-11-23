@@ -7,6 +7,25 @@ export const STOCK_AUDIENCE_CONCURRENCY = 6;
 // Slow responses, other bot traffic and flood control can reduce actual delivery.
 export const STOCK_AUDIENCE_WAVE_MS = 200;
 export const STOCK_AUDIENCE_BUDGET_MS = 10_000;
+export const DEFAULT_ALERT_RATE_PER_MINUTE = 1500;
+export const MAX_ALERT_RATE_PER_MINUTE = 1800; // Telegram free ceiling: 30/s
+export const MAX_FLOOD_WAITS_PER_RUN = 3;
+const MAX_INFLIGHT_WAVES = 8;
+
+/** Wave spacing from the admin rate; invalid values fall back to the default. */
+export function alertWaveMs(ratePerMinute: unknown) {
+  const n = Number(ratePerMinute);
+  const rate = Number.isFinite(n) && n > 0 ? Math.min(MAX_ALERT_RATE_PER_MINUTE, Math.max(60, n)) : DEFAULT_ALERT_RATE_PER_MINUTE;
+  return Math.round((STOCK_AUDIENCE_CONCURRENCY * 60_000) / rate);
+}
+
+async function readSettings(db: any): Promise<Record<string, any>> {
+  try {
+    const { data } = await db.from("bot_settings").select("key,value")
+      .in("key", ["notify_routes", "alert_send_rate_per_minute", "alert_sending_paused"]);
+    return Object.fromEntries((data ?? []).map((r: any) => [r.key, r.value]));
+  } catch { return {}; }
+}
 
 /** A shared database lease prevents overlapping ticks from multiplying broadcasts. */
 export async function drainStockAudience(db: any, runtime = {
@@ -14,14 +33,16 @@ export async function drainStockAudience(db: any, runtime = {
   wait: (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
 }) {
   const started = runtime.now();
+  const settings = await readSettings(db);
+  if (String(settings["alert_sending_paused"] ?? "") === "true") return { sent: 0, retry: 0, paused: true };
+  const waveMs = alertWaveMs(settings["alert_send_rate_per_minute"]);
   const { data: rows, error } = await db.rpc("claim_stock_notification_recipients_fast");
   if (error) throw new Error(`Customer notification claim failed: ${error.message}`);
   let sent = 0;
   let retry = 0;
   let recipients = rows ?? [];
   // Admin matrix: stock DMs whose "Bot DM" switch is off are cancelled, never sent.
-  const { data: routeRow } = await db.from("bot_settings").select("value").eq("key", "notify_routes").maybeSingle();
-  const matrix = parseNotifyMatrix(routeRow?.value ?? null);
+  const matrix = parseNotifyMatrix(settings["notify_routes"] ?? null);
   if (matrix) {
     const keep: any[] = [];
     for (const row of recipients) {
@@ -34,10 +55,12 @@ export async function drainStockAudience(db: any, runtime = {
     recipients = keep;
   }
   let offset = 0;
-  for (; offset < recipients.length; offset += STOCK_AUDIENCE_CONCURRENCY) {
-    if (runtime.now() - started >= STOCK_AUDIENCE_BUDGET_MS) break;
-    const waveStarted = runtime.now();
-    const wave = recipients.slice(offset, offset + STOCK_AUDIENCE_CONCURRENCY);
+  let floodWaits = 0;
+  const inflight = new Set<Promise<void>>();
+  let failure: unknown = null;
+  // Waves start on a fixed cadence and overlap, so slow Telegram replies no longer
+  // stretch each wave to ~1s; each wave still rechecks its own claims first.
+  const runWave = async (wave: any[]) => {
     const { data: active, error: activeError } = await db.rpc("active_stock_notification_claims", {
       _event_ids: wave.map((row: any) => row.event_id), _telegram_ids: wave.map((row: any) => row.telegram_id),
     });
@@ -53,7 +76,10 @@ export async function drainStockAudience(db: any, runtime = {
       result = { ok: false, description: error instanceof Error ? error.message : "Send interrupted" };
     }
     const terminal = /bot was blocked|user is deactivated|chat not found/i.test(result.description ?? "");
-    const retryAfter = Math.max(60, Number(result.parameters?.retry_after ?? 0));
+    const floodWait = Number(result.parameters?.retry_after ?? 0);
+    if (!result.ok && floodWait > 0) floodWaits += 1;
+    // Honour Telegram's exact flood wait; other temporary failures wait 60s.
+    const retryAfter = floodWait > 0 ? floodWait : 60;
     const { error: saveError } = await db.from("stock_notification_recipients").update({
       status: result.ok ? "sent" : terminal ? "unreachable" : "retry",
       claimed_at: null,
@@ -69,10 +95,20 @@ export async function drainStockAudience(db: any, runtime = {
       }
     } else if (!terminal) retry += 1;
     }));
+  };
+  for (; offset < recipients.length; offset += STOCK_AUDIENCE_CONCURRENCY) {
+    if (failure || floodWaits >= MAX_FLOOD_WAITS_PER_RUN) break;
+    if (runtime.now() - started >= STOCK_AUDIENCE_BUDGET_MS) break;
+    while (inflight.size >= MAX_INFLIGHT_WAVES) await Promise.race(inflight);
+    const waveStarted = runtime.now();
+    const p: Promise<void> = runWave(recipients.slice(offset, offset + STOCK_AUDIENCE_CONCURRENCY))
+      .catch((e) => { failure ??= e; }).finally(() => inflight.delete(p));
+    inflight.add(p);
     if (offset + STOCK_AUDIENCE_CONCURRENCY < recipients.length) {
-      await runtime.wait(Math.max(0, STOCK_AUDIENCE_WAVE_MS - (runtime.now() - waveStarted)));
+      await runtime.wait(Math.max(0, waveMs - (runtime.now() - waveStarted)));
     }
   }
+  await Promise.all(inflight);
   // Unattempted claims must remain available, not wait for a stale lease.
   for (const row of recipients.slice(offset)) {
     const { error: releaseError } = await db.from("stock_notification_recipients")
@@ -80,5 +116,6 @@ export async function drainStockAudience(db: any, runtime = {
       .eq("event_id", row.event_id).eq("telegram_id", row.telegram_id).eq("status", "sending");
     if (releaseError) throw new Error("Customer notification release failed");
   }
+  if (failure) throw failure;
   return { sent, retry };
 }

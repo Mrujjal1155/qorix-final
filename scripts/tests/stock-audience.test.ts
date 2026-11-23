@@ -32,12 +32,12 @@ test("fast dispatch sends more than ten recipients in paced waves without losing
   };
   const result = await drainStockAudience(db, { now: () => clock, wait: async ms => { waits.push(ms); clock += ms; } });
   expect(result.sent).toBe(24);
-  expect(waits).toEqual([200, 200, 200]);
+  expect(waits).toEqual([240, 240, 240]);
   expect(ids.every(id => sentTo.includes(id))).toBe(true);
   sentTo.length = 0;
 });
 
-test("free broadcasts start thirty distinct recipients per second without a larger burst", async () => {
+test("default 1500/min pacing starts twenty-five recipients per second", async () => {
   let clock = 0;
   const waves: { at: number; count: number }[] = [];
   let count = 0;
@@ -50,13 +50,14 @@ test("free broadcasts start thirty distinct recipients per second without a larg
     } }),
   };
   const result = await drainStockAudience(db, { now: () => clock, wait: async ms => {
+    await new Promise(r => setTimeout(r, 0));
     waves.push({ at: clock, count }); count = 0; clock += ms;
   } });
   waves.push({ at: clock, count });
   expect(result.sent).toBe(60);
   expect(waves.every(w => w.count === 6)).toBe(true);
   expect(waves.filter(w => w.at < 1_000).reduce((n, w) => n + w.count, 0)).toBe(30);
-  expect(waves.map(w => w.at)).toEqual([0, 200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800]);
+  expect(waves.map(w => w.at)).toEqual([0, 240, 480, 720, 960, 1200, 1440, 1680, 1920, 2160]);
   sentTo.length = 0;
 });
 
@@ -157,4 +158,35 @@ test("failed cancellation check never sends customer messages", async () => {
     ? { error: { message: "offline" } } : { data: [{ event_id: "cancel", telegram_id: 900, message: { text: "price" } }] } };
   await expect(drain(db)).rejects.toThrow("cancellation check failed");
   expect(sentTo).toEqual([]);
+});
+test("admin rate setting controls wave spacing and is capped at Telegram's 1800/min", async () => {
+  const { alertWaveMs } = await import("../../src/lib/bot/stock-audience.server");
+  expect(alertWaveMs(undefined)).toBe(240);
+  expect(alertWaveMs("1500")).toBe(240);
+  expect(alertWaveMs("900")).toBe(400);
+  expect(alertWaveMs("99999")).toBe(200);
+});
+
+test("paused switch claims nobody", async () => {
+  let claimed = false;
+  const db = {
+    rpc: async () => { claimed = true; return { data: [] }; },
+    from: () => ({ select: () => ({ in: async () => ({ data: [{ key: "alert_sending_paused", value: "true" }] }) }) }),
+  };
+  expect(await drainStockAudience(db)).toEqual({ sent: 0, retry: 0, paused: true });
+  expect(claimed).toBe(false);
+});
+
+test("run stops after three flood waits and releases untouched claims", async () => {
+  sentTo.length = 0;
+  const released: number[] = [];
+  const db = {
+    rpc: async () => ({ data: Array.from({ length: 30 }, () => 5).map((_, i) => ({ event_id: "f" + i, telegram_id: 5, message: { text: "n" } })) }),
+    from: () => ({ update: (v: any) => { const chain: any = { eq: () => chain, then: (r: any) => { if (v.status === "pending") released.push(1); r({ error: null }); } }; return chain; } }),
+  };
+  let clock = 0;
+  const res = await drainStockAudience(db, { now: () => clock, wait: async ms => { clock += ms; } });
+  expect(res.sent).toBe(0);
+  expect(sentTo.length).toBeLessThan(30);
+  expect(released.length).toBe(30 - sentTo.length);
 });

@@ -166,7 +166,16 @@ export const getAlertQueue = createServerFn({ method: "GET" })
       console.error("admin_alert_queue failed", result.error.message);
       throw new Error("Could not load waiting alerts");
     }
-    return result.data as unknown as { pendingRecipients: number; pendingEvents: number; byKind: Record<string, number>; checkedAt: string; totalItems: number; items: { id: string; product_name: string; kind: string; source: string; status: string; created_at: string; last_error: string | null; old_price: number | null; new_price: number | null; waiting: number; sent: number }[] };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const [{ data: cfg }, { count: sentLastMinute }] = await Promise.all([
+      supabaseAdmin.from("bot_settings").select("key,value").in("key", ["alert_send_rate_per_minute", "alert_sending_paused"]),
+      supabaseAdmin.from("stock_notification_recipients").select("event_id", { count: "exact", head: true })
+        .eq("status", "sent").gte("updated_at", new Date(Date.now() - 60_000).toISOString()),
+    ]);
+    const map = Object.fromEntries((cfg ?? []).map((r: any) => [r.key, r.value]));
+    const rate = Number(map.alert_send_rate_per_minute);
+    return { ...(result.data as object), ratePerMinute: Number.isFinite(rate) && rate > 0 ? Math.min(1800, rate) : 1500,
+      paused: String(map.alert_sending_paused ?? "") === "true", sentLastMinute: sentLastMinute ?? 0 } as unknown as { ratePerMinute: number; paused: boolean; sentLastMinute: number; pendingRecipients: number; pendingEvents: number; byKind: Record<string, number>; checkedAt: string; totalItems: number; items: { id: string; product_name: string; kind: string; source: string; status: string; created_at: string; last_error: string | null; old_price: number | null; new_price: number | null; waiting: number; sent: number }[] };
   });
 
 /** Delete every waiting (unsent) notice. Sent history is kept. */
@@ -218,4 +227,23 @@ export const sendStillAvailableAlert = createServerFn({ method: "POST" })
     await enqueueStillAvailable(supabaseAdmin, data.productId, stock);
     void drainAllNotifications().catch(() => {});
     return { ok: true, stock };
+  });
+
+/** Admin alert speed controls: send rate per minute (60–1800) and a pause switch. */
+export const saveAlertSendSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { ratePerMinute: number; paused: boolean }) => {
+    const rate = Math.round(Number(data?.ratePerMinute));
+    if (!Number.isFinite(rate) || rate < 60 || rate > 1800) throw new Error("Rate must be between 60 and 1800 per minute");
+    return { ratePerMinute: rate, paused: Boolean(data?.paused) };
+  })
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any).from("bot_settings").upsert([
+      { key: "alert_send_rate_per_minute", value: String(data.ratePerMinute) },
+      { key: "alert_sending_paused", value: data.paused ? "true" : "false" },
+    ], { onConflict: "key" });
+    if (error) throw new Error("Could not save alert speed settings");
+    return data;
   });

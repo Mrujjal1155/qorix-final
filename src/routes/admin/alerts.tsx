@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { AdminShell, AdminPanel } from "@/components/AdminShell";
 import { Button } from "@/components/ui/button";
-import { getStockAlertStats, retryStockAlert, getAlertQueue, deleteAllPendingAlerts, deletePendingAlert } from "@/lib/alerts.functions";
+import { getStockAlertStats, retryStockAlert, getAlertQueue, deleteAllPendingAlerts, deletePendingAlert, saveAlertSendSettings } from "@/lib/alerts.functions";
 import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { formatEta, minQueueMinutes, NOTICES_PER_MINUTE } from "@/lib/alert-queue-eta";
 import {
@@ -89,7 +89,7 @@ function QueuePanel() {
     retry: 1,
     placeholderData: (prev) => prev,
   });
-  const minutes = data ? minQueueMinutes(data.pendingRecipients, data.pendingEvents) : 0;
+  const minutes = data ? minQueueMinutes(data.pendingRecipients, data.pendingEvents, data.ratePerMinute) : 0;
   const total = (data?.pendingRecipients ?? 0) + (data?.pendingEvents ?? 0);
 
   async function onDeleteAll() {
@@ -118,8 +118,9 @@ function QueuePanel() {
         <div className="grid gap-4 sm:grid-cols-3">
           <Stat label="Customer notices waiting" value={String(data?.pendingRecipients ?? "…")} hint="Stock add / stock out / broadcast messages to bot users" />
           <Stat label="Alerts waiting" value={String(data?.pendingEvents ?? "…")} hint={data ? Object.entries(data.byKind).map(([k, v]) => `${k}: ${v}`).join(" · ") || "None" : undefined} />
-          <Stat label="Minimum time to finish" value={data ? formatEta(minutes) : "…"} hint={`Best case: up to ${NOTICES_PER_MINUTE} messages per minute`} />
+          <Stat label="Minimum time to finish" value={data ? formatEta(minutes) : "…"} hint={`At ${data?.ratePerMinute ?? NOTICES_PER_MINUTE} messages per minute`} />
         </div>
+        {data && <AlertSpeedControls key={`${data.ratePerMinute}-${data.paused}`} rate={data.ratePerMinute} paused={data.paused} sentLastMinute={data.sentLastMinute} />}
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" variant="outline" onClick={() => refetch()} disabled={isFetching}>
             {isFetching ? "Refreshing…" : "Refresh"}
@@ -315,5 +316,39 @@ function AlertsPage() {
         )}
       </div>
     </AdminShell>
+  );
+}
+
+function AlertSpeedControls({ rate, paused, sentLastMinute }: { rate: number; paused: boolean; sentLastMinute: number }) {
+  const save = useServerFn(saveAlertSendSettings);
+  const qc = useQueryClient();
+  const [value, setValue] = useState(String(rate));
+  const [busy, setBusy] = useState(false);
+  async function submit(nextPaused: boolean) {
+    setBusy(true);
+    try {
+      await save({ data: { ratePerMinute: Number(value), paused: nextPaused } });
+      toast.success(nextPaused ? "Alert sending paused" : "Alert speed saved");
+      qc.invalidateQueries({ queryKey: ["alert-queue"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Save failed");
+    } finally { setBusy(false); }
+  }
+  return (
+    <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border p-3">
+      <div className="text-sm">
+        <div className="text-muted-foreground">Sending now</div>
+        <div className="font-semibold">{paused ? "Paused" : `${sentLastMinute} / min`}</div>
+      </div>
+      <label className="text-sm">
+        <span className="block text-muted-foreground">Messages per minute (max 1800)</span>
+        <input type="number" min={60} max={1800} value={value} onChange={(e) => setValue(e.target.value)}
+          className="mt-1 w-32 rounded-md border border-input bg-background px-2 py-1" />
+      </label>
+      <Button size="sm" onClick={() => submit(paused)} disabled={busy}>Save speed</Button>
+      <Button size="sm" variant={paused ? "default" : "outline"} onClick={() => submit(!paused)} disabled={busy}>
+        {paused ? "Resume sending" : "Pause sending"}
+      </Button>
+    </div>
   );
 }
