@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { cleanTiers } from "@/lib/bulk-discount";
+import { cleanTiers, shouldAnnounceBulk } from "@/lib/bulk-discount";
 
 async function assertAdmin(context: any) {
   const { data } = await context.supabase.rpc("has_role", { _user_id: context.userId, _role: "admin" });
@@ -34,6 +34,7 @@ export const saveBulkDiscount = createServerFn({ method: "POST" })
         tiers: z.array(tierSchema).min(1).max(10),
         is_active: z.boolean(),
         notify: z.boolean(),
+        requestId: z.string().uuid(),
       })
       .parse(d),
   )
@@ -48,12 +49,13 @@ export const saveBulkDiscount = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     let announced = 0;
-    if (data.notify && data.is_active) {
-      const { data: prods } = await sb.from("products").select("*").in("id", data.product_ids).eq("is_active", true);
+    if (shouldAnnounceBulk(data)) {
+      const { data: prods, error: productError } = await sb.from("products").select("*").in("id", data.product_ids).eq("is_active", true);
+      if (productError) throw new Error("Bulk discount saved, but broadcast products could not be loaded. Please retry the broadcast.");
       const { announceBulkDiscount } = await import("@/lib/bot/engine.server");
       for (const p of prods ?? []) {
-        await announceBulkDiscount(p, data.channel, tiers);
-        announced++;
+        const queued = await announceBulkDiscount(p, data.channel, tiers, context.userId, data.requestId);
+        if (queued) announced++;
       }
     }
     return { ok: true, announced };

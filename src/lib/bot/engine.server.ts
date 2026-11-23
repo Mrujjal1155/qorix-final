@@ -3611,8 +3611,8 @@ export async function announceFlashSale(
   return await deliverCard(s, text, await channelProductButton(s, product), banner, product, delivery);
 }
 
-/** BULK DISCOUNT card — group/channel once + admin bot once. */
-export async function announceBulkDiscount(product: any, channel: string, tiers: { min_qty: number; type: string; value: number }[]) {
+/** BULK DISCOUNT card — durable DM to every reachable user plus configured groups. */
+export async function announceBulkDiscount(product: any, channel: string, tiers: { min_qty: number; type: string; value: number }[], adminId: string, requestId: string) {
   const s = await getSettings();
   if (!product || product.is_active === false || !tiers.length) return;
   const text = bulkDiscountCard({
@@ -3624,9 +3624,11 @@ export async function announceBulkDiscount(product: any, channel: string, tiers:
       off: alertIcon(s, "bulk_off"), note: alertIcon(s, "bulk_note"),
     },
   });
-  await deliverCard(s, text, await channelProductButton(s, product), bannerFor(product, s), product).catch((e) =>
-    console.error("Bulk discount card failed:", e),
-  );
+  const { queueRichCatalogueNotice } = await import("@/lib/product-list.server");
+  return queueRichCatalogueNotice({
+    text, keyboard: await channelProductButton(s, product), adminId,
+    requestId: `bulk:${requestId}:${product.id}`, title: `Bulk Discount · ${String(product.name ?? "")}`,
+  });
 }
 
 async function activeApiUsers() {

@@ -3,6 +3,11 @@
 export type BulkTier = { min_qty: number; type: "percent" | "flat"; value: number };
 export type BulkRule = { id: string; name: string; product_ids: string[]; channel: string; tiers: BulkTier[]; is_active: boolean };
 
+/** Active new setups always notify; edits retain the explicit resend switch. */
+export function shouldAnnounceBulk(input: { id?: string | undefined; is_active: boolean; notify: boolean }) {
+  return input.is_active && (!input.id || input.notify);
+}
+
 export function cleanTiers(raw: unknown): BulkTier[] {
   const arr = Array.isArray(raw) ? raw : [];
   return arr

@@ -1,1 +1,2 @@
 - Full-gateway visibility uses a live-read bot setting and a browser-safe default-on helper; it gates menu rows only, never gateway availability or settlement.
+- Bulk notices reuse the service-only catalogue recipient RPC and shared paced tick; snapshot rich content before sends so user/group delivery is durable and retryable without altering discount pricing.

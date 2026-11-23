@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Button } from "@/lib/telegram.server";
 
 
 import {
@@ -84,15 +85,22 @@ export async function sendProductList(snapshot: ProductListSnapshot, adminId: st
   if (snapshot.products.length > PRODUCT_LIST_BATCH_SIZE) throw new Error("Product list batch is too large");
   if (!snapshot.products.length) throw new Error("No active products to list");
   const text = buildProductListHtml(snapshot);
-  if (new TextEncoder().encode(text).length > 32768) throw new Error("This preview is too long. Shorten the text or select fewer products.");
+  const keyboard: Button[][] | undefined = snapshot.botUsername ? [[{ text: "🛒 Open the shop", url: `https://t.me/${snapshot.botUsername.replace(/^@/, "")}`, style: "success" }]] : undefined;
+  return queueRichCatalogueNotice({ text, keyboard, adminId, requestId, title: snapshot.copy?.title ?? "Product list" });
+}
+
+/** The existing service-only RPC snapshots ALL reachable users and configured groups atomically. */
+export async function queueRichCatalogueNotice(input: {
+  text: string; keyboard: Button[][] | undefined; adminId: string; requestId: string; title: string;
+}) {
+  if (new TextEncoder().encode(input.text).length > 32768) throw new Error("This notice is too long. Shorten the text or select fewer products.");
   const groups = productListGroups(await loadSettings()).filter(g => /^-\d+$/.test(g));
-  const keyboard = snapshot.botUsername ? [[{ text: "🛒 Open the shop", url: `https://t.me/${snapshot.botUsername.replace(/^@/, "")}`, style: "success" }]] : undefined;
   const { data, error } = await (supabaseAdmin as any).rpc("enqueue_product_list", {
-    _event_key: `broadcast:product-list:${adminId}:${requestId}`,
-    _message: { kind: "product_list", text, keyboard, admin_id: adminId, title: snapshot.copy?.title ?? "Product list" },
+    _event_key: `broadcast:product-list:${input.adminId}:${input.requestId}`,
+    _message: { kind: "product_list", text: input.text, keyboard: input.keyboard, admin_id: input.adminId, title: input.title },
     _groups: groups.map(Number),
   });
-  if (error || !data?.id) throw new Error(error?.message ?? "Could not queue product list");
+  if (error || !data?.id) throw new Error(error?.message ?? "Could not queue catalogue notice");
   return data as { id: string; total: number };
 }
 

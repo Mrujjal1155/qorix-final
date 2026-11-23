@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useState } from "react";
 import { deleteBulkDiscount, listBulkDiscounts, saveBulkDiscount } from "@/lib/bulk-discount.functions";
-import { applyTier, type BulkTier } from "@/lib/bulk-discount";
+import { applyTier, shouldAnnounceBulk, type BulkTier } from "@/lib/bulk-discount";
 import { AdminShell, money } from "@/components/AdminShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -74,9 +74,9 @@ function BulkPage() {
     setBusy(true);
     try {
       const r = await save({
-        data: { ...f, tiers: f.tiers.map((t) => ({ ...t, min_qty: Number(t.min_qty), value: Number(t.value) })) },
+        data: { ...f, requestId: crypto.randomUUID(), tiers: f.tiers.map((t) => ({ ...t, min_qty: Number(t.min_qty), value: Number(t.value) })) },
       });
-      toast.success(f.notify ? `Saved — ${r.announced} notification(s) sent` : "Saved");
+      toast.success(shouldAnnounceBulk(f) ? `Saved — ${r.announced} broadcast(s) queued for all reachable bot users and groups` : "Saved");
       setF(empty());
       qc.invalidateQueries({ queryKey: ["bulk"] });
     } catch (e) {
@@ -181,7 +181,7 @@ function BulkPage() {
 
             <div className="flex flex-wrap items-center gap-6">
               <label className="flex items-center gap-2 text-sm"><Switch checked={f.is_active} onCheckedChange={(v) => setF({ ...f, is_active: v })} /> Active</label>
-              <label className="flex items-center gap-2 text-sm"><Switch checked={f.notify} onCheckedChange={(v) => setF({ ...f, notify: v })} /> Send notification</label>
+              {f.id && <label className="flex items-center gap-2 text-sm"><Switch checked={f.notify} onCheckedChange={(v) => setF({ ...f, notify: v })} /> Broadcast update</label>}
             </div>
 
             <div className="flex gap-2">
