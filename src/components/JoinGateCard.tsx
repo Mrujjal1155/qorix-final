@@ -6,32 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Trash2, Plus } from "lucide-react";
+import { parseJoinChannels as parseRows, serializeJoinChannels as serializeRows, type JoinChannel } from "@/lib/bot/join-gate";
 
-export type JoinRow = { chat: string; label: string; url: string };
-
-function parseRows(raw: string | undefined): JoinRow[] {
-  return (raw ?? "")
-    .split("\n")
-    .filter((l) => l.trim())
-    .map((line) => {
-      const parts = line.split("|");
-      const chat = (parts[0] ?? "").trim();
-      const label = parts[1] ?? "";
-      const url = (parts[2] ?? "").trim();
-      return {
-        chat,
-        label: label || chat,
-        url: url || (chat.startsWith("@") ? `https://t.me/${chat.slice(1)}` : ""),
-      };
-    });
-}
-
-function serializeRows(rows: JoinRow[]): string {
-  return rows
-    .filter((r) => r.chat.trim())
-    .map((r) => `${r.chat.trim()}|${r.label}|${r.url.trim()}`)
-    .join("\n");
-}
+export type JoinRow = JoinChannel;
 
 export function JoinGateCard({
   values,
@@ -70,7 +47,7 @@ export function JoinGateCard({
       </CardHeader>
       <CardContent className="space-y-5">
         <p className="text-sm text-muted-foreground">
-          New users must join every chat listed here before the bot menu opens. Membership is checked live with
+          New users must join required chats before the bot menu opens. Optional channels do not block access. Membership is checked live with
           Telegram on <code className="rounded bg-muted px-1 py-0.5 text-xs">/start</code> and on every button tap.
           Make the bot an <strong>admin</strong> in each channel/group, otherwise Telegram cannot report membership.
         </p>
@@ -103,6 +80,15 @@ export function JoinGateCard({
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
+              </div>
+              <div className="flex items-center justify-between gap-4">
+                <Label htmlFor={`join-required-${i}`}>{row.required ? "Required to unlock access" : "Optional"}</Label>
+                <Switch
+                  id={`join-required-${i}`}
+                  aria-label={`Require channel ${i + 1}`}
+                  checked={row.required}
+                  onCheckedChange={(required) => update(rows.map((r, idx) => idx === i ? { ...r, required } : r))}
+                />
               </div>
               <div className="grid gap-3 sm:grid-cols-3">
                 <div className="space-y-1">
@@ -140,7 +126,7 @@ export function JoinGateCard({
           ))}
           <Button
             variant="secondary"
-            onClick={() => update([...rows, { chat: "", label: "", url: "" }])}
+            onClick={() => update([...rows, { chat: "", label: "", url: "", required: true }])}
           >
             <Plus className="mr-2 h-4 w-4" /> Add channel
           </Button>

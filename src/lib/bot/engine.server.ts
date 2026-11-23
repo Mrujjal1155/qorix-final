@@ -1,5 +1,6 @@
 import { notifyChatId, notifyRoute, type NotifyKind, legacySwitchOn, notifyMatrixActive } from "@/lib/telegram-notify-routes";
 import { referralMode, referralCallbackAllowed } from "@/lib/referral-mode";
+import { parseJoinChannels, requiredJoinChannels, type JoinChannel } from "@/lib/bot/join-gate";
 import { cardToTable, saleTable } from "@/lib/bot/alert-table";
 import { bulkDiscountCard } from "@/lib/bot/bulk-discount-card";
 import { productBulkTable } from "@/lib/bot/product-bulk-table";
@@ -4954,33 +4955,22 @@ const ADM_BACK: Button[][] = [[{ text: "⬅️ Admin panel", callback_data: "adm
 
 /* --------------------------------------------------- forced join gate ---- */
 
-export type JoinChannel = { chat: string; label: string; url: string };
+export type { JoinChannel } from "@/lib/bot/join-gate";
 
-/** Stored as one channel per line: `chat|label|invite url` (label/url optional). */
+/** Shared optional/required parsing is also used by the website admin. */
 function joinChannels(s: Record<string, string>): JoinChannel[] {
-  return (s["join_channels"] ?? "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [chatRaw = "", labelRaw = "", urlRaw = ""] = line.split("|").map((p) => p.trim());
-      const chat = chatRaw;
-      const url =
-        urlRaw || (chat.startsWith("@") ? `https://t.me/${chat.slice(1)}` : "");
-      return { chat, label: labelRaw || chat, url };
-    })
-    .filter((c) => c.chat);
+  return parseJoinChannels(s["join_channels"]);
 }
 
 function joinGateOn(s: Record<string, string>) {
-  return (s["join_gate"] ?? "off").toLowerCase() === "on" && joinChannels(s).length > 0;
+  return (s["join_gate"] ?? "off").toLowerCase() === "on" && requiredJoinChannels(s).length > 0;
 }
 
 const JOINED_STATUSES = new Set(["member", "administrator", "creator", "restricted"]);
 
 /** Channels the user still has to join. Unverifiable chats never block anyone. */
 async function missingJoins(chatId: number, s: Record<string, string>): Promise<JoinChannel[]> {
-  const list = joinChannels(s);
+  const list = requiredJoinChannels(s);
   const results = await Promise.all(
     list.map(async (c) => {
       try {
@@ -5002,8 +4992,8 @@ function joinGateView(s: Record<string, string>, missing: JoinChannel[]) {
   const kb: Button[][] = [];
   const lines: string[] = [];
   all.forEach((c, i) => {
-    const done = !pending.has(c.chat);
-    lines.push(`${done ? je(s, "joined") : je(s, "item")} <b>${i + 1}.</b> ${escapeHtml(c.label)}${done ? " — joined" : ""}`);
+    const done = c.required && !pending.has(c.chat);
+    lines.push(`${done ? je(s, "joined") : je(s, "item")} <b>${i + 1}.</b> ${escapeHtml(c.label)}${c.required ? done ? " — joined" : " — required" : " — optional"}`);
     if (done) return;
     kb.push([
       c.url
@@ -5015,7 +5005,7 @@ function joinGateView(s: Record<string, string>, missing: JoinChannel[]) {
   const title = (s["join_gate_title"] || `${je(s, "lock")} <b>Membership required</b>`).trim();
   const body =
     (s["join_gate_text"] || "").trim() ||
-    "Join our official community below to unlock the bot.\nJoin them <b>one by one</b>, then tap <b>Verify &amp; continue</b> — membership is checked live.";
+    "Join the required community below to unlock the bot. Optional channels are welcome but not required.\nThen tap <b>Verify &amp; continue</b> — membership is checked live.";
   return { text: `${title}\n──────────────\n${body}\n\n${lines.join("\n")}`, kb };
 }
 
@@ -5050,9 +5040,9 @@ async function admJoinGateView() {
       "🔐 <b>Force join gate</b>\n──────────────\n" +
       `Status: <b>${on ? "ON" : "OFF"}</b>\n` +
       (list.length
-        ? list.map((c) => `• <code>${escapeHtml(c.chat)}</code> — ${escapeHtml(c.label)}`).join("\n")
+        ? list.map((c) => `• <code>${escapeHtml(c.chat)}</code> — ${escapeHtml(c.label)} (${c.required ? "required" : "optional"})`).join("\n")
         : "⚠️ No channel added yet.") +
-      "\n\nNew users must join these chats on <code>/start</code>, then tap Verify. " +
+      "\n\nNew users must join required chats on <code>/start</code>, then tap Verify. Optional channels do not block access. " +
       "The bot must be an <b>admin</b> in every chat, otherwise membership cannot be checked.",
     kb,
   };

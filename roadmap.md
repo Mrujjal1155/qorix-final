@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Make Main Channel optional while Main Group remains required; shared admin/bot parser persists per-chat required/optional modes, existing channel defaults optional. Tests cover mandatory lock, optional button, serialization and real Verify callback with mocked Telegram. No live sends or deployment; actual Telegram rollout remains unverified until separately approved publication.
+
 - [x] Match bot product references with a saved-fact table, existing bulk-price table and native collapsed About this product containing description, guide and important notes; preserve website/API/prices/purchase actions. Twenty-seven callback/pricing/sender/emoji/catalogue regressions pass; local native-details open/close and readable fallback verified, build OK. Actual Telegram appearance remains unverified; no real sends or deployment.
 
 - [x] Route every new active bulk-discount setup through the existing durable all-user/group rich broadcast queue; preserve Premium icons, pricing and shared paced retries. Eleven new setup/auth/queue/SQL tests and 27 sender/recipient/list regressions pass; isolated SQL verifies 1501 reachable users plus two distinct groups, no page cap, no duplicate recipients and service-only access. Live admin creation/Telegram receipt remains unverified without separately approved deployment/send; no real notifications sent.
