@@ -143,8 +143,11 @@ export const getProductBulkTiers = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     try {
       const { publicProducts } = await import("@/lib/public-products.server");
-      const { data: row } = await publicProducts().select("id,price").eq("id", data.id).eq("is_active", true).maybeSingle();
+      const { data: row } = await publicProducts().select("id,price,flash_ends_at").eq("id", data.id).eq("is_active", true).maybeSingle();
       if (!row) return { rows: [] as any[] };
+      const { flashActive } = await import("@/lib/bulk-discount");
+      // Same rule as bot/API: no bulk discount while a flash sale is running.
+      if (flashActive(row)) return { rows: [] as any[] };
       const { bulkTiersFor } = await import("@/lib/bulk-discount.server");
       // Display-only: show every active rule for this product, whatever its channel.
       const [bot, api] = await Promise.all([bulkTiersFor([data.id], "bot"), bulkTiersFor([data.id], "api")]);
@@ -365,7 +368,15 @@ async function createWebsiteOrder(data: WebsiteOrderInput, owner: { telegram_id:
 
 
 
-    const unit = Number(product.price);
+    // Website orders get the same bulk discount as the bot (channel bot/both); flash sales skip it.
+    let unit = Number(product.price);
+    try {
+      const { bulkTiersFor, bulkUnit } = await import("@/lib/bulk-discount.server");
+      const tiers = await bulkTiersFor([String(product.id)], "bot");
+      unit = bulkUnit(product, unit, data.quantity, tiers[String(product.id)]);
+    } catch (e) {
+      console.error("[storefront] bulk discount lookup failed; using base price:", e);
+    }
     let paymentMeta = {};
     if (data.payment_method.startsWith("chain_")) paymentMeta = { chain_address: chainSnapshot };
     if (data.payment_method === "bybit") {

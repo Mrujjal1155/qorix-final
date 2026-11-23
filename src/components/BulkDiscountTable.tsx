@@ -45,7 +45,7 @@ export function BulkDiscountTable({ productId, compact = false }: { productId: s
             </tbody>
           </table>
         </div>
-        <p className="mt-1 text-xs italic text-tg-muted">Valid on Telegram bot &amp; API orders.</p>
+        <p className="mt-1 text-xs italic text-tg-muted">Applied automatically at checkout.</p>
       </section>
     );
   }
@@ -71,7 +71,7 @@ export function BulkDiscountTable({ productId, compact = false }: { productId: s
           ))}
         </tbody>
       </table>
-      <p className="mt-2 text-[11px] text-muted-foreground">Valid on Telegram bot &amp; API orders.</p>
+      <p className="mt-2 text-[11px] text-muted-foreground">Applied automatically at checkout.</p>
     </section>
   );
 }

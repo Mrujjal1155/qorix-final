@@ -60,3 +60,13 @@ export function bulkTierRows(tiers: BulkTier[], unit: number): BulkTierRow[] {
   }
   return rows.filter((r) => r.save > 0).slice(0, 10);
 }
+
+/** Effective per-piece price for a quantity from display rows (cheapest matching tier wins). */
+export function bulkUnitFromRows(rows: BulkTierRow[], qty: number, base: number): number {
+  const unit = Math.max(0, Number(base) || 0);
+  let best = unit;
+  for (const r of rows) {
+    if (qty >= r.min_qty && r.unit > 0 && r.unit < best) best = r.unit;
+  }
+  return best;
+}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bulkTierRows } from "@/lib/bulk-discount";
+import { bulkTierRows, bulkUnitFromRows } from "@/lib/bulk-discount";
 
 describe("bulkTierRows", () => {
   it("computes per-piece prices and savings for percent tiers", () => {
@@ -43,5 +43,29 @@ describe("bulkTierRows", () => {
   it("returns nothing when there is no real discount", () => {
     expect(bulkTierRows([], 2)).toEqual([]);
     expect(bulkTierRows([{ min_qty: 5, type: "percent", value: 10 }], 0)).toEqual([]);
+  });
+});
+
+describe("bulkUnitFromRows (website checkout parity)", () => {
+  const rows = bulkTierRows([
+    { min_qty: 5, type: "flat", value: 0.05 },
+    { min_qty: 10, type: "flat", value: 0.1 },
+    { min_qty: 15, type: "flat", value: 0.15 },
+  ], 0.35);
+
+  it("keeps the base price below the first tier", () => {
+    expect(bulkUnitFromRows(rows, 1, 0.35)).toBe(0.35);
+    expect(bulkUnitFromRows(rows, 4, 0.35)).toBe(0.35);
+  });
+
+  it("applies the cheapest matching tier, like the bot and the SQL wallet function", () => {
+    expect(bulkUnitFromRows(rows, 5, 0.35)).toBe(0.3);
+    expect(bulkUnitFromRows(rows, 10, 0.35)).toBe(0.25);
+    expect(bulkUnitFromRows(rows, 99, 0.35)).toBe(0.2);
+  });
+
+  it("ignores empty rows and never exceeds the base price", () => {
+    expect(bulkUnitFromRows([], 10, 0.35)).toBe(0.35);
+    expect(bulkUnitFromRows(rows, 10, 0.1)).toBe(0.1);
   });
 });

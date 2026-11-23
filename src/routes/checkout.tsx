@@ -15,7 +15,8 @@ import {
   Wallet,
 } from "lucide-react";
 
-import { getStoreProduct, getStorePayInfo, placeWebsiteOrder, placeConnectedWebsiteOrder } from "@/lib/shop.functions";
+import { getStoreProduct, getStorePayInfo, getProductBulkTiers, placeWebsiteOrder, placeConnectedWebsiteOrder } from "@/lib/shop.functions";
+import { bulkUnitFromRows } from "@/lib/bulk-discount";
 import { getWebWallet, purchaseWithWebWallet } from "@/lib/web-wallet.functions";
 import { canPayCheckoutWallet } from "@/lib/wallet-checkout";
 import { supabase } from "@/integrations/supabase/client";
@@ -128,7 +129,16 @@ function CheckoutPage() {
     picked === "eps" || (picked === "oxapay" && oxa?.enabled) || visibleMethods.some((m) => m.id === picked)
       ? picked
       : (visibleMethods[0]?.id ?? (eps?.enabled ? "eps" : picked));
-  const total = Number(product?.price ?? 0) * qty;
+  const fetchBulk = useServerFn(getProductBulkTiers);
+  const { data: bulk } = useQuery({
+    queryKey: ["product-bulk-tiers", id],
+    queryFn: () => fetchBulk({ data: { id } }),
+    enabled: !!id,
+    staleTime: 60_000,
+  });
+  // Same bulk discount as the bot; the server re-checks it before saving the order.
+  const unitPrice = bulkUnitFromRows((bulk?.rows ?? []) as any[], qty, Number(product?.price ?? 0));
+  const total = Math.round(unitPrice * qty * 100) / 100;
   const isEps = method === "eps";
   const isOxa = method === "oxapay";
   const cryptoMethod = METHODS.find((m) => m.id === method);
@@ -239,7 +249,7 @@ function CheckoutPage() {
       <BotCheckout
         key={`${id}:${step}`} initialStage={step === "pay" ? "methods" : "summary"}
         productId={id} productName={product?.name ?? "Loading…"} productImg={product?.image_url ?? undefined}
-        unit={Number(product?.price ?? 0)} qty={qty} total={total} money={money}
+        unit={unitPrice} qty={qty} total={total} money={money}
         methods={botMethods} method={method} setMethod={setMethod}
         name={name} setName={setName} email={email} setEmail={setEmail} phone={phone} setPhone={setPhone}
         txid={txid} setTxid={setTxid} botUser={botUser} epsBdt={epsTotalBdt} connected={connected}
