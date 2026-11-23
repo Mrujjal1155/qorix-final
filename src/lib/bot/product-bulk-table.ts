@@ -24,7 +24,7 @@ export function productBulkTable(product: ProductPrice, tiers: BulkTier[], badge
   return `${badge} <b>Bulk discount</b>\n` +
     `<table bordered striped compact><tr><td><b>Quantity</b></td><td align="right"><b>Per piece</b></td></tr>` +
     rows.map(row => `<tr><td>${row.min_qty}+ pcs</td><td align="right">$${row.unit.toFixed(2)}</td></tr>`).join("") +
-    `</table>\n\n`;
+    `</table>\n`;
 }
 
 /** Convert newlines to <br/> outside <table> blocks so rich layout keeps paragraphs. */

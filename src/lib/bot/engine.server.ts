@@ -2102,13 +2102,13 @@ async function productView(productId: string, chatId?: number, websiteOwner: num
   if (descHtml)
     text +=
       `<b>${escapeHtml(uiText(settings, "prod_desc"))}</b>\n` +
-      `<blockquote expandable>${descHtml}</blockquote>\n\n`;
+      `<blockquote expandable>${descHtml}</blockquote>\n`;
 
   const important = renderRich(p.important_note ?? p.manual_note ?? "");
   if (important)
     text +=
       `<b>${escapeHtml(uiText(settings, "prod_important"))}</b>\n` +
-      `<blockquote expandable>${uiIconHtml(settings, "prod_important_line")} ${important}</blockquote>\n\n`;
+      `<blockquote expandable>${uiIconHtml(settings, "prod_important_line")} ${important}</blockquote>\n`;
 
   const guide = renderRich(
     p.quick_guide ?? settings[`guide_${p.id}`] ?? settings["quick_guide_text"] ?? "",
@@ -2116,7 +2116,7 @@ async function productView(productId: string, chatId?: number, websiteOwner: num
   if (guide)
     text +=
       `<blockquote expandable>${uiIconHtml(settings, "prod_guide")} <b>${escapeHtml(uiText(settings, "prod_guide"))}</b>\n` +
-      `${guide}</blockquote>\n\n`;
+      `${guide}</blockquote>\n`;
 
   // Same supplier detail rows the website product page shows, so both surfaces
   // present identical product information.
@@ -2130,7 +2130,7 @@ async function productView(productId: string, chatId?: number, websiteOwner: num
     text +=
       `<blockquote expandable>` +
       detailRows.map((d) => `• <b>${escapeHtml(d.label)}:</b> ${escapeHtml(d.value)}`).join("\n") +
-      `</blockquote>\n\n`;
+      `</blockquote>\n`;
 
   if (String(p.delivery_time ?? "").trim())
     text += `${uiTag(settings, "prod_delivery")}: <b>${escapeHtml(String(p.delivery_time).trim())}</b>\n\n`;
