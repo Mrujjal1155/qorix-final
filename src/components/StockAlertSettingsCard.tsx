@@ -3,18 +3,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { listSuppliers } from "@/lib/supplier.functions";
-
-const TOGGLES: { key: string; label: string; description: string; defaultOn?: boolean }[] = [
-  { key: "announce_restock", label: "Restock alerts", description: "Post when stock comes back for a product.", defaultOn: true },
-  { key: "announce_low", label: "Low / out of stock alerts", description: "Post when stock drops to the threshold and when it hits zero.", defaultOn: true },
-  { key: "announce_new", label: "New product alerts", description: "Post when a new product is turned ON.", defaultOn: true },
-  { key: "announce_price", label: "Price change alerts", description: "Post when a product price changes.", defaultOn: true },
-  { key: "announce_price_up", label: "Include price increases", description: "Off means only price drops are announced.", defaultOn: true },
-  { key: "announce_dm", label: "Bot DM copies", description: "Send the same card to every bot user, not just the group.", defaultOn: true },
-];
 
 /** One place to manage every stock alert rule and where each alert is delivered. */
 export function StockAlertSettingsCard({
@@ -29,8 +19,6 @@ export function StockAlertSettingsCard({
   const fetchSuppliers = useServerFn(listSuppliers);
   const { data: suppliers } = useQuery({ queryKey: ["suppliers-list"], queryFn: () => fetchSuppliers() });
 
-  const isOn = (key: string, defaultOn?: boolean) =>
-    (values[key] ?? (defaultOn ? "on" : "off")).toLowerCase() === "on";
 
   return (
     <Card>
@@ -62,41 +50,7 @@ export function StockAlertSettingsCard({
           </div>
         </div>
 
-        <div className="space-y-3">
-          {TOGGLES.map((t) => (
-            <div key={t.key} className="flex items-start justify-between gap-4 rounded-xl border border-border/70 p-3">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold">{t.label}</p>
-                <p className="text-xs text-muted-foreground">{t.description}</p>
-              </div>
-              <Switch
-                checked={isOn(t.key, t.defaultOn)}
-                onCheckedChange={(c) => setValues({ ...values, [t.key]: c ? "on" : "off" })}
-              />
-            </div>
-          ))}
-        </div>
-
-        <div className="space-y-2 rounded-xl border border-border/70 p-3">
-          <p className="text-sm font-semibold">Price alert destination</p>
-          <p className="text-xs text-muted-foreground">Where price up / down cards are sent.</p>
-          <div className="flex flex-wrap gap-2">
-            {[
-              { v: "both", l: "Group + bot" },
-              { v: "bot", l: "Bot only" },
-            ].map((o) => (
-              <Button
-                key={o.v}
-                type="button"
-                size="sm"
-                variant={(values["announce_price_target"] ?? "both") === o.v ? "default" : "outline"}
-                onClick={() => setValues({ ...values, announce_price_target: o.v })}
-              >
-                {o.l}
-              </Button>
-            ))}
-          </div>
-        </div>
+        <p className="rounded-xl border border-border/70 p-3 text-xs text-muted-foreground">On/off for every alert now lives in Settings → Telegram Notifications.</p>
 
         <div className="space-y-3">
           <div>

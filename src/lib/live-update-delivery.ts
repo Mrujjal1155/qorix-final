@@ -19,8 +19,8 @@ export function liveDestinations(
     return {
       live: !event.live_sent && !blocked("live") ? (uniqueLive[0] ?? "") : "",
       liveExtra: !event.live_sent && !blocked("live") ? uniqueLive.slice(1) : [],
-      // Purchases keep their general-slot opt-in; other kinds always may use it.
-      general: !event.general_sent && !blocked("general") && (event.kind !== "purchase" || event.general_enabled) ? generalId : "",
+            // The matrix switch is the only opt-in once the admin has saved it.
+      general: !event.general_sent && !blocked("general") ? generalId : "",
     };
   }
   const key = event.kind === "purchase" ? "live_purchase" : event.kind === "member" ? "live_member" : "live_topup";

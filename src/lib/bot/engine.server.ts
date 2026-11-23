@@ -1,4 +1,4 @@
-import { notifyChatId, notifyRoute, type NotifyKind } from "@/lib/telegram-notify-routes";
+import { notifyChatId, notifyRoute, type NotifyKind, legacySwitchOn, notifyMatrixActive } from "@/lib/telegram-notify-routes";
 import { referralMode, referralCallbackAllowed } from "@/lib/referral-mode";
 import { cardToTable, saleTable } from "@/lib/bot/alert-table";
 import { bulkDiscountCard } from "@/lib/bot/bulk-discount-card";
@@ -3341,7 +3341,7 @@ const SALE_TAGS: Record<SaleSource, [AlertIconKey, string]> = {
 export async function announcePurchase(user: any, product: any, qty: number, source: SaleSource = "bot", durableDelivery = false) {
   const s = await getSettings();
   const routed = durableDelivery && notifyRoute(s, "live_purchase").configured;
-  if (!routed && (!s["announce_chat_id"] || (s["announce_sales"] ?? "on").toLowerCase() === "off")) return { ok: false, error_code: 400, description: "Sales announcements disabled or destination missing" };
+  if (!routed && (!s["announce_chat_id"] || !legacySwitchOn(s, "announce_sales"))) return { ok: false, error_code: 400, description: "Sales announcements disabled or destination missing" };
   const [tagIcon, tagLabel] = SALE_TAGS[source] ?? SALE_TAGS.bot;
   const who = escapeHtml(maskUsername(user?.username, user?.first_name));
   const text = saleTable({
@@ -3387,7 +3387,7 @@ export async function announceOrderSale(orderId: string, queuedDelivery = false)
 /** "User X just claimed free …" post for freebies / gift drops. */
 export async function announceClaim(user: any, product: any) {
   const s = await getSettings();
-  if (!s["announce_chat_id"] || (s["announce_sales"] ?? "on").toLowerCase() === "off") return;
+  if (!notifyMatrixActive(s) && (!s["announce_chat_id"] || !legacySwitchOn(s, "announce_sales"))) return;
   const tpl = s["announce_claim_text"] || "User {user} just claimed free {product}.";
   const text = fillTokens(escapeHtml(tpl), {
     user: escapeHtml(maskUsername(user?.username, user?.first_name)),
@@ -3405,7 +3405,7 @@ export async function announceRestock(
   delivery?: CardDelivery,
 ) {
   const s = await getSettings();
-  if ((s["announce_restock"] ?? "on").toLowerCase() === "off") return;
+  if (!legacySwitchOn(s, "announce_restock")) return;
   const title = s["announce_restock_title"] || "BACK IN STOCK";
   const footer =
     s["announce_restock_footer"] || "Restocked units go fast — lock yours in before they're gone again.";
@@ -3437,7 +3437,7 @@ export async function announceNewProduct(
   const s = await getSettings();
   // Never announce a product the admin has not switched on.
   if (!product || product.is_active === false) return;
-  if ((s["announce_new"] ?? "on").toLowerCase() === "off") return;
+  if (!legacySwitchOn(s, "announce_new")) return;
   const title = s["announce_new_title"] || "JUST ADDED";
   const footer = s["announce_new_footer"] || "Available while stock lasts.";
   const line = "━━━━━━━━━━━━━━━━";
@@ -3491,7 +3491,7 @@ export async function announceLowStock(
 ) {
   const s = await getSettings();
   if (!product || product.is_active === false) return;
-  if ((s["announce_low"] ?? "on").toLowerCase() === "off") return;
+  if (!legacySwitchOn(s, "announce_low")) return;
   const out = available <= 0;
   const title = out
     ? s["announce_out_title"] || "SOLD OUT"
@@ -3530,15 +3530,15 @@ export async function announcePriceChange(
   const s = await getSettings();
   if (!product || product.is_active === false) return { channel: true, bot: true, complete: true };
   const down = Number(newPrice) < Number(oldPrice);
-  const legacyDisabled = (s["announce_price"] ?? "on").toLowerCase() === "off" ||
-    (!down && (s["announce_price_up"] ?? "on").toLowerCase() !== "on");
+  const legacyDisabled = !notifyMatrixActive(s) && ((s["announce_price"] ?? "on").toLowerCase() === "off" ||
+    (!down && (s["announce_price_up"] ?? "on").toLowerCase() !== "on"));
   if (legacyDisabled) {
     if (!delivery?.prepareMessage || product.customer_alerts_enabled === false) return { channel: true, bot: true, complete: true };
     // Customer switch is independent of the pre-existing admin/group settings.
     delivery = { ...delivery, channelSent: true, botSent: true };
   }
   // Admin choice: "both" (group + bot) or "bot" (bot only, no group post).
-  if ((s["announce_price_target"] ?? "both").toLowerCase() === "bot") {
+  if (!notifyMatrixActive(s) && (s["announce_price_target"] ?? "both").toLowerCase() === "bot") {
     delivery = { ...(delivery ?? {}), channelSent: true } as CardDelivery;
   }
   const title = down
@@ -3691,7 +3691,7 @@ export async function notifyApiUsersPriceChange(before: any, after: any) {
  */
 export async function announceProductRemoved(product: any, delivery?: CardDelivery) {
   const s = await getSettings();
-  if ((s["announce_removed"] ?? "on").toLowerCase() === "off") return;
+  if (!legacySwitchOn(s, "announce_removed")) return;
   const title = s["announce_removed_title"] || "REMOVED";
   const footer = s["announce_removed_footer"] || "This product is no longer available in the store.";
   const line = "──────────────────────";
@@ -5461,9 +5461,11 @@ async function admAnnounceView() {
   const dm = annOn(s, "announce_dm");
   const kb: Button[][] = [
     [{ text: chat ? `🆔 Channel: ${chat}` : "🆔 Set channel / group ID", callback_data: "adm:anid" }],
-    [{ text: `${sales ? "✅" : "🚫"} Live sale posts`, callback_data: "adm:antg:sales" }],
-    [{ text: `${restock ? "✅" : "🚫"} Restock posts`, callback_data: "adm:antg:restock" }],
-    [{ text: `${dm ? "✅" : "🚫"} Also DM all bot users`, callback_data: "adm:antg:dm" }],
+    ...(notifyMatrixActive(s) ? [] : [
+      [{ text: `${sales ? "✅" : "🚫"} Live sale posts`, callback_data: "adm:antg:sales" }],
+      [{ text: `${restock ? "✅" : "🚫"} Restock posts`, callback_data: "adm:antg:restock" }],
+      [{ text: `${dm ? "✅" : "🚫"} Also DM all bot users`, callback_data: "adm:antg:dm" }],
+    ] as Button[][]),
     [{ text: "✍️ Send announcement now", callback_data: "adm:anmsg" }],
     [{ text: "🧪 Send test post", callback_data: "adm:antest" }],
     ADM_BACK[0]!,
@@ -8899,7 +8901,7 @@ export async function handleApiIconState(chatId: number, msg: any, text: string,
  */
 export async function announceSupplierNotice(supplierName: string, title: string, body: string) {
   const s = await getSettings();
-  if ((s["announce_supplier_notice"] ?? "on").toLowerCase() === "off") return { sent: false };
+  if (!legacySwitchOn(s, "announce_supplier_notice")) return { sent: false };
   const line = "──────────────────────";
   const heading = title || "Supplier announcement";
   const text =

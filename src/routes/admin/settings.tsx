@@ -566,7 +566,7 @@ function SettingsPage() {
         <p className="text-sm text-muted-foreground">
           Enter the channel/group ID, then use the switches below to choose which posts stay on or off.
         </p>
-        {TOGGLE_FIELDS.map((t) => (
+        {TOGGLE_FIELDS.filter((t) => !t.key.startsWith("announce_")).map((t) => (
           <div key={t.key} className="flex items-start justify-between gap-4 rounded-xl border border-border/70 bg-card/50 p-4">
             <div className="space-y-0.5">
               <Label className="text-sm font-semibold">{t.label}</Label>

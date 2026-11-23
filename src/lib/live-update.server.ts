@@ -95,7 +95,16 @@ export async function drainLiveUpdates(limit = 20) {
         }
         const primary = await sendAlertMessage(target, text, keyboard);
         if (destination === "live" && primary.ok) {
-          for (const extra of targets.liveExtra ?? []) await sendAlertMessage(extra, text, keyboard).catch(() => null);
+          for (const extra of targets.liveExtra ?? []) {
+            // Official Channel: log every outcome; wait out Telegram's explicit rate limit once.
+            let r: TgResult = await sendAlertMessage(extra, text, keyboard).catch((e: unknown) => ({ ok: false, description: String(e) }) as TgResult);
+            const wait = Number((r as any)?.parameters?.retry_after ?? 0);
+            if (!r.ok && (r as any)?.error_code === 429 && wait > 0 && wait <= 10) {
+              await new Promise((res) => setTimeout(res, wait * 1000));
+              r = await sendAlertMessage(extra, text, keyboard).catch((e: unknown) => ({ ok: false, description: String(e) }) as TgResult);
+            }
+            console.log(`[live extra] ${extra} ${r.ok ? "sent" : `failed: ${r.description ?? "unknown"}`}`);
+          }
         }
         return primary;
       })().catch((e: unknown) => ({ ok: false, description: String(e) }));

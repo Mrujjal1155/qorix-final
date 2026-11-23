@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { sendLiveUpdateTest } from "@/lib/admin.functions";
 import { LIVE_EMOJI_SLOTS, buildLivePost } from "@/lib/live-update";
@@ -26,7 +25,6 @@ export function LiveUpdateCard({
 }) {
   const sendTest = useServerFn(sendLiveUpdateTest);
   const [busy, setBusy] = useState("");
-  const isOn = (k: string) => (values[k] ?? "on").toLowerCase() === "on";
   const emoji = Object.fromEntries(LIVE_EMOJI_SLOTS.map((s) => [s.slot, values[`live_emoji_${s.slot}`] ?? ""]));
 
   const test = async (kind: "purchase" | "topup" | "member") => {
@@ -68,10 +66,6 @@ export function LiveUpdateCard({
                 <Button size="sm" variant="outline" disabled={!!busy} onClick={() => test(t.kind)}>
                   {busy === t.kind ? "Sending…" : "Test post"}
                 </Button>
-                <Switch
-                  checked={isOn(t.key)}
-                  onCheckedChange={(v) => setValues({ ...values, [t.key]: v ? "on" : "off" })}
-                />
               </div>
             </div>
           ))}

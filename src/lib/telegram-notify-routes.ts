@@ -93,6 +93,21 @@ export function stockKindToNotify(kind: string): NotifyKind | null {
     case "price": return "price_change";
     case "flash": case "flash_end": return "flash_sale";
     case "removed": return "product_removed";
+    case "broadcast": return "admin_broadcast";
     default: return null;
   }
+}
+
+/**
+ * Old scattered on/off switches only apply until the admin saves the
+ * Telegram Notifications matrix; afterwards the matrix is the single control.
+ */
+export function legacySwitchOn(s: Record<string, string>, key: string, defaultOn = true): boolean {
+  if (parseNotifyMatrix(s["notify_routes"])) return true;
+  const v = (s[key] ?? (defaultOn ? "on" : "off")).toLowerCase();
+  return defaultOn ? v !== "off" : v === "on";
+}
+
+export function notifyMatrixActive(s: Record<string, string>): boolean {
+  return parseNotifyMatrix(s["notify_routes"]) !== null;
 }
