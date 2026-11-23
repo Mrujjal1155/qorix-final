@@ -7,6 +7,7 @@ import { stripEmoji } from "@/lib/mobile-template";
 import { ProductPremiumIcon } from "@/components/mobile/ProductPremiumIcon";
 import { ButtonPremiumIcon } from "@/components/mobile/ButtonPremiumIcon";
 import { CategoryPremiumIcon } from "@/components/mobile/CategoryPremiumIcon";
+import { BulkDiscountTable } from "@/components/BulkDiscountTable";
 import type { CategoryPremiumMedia } from "@/lib/category-premium-media";
 
 type Product = {
@@ -74,6 +75,7 @@ export function BotProductMessage({ product }: { product: Product }) {
     {off > 0 && <p className="mt-4 flex items-center gap-1.5 font-semibold"><ButtonPremiumIcon setting="ui_icon_prod_flash" fallback={Zap} />FLASH SALE -{off}%</p>}
     <p className="mt-4 flex items-center gap-1.5"><ButtonPremiumIcon setting="ui_icon_prod_price" fallback={BadgeDollarSign} /><span>Price: {off > 0 && <><s className="text-tg-muted">{money(p.old_price)}</s> → </>}<b>{money(p.price)}</b></span></p>
     {Number(p.sold) > 0 && <p className="mt-4 flex items-center gap-1.5"><ButtonPremiumIcon setting="ui_icon_prod_sold" fallback={Tag} /><span><b>{p.sold}</b> sold</span></p>}
+    <BulkDiscountTable productId={p.id} compact />
     {p.description?.trim() && <section className="mt-5"><p className="mb-1 font-semibold">Must Read The description First</p><ProductQuote expandable><ProductText text={p.description} /></ProductQuote></section>}
     {important.trim() && <section className="mt-5"><p className="mb-1 font-semibold">Important</p><ProductQuote><ButtonPremiumIcon setting="ui_icon_prod_important_line" fallback={NotebookPen} /> <ProductText text={important} /></ProductQuote></section>}
     {p.quick_guide?.trim() && <div className="mt-5"><ProductQuote expandable><p className="flex items-center gap-1.5 font-semibold"><ButtonPremiumIcon setting="ui_icon_prod_guide" fallback={Sparkles} />Quick Guide</p><ProductText text={p.quick_guide} /></ProductQuote></div>}

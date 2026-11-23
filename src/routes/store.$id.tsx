@@ -28,6 +28,7 @@ import { SmartImage } from "@/components/SmartImage";
 import { duplicateNotes } from "@/lib/duplicate-products";
 import { useT } from "@/lib/i18n";
 import { StoreShell } from "@/components/StoreShell";
+import { BulkDiscountTable } from "@/components/BulkDiscountTable";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { usePrefs } from "@/lib/prefs";
@@ -387,6 +388,8 @@ function ProductPage() {
               <p className="text-xs text-muted-foreground">≈ {usd(total)} USD</p>
             ) : null}
             </>)}
+
+            {product ? <BulkDiscountTable productId={id} /> : null}
 
             {product && !inStock ? (
               <div className="mt-4">

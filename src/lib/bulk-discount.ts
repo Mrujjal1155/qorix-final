@@ -37,3 +37,26 @@ export function applyTier(unit: number, tier: BulkTier | null) {
   const next = tier.type === "flat" ? unit - tier.value : unit * (1 - tier.value / 100);
   return Math.max(0.01, Math.round(next * 100) / 100);
 }
+
+export type BulkTierRow = { min_qty: number; label: string; unit: number; save: number; save_percent: number };
+
+/** Display rows for the product page: "5+", per-piece price and saving vs the base unit price. */
+export function bulkTierRows(tiers: BulkTier[], unit: number): BulkTierRow[] {
+  const base = Math.max(0, Number(unit) || 0);
+  const seen = new Set<number>();
+  const rows: BulkTierRow[] = [];
+  for (const t of cleanTiers(tiers)) {
+    if (seen.has(t.min_qty)) continue;
+    seen.add(t.min_qty);
+    const price = applyTier(base, t);
+    const save = Math.max(0, Math.round((base - price) * 100) / 100);
+    rows.push({
+      min_qty: t.min_qty,
+      label: `${t.min_qty}+`,
+      unit: price,
+      save,
+      save_percent: base > 0 ? Math.round((save / base) * 100) : 0,
+    });
+  }
+  return rows.filter((r) => r.save > 0).slice(0, 10);
+}

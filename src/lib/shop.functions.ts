@@ -137,6 +137,26 @@ export const getStoreProduct = createServerFn({ method: "GET" })
     return { ...shaped, in_stock: productInStock(shaped as any), stock_counted: isStockCounted(shaped as any) };
   });
 
+/** Public bulk-discount tiers for one product, with per-piece prices computed server-side. Never throws. */
+export const getProductBulkTiers = createServerFn({ method: "GET" })
+  .inputValidator((d: { id: string }) => ({ id: String(d?.id ?? "").slice(0, 64) }))
+  .handler(async ({ data }) => {
+    try {
+      const { publicProducts } = await import("@/lib/public-products.server");
+      const { data: row } = await publicProducts().select("id,price").eq("id", data.id).eq("is_active", true).maybeSingle();
+      if (!row) return { rows: [] as any[] };
+      const { bulkTiersFor } = await import("@/lib/bulk-discount.server");
+      // Display-only: show every active rule for this product, whatever its channel.
+      const [bot, api] = await Promise.all([bulkTiersFor([data.id], "bot"), bulkTiersFor([data.id], "api")]);
+      const tiers = [...(bot[data.id] ?? []), ...(api[data.id] ?? [])];
+      const { bulkTierRows } = await import("@/lib/bulk-discount");
+      return { rows: bulkTierRows(tiers, Number((row as any).price ?? 0)) };
+    } catch (e) {
+      console.error("[storefront] bulk tiers unavailable:", e);
+      return { rows: [] as any[] };
+    }
+  });
+
 /**
  * Lightweight product fields for SSR head metadata / structured data.
  * Intentionally does NOT touch supplier live-stock (kept cheap for crawlers).
