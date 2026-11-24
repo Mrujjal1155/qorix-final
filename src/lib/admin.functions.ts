@@ -545,7 +545,7 @@ export const saveProduct = createServerFn({ method: "POST" })
       }
 
       // Customer price changed by the admin → price up/down card (group and/or bot).
-      if (rest.price !== undefined) {
+      if (rest.price !== undefined || price_override !== undefined) {
         try {
           const { data: cur } = await sb.from("products").select("price,updated_at").eq("id", id).maybeSingle();
           const oldP = Number((before as any)?.price ?? 0);
