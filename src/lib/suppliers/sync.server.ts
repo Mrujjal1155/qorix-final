@@ -278,7 +278,7 @@ export async function enqueueStillAvailable(sb: any, productId: string, stock: n
 /** Admin changed a product's customer price → one durable price card (up or down). */
 export async function enqueuePriceChange(sb: any, productId: string, oldPrice: number, newPrice: number, actionId: string = crypto.randomUUID()) {
   if (!productId || !Number.isFinite(oldPrice) || !Number.isFinite(newPrice)) return;
-  if (Math.abs(oldPrice - newPrice) < 0.005 || oldPrice <= 0) return;
+  if (Math.abs(oldPrice - newPrice) < 0.0001 || oldPrice <= 0) return;
   await enqueueNotifications(sb, MANUAL_QUEUE_ID, [
     {
       t: "price",
@@ -1120,7 +1120,7 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
           new_price: price,
           event_id: `flash_end:${pid}:${liveRow?.flash_ends_at}`,
         });
-      } else if (Number.isFinite(livePrice) && Math.abs(livePrice - Number(price)) >= 0.01) {
+      } else if (Number.isFinite(livePrice) && Math.abs(livePrice - Number(price)) >= 0.0001) {
         // Real selling-price change on a live product → its own card. Compared
         // against the stored product price, so repeating the same catalogue
         // response never re-announces the same price.

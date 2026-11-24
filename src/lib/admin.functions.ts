@@ -550,7 +550,7 @@ export const saveProduct = createServerFn({ method: "POST" })
           const { data: cur } = await sb.from("products").select("price,updated_at").eq("id", id).maybeSingle();
           const oldP = Number((before as any)?.price ?? 0);
           const newP = Number((cur as any)?.price ?? 0);
-          if (Math.abs(oldP - newP) >= 0.005) {
+          if (Math.abs(oldP - newP) >= 0.0001) {
             const { enqueuePriceChange } = await import("@/lib/suppliers/sync.server");
             await enqueuePriceChange(sb, id, oldP, newP, `${oldP}->${newP}:${String((cur as any)?.updated_at ?? Date.now())}`);
           }
