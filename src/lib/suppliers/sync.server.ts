@@ -1133,9 +1133,9 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
       }
 
 
-      // Announce when the product comes back from zero AND when the supplier
-      // tops up an already-listed product, so the channel gets live updates.
-      if ((wasOut && nowIn) || grew) {
+      // Announce only when the product comes back from zero; small supplier
+      // top-ups on an in-stock product would flood groups with repeat cards.
+      if (wasOut && nowIn) {
         restockPosts.push({
           product_id: prev.product_id,
           qty: Math.max(1, Number(p.stock) - Number(prev.stock ?? 0)),

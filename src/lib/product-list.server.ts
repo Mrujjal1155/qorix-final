@@ -99,8 +99,13 @@ export async function queueRichCatalogueNotice(input: {
   const settings = await loadSettings();
   const route = notifyRoute(settings, input.kind ?? "product_list");
   const groups = (route.configured ? route.groups : productListGroups(settings)).filter(g => /^-\d+$/.test(g));
+  // Same notice content within a 2-minute window maps to one event key, so a
+  // repeated Send (new tab / regenerate) never posts the list twice.
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${input.kind ?? "product_list"}|${input.text}`));
+  const hash = Array.from(new Uint8Array(digest).slice(0, 12), b => b.toString(16).padStart(2, "0")).join("");
+  const bucket = Math.floor(Date.now() / 120_000);
   const { data, error } = await (supabaseAdmin as any).rpc("enqueue_product_list_routed", {
-    _event_key: `broadcast:product-list:${input.adminId}:${input.requestId}`,
+    _event_key: `broadcast:product-list:${input.adminId}:${hash}:${bucket}`,
     _message: { kind: "product_list", text: input.text, keyboard: input.keyboard, admin_id: input.adminId, title: input.title },
     _groups: groups.map(Number),
     _include_users: route.configured ? route.dm : true,
