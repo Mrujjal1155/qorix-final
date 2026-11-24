@@ -16,6 +16,10 @@ export type StartMessageContent = {
   banner?: string | null;
   inviteLink?: string | null;
   community?: Array<{ text: string; url: string }>;
+  /** Website-style menu explanations: [icon html, title, description], already escaped. */
+  menuLines?: Array<[string, string, string]>;
+  /** Website-style Join Community block: heading html and [icon html, label, url] links. */
+  communityBlock?: { heading: string; links: Array<[string, string, string]> };
 };
 
 const attr = (v: string) => v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
@@ -39,7 +43,15 @@ export function buildStartMessage(content: StartMessageContent): string {
     `<p>${content.greeting}</p>` +
     `<table bordered striped compact>${content.rows.map(([label, value]) =>
       `<tr><td>${label}</td><td>${value}</td></tr>`).join("")}</table>` +
-    `<p>Tap any value to copy it.</p>${invite}${join}<p>${content.choose}</p>`;
+    `<p>Tap any value to copy it.</p>${invite}${content.communityBlock ? "" : join}` +
+    (content.menuLines?.length
+      ? `<blockquote>${content.menuLines.map(([icon, title, desc]) => `${icon} <b>${title}</b> — ${desc}`).join("<br/>")}</blockquote>`
+      : "") +
+    (content.communityBlock
+      ? `<p><b>${content.communityBlock.heading}</b><br/>Join for stock alerts and updates.<br/>` +
+        content.communityBlock.links.map(([icon, label, url]) => `${icon} <a href="${attr(url)}">${label}</a>`).join("<br/>") + `</p>`
+      : "") +
+    `<p>${content.choose}</p>`;
 }
 
 /** Plain invite copy button — Telegram already shows a copy glyph, so no emoji. */
