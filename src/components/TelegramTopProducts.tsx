@@ -1,3 +1,4 @@
+import { priceFixed, usdPrice } from "@/lib/price-format";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -124,7 +125,7 @@ export function TelegramTopProducts({ products, kind = "top" }: { products: Prod
                 <span className="mt-1 block">{chip(p.supplier_name)}</span>
               </div>
               {!p.is_active && <span className="text-xs text-muted-foreground">Off</span>}
-              <span className="shrink-0 text-sm text-muted-foreground">${Number(p.price).toFixed(2)} · {p.stock ?? 0} items</span>
+              <span className="shrink-0 text-sm text-muted-foreground">${priceFixed(p.price)} · {p.stock ?? 0} items</span>
               </label>
             </div>
             );

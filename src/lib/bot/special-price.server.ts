@@ -1,10 +1,11 @@
+import { priceFixed, usdPrice } from "@/lib/price-format";
 import { uiBtn, uiIconHtml, uiTag, uiKeysOf, parseIconValue } from "./ui.server";
 
 export type SpecialPriceKind = "user" | "reseller";
 export type SpecialPriceNoticeStatus = "queued" | "unchanged" | "unreachable" | "not_applicable";
 type Product = { id: string; name: string; price: number; emoji?: string | null; telegram_custom_emoji_id?: string | null };
 const escape = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const usd = (value: number) => `$${value.toFixed(2)}`;
+const usd = (value: number) => usdPrice(value);
 
 export function buildSpecialPriceNotice(kind: SpecialPriceKind, product: Product, price: number, minQty: number, settings: Record<string, string>) {
   const parsed = parseIconValue(product.telegram_custom_emoji_id || product.emoji || "", "📦");

@@ -1,3 +1,4 @@
+import { priceFixed, usdPrice } from "@/lib/price-format";
 import { createFileRoute, Link, notFound, redirect, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -105,7 +106,7 @@ export const Route = createFileRoute("/store/$id")({
                 offers: {
                   "@type": "Offer",
                   url,
-                  price: Number(seo.price ?? 0).toFixed(2),
+                  price: priceFixed(seo.price),
                   priceCurrency: "USD",
                   // Same rule and same data as the visible stock badge.
                   availability: seo.in_stock ? "https://schema.org/InStock" : "https://schema.org/OutOfStock",

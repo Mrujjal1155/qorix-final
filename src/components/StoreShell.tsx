@@ -1,3 +1,4 @@
+import { usdPrice } from "@/lib/price-format";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
@@ -659,5 +660,5 @@ function WebsiteShell({ children }: { children: ReactNode }) {
 }
 
 export function priceTag(n: unknown) {
-  return `$${Number(n ?? 0).toFixed(2)}`;
+  return usdPrice(n);
 }

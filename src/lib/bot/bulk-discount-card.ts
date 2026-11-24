@@ -1,3 +1,4 @@
+import { priceFixed, usdPrice } from "@/lib/price-format";
 import { applyTier, type BulkTier } from "@/lib/bulk-discount";
 
 type BulkDiscountCard = {
@@ -10,7 +11,7 @@ type BulkDiscountCard = {
 };
 
 const escape = (value: string) => value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-const money = (value: number) => `$${value.toFixed(2)}`;
+const money = (value: number) => usdPrice(value);
 
 /** Build native rich content directly; line-card conversion cannot detect bulk tiers. */
 export function bulkDiscountCard(input: BulkDiscountCard): string {

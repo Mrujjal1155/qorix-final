@@ -1,3 +1,4 @@
+import { usdPrice } from "@/lib/price-format";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
@@ -34,7 +35,7 @@ type View =
   | { k: "prod"; id: string; from: View } | { k: "qty"; id: string; from: View };
 
 const PAGE = 30;
-const money = (v: unknown) => `$${Number(v ?? 0).toFixed(2)}`;
+const money = (v: unknown) => usdPrice(v);
 
 export function BotStorefront(props: {
   name: string; logo: string; users: number | null; categories: Cat[]; products: Prod[];

@@ -1,3 +1,4 @@
+import { priceFixed, usdPrice } from "@/lib/price-format";
 import { PRODUCTION_SITE_URL, productionUrlFor } from "@/lib/site-url";
 
 /** Strip markdown/HTML-ish noise and clamp to a meta-description length. */
@@ -85,7 +86,7 @@ export function breadcrumbJsonLd(trail: Array<[string, string]>) {
 export function catalogPriceRange(products: Array<{ price?: number | string | null }>): string | null {
   const prices = products.map((p) => Number(p.price)).filter((n) => Number.isFinite(n) && n > 0);
   if (!prices.length) return null;
-  const fmt = (n: number) => `$${n.toFixed(2)}`;
+  const fmt = (n: number) => usdPrice(n);
   const min = Math.min(...prices);
   const max = Math.max(...prices);
   return min === max ? fmt(min) : `${fmt(min)} – ${fmt(max)}`;

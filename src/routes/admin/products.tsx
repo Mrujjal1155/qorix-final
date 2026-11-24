@@ -707,7 +707,7 @@ function ProductsPage() {
           <Label>Price</Label>
           <Input
             type="number"
-            step="0.01"
+            step="any"
             value={form.price}
             onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
           />
@@ -716,7 +716,7 @@ function ProductsPage() {
           <Label>Old price (optional)</Label>
           <Input
             type="number"
-            step="0.01"
+            step="any"
             value={form.old_price}
             onChange={(e) => setForm({ ...form, old_price: e.target.value })}
           />
@@ -725,7 +725,7 @@ function ProductsPage() {
           <Label>API user price (optional)</Label>
           <Input
             type="number"
-            step="0.01"
+            step="any"
             placeholder="default (reseller discount)"
             value={form.api_price}
             onChange={(e) => setForm({ ...form, api_price: e.target.value })}
@@ -739,7 +739,7 @@ function ProductsPage() {
             <Label>Our cost per unit (USD)</Label>
             <Input
               type="number"
-              step="0.01"
+              step="any"
               min="0"
               placeholder="e.g. 1.20"
               value={form.cost_price}
@@ -755,7 +755,7 @@ function ProductsPage() {
             <Label>Custom price (supplier override)</Label>
             <Input
               type="number"
-              step="0.01"
+              step="any"
               placeholder="auto (percentage)"
               value={form.price_override}
               onChange={(e) => setForm({ ...form, price_override: e.target.value })}

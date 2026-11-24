@@ -1,10 +1,11 @@
+import { usdPrice } from "@/lib/price-format";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { getProductBulkTiers } from "@/lib/shop.functions";
 
 type Row = { min_qty: number; label: string; unit: number; save: number; save_percent: number };
 
-const usd = (v: number) => `$${Number(v ?? 0).toFixed(2)}`;
+const usd = (v: number) => usdPrice(v);
 
 /**
  * Compact per-piece price table for products with an active bulk discount.

@@ -1,3 +1,4 @@
+import { priceFixed, usdPrice } from "@/lib/price-format";
 import { applyTier, cleanTiers, flashActive, type BulkTier } from "@/lib/bulk-discount";
 
 type ProductPrice = { price: number; _public_price?: number; flash_ends_at?: string | null };
@@ -23,7 +24,7 @@ export function productBulkTable(product: ProductPrice, tiers: BulkTier[], badge
   if (!rows.length) return "";
   return `${badge} <b>Bulk discount</b>\n` +
     `<table bordered striped compact><tr><td><b>Quantity</b></td><td align="right"><b>Per piece</b></td></tr>` +
-    rows.map(row => `<tr><td>${row.min_qty}+ pcs</td><td align="right">$${row.unit.toFixed(2)}</td></tr>`).join("") +
+    rows.map(row => `<tr><td>${row.min_qty}+ pcs</td><td align="right">${usdPrice(row.unit)}</td></tr>`).join("") +
     `</table>\n`;
 }
 

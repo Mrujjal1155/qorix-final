@@ -1,3 +1,4 @@
+import { priceFixed, usdPrice } from "@/lib/price-format";
 // Pure builder for the Telegram "Price list" rich post (shared by preview, send and tests).
 
 export const PRODUCT_LIST_EMOJI_KEYS = [
@@ -71,7 +72,7 @@ export function escapeMd(s: string) {
 }
 
 export function formatUsd(n: number) {
-  return `$${(Math.round(Number(n || 0) * 100) / 100).toFixed(2)}`;
+  return usdPrice(n);
 }
 
 export function buildProductListMarkdown(input: {

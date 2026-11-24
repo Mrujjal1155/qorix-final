@@ -1,3 +1,4 @@
+import { priceFixed, usdPrice } from "@/lib/price-format";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useI18n, type LocaleCode } from "@/lib/i18n";
 import { listCurrencyRates } from "@/lib/currency.functions";
@@ -131,7 +132,8 @@ function format(value: number, currency: Currency, localeTag?: string) {
     return new Intl.NumberFormat(localeTag || LOCALE_TAG[currency], {
       style: "currency",
       currency,
-      maximumFractionDigits: value >= 1000 ? 0 : 2,
+      minimumFractionDigits: value >= 1000 ? 0 : 2,
+      maximumFractionDigits: value >= 1000 ? 0 : Math.abs(value) < 1 ? 4 : 2,
     }).format(value);
   } catch {
     return `${currency} ${value.toFixed(2)}`;
@@ -211,8 +213,8 @@ export function usePrefs(): Prefs {
       ratesLive: false,
       setLang: () => {},
       setCurrency: () => {},
-      money: (n: unknown) => `$${Number(n ?? 0).toFixed(2)}`,
-      usd: (n: unknown) => `$${Number(n ?? 0).toFixed(2)}`,
+      money: (n: unknown) => usdPrice(n),
+      usd: (n: unknown) => usdPrice(n),
     }
   );
 }

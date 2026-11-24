@@ -1,3 +1,4 @@
+import { usdPrice } from "@/lib/price-format";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { BadgeDollarSign, Boxes, ChevronDown, Clock, NotebookPen, Quote as QuoteIcon, ShieldCheck, Sparkles, Tag, Zap } from "lucide-react";
@@ -56,7 +57,7 @@ function ProductQuote({ children, expandable = false }: { children: ReactNode; e
   </details>;
 }
 
-const money = (v: unknown) => `$${Number(v ?? 0).toFixed(2)}`;
+const money = (v: unknown) => usdPrice(v);
 
 /** Bot-order section order, using the existing safe full-product reader rather than catalogue excerpts. */
 export function BotProductMessage({ product }: { product: Product }) {

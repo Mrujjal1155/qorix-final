@@ -1,3 +1,4 @@
+import { priceFixed, usdPrice } from "@/lib/price-format";
 import { notifyChatId, notifyRoute, type NotifyKind, legacySwitchOn, notifyMatrixActive } from "@/lib/telegram-notify-routes";
 import { referralMode, referralCallbackAllowed } from "@/lib/referral-mode";
 import { parseJoinChannels, requiredJoinChannels, type JoinChannel } from "@/lib/bot/join-gate";
@@ -97,7 +98,7 @@ const db = supabaseAdmin as any;
 /* ------------------------------------------------------------------ utils */
 
 export function money(n: number | string | null | undefined) {
-  return `$${Number(n ?? 0).toFixed(2)}`;
+  return usdPrice(n);
 }
 
 export function maskUsername(u?: string | null, first?: string | null) {
