@@ -91,7 +91,7 @@ export function BotStorefront(props: {
           <BotLogo src={props.logo} size="lg" />
           <p className="mt-3 text-base font-bold">{props.name}</p>
           <p className="mt-1 text-sm text-tg-muted">
-            Premium AI, developer, streaming and creative apps with automatic delivery after payment.
+            From payment to password in seconds — premium AI, streaming and creative tools, delivered automatically.
           </p>
         </Bubble>
       </div>
