@@ -938,39 +938,12 @@ async function homeText(user: any) {
     banner: startBannerUrl(s),
     inviteLink: user?.ref_code ? refLink(s, user) : null,
     community: communityJoinRow(s),
-    menuLines: HOME_MENU_LINES.map(([key, desc]) =>
-      [menuIconHtml(s, key), escapeHtml(MENU_ICONS[key][1] === "SHOP" ? "Shop" : MENU_ICONS[key][1]), escapeHtml(desc)]),
-    communityBlock: {
-      heading: uiTag(s, "home_community"),
-      links: communityJoinRow(s).map((b, i) => {
-        const key = (["home_group", "home_channel", "home_updates"] as const)[i]!;
-        return [uiIconHtml(s, key), escapeHtml(uiText(s, key)), b.url];
-      }),
-    },
   });
-}
-
-const HOME_MENU_LINES: Array<[MenuIconKey, string]> = [
-  ["shop", "Browse all categories"], ["cart", "Review products to buy"], ["orders", "View order status & delivery"],
-  ["wallet", "Check balance & add funds"], ["freebies", "View available free offers"],
-  ["profile", "Account, wallet, orders & referral details"], ["referral", "Invite friends & view rewards"],
-  ["support", "Contact support for help"], ["emails", "Open the Emails & Trials page"],
-  ["api", "Access the reseller API & guide"], ["clear", "Clear the current shop view"],
-];
-
-/** Inline HTML for a menu button icon (Premium custom emoji when configured). */
-function menuIconHtml(settings: Record<string, string>, key: MenuIconKey) {
-  const { customId, glyph } = menuButtonText(settings, key);
-  const g = escapeHtml(glyph);
-  return customId ? `<tg-emoji emoji-id="${customId}">${g}</tg-emoji>` : g;
 }
 
 /** Start screen: one card (banner, table, copy/join buttons) carrying the bottom menu, then the menu buttons. */
 async function sendHome(chatId: number, user: any, settings: Record<string, string>, websiteOwner: number | null) {
-  await sayWithBottomMenu(chatId, await homeText(user), settings);
-  const menuCard = `${uiIconHtml(settings, "home_menu_title")} <b>${escapeHtml(uiText(settings, "home_menu_title"))}</b>\n` +
-    escapeHtml(uiText(settings, "home_menu_subtitle").replace(/\s*[•·]\s*/g, " · "));
-  return sayWithBottomMenu(chatId, menuCard, settings, await homeKeyboard(settings, websiteOwner, user));
+  return sayWithBottomMenu(chatId, await homeText(user), settings, await homeKeyboard(settings, websiteOwner, user));
 }
 
 /* --------------------------------------------------- profile & referrals */
