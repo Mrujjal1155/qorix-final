@@ -841,14 +841,12 @@ async function retireMissingSupplierItems(
 
 async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string, any>, force = false, fullCatalogue = false) {
   const startedAtMs = Date.now();
-  // Automatic runs skip suppliers with nothing on sale and nothing watched:
+  // Automatic runs skip suppliers with nothing on sale:
   // no catalogue download, no database work. Admin manual sync always runs.
   if (!fullCatalogue) {
-    const [{ count: liveCount }, { count: watchCount }] = await Promise.all([
-      sb.from("products").select("id", { count: "exact", head: true }).eq("supplier_id", s.id).eq("is_active", true),
-      sb.from("supplier_buy_orders").select("id", { count: "exact", head: true }).eq("supplier_id", s.id).eq("status", "watching"),
-    ]);
-    if ((liveCount ?? 1) === 0 && (watchCount ?? 1) === 0) {
+    const { count: liveCount } = await sb
+      .from("products").select("id", { count: "exact", head: true }).eq("supplier_id", s.id).eq("is_active", true);
+    if ((liveCount ?? 1) === 0) {
       return { ok: true, message: "No active products", added: 0, restocked: 0, checked: 0, priceChanges: 0, lowOrOut: 0 };
     }
   }
@@ -940,20 +938,14 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
 
 
 
-  // Only sold (active, listed) items and Buy-Order-watched items are synced.
+  // Only sold (active, listed) items are synced.
   const activeProductIds = new Set<string>(
     (linkedProducts ?? []).filter((r: any) => r.is_active === true).map((r: any) => String(r.id)),
   );
-  const { data: watchedRows } = await sb
-    .from("supplier_buy_orders")
-    .select("supplier_product_id")
-    .eq("supplier_id", s.id)
-    .eq("status", "watching");
-  const watchedIds = new Set<string>((watchedRows ?? []).map((r: any) => String(r.supplier_product_id)));
 
   for (const p of uniqueRemote) {
     const prev = byExt.get(String(p.external_id));
-    if (!fullCatalogue && !shouldSyncSupplierItem(prev, activeProductIds, watchedIds)) continue;
+    if (!fullCatalogue && !shouldSyncSupplierItem(prev, activeProductIds)) continue;
     const row = {
       supplier_id: s.id,
       external_id: p.external_id,
