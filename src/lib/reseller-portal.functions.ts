@@ -33,6 +33,24 @@ async function resolveReseller(context: any) {
   const { data: linked } = await db.from("resellers").select("*").eq("user_id", userId).maybeSingle();
   if (linked) return { db, reseller: linked, email: linked.email ?? "" };
 
+  // Telegram-connected login: the bot reseller row is keyed by the verified
+  // profiles.telegram_id, so link that same row (never a new one).
+  const { data: profile } = await db.from("profiles").select("telegram_id").eq("id", userId).maybeSingle();
+  if (profile?.telegram_id) {
+    const { data: tgRow } = await db
+      .from("resellers")
+      .select("*")
+      .eq("telegram_id", profile.telegram_id)
+      .is("user_id", null)
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (tgRow) {
+      await db.from("resellers").update({ user_id: userId }).eq("id", tgRow.id).is("user_id", null);
+      return { db, reseller: { ...tgRow, user_id: userId }, email: tgRow.email ?? "" };
+    }
+  }
+
   const email = await emailOf(context, db);
   if (!email) return { db, reseller: null, email: "", status: "none" as const };
 
