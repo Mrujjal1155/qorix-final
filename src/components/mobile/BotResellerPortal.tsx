@@ -60,8 +60,8 @@ function Home({ signedIn, go }: { signedIn: boolean; go: (v: View) => void }) {
       <Keys cols={2}>
         <KeyLink icon={BookOpen} to="/reseller/docs">API docs</KeyLink>
         {signedIn
-          ? <KeyLink tone="green" icon={LayoutDashboard} to="/reseller/panel">Dashboard</KeyLink>
-          : <KeyLink tone="green" icon={LogIn} to="/reseller/start">Login</KeyLink>}
+          ? <KeyLink tone="green" icon={LayoutDashboard} to="/reseller/panel">Reseller Dashboard</KeyLink>
+          : <KeyLink tone="green" icon={LogIn} to="/reseller/start">Reseller Dashboard</KeyLink>}
       </Keys>
     </>
   );
@@ -138,7 +138,7 @@ function Status({ signedIn, go }: { signedIn: boolean; go: (v: View) => void }) 
         <Title>STATUS</Title>
         <p className="mt-1 text-sm">Log in with the email you applied with to see whether your application is pending, approved or rejected.</p>
       </Bubble>
-      <Keys cols={1}><KeyLink tone="green" icon={LogIn} to="/reseller/start">Login</KeyLink></Keys>
+      <Keys cols={1}><KeyLink tone="green" icon={LogIn} to="/reseller/start">Reseller Dashboard</KeyLink></Keys>
     </>
   );
 
