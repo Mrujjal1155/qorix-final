@@ -6,6 +6,7 @@
  * (bot_settings key `supplier_alerts`) so the admin bell can show them, and
  * posts BACK IN STOCK cards to the Telegram channel for listed products.
  */
+import { shouldSyncSupplierItem } from "./sync-scope";
 import {
   supplierProducts,
   sellPrice,
@@ -928,8 +929,20 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
 
 
 
+  // Only sold (active, listed) items and Buy-Order-watched items are synced.
+  const activeProductIds = new Set<string>(
+    (linkedProducts ?? []).filter((r: any) => r.is_active === true).map((r: any) => String(r.id)),
+  );
+  const { data: watchedRows } = await sb
+    .from("supplier_buy_orders")
+    .select("supplier_product_id")
+    .eq("supplier_id", s.id)
+    .eq("status", "watching");
+  const watchedIds = new Set<string>((watchedRows ?? []).map((r: any) => String(r.supplier_product_id)));
+
   for (const p of uniqueRemote) {
     const prev = byExt.get(String(p.external_id));
+    if (!shouldSyncSupplierItem(prev, activeProductIds, watchedIds)) continue;
     const row = {
       supplier_id: s.id,
       external_id: p.external_id,
