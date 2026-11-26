@@ -1381,7 +1381,12 @@ export async function syncAllSuppliers() {
   // reading four full catalogues (hundreds of products) in one worker run is
   // what used to blow the platform's CPU/subrequest budget, killing the run
   // before anything was written. One supplier going down never stops the rest.
-  const batch = (sups ?? []).slice(0, SUPPLIERS_PER_RUN);
+  // Only suppliers with at least one active store product take a slot. A
+  // skipped supplier keeps its old last_synced_at, so leaving it in the
+  // oldest-first queue would starve every supplier that actually sells.
+  const { data: liveRows } = await db.from("products").select("supplier_id").eq("is_active", true).not("supplier_id", "is", null);
+  const liveSupplierIds = new Set((liveRows ?? []).map((r: any) => String(r.supplier_id)));
+  const batch = (sups ?? []).filter((s: any) => liveSupplierIds.has(String(s.id))).slice(0, SUPPLIERS_PER_RUN);
   const results = await Promise.allSettled(
     batch.map((s: any) => withTimeout(syncSupplierCore(db, s), SUPPLIER_TIMEOUT_MS, `${s.name} sync`)),
   );
