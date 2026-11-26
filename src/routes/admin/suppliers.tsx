@@ -699,34 +699,36 @@ function BotProductsPanel() {
 /** Live health of the automatic supplier sync + Telegram alert queue. */
 function SyncHealthCard() {
   const fetchHealth = useServerFn(supplierSyncHealth);
-  const { data } = useQuery({
-    queryKey: ["supplier-sync-health"],
+  const { data, isError } = useQuery({
+    queryKey: ["supplier-sync-health", "server-clock"],
     queryFn: () => fetchHealth(),
     refetchInterval: 15_000,
   });
   const stats = (data as any)?.stats;
-  const ago = (iso?: string | null) => {
-    if (!iso) return "never";
-    const secs = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
+  const ago = (secs: number | null | undefined) => {
+    if (isError) return "unavailable";
+    if (secs === undefined) return "checking…";
+    if (secs === null) return "never";
     return secs < 90 ? `${secs}s ago` : `${Math.round(secs / 60)}m ago`;
   };
-  const stale = data?.last_success ? Date.now() - Date.parse(data.last_success) > 10 * 60_000 : true;
+  const stale = isError || data?.needsAttention === true;
+  const healthLabel = isError ? "Status unavailable" : !data ? "Checking…" : stale ? "Needs attention" : "Healthy";
 
   return (
     <Card className="mb-4">
       <CardHeader className="flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle>Auto-sync health</CardTitle>
-        <Badge variant={stale ? "destructive" : "secondary"}>{stale ? "Needs attention" : "Healthy"}</Badge>
+        <Badge variant={stale ? "destructive" : "secondary"}>{healthLabel}</Badge>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
         <div className="grid gap-3 sm:grid-cols-4">
           <div>
             <div className="text-muted-foreground">Last run</div>
-            <div className="font-medium">{ago(data?.last_sync)}</div>
+            <div className="font-medium">{ago(data?.lastRunSeconds)}</div>
           </div>
           <div>
             <div className="text-muted-foreground">Last clean run</div>
-            <div className="font-medium">{ago(data?.last_success)}</div>
+            <div className="font-medium">{ago(data?.lastSuccessSeconds)}</div>
           </div>
           <div>
             <div className="text-muted-foreground">Alerts waiting</div>
@@ -747,7 +749,7 @@ function SyncHealthCard() {
         {stats?.last_error && <div className="text-destructive">Last error: {String(stats.last_error)}</div>}
         {Boolean(data?.log?.length) && (
           <div className="space-y-1">
-            {(data!.log as any[]).slice(0, 6).map((entry, i) => (
+            {(data?.log ?? []).slice(0, 6).map((entry, i) => (
               <div key={i} className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                 <span>{new Date(entry.at).toLocaleTimeString()}</span>
                 <span>{entry.kind}</span>

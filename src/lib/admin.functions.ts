@@ -5,6 +5,7 @@ import { botUserRequest } from "@/lib/bot-users";
 import { categorySaveSchema, categoryOrderSchema } from "@/lib/category-edit";
 import { customerAlertSettingSchema } from "@/lib/customer-alerts";
 import { paymentAttemptOpen } from "@/lib/payment-deadline";
+import { supplierSyncHealth } from "@/lib/supplier-sync-health";
 
 async function assertAdmin(context: any) {
   const { data } = await context.supabase.rpc("has_role", {
@@ -22,6 +23,21 @@ export const isAdminUser = createServerFn({ method: "GET" })
       _role: "admin",
     });
     return { isAdmin: Boolean(data) };
+  });
+
+export const getSupplierSyncStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { data, error } = await context.supabase
+      .from("suppliers")
+      .select("last_synced_at")
+      .eq("is_enabled", true)
+      .order("last_synced_at", { ascending: false, nullsFirst: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw new Error("Unable to check supplier sync status");
+    return supplierSyncHealth(data?.last_synced_at ?? null, Date.now());
   });
 
 export const getOverview = createServerFn({ method: "GET" })

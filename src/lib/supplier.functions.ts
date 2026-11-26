@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertSupplierAdmin } from "@/lib/suppliers/admin-support";
+import { supplierSyncMonitorHealth } from "@/lib/supplier-sync-health";
 
 async function readAllSupplierProducts(sb: any, supplierId?: string) {
   const rows: any[] = [];
@@ -200,12 +201,13 @@ export const supplierSyncHealth = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const sb = (context as any).supabase;
     await assertSupplierAdmin(context);
-    const { data } = await sb
+    const { data, error } = await sb
       .from("bot_settings")
       .select("key,value")
       .or(
         "key.eq.supplier_sync_stats,key.eq.supplier_last_autosync,key.eq.supplier_last_successful_sync,key.eq.supplier_notify_log,key.like.supplier_notify_queue:%",
       );
+    if (error) throw new Error("Unable to check supplier sync status");
     const rows = (data ?? []) as Array<{ key: string; value: string | null }>;
     const get = (key: string) => rows.find((r) => r.key === key)?.value ?? "";
     const parse = (value: string, fallback: any) => {
@@ -219,6 +221,7 @@ export const supplierSyncHealth = createServerFn({ method: "GET" })
       .filter((r) => r.key.startsWith("supplier_notify_queue:"))
       .reduce((sum, r) => sum + (parse(r.value ?? "[]", []) as any[]).length, 0);
     return {
+      ...supplierSyncMonitorHealth(get("supplier_last_autosync") || null, get("supplier_last_successful_sync") || null, Date.now()),
       stats: parse(get("supplier_sync_stats"), null),
       last_sync: get("supplier_last_autosync") || null,
       last_success: get("supplier_last_successful_sync") || null,

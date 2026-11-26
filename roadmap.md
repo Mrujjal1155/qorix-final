@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Use server-clock supplier-sync health in the shared admin header and Supplier APIs monitor; preserve existing two/ten-minute boundaries and RLS, report read failures separately. Eight regression tests pass, including 840-minute browser-clock skew; scheduler and snapshot timestamp code reviewed, no stock/order/settings changes or deployment.
+- [ ] Verify both sync-health displays in the owner's signed-in admin session; external unmanaged authentication prevents authorized sandbox sign-in.
+
 - [x] Make Main Channel optional while Main Group remains required; shared admin/bot parser persists per-chat required/optional modes, existing channel defaults optional. Tests cover mandatory lock, optional button, serialization and real Verify callback with mocked Telegram. No live sends or deployment; actual Telegram rollout remains unverified until separately approved publication.
 
 - [x] Match bot product references with a saved-fact table, existing bulk-price table and native collapsed About this product containing description, guide and important notes; preserve website/API/prices/purchase actions. Twenty-seven callback/pricing/sender/emoji/catalogue regressions pass; local native-details open/close and readable fallback verified, build OK. Actual Telegram appearance remains unverified; no real sends or deployment.

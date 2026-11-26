@@ -1,7 +1,7 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { countPendingApprovals, countPendingOrders, countUnreadTickets } from "@/lib/admin.functions";
+import { countPendingApprovals, countPendingOrders, countUnreadTickets, getSupplierSyncStatus } from "@/lib/admin.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -349,27 +349,24 @@ export function AdminPanel({
 
 /** Real health: green only when the supplier sync ran in the last 2 minutes. */
 function SystemStatus() {
-  const { data } = useQuery({
-    queryKey: ["system-status"],
+  const fetchStatus = useServerFn(getSupplierSyncStatus);
+  const { data, isError } = useQuery({
+    queryKey: ["system-status", "server-clock"],
+    queryFn: () => fetchStatus(),
+    staleTime: 0,
     refetchInterval: 30_000,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("suppliers")
-        .select("last_synced_at")
-        .eq("is_enabled", true)
-        .order("last_synced_at", { ascending: false, nullsFirst: false })
-        .limit(1)
-        .maybeSingle();
-      return data?.last_synced_at ? Date.parse(String(data.last_synced_at)) : null;
-    },
+    refetchOnWindowFocus: "always",
   });
-  if (data === undefined) return null;
-  const ok = data !== null && Date.now() - data < 120_000;
-  const mins = data ? Math.round((Date.now() - data) / 60_000) : null;
+  if (data === undefined && !isError) return null;
+  const ok = !isError && data?.state === "online";
+  const label = isError ? "Supplier sync status unavailable"
+    : ok ? "Systems online"
+    : data?.state === "not-running" ? "Supplier sync not running"
+    : `Supplier sync delayed (${data?.minutes} min)`;
   return (
     <span className="hidden shrink-0 items-center gap-2 rounded-full border border-border/70 bg-card/70 px-3 py-1.5 text-xs text-muted-foreground sm:flex">
       <span className={cn("size-1.5 rounded-full", ok ? "bg-success" : "bg-destructive")} />
-      {ok ? "Systems online" : mins === null ? "Supplier sync not running" : `Supplier sync delayed (${mins} min)`}
+      {label}
     </span>
   );
 }
