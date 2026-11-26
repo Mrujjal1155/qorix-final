@@ -1,5 +1,5 @@
 import { ButtonPremiumIcon } from "@/components/mobile/ButtonPremiumIcon";
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 import { ArrowLeft, EllipsisVertical, Home, Moon, Sun, LayoutGrid, Package, ShieldCheck, ShoppingBag, Wallet } from "lucide-react";
@@ -8,8 +8,15 @@ import { useSiteContent } from "@/lib/use-site-content";
 import { activeTemplate, MOBILE_LOGO_KEY, MOBILE_NAME_KEY, TEMPLATE_KEY } from "@/lib/mobile-template";
 
 /** True when admin picked the Mobile View template. */
+// Reseller login, recovery, dashboard and docs always keep the classic design.
+export function isClassicOnlyPath(pathname: string) {
+  return pathname === "/reseller" || pathname.startsWith("/reseller/") || pathname.startsWith("/reset-password");
+}
+
 export function useMobileTemplate() {
   const { v } = useSiteContent();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  if (isClassicOnlyPath(pathname)) return false;
   return activeTemplate(v(TEMPLATE_KEY)) === "mobile";
 }
 
