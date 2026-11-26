@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Extend existing five-second sold-out supplier buy watches to all nine configured supplier adapters; preserve paused spending authorization, descending quantities, atomic claims and uncertain-outcome review. Share fresh catalogue reads within each tick, exclude manual/input-required products, enforce provider minimums and single-purchase mode without changing customer checkout. 97 focused/SQL/regression tests pass; preview build OK. No real purchases, saved-order changes or deployment.
+- [ ] Verify signed-in save/activate/history and actual stock-arrival delivery after separately approved deployment and supplier-wallet spending; external account access and real-purchase approval required.
+
 - [x] Use server-clock supplier-sync health in the shared admin header and Supplier APIs monitor; preserve existing two/ten-minute boundaries and RLS, report read failures separately. Eight regression tests pass, including 840-minute browser-clock skew; scheduler and snapshot timestamp code reviewed, no stock/order/settings changes or deployment.
 - [ ] Verify both sync-health displays in the owner's signed-in admin session; external unmanaged authentication prevents authorized sandbox sign-in.
 

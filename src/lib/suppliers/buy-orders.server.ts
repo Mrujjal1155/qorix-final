@@ -1,13 +1,19 @@
 import { buyBatchQuantity, buyOutcome, supportsBuyWatch, chooseBuyQuantity } from '../supplier-buy-rules';
-import { buyApi, BuyRejected } from './buy-api.server';
+import { buyApi, buyWatchApi, BuyRejected } from './buy-api.server';
 
-export async function processBuyOrders(db: any, request: typeof buyApi = buyApi) {
+export async function processBuyOrders(db: any, request: typeof buyApi = buyWatchApi()) {
   const { data: orders, error } = await db.from('supplier_buy_orders').select('*').eq('status', 'watching').order('created_at').limit(50);
   if (error) throw new Error('Buy orders unavailable');
   let checks = 0, purchases = 0;
+  const suppliers = new Map<string, any>();
   // Sequential processing keeps the outbound connection budget bounded.
   for (const o of orders ?? []) {
-    const { data: s } = await db.from('suppliers').select('*').eq('id', o.supplier_id).eq('is_enabled', true).maybeSingle();
+    let s = suppliers.get(o.supplier_id);
+    if (!s) {
+      const result = await db.from('suppliers').select('*').eq('id', o.supplier_id).eq('is_enabled', true).maybeSingle();
+      s = result.data;
+      if (s) suppliers.set(o.supplier_id, s);
+    }
     if (!s || !supportsBuyWatch(s.key, s.base_url)) continue;
     let product: any;
     try { product = await request(s, `product?id=${encodeURIComponent(o.external_id)}`); }
@@ -21,6 +27,8 @@ export async function processBuyOrders(db: any, request: typeof buyApi = buyApi)
     const { data: recorded, error: recordError } = await db.rpc('record_supplier_buy_check',{p_order:o.id,p_stock:stock,p_choices:choices.checked});
     if (recordError || !recorded) continue;
     let qty = choices.quantity;
+    const minQty = Number(product.min_qty ?? 1);
+    if (!Number.isSafeInteger(minQty) || minQty < 1 || qty < minQty) continue;
     if (!qty) continue;
     while (qty) {
     const { data: batch, error: claimError } = await db.rpc('claim_supplier_buy_batch', { p_order: o.id, p_qty: qty });
@@ -28,7 +36,7 @@ export async function processBuyOrders(db: any, request: typeof buyApi = buyApi)
     purchases++;
     let status: string = 'unknown', items: string[] = [], supplierOrder: string | null = null, message = 'Purchase outcome uncertain; do not retry';
     try {
-      const result = await request(s, 'buy', { id: o.external_id, count: qty });
+      const result = await request(s, 'buy', { id: o.external_id, count: qty, reference: `qorix-buy-${batch}` });
       supplierOrder = typeof result.order_id === 'string' ? result.order_id : null;
       if (Array.isArray(result.items) && result.items.every((x: unknown) => typeof x === 'string')) items = result.items;
       status = buyOutcome(items, qty);
@@ -41,6 +49,7 @@ export async function processBuyOrders(db: any, request: typeof buyApi = buyApi)
     if (saveError) throw new Error('Purchase needs reconciliation; automatic retry blocked');
     if (!(o.quantity_choices && status==='rejected' && message==='OUT_OF_STOCK')) break;
     qty = chooseBuyQuantity(stock,o.quantity_choices,[qty]).quantity;
+    if (qty < minQty) break;
     }
   }
   return { checks, purchases };

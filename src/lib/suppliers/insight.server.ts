@@ -103,7 +103,7 @@ async function insightRefunded(s: SupplierRow, order: any) {
   return debit.length === 1 && refund.length === 1 && Number(debit[0]?.amount_usdt) === -amount && Number(refund[0]?.amount_usdt) === amount;
 }
 
-export async function insightOrder(s: SupplierRow, externalId: string, qty: number, reference: string) {
+export async function insightOrder(s: SupplierRow, externalId: string, qty: number, reference: string, oneShot = false) {
   const productId = Number(externalId);
   if (!Number.isSafeInteger(productId) || productId <= 0 || !Number.isSafeInteger(qty) || qty <= 0 || !reference.trim()) throw new Error("Invalid Insight Store order request");
   let key = reference;
@@ -116,15 +116,22 @@ export async function insightOrder(s: SupplierRow, externalId: string, qty: numb
     // No second purchase for a timeout, partial delivery, mismatched order or test response.
     const hasCodes = [order?.codes, order?.delivered_codes, order?.coupons].some((v) => Array.isArray(v) && v.length);
     if (!hasCodes && !order?.test && Number.isSafeInteger(id) && id > 0 && Number(order?.product_id) === productId && Number(order?.quantity) === qty && ["pending", "processing", "failed"].includes(order?.status)) {
-      order = (await insightRequest(s, `orders/${id}`)).order;
+      try { order = (await insightRequest(s, `orders/${id}`)).order; }
+      catch (error) { if (!oneShot) throw error; }
       if (Number(order?.order_id ?? order?.id) === id && Number(order?.product_id) === productId && Number(order?.quantity) === qty) {
         const recovered = insightDelivery(order, productId, qty);
         if (recovered) return recovered;
-        if (attempt === 0 && await insightRefunded(s, order)) {
+        if (!oneShot && attempt === 0 && await insightRefunded(s, order)) {
           key = `${reference}:refunded:${id}`;
           continue;
         }
       }
+    }
+    if (oneShot) {
+      // Retain matched partial delivery/reference for review; never submit another purchase.
+      const matched = !order?.test && Number(order?.order_id ?? order?.id) === id && Number(order?.product_id) === productId && Number(order?.quantity) === qty && Number.isSafeInteger(id) && id > 0;
+      const codes = [order?.codes, order?.delivered_codes, order?.coupons].find(value => Array.isArray(value) && value.length);
+      return { code: matched ? String(id) : null, items: matched && Array.isArray(codes) ? codes.filter((c: unknown): c is string => typeof c === 'string' && Boolean(c.trim()) && !c.startsWith('TEST-')) : [] };
     }
     break;
   }

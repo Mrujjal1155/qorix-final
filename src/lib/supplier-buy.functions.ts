@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start';
 import { z } from 'zod';
 import { requireSupabaseAuth } from '@/integrations/supabase/auth-middleware';
 import { assertSupplierAdmin } from '@/lib/suppliers/admin-support';
-import { buyItemsText, supportsBuyWatch, validBuyChoices, readAllBuyProducts } from './supplier-buy-rules';
+import { buyItemsText, supportsBuyWatch, validBuyChoices, readAllBuyProducts, buyWatchProductEligible } from './supplier-buy-rules';
 
 export const listBuyProducts = createServerFn({ method: 'GET' }).middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ supplierId: z.string().uuid() }).parse(d))
@@ -27,8 +27,10 @@ export const createBuyOrder = createServerFn({ method: 'POST' }).middleware([req
   .handler(async ({ context, data }) => {
     await assertSupplierAdmin(context);
     const sb = context.supabase as any;
-    const { data:p } = await sb.from('supplier_products').select('id,supplier_id,external_id,name').eq('id',data.productId).eq('stock',0).maybeSingle();
-    if (!p) throw new Error('Product unavailable');
+    const { data:p } = await sb.from('supplier_products').select('id,supplier_id,external_id,name,raw').eq('id',data.productId).eq('stock',0).maybeSingle();
+    if (!p || !buyWatchProductEligible(p.raw)) throw new Error('Product unavailable for automatic buying');
+    const { data:s } = await sb.from('suppliers').select('key,base_url,is_enabled').eq('id',p.supplier_id).maybeSingle();
+    if (!s?.is_enabled || !supportsBuyWatch(s.key,s.base_url)) throw new Error('Enable a supported supplier before saving a buy order');
     const { supabaseAdmin } = await import('@/integrations/supabase/client.server');
     const { error } = await (supabaseAdmin as any).from('supplier_buy_orders').insert({ admin_id: context.userId, supplier_id:p.supplier_id, supplier_product_id:p.id, external_id:p.external_id, product_name:p.name, target:data.choices[0], quantity_choices:data.choices, status:'paused' });
     if (error) throw new Error(error.code === '23505' ? 'An unfinished buy order already exists for this product' : 'Could not save buy order');

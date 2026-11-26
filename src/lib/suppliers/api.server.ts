@@ -441,7 +441,7 @@ function supplierLog(event: string, data: Record<string, unknown>) {
 async function call(
   s: SupplierRow,
   path: string,
-  init: { method?: string; body?: any; headers?: Record<string, string> } = {},
+  init: { method?: string; body?: any; headers?: Record<string, string>; oneShot?: boolean } = {},
 ) {
   const canbosoCall = isCanboso(s);
   const vexoranCall = isActionDialect(s);
@@ -475,7 +475,7 @@ async function call(
   // Canboso rate-limits by server IP. Retrying the same request extends its
   // nginx penalty window, so make only one attempt for that supplier.
   const writeRequest = (init.method ?? "GET").toUpperCase() !== "GET";
-  const maxAttempts = canbosoCall || writeRequest ? 1 : 3;
+  const maxAttempts = canbosoCall || writeRequest || init.oneShot ? 1 : 3;
 
   let lastErr: unknown = null;
   for (let b = 0; b < bases.length; b++) {
@@ -497,6 +497,7 @@ async function call(
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
           res = await fetch(url, {
             method: init.method ?? "GET",
+            ...(init.oneShot ? { redirect: 'manual' as const, signal: AbortSignal.timeout(12000) } : {}),
             headers: {
               ...variant.headers,
               "Content-Type": "application/json",
@@ -517,7 +518,7 @@ async function call(
             setTimeout(r, Math.min(8000, Math.max(1500, retryAfter * 1000)) + attempt * 1000),
           );
         }
-        if (!res || (res.status !== 401 && res.status !== 403)) break;
+        if (init.oneShot || !res || (res.status !== 401 && res.status !== 403)) break;
       }
 
 
@@ -572,10 +573,10 @@ async function call(
         path,
         ms: Date.now() - startedAt,
         error: String(e?.message ?? e).slice(0, 200),
-        willFallback: !isLast && !e?.rateLimited && (!writeRequest || e?.deliveryOutcome === "rejected"),
+        willFallback: !init.oneShot && !isLast && !e?.rateLimited && (!writeRequest || e?.deliveryOutcome === "rejected"),
       });
       // Rate limits mean the host answered — don't switch hosts for those.
-      if (isLast || e?.rateLimited || (writeRequest && e?.deliveryOutcome !== "rejected")) throw e;
+      if (init.oneShot || isLast || e?.rateLimited || (writeRequest && e?.deliveryOutcome !== "rejected")) throw e;
     }
   }
   throw lastErr instanceof Error ? lastErr : new Error(`Supplier request failed (${path})`);
@@ -1083,9 +1084,12 @@ export async function supplierOrder(
   externalId: string,
   qty: number,
   idempotencyKey: string,
-  opts: { customerEmail?: string | null } = {},
+  opts: { customerEmail?: string | null; oneShot?: boolean } = {},
 ): Promise<{ code: string | null; items: string[] }> {
-  if (isInsightStore(s)) return insightOrder(s, externalId, qty, idempotencyKey);
+  if (isInsightStore(s)) return insightOrder(s, externalId, qty, idempotencyKey, opts.oneShot === true);
+  // Buy watches never probe alternate hosts/auth or submit replacement purchases.
+  const orderCall = (supplier: SupplierRow, path: string, init: { method?: string; body?: any; headers?: Record<string, string> } = {}) =>
+    call(supplier, path, { ...init, ...(opts.oneShot ? { oneShot: true } : {}) });
   const canboso = isCanboso(s);
   // Canboso requires an Idempotency-Key header of 8-128 chars.
   const idemKey = (idempotencyKey || "")
@@ -1097,7 +1101,7 @@ export async function supplierOrder(
     // a stable per-unit Idempotency-Key: a retry replays, never charges twice.
     const one = async (q: number, key: string) => {
       const idNum = Number(externalId);
-      const j = await call(s, `${primeBase(s)}/orders`, {
+      const j = await orderCall(s, `${primeBase(s)}/orders`, {
         method: "POST",
         headers: { "Idempotency-Key": key.slice(0, 128) },
         body: { product_id: Number.isFinite(idNum) ? idNum : externalId, quantity: q },
@@ -1107,7 +1111,7 @@ export async function supplierOrder(
       return { code: order?.id != null ? String(order.id) : null, items, mode: String(order?.delivery_mode ?? "") };
     };
     const first = await one(qty, idemKey);
-    if (first.items.length >= qty || first.mode !== "unlimited" || qty <= 1) {
+    if (opts.oneShot || first.items.length >= qty || first.mode !== "unlimited" || qty <= 1) {
       return { code: first.code, items: splitBulkDelivery(first.items, qty) };
     }
     const items = [...first.items];
@@ -1121,7 +1125,7 @@ export async function supplierOrder(
     // externalOrderId is idempotent: a retry returns the same order, never charged twice.
     const ext = idemKey.slice(0, 64);
     const idNum = Number(externalId);
-    const j = await call(s, "/v1/orders", {
+    const j = await orderCall(s, "/v1/orders", {
       method: "POST",
       body: {
         ...(Number.isFinite(idNum) && String(idNum) === externalId ? { productId: idNum } : { productName: externalId }),
@@ -1137,7 +1141,7 @@ export async function supplierOrder(
   }
   if (isVexorix(s)) {
     // Same external_order_id always returns the same order and is charged once.
-    const j = await call(s, "/api/reseller/orders", {
+    const j = await orderCall(s, "/api/reseller/orders", {
       method: "POST",
       headers: { "Idempotency-Key": idemKey.slice(0, 64) },
       body: { product_id: externalId, quantity: qty, external_order_id: idemKey.slice(0, 64) },
@@ -1152,7 +1156,7 @@ export async function supplierOrder(
   }
   if (isDigitalCore(s)) {
     // No idempotency support on their side: one POST only, never retried.
-    const d = await call(s, "/api/user/buy", { method: "POST", body: { id: externalId, count: qty } });
+    const d = await orderCall(s, "/api/user/buy", { method: "POST", body: { id: externalId, count: qty } });
     const raw = Array.isArray(d?.items) ? d.items : [];
     return {
       code: d?.order_id ? String(d.order_id) : null,
@@ -1160,7 +1164,7 @@ export async function supplierOrder(
     };
   }
   const j = canboso
-    ? await call(s, "/api/v2/telegram-buyer/purchase", {
+    ? await orderCall(s, "/api/v2/telegram-buyer/purchase", {
         method: "POST",
         headers: { "Idempotency-Key": idemKey },
         // Documented body: { key, product_id, quantity, customer_email?, slot_months? }.
@@ -1172,7 +1176,7 @@ export async function supplierOrder(
           ...(opts.customerEmail ? { customer_email: opts.customerEmail } : {}),
         },
       })
-    : await call(s, isActionDialect(s) ? actionPath("order") : "/v1/orders", {
+    : await orderCall(s, isActionDialect(s) ? actionPath("order") : "/v1/orders", {
         method: "POST",
         headers: isActionDialect(s) ? {} : { "Idempotency-Key": idemKey },
         body: isActionDialect(s)
@@ -1214,7 +1218,7 @@ export async function supplierOrder(
     for (let attempt = 0; attempt < 3; attempt++) {
       await new Promise((r) => setTimeout(r, attempt === 0 ? 1500 : 3000));
       try {
-        const list = await call(s, actionPath("orders"));
+        const list = await orderCall(s, actionPath("orders"));
         const rows: any[] = list.orders ?? list.data ?? [];
         const mine = rows.find(
           (o) =>
@@ -1242,7 +1246,9 @@ export async function supplierOrder(
   }
 
   if (!items.length && code && !action && !canboso) {
-    const detail = await call(s, `/v1/orders/${encodeURIComponent(String(code))}`);
+    let detail: any;
+    try { detail = await orderCall(s, `/v1/orders/${encodeURIComponent(String(code))}`); }
+    catch (error) { if (opts.oneShot) return { code: String(code), items }; throw error; }
     const detailOrder = detail.order ?? detail.result ?? detail.data?.order ?? detail.data ?? detail;
     const detailItems = firstDeliveryItems(
       detailOrder.items,

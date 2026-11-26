@@ -18,10 +18,10 @@ export function chooseBuyQuantity(stock: number, choices: number[], rejected: nu
 export async function readAllBuyProducts(db: any, supplierId: string) {
   const rows: any[] = [];
   for (let start = 0; ; start += 500) {
-    const { data, error } = await db.from('supplier_products').select('id,supplier_id,external_id,name,stock,min_qty')
+    const { data, error } = await db.from('supplier_products').select('id,supplier_id,external_id,name,stock,min_qty,raw')
       .eq('supplier_id', supplierId).eq('stock', 0).order('name').order('id').range(start, start + 499);
     if (error) throw new Error('Products unavailable');
-    rows.push(...(data ?? []));
+    rows.push(...(data ?? []).filter((p: any) => buyWatchProductEligible(p.raw)));
     if (!data || data.length < 500) return rows;
   }
 }
@@ -37,8 +37,29 @@ export function buyOutcome(items: string[], requested: number): 'completed' | 'u
   return items.length === requested && items.every(x => typeof x === 'string' && x.length > 0) ? 'completed' : 'unknown';
 }
 
+export function buyWatchProductEligible(raw: any): boolean {
+  return raw?.api_orderable !== false && raw?.manual_delivery !== true &&
+    !raw?.purchaseRequirements?.customerEmail &&
+    !['manual', 'activation'].includes(String(raw?.delivery_mode ?? raw?.stock?.type ?? '').toLowerCase());
+}
+
 export function supportsBuyWatch(key: string, base: string) {
-  return /digitalcore/i.test(key) || /^https:\/\/(?:www\.)?digitalcore\.top(?:\/|$)/i.test(base);
+  try {
+    const url = new URL(base);
+    if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || url.port) return false;
+    const hosts: Record<string, readonly string[]> = {
+      digitalcore: ['digitalcore.top', 'www.digitalcore.top'],
+      mailreader: ['api.mailreader.tech'],
+      canboso: ['canboso.com'],
+      insightstore: ['api.insightxpro.store'],
+      routeis: ['api.cmpdr.dev'],
+      primelabs: ['prime-labs.tech'],
+      qamify: ['api.qamify.site'],
+      vexoran: ['eismrrkygprctnwxmkbw.supabase.co'],
+      vexorix: ['vexorixstore.shop'],
+    };
+    return hosts[key.toLowerCase()]?.includes(url.hostname) === true;
+  } catch { return false; }
 }
 
 export function buyItemsText(batches: { items: unknown }[]): string {
