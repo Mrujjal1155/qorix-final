@@ -571,7 +571,7 @@ export async function syncSupplierCore(
   if (!claimed) return { ok: true, message: "Sync already running", added: 0, restocked: 0, checked: 0, priceChanges: 0, lowOrOut: 0 };
   try {
     // Manual admin runs and webhook-triggered runs always do the full pipeline.
-    return await syncSupplierCoreUnlocked(sb, s, Boolean(opts.force || opts.wait));
+    return await syncSupplierCoreUnlocked(sb, s, Boolean(opts.force || opts.wait), Boolean(opts.wait));
   } finally {
     await releaseSupplierSync(sb, String(s.id));
   }
@@ -839,8 +839,19 @@ async function retireMissingSupplierItems(
 }
 
 
-async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string, any>, force = false) {
+async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string, any>, force = false, fullCatalogue = false) {
   const startedAtMs = Date.now();
+  // Automatic runs skip suppliers with nothing on sale and nothing watched:
+  // no catalogue download, no database work. Admin manual sync always runs.
+  if (!fullCatalogue) {
+    const [{ count: liveCount }, { count: watchCount }] = await Promise.all([
+      sb.from("products").select("id", { count: "exact", head: true }).eq("supplier_id", s.id).eq("is_active", true),
+      sb.from("supplier_buy_orders").select("id", { count: "exact", head: true }).eq("supplier_id", s.id).eq("status", "watching"),
+    ]);
+    if ((liveCount ?? 1) === 0 && (watchCount ?? 1) === 0) {
+      return { ok: true, message: "No active products", added: 0, restocked: 0, checked: 0, priceChanges: 0, lowOrOut: 0 };
+    }
+  }
   // Stamped BEFORE the API call: the database refuses to apply a response that
   // was read earlier than the snapshot it already holds, so a slow/late reply
   // can never overwrite fresher data.
@@ -942,7 +953,7 @@ async function syncSupplierCoreUnlocked(sb: any, s: SupplierRow & Record<string,
 
   for (const p of uniqueRemote) {
     const prev = byExt.get(String(p.external_id));
-    if (!shouldSyncSupplierItem(prev, activeProductIds, watchedIds)) continue;
+    if (!fullCatalogue && !shouldSyncSupplierItem(prev, activeProductIds, watchedIds)) continue;
     const row = {
       supplier_id: s.id,
       external_id: p.external_id,
