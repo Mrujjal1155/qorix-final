@@ -46,6 +46,7 @@ import {
   cardIconsHtml,
   type UiKey,
 } from "@/lib/bot/ui.server";
+import { API_ICONS, type ApiIconKey } from "@/lib/bot/api-icons";
 
 import { renderRich, plainRich, messageToRich } from "@/lib/bot/richtext";
 import { telegramFavoritesPage, TELEGRAM_TOP_PRODUCTS_KEY, TELEGRAM_VAULT_PRODUCTS_KEY, parseTopProductIds, selectTopProducts } from "@/lib/telegram-top-products";
@@ -337,23 +338,7 @@ function alertIcon(settings: Record<string, string>, key: AlertIconKey) {
  * Icons used on the in-bot Reseller API panel. Every one of them can be
  * replaced with a Telegram Premium custom emoji from /admin → API icons.
  */
-const API_ICONS = {
-  panel: ["🔌", "API panel header"],
-  account: ["🪪", "Account line"],
-  status: ["🟢", "Status line"],
-  balance: ["💵", "API balance line"],
-  discount: ["🏷", "Discount line"],
-  orders: ["📦", "API orders line"],
-  key: ["🔑", "API key line"],
-  alert: ["🔔", "Low-balance alert line"],
-  topup: ["💳", "Top Up API Balance button"],
-  prices: ["💲", "My Prices button"],
-  docs: ["📖", "API Docs button"],
-  regen: ["🔄", "Regenerate Key button"],
-  revoke: ["🚫", "Revoke Key button"],
-} as const;
-
-type ApiIconKey = keyof typeof API_ICONS;
+/** API panel icon registry lives in ./api-icons so the website renders the same artwork. */
 
 /** HTML for an API panel icon (Premium custom emoji when configured). */
 function apiIcon(settings: Record<string, string>, key: ApiIconKey) {

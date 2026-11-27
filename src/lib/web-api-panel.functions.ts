@@ -21,6 +21,12 @@ export const getApiBanner = createServerFn({ method: "GET" }).handler(async () =
   return { banner: /^https:\/\/\S+$/.test(v) ? v : null };
 });
 
+/** Bot-identical Premium emoji artwork for the API panel; public artwork only. */
+export const getApiPanelIcons = createServerFn({ method: "GET" }).handler(async () => {
+  const { getApiPanelIconArtwork } = await import("@/lib/api-panel-icons.server");
+  return getApiPanelIconArtwork();
+});
+
 export const getWebApiPanel = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
