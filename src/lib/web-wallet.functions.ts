@@ -16,7 +16,21 @@ export const getWebWallet = createServerFn({ method: "GET" })
     const { db, tid } = await linkedTelegram(context.userId);
     const { data: bs } = await db.from("bot_settings").select("value").eq("key", "bot_username").maybeSingle();
     const botUser = String((bs as any)?.value ?? "").replace(/^@/, "");
-    if (!tid) return { linked: false as const, botUser };
+    if (!tid) {
+      // Email-only account: its own website wallet (moves into the bot wallet when Telegram is connected).
+      const [{ data: pr }, { data: wt }] = await Promise.all([
+        db.from("profiles").select("wallet_balance,is_banned").eq("id", context.userId).maybeSingle(),
+        db.from("wallet_transactions").select("id,type,amount,note,created_at").eq("user_id", context.userId).order("created_at", { ascending: false }).limit(20),
+      ]);
+      return {
+        linked: false as const, botUser,
+        web: {
+          balance: Number((pr as any)?.wallet_balance ?? 0),
+          banned: Boolean((pr as any)?.is_banned),
+          history: ((wt ?? []) as any[]).map((t) => ({ id: String(t.id), type: String(t.type), amount: Number(t.amount), method: (t.note as string | null) ?? null, status: "completed", created_at: String(t.created_at) })),
+        },
+      };
+    }
     const [{ data: u }, { data: tx }] = await Promise.all([
       db.from("bot_users").select("balance,total_spent,membership,username,is_banned").eq("telegram_id", tid).maybeSingle(),
       db.from("transactions").select("id,type,amount,method,status,created_at").eq("telegram_id", tid).order("created_at", { ascending: false }).limit(20),
@@ -37,9 +51,10 @@ export const purchaseWithWebWallet = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => z.object({ product_id: z.string().uuid(), quantity: z.number().int().min(1).max(100000), request_id: z.string().uuid(), expected_total: z.number().positive() }).parse(d))
   .handler(async ({ data, context }) => {
     const { db, tid } = await linkedTelegram(context.userId);
-    if (!tid) throw new Error("Connect your Telegram account first.");
-    const { data: user } = await db.from("bot_users").select("is_banned").eq("telegram_id", tid).maybeSingle();
-    if (!user || user.is_banned) throw new Error("This wallet is unavailable.");
+    if (tid) {
+      const { data: user } = await db.from("bot_users").select("is_banned").eq("telegram_id", tid).maybeSingle();
+      if (!user || user.is_banned) throw new Error("This wallet is unavailable.");
+    }
     const { data: existing } = await db.from("orders").select("product_id,quantity,order_no,customer_email")
       .eq("user_id", context.userId).eq("payment_method", "wallet").eq("meta->>wallet_request_id", data.request_id).maybeSingle();
     if (existing) {

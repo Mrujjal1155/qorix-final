@@ -9,6 +9,7 @@ import { AlertTriangle, Medal, QrCode, RotateCcw, Send, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { BotDelivery } from "@/components/mobile/BotDelivery";
+import { WebsiteWallet } from "@/components/mobile/WebsiteWallet";
 import { PaymentGatewayIcon } from "@/components/mobile/PaymentGatewayIcon";
 import type { LucideIcon } from "lucide-react";
 import { Bitcoin, Coins, FileText, Gem, Landmark, Ticket, CalendarDays, ChevronDown, ChevronLeft, CircleCheck, Clock3, Copy, CreditCard, Gift, Package, Store, User, Wallet, Zap, Info } from "lucide-react";
@@ -110,7 +111,9 @@ export function BotWallet() {
       {connecting ? <TelegramConnect onBack={() => setConnecting(false)} onDone={() => {
         setConnecting(false);
         void qc.invalidateQueries();
-      }} /> : !w ? <Bubble><p className="text-sm">Loading…</p></Bubble> : !w.linked ? (
+      }} /> : !w ? <Bubble><p className="text-sm">Loading…</p></Bubble> : !w.linked && "web" in w && w.web ? (
+        <WebsiteWallet web={w.web} onConnect={() => setConnecting(true)} />
+      ) : !w.linked ? (
         <div className={anim}>
           <Bubble className="w-full">
             <Title>WALLET</Title>

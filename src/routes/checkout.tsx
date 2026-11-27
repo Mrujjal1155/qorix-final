@@ -167,8 +167,10 @@ function CheckoutPage() {
     return () => data.subscription.unsubscribe();
   }, [qc]);
   const connected = Boolean(tgLink?.linked);
-  const walletBalance = tgLink?.linked ? tgLink.balance : 0;
-  const walletAllowed = canPayCheckoutWallet(connected, tgLink?.linked ? tgLink.banned : false, walletBalance, total);
+  const webWallet = tgLink && !tgLink.linked && "web" in tgLink ? tgLink.web : null;
+  const hasWallet = connected || Boolean(webWallet);
+  const walletBalance = tgLink?.linked ? tgLink.balance : (webWallet?.balance ?? 0);
+  const walletAllowed = canPayCheckoutWallet(hasWallet, tgLink?.linked ? tgLink.banned : Boolean(webWallet?.banned), walletBalance, total);
   const walletMut = useMutation({
     mutationFn: () => purchaseWallet({ data: { product_id: id, quantity: qty, request_id: walletRequest, expected_total: Math.round(total * 100) / 100 } }),
     onSuccess: (r) => {
@@ -254,7 +256,7 @@ function CheckoutPage() {
         name={name} setName={setName} email={email} setEmail={setEmail} phone={phone} setPhone={setPhone}
         txid={txid} setTxid={setTxid} botUser={botUser} epsBdt={epsTotalBdt} connected={connected}
         placing={mut.isPending} redirecting={epsMut.isPending || oxaMut.isPending} checkingConnection={checkingConnection} connectionError={connectionError}
-        walletBalance={walletBalance} walletAllowed={walletAllowed && Boolean(walletRequest)} walletBusy={walletMut.isPending} onWallet={() => walletMut.mutate()}
+        walletVisible={hasWallet} walletBalance={walletBalance} walletAllowed={walletAllowed && Boolean(walletRequest)} walletBusy={walletMut.isPending} onWallet={() => walletMut.mutate()}
         onPlace={() => product && mut.mutate()} onEps={() => epsMut.mutate()} onOxa={() => oxaMut.mutate()}
       />
     );
@@ -329,7 +331,7 @@ function CheckoutPage() {
 
             {step === "details" && (
               <div className="grid gap-4 md:grid-cols-2">
-                {connected && <Button className="md:col-span-2" disabled={!walletAllowed || !walletRequest || walletMut.isPending} onClick={() => walletMut.mutate()}><Wallet className="h-4 w-4" /> {walletMut.isPending ? "Purchasing…" : `Pay with Wallet · ${money(walletBalance)}`}</Button>}
+                {hasWallet && <Button className="md:col-span-2" disabled={!walletAllowed || !walletRequest || walletMut.isPending} onClick={() => walletMut.mutate()}><Wallet className="h-4 w-4" /> {walletMut.isPending ? "Purchasing…" : `Pay with Wallet · ${money(walletBalance)}`}</Button>}
                 {!connected && !checkingConnection && !connectionError && <><div className="space-y-1">
                   <Label>Your name</Label>
                   <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="John Doe" />

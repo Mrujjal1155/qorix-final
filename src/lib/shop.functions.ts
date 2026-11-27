@@ -280,6 +280,33 @@ const parseWebsiteOrderInput = (d: {
 
 type WebsiteOrderInput = ReturnType<typeof parseWebsiteOrderInput>;
 
+/** Same gateway switches as product checkout; returns the chain address snapshot when relevant. */
+async function assertWebsiteMethod(method: string): Promise<string> {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let chainSnapshot = "";
+      const { data: rows } = await supabaseAdmin
+        .from("bot_settings")
+        .select("key,value")
+        .in("key", ["binance_status", "binance_enable_payid", "binance_enable_crypto"]);
+      const raw: Record<string, string> = {};
+      for (const r of rows ?? []) raw[r.key] = r.value ?? "";
+      const sw = binanceSwitches(raw);
+      let allowed = method === "binance" ? sw.payid : sw.crypto;
+      if (method === "bybit") {
+        const { bybitSettings } = await import("@/lib/bybit.server");
+        const { bybitEnabled } = await import("@/lib/bybit-payment");
+        allowed = bybitEnabled(await bybitSettings());
+      }
+      if (method.startsWith("chain_")) {
+        const { blockchainGateways } = await import("@/lib/blockchain.server");
+        const gateway = (await blockchainGateways()).find(g => `chain_${g.network}` === method);
+        allowed = Boolean(gateway?.enabled && gateway.verified && gateway.address);
+        chainSnapshot = gateway?.address ?? "";
+      }
+      if (!allowed) throw new Error("This payment method is currently unavailable");
+    return chainSnapshot;
+}
+
 async function createWebsiteOrder(data: WebsiteOrderInput, owner: { telegram_id: number; user_id: string } | null) {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: product } = await supabaseAdmin
@@ -288,29 +315,7 @@ async function createWebsiteOrder(data: WebsiteOrderInput, owner: { telegram_id:
       .eq("id", data.product_id)
       .maybeSingle();
     if (!product || !product.is_active) throw new Error("Product is not available");
-    let chainSnapshot = "";
-    {
-      const { data: rows } = await supabaseAdmin
-        .from("bot_settings")
-        .select("key,value")
-        .in("key", ["binance_status", "binance_enable_payid", "binance_enable_crypto"]);
-      const raw: Record<string, string> = {};
-      for (const r of rows ?? []) raw[r.key] = r.value ?? "";
-      const sw = binanceSwitches(raw);
-      let allowed = data.payment_method === "binance" ? sw.payid : sw.crypto;
-      if (data.payment_method === "bybit") {
-        const { bybitSettings } = await import("@/lib/bybit.server");
-        const { bybitEnabled } = await import("@/lib/bybit-payment");
-        allowed = bybitEnabled(await bybitSettings());
-      }
-      if (data.payment_method.startsWith("chain_")) {
-        const { blockchainGateways } = await import("@/lib/blockchain.server");
-        const gateway = (await blockchainGateways()).find(g => `chain_${g.network}` === data.payment_method);
-        allowed = Boolean(gateway?.enabled && gateway.verified && gateway.address);
-        chainSnapshot = gateway?.address ?? "";
-      }
-      if (!allowed) throw new Error("This payment method is currently unavailable");
-    }
+    const chainSnapshot = await assertWebsiteMethod(data.payment_method);
 
     // Never accept a supplier order against a stale catalogue snapshot. Read
     // the supplier API immediately before submission and fail closed if its
@@ -640,4 +645,67 @@ export const getOrderConfirmation = createServerFn({ method: "POST" })
 
     const { customer_email, ...safe } = row as any;
     return { order: safe, wallet };
+  });
+
+/** Email-only website account: add funds to the website wallet. Same gateways, TXID rules and verification as product checkout. */
+export const placeWebsiteTopup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { amount: number; payment_method: string; txid: string }) => {
+    const amount = Math.round(Number(d.amount) * 100) / 100;
+    if (!(amount >= 1 && amount <= 10000)) throw new Error("Enter an amount between 1 and 10000.");
+    const base = parseWebsiteOrderInput({ product_id: "topup", quantity: 1, customer_name: "Customer", customer_email: "placeholder@example.com", payment_method: d.payment_method, txid: d.txid });
+    return { amount, payment_method: base.payment_method, txid: base.txid };
+  })
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: prof } = await supabaseAdmin.from("profiles").select("telegram_id,email,full_name,is_banned").eq("id", context.userId).maybeSingle();
+    if (!prof || prof.is_banned) throw new Error("This account cannot add funds.");
+    if (prof.telegram_id) throw new Error("Your Telegram wallet is connected — use the Deposit page for the bot wallet.");
+    const email = String(prof.email ?? "").trim().toLowerCase();
+    if (!email) throw new Error("Your account has no email.");
+    const chainSnapshot = await assertWebsiteMethod(data.payment_method);
+
+    let dupQ = supabaseAdmin.from("orders").select("id").eq("txid", data.txid);
+    dupQ = data.payment_method.startsWith("chain_") ? dupQ.eq("payment_method", data.payment_method) : data.payment_method === "bybit" ? dupQ.eq("payment_method", "bybit") : dupQ.neq("payment_method", "bybit");
+    if ((await dupQ.maybeSingle()).data) throw new Error("This transaction ID has already been used");
+    const { count: openCount } = await supabaseAdmin.from("orders").select("id", { count: "exact", head: true })
+      .eq("source", "website").eq("status", "pending").eq("user_id", context.userId);
+    if ((openCount ?? 0) >= 5) throw new Error("You already have several payments awaiting confirmation. Please wait until they are reviewed.");
+
+    let meta: Record<string, unknown> = { wallet_topup: true };
+    if (data.payment_method.startsWith("chain_")) meta = { ...meta, chain_address: chainSnapshot };
+    if (data.payment_method === "bybit") {
+      const { bybitSettings } = await import("@/lib/bybit.server");
+      meta = { ...meta, bybit_uid: (await bybitSettings())["bybit_uid"] };
+    }
+    const { data: order, error } = await supabaseAdmin.from("orders").insert({
+      telegram_id: 0, user_id: context.userId, source: "website", product_id: null, product_name: "Wallet top-up",
+      quantity: 1, unit_price: data.amount, total: data.amount, status: "pending", delivery_type: "auto",
+      customer_name: String(prof.full_name || "Customer").slice(0, 80), customer_email: email,
+      payment_method: data.payment_method, txid: data.txid, meta: meta as any,
+    }).select("id,order_no").maybeSingle();
+    if (error || !order) throw new Error(error?.message?.includes("txid") ? "This transaction ID has already been used" : "Could not save the payment. Please try again.");
+    try {
+      if (data.payment_method.startsWith("chain_")) {
+        const { verifyBlockchainWebsiteOrder } = await import("@/lib/blockchain-settle.server");
+        await verifyBlockchainWebsiteOrder(String(order.id));
+      } else if (data.payment_method === "bybit") {
+        const { verifyBybitWebsiteOrder } = await import("@/lib/bybit-settle.server");
+        await verifyBybitWebsiteOrder(String(order.id));
+      } else {
+        const { verifyWebsiteOrderTxid } = await import("@/lib/website-binance-verify.server");
+        await verifyWebsiteOrderTxid(String(order.id));
+      }
+    } catch (e) { console.error("[topup] verification failed:", e); }
+    const { data: after } = await supabaseAdmin.from("orders").select("status").eq("id", order.id).maybeSingle();
+    return { id: String(order.id), order_no: Number(order.order_no), credited: after?.status === "credited" };
+  });
+
+export const getWebsiteTopup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => { const id = String(d.id ?? ""); if (!/^[0-9a-f-]{36}$/i.test(id)) throw new Error("Invalid id"); return { id }; })
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: o } = await supabaseAdmin.from("orders").select("status").eq("id", data.id).eq("user_id", context.userId).eq("meta->>wallet_topup", "true").maybeSingle();
+    return { status: String(o?.status ?? "unknown") };
   });
