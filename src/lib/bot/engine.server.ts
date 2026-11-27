@@ -6,7 +6,7 @@ import { cardToTable, saleTable } from "@/lib/bot/alert-table";
 import { bulkDiscountCard } from "@/lib/bot/bulk-discount-card";
 import { productBulkTable } from "@/lib/bot/product-bulk-table";
 import { productDetailsMessage } from "@/lib/bot/product-details-message";
-import { productsBannerUrl, buildProductsBannerCard, flashBannerUrl, buildFlashDealsCard, categoriesBannerUrl } from "@/lib/bot/products-banner";
+import { productsBannerUrl, buildProductsBannerCard, flashBannerUrl, buildFlashDealsCard, categoriesBannerUrl, sectionBannerUrl, bannerImg } from "@/lib/bot/products-banner";
 // Server-only Telegram shop bot engine.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { membershipContact } from "@/lib/bot/contact";
@@ -970,6 +970,7 @@ async function profileView(chatId: number, user: any) {
   const link = refLink(s, user);
 
   const text =
+    bannerImg(sectionBannerUrl(s, "profile_banner_url")) +
     `${sectionHead(s, "profile", `<b>${escapeHtml(uiText(s, "prof_title").toUpperCase().split("").join(" "))}</b>`)}\n` +
     buildProfileDetails({
       account: [
@@ -2287,12 +2288,14 @@ async function fullBotGateways() {
 async function walletView(user: any, websiteOwner: number | null = null) {
   const s = await getSettings();
   const text =
+    bannerImg(sectionBannerUrl(s, "wallet_banner_url")) +
     `${sectionHead(s, "wallet", `${pageIconHtml(s, "wallet")} <b>W A L L E T</b>`)}\n\n` +
-    `Your Balance and Spending Stats are:\n──────────────\n` +
-    `💰 Balance: <b>${money(user.balance)}</b>\n` +
-    `💎 Total Spent: ${money(user.total_spent)}\n` +
-    `🏅 Membership: ${user.membership}\n` +
-    `──────────────\n\n` +
+    `Your Balance and Spending Stats are:` +
+    `<table bordered striped compact>` +
+    `<tr><td>💰 Balance</td><td align="right"><b>${money(user.balance)}</b></td></tr>` +
+    `<tr><td>💎 Total Spent</td><td align="right">${money(user.total_spent)}</td></tr>` +
+    `<tr><td>🏅 Membership</td><td align="right">${escapeHtml(String(user.membership ?? ""))}</td></tr>` +
+    `</table>` +
     `<i>Choose a payment method below to add funds to your wallet.</i>`;
   const walStyle: ButtonStyle = "primary";
   const wBtn = (b: Button) => styled(b, walStyle);

@@ -44,3 +44,14 @@ export function categoriesBannerUrl(settings: Record<string, string>): string | 
   const v = (settings["categories_banner_url"] || "").trim();
   return /^https:\/\/\S+$/.test(v) ? v : null;
 }
+
+/** Only an https image URL may be used as a section banner (e.g. profile_banner_url, wallet_banner_url). */
+export function sectionBannerUrl(settings: Record<string, string>, key: string): string | null {
+  const v = (settings[key] || "").trim();
+  return /^https:\/\/\S+$/.test(v) ? v : null;
+}
+
+/** Banner image tag (or empty) for the top of a rich message. */
+export function bannerImg(url: string | null): string {
+  return url ? `<img src="${attr(url)}"/>` : "";
+}
