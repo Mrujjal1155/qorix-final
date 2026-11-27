@@ -2,6 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import {
+  ArrowLeft,
   BarChart3,
   BookOpen,
   Globe,
@@ -119,6 +120,7 @@ export function ResellerShell({
       {NAV_GROUPS.flatMap((group) => group.items).map((item) => <Key key={item.id} tone={active === item.id ? "green" : "blue"} active={active === item.id} leading={<item.icon className="h-4 w-4 shrink-0" />} onClick={() => onSelect(item.id)}>{item.label}</Key>)}
     </Keys>
     <div className="tg-page w-full rounded-2xl rounded-bl-md bg-tg-bubble px-3 py-3 shadow-sm">{children}</div>
+    <Key tone="blue" icon={ArrowLeft} onClick={() => { void navigate({ to: "/account" }); }}>Back</Key>
     <Key tone="red" icon={LogOut} onClick={() => { void signOut(); }}>Sign out</Key>
   </BotFrame>;
 
@@ -220,6 +222,18 @@ export function ResellerShell({
         </nav>
 
         <div className={cn("mt-auto border-t border-sidebar-border px-3 py-3", collapsed && "lg:px-2")}>
+          <Link
+            to="/account"
+            title="Back to website"
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              "mb-1 flex w-full items-center justify-start gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+              collapsed && "lg:justify-center",
+            )}
+          >
+            <ArrowLeft className="size-[1.15rem] shrink-0" />
+            <span className={labelCls}>Back</span>
+          </Link>
           <button
             onClick={signOut}
             className={cn(
