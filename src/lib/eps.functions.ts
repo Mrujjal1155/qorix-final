@@ -44,3 +44,14 @@ export const startConnectedEpsCheckout = createServerFn({ method: "POST" })
     const { createEpsCheckout } = await import("@/lib/eps-checkout.server");
     return createEpsCheckout({ ...data, ...customer });
   });
+
+export const startWebsiteEpsTopup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { amount: number; customer_phone: string }) => ({
+    amount: Number(d.amount),
+    customer_phone: String(d.customer_phone ?? "").replace(/[^\d+]/g, "").slice(0, 20),
+  }))
+  .handler(async ({ data, context }) => {
+    const { createEpsWalletTopup } = await import("@/lib/eps-checkout.server");
+    return createEpsWalletTopup({ user_id: context.userId, amount: data.amount, customer_phone: data.customer_phone });
+  });

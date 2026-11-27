@@ -26,6 +26,7 @@ function redirect(location: string) {
 
 async function run(request: Request) {
   const url = new URL(request.url);
+  const wallet = url.searchParams.get("wallet") === "1";
   const q = (...keys: string[]) => {
     for (const k of keys) {
       const v = url.searchParams.get(k);
@@ -39,34 +40,34 @@ async function run(request: Request) {
   const etid = q("EPSTransactionId", "epsTransactionId", "EpsTransactionId", "TransactionId", "transaction_id", "transactionId", "trx_id");
 
   if (state === "cancel") {
-    return page("Payment cancelled", "No money was taken. You can start the checkout again any time.", "/store", "Back to the store");
+    return page("Payment cancelled", "No money was taken. You can start the checkout again any time.", wallet ? "/account" : "/store", wallet ? "Back to wallet" : "Back to the store");
   }
 
   if (!mtid) {
-    return page("Payment reference missing", "We could not identify this payment. Please contact support with your order number.", "/track", "Track my order");
+    return page("Payment reference missing", "We could not identify this payment. Please contact support with your order number.", wallet ? "/account" : "/track", wallet ? "Back to wallet" : "Track my order");
   }
 
   const { settleEpsPayment } = await import("@/lib/eps-settle.server");
   const result = await settleEpsPayment(mtid, etid || null);
 
   if (result.ok && result.orderNo) {
-    return redirect(`/track?order=${result.orderNo}`);
+    return redirect(wallet ? "/account" : `/track?order=${result.orderNo}`);
   }
 
   if (state === "fail") {
     return page(
       "Payment failed",
       `The bank or wallet declined this payment${result.reason ? ` (${escapeText(result.reason)})` : ""}. Nothing was charged — please try again.`,
-      "/store",
-      "Back to the store",
+      wallet ? "/account" : "/store",
+      wallet ? "Back to wallet" : "Back to the store",
     );
   }
 
   return page(
     "Confirming your payment",
-    `We are still confirming this payment with EPS${result.reason ? ` — ${escapeText(result.reason)}` : ""}. Your order page updates automatically once it clears.`,
-    result.orderNo ? `/track?order=${result.orderNo}` : "/track",
-    "Track my order",
+    `We are still confirming this payment with EPS${result.reason ? ` — ${escapeText(result.reason)}` : ""}. ${wallet ? "Your wallet updates automatically once it clears." : "Your order page updates automatically once it clears."}`,
+    wallet ? "/account" : result.orderNo ? `/track?order=${result.orderNo}` : "/track",
+    wallet ? "Back to wallet" : "Track my order",
   );
 }
 

@@ -2,14 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { AlertTriangle, ChevronLeft, CircleCheck, Clock3, Coins, Copy, CreditCard, FileText, Gem, Send, Store, Wallet, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Bitcoin, ChevronLeft, CircleCheck, Clock3, Coins, Copy, CreditCard, FileText, Gem, Landmark, Send, Store, Wallet, X, type LucideIcon } from "lucide-react";
 import { getStorePayInfo, getWebsiteTopup, placeWebsiteTopup } from "@/lib/shop.functions";
+import { getEpsStatus, startWebsiteEpsTopup } from "@/lib/eps.functions";
+import { getOxapayStatus, startWebsiteOxapayTopup } from "@/lib/oxapay.functions";
 import { Bubble, Key, KeyLink, Keys, Quote, Title } from "@/components/mobile/BotStorefront";
 import { PaymentGatewayIcon } from "@/components/mobile/PaymentGatewayIcon";
 import { priceTag } from "@/components/StoreShell";
 
 type Hist = { id: string; type: string; amount: number; method: string | null; created_at: string };
-type Gw = { id: string; icon: string; label: string; key: string; Icon: LucideIcon };
+type Gw = { id: string; icon: string; label: string; key: string; Icon: LucideIcon; hosted?: "eps" | "oxapay" };
 type Stage = { k: "home" } | { k: "history" } | { k: "amount"; gw: Gw } | { k: "pay"; gw: Gw; amount: number } | { k: "txid"; gw: Gw; amount: number } | { k: "result"; gw: Gw; amount: number; id: string; ok: boolean };
 
 const GWS: Gw[] = [
@@ -19,21 +21,30 @@ const GWS: Gw[] = [
   { id: "chain_bep20", icon: "chain_bep20", label: "USDT · BEP20", key: "chain_bep20_address", Icon: Coins },
   { id: "usdt_trc20", icon: "usdt_trc20", label: "USDT · TRC20", key: "usdt_trc20_address", Icon: Coins },
   { id: "usdt_bep20", icon: "usdt_bep20", label: "USDT · BEP20", key: "usdt_bep20_address", Icon: Coins },
+  { id: "eps", icon: "eps_mfs", label: "bKash · Nagad · Rocket & more", key: "", Icon: Landmark, hosted: "eps" },
+  { id: "oxapay", icon: "oxapay", label: "Any Crypto · BTC, LTC, USDT", key: "", Icon: Bitcoin, hosted: "oxapay" },
 ];
 
 /** Email-only account wallet: own balance, top-up through the website's verified gateways, optional Telegram connect. */
 export function WebsiteWallet({ web, onConnect }: { web: { balance: number; banned: boolean; history: Hist[] }; onConnect: () => void }) {
   const qc = useQueryClient();
   const fPay = useServerFn(getStorePayInfo), fTop = useServerFn(placeWebsiteTopup), fGet = useServerFn(getWebsiteTopup);
+  const fEps = useServerFn(getEpsStatus), fOxa = useServerFn(getOxapayStatus);
+  const fEpsTop = useServerFn(startWebsiteEpsTopup), fOxaTop = useServerFn(startWebsiteOxapayTopup);
   const { data: pay } = useQuery({ queryKey: ["store-pay"], queryFn: () => fPay() });
+  const { data: eps } = useQuery({ queryKey: ["eps-status"], queryFn: () => fEps() });
+  const { data: oxa } = useQuery({ queryKey: ["oxapay-status"], queryFn: () => fOxa() });
   const p = (pay ?? {}) as Record<string, string>;
   const gws = GWS.filter((g) => {
+    if (g.hosted === "eps") return Boolean(eps?.enabled);
+    if (g.hosted === "oxapay") return Boolean(oxa?.enabled);
     if (g.id === "binance") return p["enable_payid"] !== "0" && Boolean(p[g.key]);
     if (g.id.startsWith("usdt_")) return !p[g.key.replace("usdt_", "chain_")] && p["enable_crypto"] !== "0" && Boolean(p[g.key]);
     return Boolean(p[g.key]);
   });
   const [st, setSt] = useState<Stage>({ k: "home" });
   const [amount, setAmount] = useState("");
+  const [phone, setPhone] = useState("");
   const [txid, setTxid] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -62,6 +73,16 @@ export function WebsiteWallet({ web, onConnect }: { web: { balance: number; bann
     } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
   }
 
+  async function openHosted(gw: Gw, amt: number) {
+    setBusy(true); setErr("");
+    try {
+      const r = gw.hosted === "eps"
+        ? await fEpsTop({ data: { amount: amt, customer_phone: phone } })
+        : await fOxaTop({ data: { amount: amt } });
+      window.location.href = r.url;
+    } catch (e) { setErr((e as Error).message); } finally { setBusy(false); }
+  }
+
   const back = (to: Stage) => <Key tone="red" icon={ChevronLeft} onClick={() => setSt(to)}>Back</Key>;
   const addr = (gw: Gw) => p[gw.key] ?? "";
 
@@ -78,7 +99,7 @@ export function WebsiteWallet({ web, onConnect }: { web: { balance: number; bann
             <p className="mt-2 text-sm italic">{web.banned ? "This wallet is unavailable." : "Choose a payment method below to add funds. You can also pay for products directly at checkout."}</p>
             <Quote><p>Optional: connect Telegram to use one wallet here and in the bot — your website balance moves into it automatically.</p></Quote>
           </Bubble>
-          {!web.banned && gws.map((g) => <Key key={g.id} leading={<PaymentGatewayIcon gateway={g.icon} icon={g.Icon} />} onClick={() => { setAmount(""); setSt({ k: "amount", gw: g }); }}>{g.label}</Key>)}
+          {!web.banned && gws.map((g) => <Key key={g.id} leading={<PaymentGatewayIcon gateway={g.icon} icon={g.Icon} />} onClick={() => { setAmount(""); setPhone(""); setSt({ k: "amount", gw: g }); }}>{g.label}</Key>)}
           {!web.banned && gws.length === 0 && <Bubble><p className="text-sm">No payment method is available right now — please contact support.</p></Bubble>}
           <Key icon={FileText} onClick={() => setSt({ k: "history" })}>Transaction History</Key>
           <Key icon={Send} onClick={onConnect}>Connect Telegram (optional)</Key>
@@ -105,12 +126,26 @@ export function WebsiteWallet({ web, onConnect }: { web: { balance: number; bann
         <div key="amt" className={anim}>
           <Bubble className="w-full">
             <p className="flex items-center gap-2 font-bold"><PaymentGatewayIcon gateway={st.gw.icon} icon={st.gw.Icon} /> {st.gw.label}</p>
-            <p className="mt-2 text-sm font-semibold">How much USDT do you want to add?</p>
-            <Quote><p>Enter the amount only, e.g. <b>1</b> or <b>10.5</b>. You must send exactly this amount.</p><p className="mt-1">Each payment must be confirmed within <b>30 minutes</b>.</p></Quote>
+            <p className="mt-2 text-sm font-semibold">How much {st.gw.hosted === "eps" ? "USD" : "USDT"} do you want to add?</p>
+            <Quote>
+              <p>Enter the amount only, e.g. <b>1</b> or <b>10.5</b>.</p>
+              {!st.gw.hosted && <p className="mt-1">You must send exactly this amount.</p>}
+              <p className="mt-1">Each payment must be confirmed within <b>30 minutes</b>.</p>
+              {st.gw.hosted === "eps" && Number(amount) > 0 && <p className="mt-1">Gateway amount: <b>৳{(Math.round(Number(amount) * Number(eps?.rate ?? 0) * 100) / 100).toFixed(2)}</b></p>}
+            </Quote>
             <input className={`${field} mt-2`} inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))} placeholder="Amount in USD" />
+            {st.gw.hosted === "eps" && <>
+              <input className={`${field} mt-2`} inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value.replace(/[^\d+]/g, "").slice(0, 20))} placeholder="Mobile number · 01XXXXXXXXX" />
+              <p className="mt-1 text-xs text-tg-muted">Needed by the secure gateway for mobile banking and card payments.</p>
+            </>}
+            {err && <p className="mt-2 text-sm text-tg-btn-red">{err}</p>}
           </Bubble>
           <Keys cols={3}>{[1, 5, 10, 20, 50, 100].map((v) => <Key key={v} active={amount === String(v)} onClick={() => setAmount(String(v))}>${v}</Key>)}</Keys>
-          <Key tone="green" icon={CircleCheck} disabled={!(Number(amount) >= 1)} onClick={() => { setTxid(""); setSt({ k: "pay", gw: st.gw, amount: Math.round(Number(amount) * 100) / 100 }); }}>Continue</Key>
+          <Key tone="green" icon={CircleCheck} disabled={busy || !(Number(amount) >= 1) || (st.gw.hosted === "eps" && phone.replace(/\D/g, "").length < 11)} onClick={() => {
+            const amt = Math.round(Number(amount) * 100) / 100;
+            if (st.gw.hosted) void openHosted(st.gw, amt);
+            else { setTxid(""); setSt({ k: "pay", gw: st.gw, amount: amt }); }
+          }}>{busy ? "Opening secure payment…" : st.gw.hosted ? "Pay now" : "Continue"}</Key>
           {back({ k: "home" })}
         </div>
       ) : st.k === "pay" ? (

@@ -7,6 +7,7 @@ export const Route = createFileRoute("/api/public/oxapay/return")({
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const order = (url.searchParams.get("order") ?? "").replace(/\D/g, "").slice(0, 12);
+        let walletTopup = false;
         if (order) {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const { data: row } = await (supabaseAdmin as any)
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/api/public/oxapay/return")({
             .eq("order_no", Number(order))
             .eq("payment_method", "oxapay")
             .maybeSingle();
+          walletTopup = Boolean((row?.meta as any)?.wallet_topup);
           const track = String(row?.meta?.oxapay_track_id ?? "");
           if (track) {
             const { settleOxapay } = await import("@/lib/oxapay-settle.server");
@@ -23,7 +25,7 @@ export const Route = createFileRoute("/api/public/oxapay/return")({
         }
         return new Response(null, {
           status: 302,
-          headers: { Location: order ? `/track?order=${order}` : "/track", "Cache-Control": "no-store" },
+          headers: { Location: walletTopup ? "/account" : order ? `/track?order=${order}` : "/track", "Cache-Control": "no-store" },
         });
       },
     },

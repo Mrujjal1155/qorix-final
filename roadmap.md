@@ -361,3 +361,5 @@
 - [ ] Verify the post-Start card with a real connected Telegram account; blocked by external unmanaged authentication, which cannot mint an authorized sandbox session. The authenticated data path is code-reviewed but not browser-verified.
 
 - [x] Reseller API Qamify-style: additive idempotency/qty/cents/paging/health fields (old fields kept); per-product buyer input fields (admin editor, API discovery + validation before charge, admin order view).
+- [x] Add EPS and OxaPay hosted deposits to email-only website wallets, preserving direct product checkout, 30-minute verification and one-time credit. Five hosted-topup tests plus 53 related gateway/wallet/deadline regressions pass; mobile fixture verifies both methods, EPS BDT conversion and hosted redirects without runtime errors or real orders.
+- [ ] Verify a real EPS/OxaPay email-wallet deposit after approved deployment and real-payment permission; no live payment or publication attempted.

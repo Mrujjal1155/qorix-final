@@ -82,3 +82,35 @@ export async function createOxapayCheckout(data: { product_id: string; quantity:
       .eq("id", order.id);
     return { url: created.url, order_no: order.order_no as number };
 }
+
+/** Email-only website wallet: OxaPay's 30-minute invoice credits only after server-side verification. */
+export async function createOxapayWalletTopup(data: { user_id: string; amount: number }) {
+    const { supabaseAdmin: db } = await import("@/integrations/supabase/client.server");
+    const { websiteTopupIdentity, hostedTopupAmount, createWebsiteTopupOrder } = await import("@/lib/website-topup.server");
+    const { oxapaySettings } = await import("@/lib/oxapay-settle.server");
+    const { oxapayEnabled, oxapayKey, oxapayCreateInvoice } = await import("@/lib/oxapay.server");
+    const [identity, settings] = await Promise.all([websiteTopupIdentity(data.user_id), oxapaySettings()]);
+    if (!oxapayEnabled(settings)) throw new Error("Crypto (OxaPay) payments are not available right now.");
+    const amount = hostedTopupAmount(data.amount);
+    const order = await createWebsiteTopupOrder(identity, {
+      amount, payment_method: "oxapay", meta: { gateway: "oxapay" },
+    });
+    const origin = resolveSiteOrigin();
+    const created = await oxapayCreateInvoice(oxapayKey(settings), {
+      amountUsd: amount,
+      orderId: `W-${order.id}`,
+      callbackUrl: `${origin}/api/public/oxapay/webhook`,
+      returnUrl: `${origin}/api/public/oxapay/return?order=${order.order_no}`,
+      email: identity.customer_email,
+      description: `Wallet top-up #${order.order_no}`,
+    });
+    if (!created.ok) {
+      await db.from("orders").update({ status: "cancelled" }).eq("id", order.id).eq("status", "pending");
+      throw new Error(created.error);
+    }
+    await db.from("orders").update({
+      txid: `OXA-${created.trackId}`,
+      meta: { gateway: "oxapay", wallet_topup: true, oxapay_track_id: created.trackId },
+    }).eq("id", order.id);
+    return { url: created.url, id: order.id, order_no: order.order_no };
+}

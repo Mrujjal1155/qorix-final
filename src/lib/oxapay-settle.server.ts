@@ -48,7 +48,7 @@ async function settleWebsite(info: import("@/lib/oxapay.server").OxapayInfo, set
     return { ok: false, kind: "website", orderNo: order.order_no, reason: "Payment does not belong to this order." };
   if ((order.meta as any)?.oxapay_paid) {
     const { autoDeliver } = await import("@/lib/eps-settle.server");
-    if (order.delivery_type === "auto") await autoDeliver(order);
+    if (order.status === "pending" && order.delivery_type === "auto") await autoDeliver(order);
     return { ok: true, kind: "website", orderNo: order.order_no };
   }
   if (!paymentAttemptOpen(order)) return { ok: false, kind: "website", reason: "Payment expired. Contact support if funds were sent." };

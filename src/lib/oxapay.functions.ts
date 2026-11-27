@@ -37,3 +37,11 @@ export const startConnectedOxapayCheckout = createServerFn({ method: "POST" })
     const { createOxapayCheckout } = await import("@/lib/oxapay-checkout.server");
     return createOxapayCheckout({ ...data, ...customer });
   });
+
+export const startWebsiteOxapayTopup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { amount: number }) => ({ amount: Number(d.amount) }))
+  .handler(async ({ data, context }) => {
+    const { createOxapayWalletTopup } = await import("@/lib/oxapay-checkout.server");
+    return createOxapayWalletTopup({ user_id: context.userId, amount: data.amount });
+  });

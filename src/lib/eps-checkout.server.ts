@@ -105,3 +105,49 @@ export async function createEpsCheckout(data: { product_id: string; quantity: nu
 
     return { url: created.url, order_no: order.order_no as number, amount_bdt: amountBdt };
 }
+
+/** Email-only website wallet: create a hosted EPS payment, then settle through the shared verified-order path. */
+export async function createEpsWalletTopup(data: { user_id: string; amount: number; customer_phone: string }) {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { websiteTopupIdentity, hostedTopupAmount, createWebsiteTopupOrder } = await import("@/lib/website-topup.server");
+    const { epsSettings } = await import("@/lib/eps-settle.server");
+    const { epsConfig, initializePayment, newMerchantTransactionId, usdToBdt } = await import("@/lib/eps.server");
+    const [identity, settings] = await Promise.all([websiteTopupIdentity(data.user_id), epsSettings()]);
+    const amount = hostedTopupAmount(data.amount);
+    const phone = String(data.customer_phone ?? "").replace(/[^\d+]/g, "").slice(0, 20);
+    if (phone.replace(/\D/g, "").length < 11) throw new Error("A valid Bangladeshi mobile number is required");
+    const cfg = epsConfig(settings);
+    if (!cfg.enabled) throw new Error("Card & mobile banking payments are not available right now.");
+    const amountBdt = usdToBdt(amount, cfg.rate);
+    if (!(amountBdt > 0)) throw new Error("Invalid payment amount");
+    const mtid = newMerchantTransactionId();
+    const order = await createWebsiteTopupOrder(identity, {
+      amount, payment_method: "eps", txid: `EPS-${mtid}`,
+      meta: { gateway: "eps", bdt: amountBdt, rate: cfg.rate, phone },
+    });
+
+    const origin = resolveSiteOrigin();
+    const ret = (extra = "") => `${origin}/api/public/eps/return?mtid=${mtid}&wallet=1${extra}`;
+    const created = await initializePayment(cfg, {
+      merchantTransactionId: mtid,
+      customerOrderId: String(order.order_no),
+      amountBdt,
+      successUrl: ret(),
+      failUrl: ret("&state=fail"),
+      cancelUrl: ret("&state=cancel"),
+      customerName: identity.customer_name,
+      customerEmail: identity.customer_email,
+      customerPhone: phone,
+      productName: "Wallet top-up",
+      noOfItem: 1,
+      productCategory: "Digital wallet credit",
+    });
+    if (!created.ok) {
+      await supabaseAdmin.from("orders").update({ status: "cancelled" }).eq("id", order.id).eq("status", "pending");
+      throw new Error(created.error);
+    }
+    await supabaseAdmin.from("orders").update({
+      meta: { gateway: "eps", bdt: amountBdt, rate: cfg.rate, phone, wallet_topup: true, eps_init_id: created.transactionId },
+    } as any).eq("id", order.id);
+    return { url: created.url, id: order.id, order_no: order.order_no, amount_bdt: amountBdt };
+}
