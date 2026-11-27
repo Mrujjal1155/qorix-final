@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft, Bell, BookOpen, Boxes, ChevronLeft, ChevronRight, CircleCheck, CircleX, Code2,
-  Gift, Home, LayoutGrid, LifeBuoy, LogIn, Mail, Minus, Package, Plus, RefreshCw, Send,
+  Gift, Home, LayoutDashboard, LayoutGrid, LifeBuoy, LogIn, Mail, Minus, Package, Plus, RefreshCw, Send,
   ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, User, UserPlus, Wallet, Zap, type LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -171,6 +171,9 @@ export function BotStorefront(props: {
     body = (
       <>
         <BotStartProfile signedIn={signedIn} accountKey={accountKey} onConnect={() => setView({ k: "tg" })} />
+        <Keys cols={1}>
+          <KeyLink tone="green" icon={LayoutDashboard} to="/reseller/start">Reseller Dashboard</KeyLink>
+        </Keys>
         <Keys cols={3}>
           <Key premium="menu_icon_shop" icon={Store} onClick={() => setView({ k: "cats" })}>SHOP</Key>
           <Key premium="ui_icon_prod_cart" icon={ShoppingCart} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>Cart</Key>
