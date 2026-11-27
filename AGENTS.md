@@ -53,3 +53,5 @@
 - Insight initial delivery permits one refund-verified replacement; admin Retry reuses a completed first purchase or buys with a fixed per-order idempotency key so repeats never double-charge.
 - Bot links use single-use private consent and bounded product/quantity/checkout/deposit paths; never trust usernames.
 
+
+- Unified bot/reseller balance mirror triggers use a transaction-local `app.unified_balance_sync` flag, not pg_trigger_depth, so balance changes made inside other triggers still mirror without recursion.
