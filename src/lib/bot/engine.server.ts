@@ -6,7 +6,7 @@ import { cardToTable, saleTable } from "@/lib/bot/alert-table";
 import { bulkDiscountCard } from "@/lib/bot/bulk-discount-card";
 import { productBulkTable } from "@/lib/bot/product-bulk-table";
 import { productDetailsMessage } from "@/lib/bot/product-details-message";
-import { productsBannerUrl, buildProductsBannerCard } from "@/lib/bot/products-banner";
+import { productsBannerUrl, buildProductsBannerCard, flashBannerUrl, buildFlashDealsCard } from "@/lib/bot/products-banner";
 // Server-only Telegram shop bot engine.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { membershipContact } from "@/lib/bot/contact";
@@ -2003,28 +2003,26 @@ async function flashView(chatId?: number) {
       ] as Button[][],
     };
   }
-  const list = products
-    .slice(0, 20)
-    .map((p: any) => {
-      const off = Math.round((1 - Number(p.price) / Number(p.old_price)) * 100);
-      return (
-        `${uiIconHtml(settings, "flash_tag")} <b>${escapeHtml(p.name)}</b> — <s>${money(p.old_price)}</s> → ` +
-        `<b>${money(p.price)}</b> (-${off}%)`
-      );
-    })
-    .join("\n");
+  const rowsData = products.slice(0, 20).map((p: any) => {
+    const off = Math.round((1 - Number(p.price) / Number(p.old_price)) * 100);
+    return [`${productIconHtml(p)} <b>${escapeHtml(p.name)}</b>`, `<s>${money(p.old_price)}</s>`, `<b>${money(p.price)}</b>`, `-${off}%`] as [string, string, string, string];
+  });
   const kb: Button[][] = products
     .slice(0, 20)
     .map((p: any) => [styled(productIconButton(p, `${p.name} · ${money(p.price)}`, `p:${p.id}`), prodRowStyle(p, "primary"))]);
   kb.push([iconButton(settings, "refresh", "flash")]);
   kb.push([iconButton(settings, "shop", "shop:0"), iconButton(settings, "back", "home")]);
   return {
-    text:
-      `${head}${list}\n──────────────\n` +
-      `${uiTag(settings, "flash_timer")}\n<i>Tap a product to grab it before the deal ends:</i>`,
+    text: buildFlashDealsCard({
+      banner: flashBannerUrl(settings),
+      title: uiTag(settings, "shop_flash"),
+      rows: rowsData,
+      footer: `${uiTag(settings, "flash_timer")}<br/><i>Tap a product to grab it before the deal ends:</i>`,
+    }),
     kb,
   };
 }
+
 
 /** "2d 3h 18m" style countdown, or null when the deadline passed / is unset. */
 function countdown(iso?: string | null) {
