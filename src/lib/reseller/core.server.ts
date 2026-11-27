@@ -1,3 +1,4 @@
+import { normalizeInputFields, validateCustomerInputs } from "./customer-inputs";
 import { likeExact } from "@/lib/ilike-escape";
 import { TtlCache, sha256Hex, AUTH_TTL_MS, PRODUCT_TTL_MS, LAST_USED_MIN_GAP_MS } from "./read-cache.server";
 // Server-only core for the public Reseller API (website + bot channels).
@@ -190,7 +191,7 @@ export async function catalogue(reseller: Reseller, channel: Channel) {
     db
       .from("products")
       .select(
-        "id,name,emoji,description,important_note,quick_guide,price,old_price,delivery_type,category_id,sort_order,image_url,delivery_time,badge,featured_rank,supplier_id,supplier_stock,owner_reseller_id,is_active,api_price,flash_ends_at,flash_discount,manual_stock_limited",
+        "id,name,emoji,description,important_note,quick_guide,price,old_price,delivery_type,category_id,sort_order,image_url,delivery_time,badge,featured_rank,supplier_id,supplier_stock,owner_reseller_id,is_active,api_price,flash_ends_at,flash_discount,manual_stock_limited,customer_input_fields",
       )
       .eq("is_active", true)
       .or(`owner_reseller_id.is.null,owner_reseller_id.eq.${reseller.id}`)
@@ -270,6 +271,13 @@ export function publicProduct(
     instant: p.delivery_type === "auto" || Boolean(p.supplier_id),
     stock,
     in_stock: stock > 0 || (p.delivery_type !== "auto" && !p.manual_stock_limited),
+    customer_input_fields: normalizeInputFields(p.customer_input_fields).fields,
+    customer_input_configuration_valid: normalizeInputFields(p.customer_input_fields).valid,
+    stock_known: true,
+    stock_unlimited: p.delivery_type !== "auto" && !p.manual_stock_limited,
+    min_qty: 1,
+    max_qty: 50,
+    units_per_item: 1,
     featured_rank: Number(p.featured_rank ?? 0),
     sort_order: Number(p.sort_order ?? 0),
   };
@@ -279,7 +287,7 @@ export async function singleProduct(reseller: Reseller, id: string) {
   const { data: p } = await db
     .from("products")
     .select(
-      "id,name,emoji,description,important_note,quick_guide,price,old_price,delivery_type,category_id,sort_order,image_url,delivery_time,badge,featured_rank,supplier_id,supplier_stock,owner_reseller_id,api_price,flash_ends_at,flash_discount,manual_stock_limited",
+      "id,name,emoji,description,important_note,quick_guide,price,old_price,delivery_type,category_id,sort_order,image_url,delivery_time,badge,featured_rank,supplier_id,supplier_stock,owner_reseller_id,api_price,flash_ends_at,flash_discount,manual_stock_limited,customer_input_fields",
     )
     .eq("id", id)
     .eq("is_active", true)
@@ -317,6 +325,11 @@ export function orderPayload(o: any) {
     status: o.status,
     delivery_type: o.delivery_type,
     items: o.delivered_content ? String(o.delivered_content).split("\n---\n") : [],
+    idempotency_key: o.external_ref ?? null,
+    qty: o.quantity,
+    total_cents: Math.round(Number(o.total) * 100),
+    delivered_item_count: o.delivered_content ? String(o.delivered_content).split("\n---\n").length : 0,
+    created_at_unix: o.created_at ? Math.floor(Date.parse(String(o.created_at)) / 1000) : null,
     ...(o.meta?.reseller_owner_rule || o.meta?.refunded === true ? { refunded: o.meta?.refunded === true } : {}),
     customer_name: o.customer_name ?? null,
     customer_email: o.customer_email ?? null,
@@ -329,7 +342,7 @@ export function orderPayload(o: any) {
  * Cancel/expiry never refunds. Unknown delivery outcomes require readback. */
 export async function purchase(
   reseller: Reseller,
-  input: { product_id: string; quantity: number; external_ref?: string | null; customer_name?: string | null; customer_email?: string | null; channel: Channel },
+  input: { product_id: string; quantity: number; external_ref?: string | null; customer_name?: string | null; customer_email?: string | null; customer_inputs?: unknown; channel: Channel },
 ) {
   const qty = Math.max(1, Math.min(50, Math.floor(Number(input.quantity) || 1)));
 
@@ -345,10 +358,21 @@ export async function purchase(
 
   const { data: p } = await db
     .from("products")
-    .select("id,name,price,delivery_type,is_active,supplier_id,supplier_external_id,supplier_stock,owner_reseller_id,api_price,flash_ends_at,flash_discount,manual_stock_limited")
+    .select("id,name,price,delivery_type,is_active,supplier_id,supplier_external_id,supplier_stock,owner_reseller_id,api_price,flash_ends_at,flash_discount,manual_stock_limited,customer_input_fields")
     .eq("id", input.product_id)
     .maybeSingle();
   if (!p || !p.is_active) return { ok: false as const, status: 404, error: "Product not found" };
+  // Buyer inputs are validated before any stock check, reservation or debit.
+  const inputConfig = normalizeInputFields(p.customer_input_fields);
+  if (!inputConfig.valid) return { ok: false as const, status: 409, code: "input_configuration_invalid", error: "Product temporarily unavailable" };
+  let customerInputs: Record<string, string> = {};
+  if (inputConfig.fields.length) {
+    const checked = validateCustomerInputs(inputConfig.fields, input.customer_inputs, input.customer_email);
+    if (!checked.ok) return { ok: false as const, status: 400, code: "invalid_customer_inputs", error: checked.error };
+    customerInputs = checked.values;
+    const emailField = inputConfig.fields.find((f) => f.type === "email");
+    if (emailField && customerInputs[emailField.key]) input = { ...input, customer_email: customerInputs[emailField.key] ?? null };
+  }
   if (p.owner_reseller_id && p.owner_reseller_id !== reseller.id)
     return { ok: false as const, status: 404, error: "Product not found" };
 
@@ -398,7 +422,7 @@ export async function purchase(
       unit_price: unit,
       total,
       status: "pending",
-      meta: { reseller_owner_rule: true, refunded: false },
+      meta: { reseller_owner_rule: true, refunded: false, ...(Object.keys(customerInputs).length ? { customer_inputs: customerInputs } : {}) },
       delivery_type: p.delivery_type,
       customer_name: input.customer_name ?? reseller.name,
       customer_email: input.customer_email ?? null,

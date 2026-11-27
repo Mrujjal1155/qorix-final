@@ -90,7 +90,7 @@ const core = await import("../../src/lib/reseller/core.server");
 const { Route: postRoute } = await import("../../src/routes/api/public/reseller/v1/orders");
 const { Route: getRoute } = await import("../../src/routes/api/public/reseller/v1/orders.$id");
 const input = { product_id: "product", quantity: 1, channel: "website" as const, external_ref: "test-order" };
-const deliveryFailure = { ok: false, code: "delivery_failed", refunded: true, error: "Delivery failed — please try again later." };
+const deliveryFailure = { ok: false, code: "delivery_failed", refunded: true, error: "Product temporarily unavailable" };
 
 beforeEach(() => {
   product = { id: "product", name: "Subscription", price: 10, delivery_type: "auto", is_active: true, supplier_id: null, supplier_external_id: null, supplier_stock: 10 };

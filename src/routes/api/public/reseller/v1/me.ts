@@ -15,6 +15,7 @@ export const Route = createFileRoute("/api/public/reseller/v1/me")({
             id: r.id,
             name: r.name,
             balance: Number(r.balance),
+            balance_cents: Math.round(Number(r.balance) * 100),
             currency: "USD",
             discount_percent: Number(r.discount_percent),
             channels: { website: r.allow_website, bot: r.allow_bot },

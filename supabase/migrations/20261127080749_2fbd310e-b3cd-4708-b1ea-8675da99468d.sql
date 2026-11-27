@@ -1,0 +1,2 @@
+ALTER TABLE public.products ADD COLUMN IF NOT EXISTS customer_input_fields jsonb NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE public.products ADD CONSTRAINT products_customer_input_fields_array CHECK (jsonb_typeof(customer_input_fields) = 'array');

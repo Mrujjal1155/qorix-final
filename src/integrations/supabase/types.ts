@@ -942,6 +942,7 @@ export type Database = {
           cost_price: number | null
           created_at: string
           customer_alerts_enabled: boolean
+          customer_input_fields: Json
           delivery_time: string | null
           delivery_type: string
           description: string | null
@@ -980,6 +981,7 @@ export type Database = {
           cost_price?: number | null
           created_at?: string
           customer_alerts_enabled?: boolean
+          customer_input_fields?: Json
           delivery_time?: string | null
           delivery_type?: string
           description?: string | null
@@ -1018,6 +1020,7 @@ export type Database = {
           cost_price?: number | null
           created_at?: string
           customer_alerts_enabled?: boolean
+          customer_input_fields?: Json
           delivery_time?: string | null
           delivery_type?: string
           description?: string | null

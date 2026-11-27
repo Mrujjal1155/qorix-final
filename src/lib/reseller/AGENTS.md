@@ -1,3 +1,3 @@
 - New reseller purchase transfers use order-locked RPCs that persist order metadata and ledger together; terminal refunds cannot retry, because separate balance/status writes can double-credit or deliver unpaid stock.
 - Unknown external delivery outcomes stay pending for reconciliation; never infer rejection from message text or race legacy retry against a new purchase.
-- New reseller completion uses order-locked current-row saves and confirmed readback; never return in-memory completed fallbacks or replace financial identity from a stale reservation.
+- New reseller completion uses order-locked current-row saves and confirmed readback; never return in-memory completed fallbacks or replace financial identity from a stale reservation.- New reseller API fields stay additive next to legacy names (external_ref/quantity/decimal money); buyer input rules live in src/lib/reseller/customer-inputs.ts and are validated before any charge.

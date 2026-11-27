@@ -447,14 +447,24 @@ export const saveProduct = createServerFn({ method: "POST" })
       /** Telegram-bot pre-order when out of stock, with extra percent. */
       preorder_enabled?: boolean;
       preorder_percent?: number;
+      /** Buyer fields the reseller API asks for (email/username/phone/text). */
+      customer_input_fields?: unknown;
     }) => d,
   )
   .handler(async ({ data, context }) => {
     const sb = (context as any).supabase;
     await assertAdmin(context);
-    const { id, price_override, ...rest } = data;
+    const { id, price_override, customer_input_fields, ...rest } = data;
+    let inputFields: unknown[] | undefined;
+    if (customer_input_fields !== undefined) {
+      const { normalizeInputFields } = await import("@/lib/reseller/customer-inputs");
+      const norm = normalizeInputFields(customer_input_fields);
+      if (!norm.valid) throw new Error("Buyer fields: each needs a unique key (lowercase letters, digits, _), a label and a type.");
+      inputFields = norm.fields;
+    }
     const row = {
       ...rest,
+      ...(inputFields !== undefined ? { customer_input_fields: inputFields } : {}),
       category_id: rest.category_id || null,
       old_price: rest.old_price ?? null,
       image_url: rest.image_url || null,

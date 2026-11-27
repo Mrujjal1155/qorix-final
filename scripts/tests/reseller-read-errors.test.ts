@@ -5,7 +5,7 @@ mock.module("@tanstack/react-router", () => ({ createFileRoute: () => (options: 
 mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
   from(table: string) {
     const result = () => table === "resellers" ? {data:{id:"fixture",is_active:true,balance:10,allow_website:true,allow_bot:true},error:null} : {data:null,error:errorMode?{message:"private diagnostic"}:null};
-    const q:any={select:()=>q,eq:()=>q,or:()=>q,order:()=>q,update:()=>q,limit:(n:number)=>{seenLimit=n;return q;},maybeSingle:async()=>result(),then:(r:any,j:any)=>Promise.resolve(result()).then(r,j)};return q;
+    const q:any={select:()=>q,eq:()=>q,or:()=>q,order:()=>q,update:()=>q,limit:(n:number)=>{seenLimit=n;return q;},range:(a:number,b:number)=>{seenLimit=b-a+1;return q;},maybeSingle:async()=>result(),then:(r:any,j:any)=>Promise.resolve(result()).then(r,j)};return q;
   },
 }}));
 const { Route: orders }=await import("../../src/routes/api/public/reseller/v1/orders");

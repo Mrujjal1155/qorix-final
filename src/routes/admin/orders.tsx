@@ -587,6 +587,14 @@ function OrdersPage() {
                    <b style={active.supplier_name ? { color: supplierStyle(active.supplier_name).color } : undefined}>{active.supplier_name ? `API · ${active.supplier_name}` : "Own stock (manual)"}</b>
                   {active.supplier_external_id ? ` · product ID ${active.supplier_external_id}` : ""}
                 </div>
+                {active.meta?.customer_inputs && typeof active.meta.customer_inputs === "object" && (
+                  <div className="mt-1 space-y-0.5">
+                    <div className="font-semibold">Buyer info (API):</div>
+                    {Object.entries(active.meta.customer_inputs as Record<string, string>).map(([k, v]) => (
+                      <div key={k} className="break-all">{k}: <b className="select-all">{String(v)}</b></div>
+                    ))}
+                  </div>
+                )}
                 {Array.isArray(active.meta?.manual_input) && active.meta.manual_input.length > 0 && (
                   <div className="mt-2">
                     <div className="flex items-center justify-between">

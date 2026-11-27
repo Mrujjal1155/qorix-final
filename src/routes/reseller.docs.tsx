@@ -38,6 +38,7 @@ const NAV: [string, string, LucideIcon][] = [
   ["ep-product", "GET /products/{id}", Search],
   ["ep-create-order", "POST /orders", ShoppingCart],
   ["ep-order", "GET /orders/{id}", FileText],
+  ["ep-idem", "GET /orders/by-idempotency", Search],
   ["ep-orders", "GET /orders", FolderOpen],
   ["ep-transactions", "GET /transactions", CreditCard],
   ["statuses", "Order statuses", RefreshCw],
@@ -217,6 +218,11 @@ function DocsPage() {
     "status": "completed",
     "delivery_type": "auto",
     "items": ["email1@x.com:pass1", "email2@x.com:pass2"],
+    "idempotency_key": "mybot-20261127-0001",
+    "qty": 2,
+    "total_cents": 850,
+    "delivered_item_count": 2,
+    "created_at_unix": 1795765930,
     "customer_name": null,
     "customer_email": null,
     "created_at": "2026-11-27T07:52:10.123Z"
@@ -320,8 +326,8 @@ Auth header: Authorization: Bearer <API_KEY> (keep the key on the server only)
 Endpoints: GET /me, GET /products, GET /products/{id}, POST /orders, GET /orders/{id}, GET /orders, GET /transactions
 Rules:
 - Every response has "ok": true/false; on false show "error".
-- POST /orders body: product_id (string), quantity (1-50), external_ref (my unique order id), customer_email (only for products that need it).
-- Always send a unique external_ref; on timeout retry with the SAME external_ref, never a new one.
+- POST /orders body: product_id (string), qty (1-50), customer_inputs (object with the exact keys from the product's customer_input_fields, when not empty). Send a unique Idempotency-Key header.
+- On timeout retry with the SAME Idempotency-Key, or check GET /orders/by-idempotency/{key}; never use a new key to recover.
 - If order.status is "pending", poll GET /orders/{id} every 5-10s until "completed" or "failed".
 - Deliver every string in order.items to the buyer.
 - On 409 show the buyer "Product temporarily unavailable"; do not retry automatically.
@@ -383,7 +389,9 @@ X-API-Key: YOUR_API_KEY`}</Code>
                 ["GET", <C key="3">/products/{"{id}"}</C>, "One product (refresh before checkout)"],
                 ["POST", <C key="4">/orders</C>, "Place an order and receive items"],
                 ["GET", <C key="5">/orders/{"{id}"}</C>, "One order — poll pending orders here"],
+                ["GET", <C key="8">/orders/by-idempotency/{"{key}"}</C>, "Recover an order by your key"],
                 ["GET", <C key="6">/orders</C>, "Your order history, newest first"],
+                ["GET", <C key="9">/ (base URL)</C>, "Public health check — no key needed"],
                 ["GET", <C key="7">/transactions</C>, "Balance history (top-ups, orders, refunds)"],
               ]}
             />
@@ -400,6 +408,7 @@ X-API-Key: YOUR_API_KEY`}</Code>
     "id": "…",
     "name": "My Shop",
     "balance": 100.0,
+    "balance_cents": 10000,
     "currency": "USD",
     "discount_percent": 5,
     "channels": { "website": true, "bot": true }
@@ -431,6 +440,8 @@ X-API-Key: YOUR_API_KEY`}</Code>
                   [<C key="f">quick_guide / important_note</C>, "instructions to show your buyer"],
                   [<C key="g">delivery_time, badge, image_url, emoji</C>, "display helpers (may be null)"],
                   [<C key="h">flash_sale_ends_at / old_price</C>, "flash sale end time and crossed-out price (may be null)"],
+                  [<C key="j">min_qty / max_qty / units_per_item</C>, "allowed quantity per order (1–50) and units per item (1)"],
+                  [<C key="k">stock_known / stock_unlimited</C>, "true when the count is exact / when the product has no stock limit"],
                   [<C key="i">own</C>, "true for products you upload yourself (price 0)"],
                 ]}
               />
@@ -450,8 +461,8 @@ X-API-Key: YOUR_API_KEY`}</Code>
                 head={["Body field", "Required", "Meaning"]}
                 rows={[
                   [<C key="1">product_id</C>, "yes", "product id from /products"],
-                  [<C key="2">quantity</C>, "no", "1–50, default 1"],
-                  [<C key="3">external_ref</C>, "recommended", "your own unique order id (max 120 chars) — prevents duplicates"],
+                  [<C key="2">quantity</C>, "no", "1–50, default 1 (qty also accepted)"],
+                  [<C key="3">external_ref</C>, "recommended", "your own unique order id (max 120 chars) — prevents duplicates. Same as the Idempotency-Key header or idempotency_key field"],
                   [<C key="4">customer_email</C>, "only if needed", "buyer email for products that need it (see below)"],
                   [<C key="5">customer_name</C>, "no", "buyer name for your records (max 80 chars)"],
                   [<C key="6">channel</C>, "no", "website (default) or bot"],
@@ -459,11 +470,12 @@ X-API-Key: YOUR_API_KEY`}</Code>
               />
               <Code label="curl">{`curl -X POST ${base}/orders \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Idempotency-Key: mybot-20261127-0001" \\
   -H "Content-Type: application/json" \\
-  -d '{"product_id":"PRODUCT_ID","quantity":2,"external_ref":"mybot-20261127-0001"}'`}</Code>
+  -d '{"product_id":"PRODUCT_ID","qty":2}'`}</Code>
               <Code label="response 201">{orderJson}</Code>
               <p>
-                <b>201</b> = order accepted. If the <C>external_ref</C> was already used, you get the existing order back with <C>"duplicate": true</C> and nothing is charged again. If the order is still being delivered you get <C>"status": "pending"</C> and <C>"submitted": true</C> — poll <C>GET /orders/{"{id}"}</C>.
+                <b>201</b> = new order. <b>200</b> = the key was already used: you get the existing order back with <C>"duplicate": true</C> and nothing is charged again. A header key that differs from the body key returns <C>409 idempotency_mismatch</C>. If the order is still being delivered you get <C>"status": "pending"</C> and <C>"submitted": true</C> — poll <C>GET /orders/{"{id}"}</C>.
               </p>
             </Endpoint>
 
@@ -473,8 +485,14 @@ X-API-Key: YOUR_API_KEY`}</Code>
   -H "Authorization: Bearer YOUR_API_KEY"`}</Code>
             </Endpoint>
 
+            <Endpoint id="ep-idem" method="GET" path="/orders/by-idempotency/{key}" title="Find an order by your key">
+              <p>Read-only recovery when a response was lost. Returns the order created with that <C>Idempotency-Key</C> / <C>external_ref</C>, or <C>404</C> if none exists — then it is safe to order again.</p>
+              <Code label="curl">{`curl ${base}/orders/by-idempotency/mybot-20261127-0001 \\
+  -H "Authorization: Bearer YOUR_API_KEY"`}</Code>
+            </Endpoint>
+
             <Endpoint id="ep-orders" method="GET" path="/orders" title="Order history">
-              <p>Newest first. <C>?limit=</C> 1–100 (default 50).</p>
+              <p>Newest first. <C>?limit=</C> 1–100 (default 50), <C>?offset=</C> to page (default 0). Stop when a page is shorter than the limit.</p>
               <Code label="curl">{`curl "${base}/orders?limit=20" \\
   -H "Authorization: Bearer YOUR_API_KEY"`}</Code>
               <Code label="response 200">{`{ "ok": true, "orders": [ { "id": "…", "status": "completed", … } ] }`}</Code>
@@ -505,29 +523,49 @@ X-API-Key: YOUR_API_KEY`}</Code>
             <Callout>Only the entries in <C>items</C> are delivered. Pending means paid but not delivered yet.</Callout>
           </Section>
 
-          <Section id="customer-info" icon={Mail} title="Products that need buyer info (email)">
+          <Section id="customer-info" icon={Mail} title="Products that need buyer info">
             <p>
-              Some products are delivered by the shop to a buyer account, for example an invite sent to an email address. These products have{" "}
-              <C>"delivery_type": "manual"</C> and the product description tells you what is needed.
+              Some products are delivered to a buyer account — for example an invite sent to an email address. Each product lists exactly what it needs in{" "}
+              <C>customer_input_fields</C>. An empty list means nothing is needed.
             </p>
             <Steps
               items={[
-                ["Find the product", <span key="a"><C>delivery_type: "manual"</C></span>],
-                ["Ask your buyer", "collect their email"],
-                ["Submit order", <span key="c"><C>customer_email</C> in the body</span>],
+                ["Discover", <span key="a"><C>customer_input_fields</C></span>],
+                ["Ask your buyer", "build your form from the fields"],
+                ["Submit order", <span key="c"><C>customer_inputs</C></span>],
                 ["Poll result", <C key="d">GET /orders/{"{id}"}</C>],
               ]}
             />
+            <Code label="product (part)">{`{
+  "id": "8f2c…",
+  "name": "Canva Edu Slot",
+  "delivery_type": "manual",
+  "min_qty": 1, "max_qty": 50,
+  "customer_input_configuration_valid": true,
+  "customer_input_fields": [
+    { "key": "canva_email", "label": "Canva account email", "type": "email", "required": true }
+  ]
+}`}</Code>
             <Code label="curl">{`curl -X POST ${base}/orders \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Idempotency-Key: invite-0001" \\
   -H "Content-Type: application/json" \\
-  -d '{"product_id":"PRODUCT_ID","quantity":1,
-       "external_ref":"invite-0001",
-       "customer_email":"buyer@example.com"}'`}</Code>
-            <p>
-              You can also send <C>{`"customer_inputs": {"email": "buyer@example.com"}`}</C> — it is treated the same way. The order returns <C>pending</C>, then becomes{" "}
-              <C>completed</C> with a confirmation in <C>items</C>, or <C>failed</C> with an automatic refund.
-            </p>
+  -d '{"product_id":"PRODUCT_ID","qty":1,"customer_inputs":{"canva_email":"buyer@example.com"}}'`}</Code>
+            <Table
+              head={["type", "Rule"]}
+              rows={[
+                ["email", "valid email, max 254 characters"],
+                ["username", "3–32 letters, digits, _ or . — a leading @ is removed"],
+                ["phone", "7–15 digits, optional leading +; spaces are removed"],
+                ["text", "max 200 characters, no control characters"],
+              ]}
+            />
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Use the exact <C>key</C> values. Unknown keys, numbers or arrays are rejected with <C>400 invalid_customer_inputs</C> <b>before</b> any charge.</li>
+              <li>Products with one email field also accept <C>{`{"email": "…"}`}</C> or a top-level <C>customer_email</C>.</li>
+              <li>If <C>customer_input_configuration_valid</C> is false, the product cannot be ordered right now — contact support.</li>
+              <li>The order returns <C>pending</C>, then becomes <C>completed</C> with a confirmation in <C>items</C>, or <C>failed</C> with an automatic refund.</li>
+            </ul>
           </Section>
 
           <Section id="duplicates" icon={Repeat} title="No duplicate orders">
@@ -557,7 +595,9 @@ X-API-Key: YOUR_API_KEY`}</Code>
             <Table
               head={["HTTP", "error / code", "Meaning", "Charged?"]}
               rows={[
-                ["400", "product_id is required / Invalid JSON body", "Request is malformed", "No"],
+                ["400", "product_id is required / Invalid JSON body / quantity …", "Request is malformed", "No"],
+                ["400", <span key="ci"><C>invalid_customer_inputs</C></span>, "Buyer info missing or invalid", "No"],
+                ["409", <span key="im"><C>idempotency_mismatch</C></span>, "Header and body keys differ", "No"],
                 ["401", "Missing API key / Invalid API key", "Check your key and header", "No"],
                 ["402", "Insufficient balance", "Top up; response includes balance and required", "No"],
                 ["403", "…access is disabled", "Account or channel disabled", "No"],
@@ -666,6 +706,7 @@ echo $r["ok"] ? implode("\\n", $r["order"]["items"]) : $r["error"];`,
 
           <Section id="changelog" icon={NotebookPen} title="Changelog">
             <ul className="space-y-2">
+              <li><b className="text-foreground">v1.3</b> — Per-product buyer fields (<C>customer_input_fields</C> / <C>customer_inputs</C>), Idempotency-Key header, <C>qty</C> alias, order lookup by key, <C>offset</C> paging, <C>*_cents</C> money fields, quantity rules on products and a public health check. Older fields keep working.</li>
               <li><b className="text-foreground">v1.2</b> — Buyer email accepted as <C>customer_inputs.email</C>; unavailable deliveries now return “Product temporarily unavailable”. New step-by-step docs.</li>
               <li><b className="text-foreground">v1.1</b> — Unit prices with up to 4 decimals.</li>
               <li><b className="text-foreground">v1.0</b> — Products, orders, balance and transactions.</li>

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { EMPTY_MANUAL_INPUT, type ManualInputConfig } from "@/lib/manual-input";
+import { normalizeInputFields, type CustomerInputField, type CustomerInputType } from "@/lib/reseller/customer-inputs";
 import { ArrowDown, ArrowLeft, ArrowUp, Boxes, Check, EyeOff, Filter, FolderTree, Pencil, PlusCircle, Search, Sparkles, X } from "lucide-react";
 import { categoryNameSchema, moveCategoryToPosition } from "@/lib/category-edit";
 import {
@@ -71,6 +72,7 @@ const EMPTY = {
   api_price: "" as string | number,
   cost_price: "" as string | number,
   manual_stock: "" as string | number,
+  customer_input_fields: [] as CustomerInputField[],
   preorder_enabled: false,
   preorder_percent: 5 as string | number,
   supplier_id: "" as string,
@@ -339,6 +341,7 @@ function ProductsPage() {
           is_active: form.is_active,
           customer_alerts_enabled: form.customer_alerts_enabled,
           sort_order: Number(form.sort_order),
+          customer_input_fields: form.customer_input_fields,
           ...(form.id && form.supplier_id
             ? { price_override: form.price_override === "" ? null : Number(form.price_override) }
             : {}),
@@ -389,6 +392,7 @@ function ProductsPage() {
       api_price: (p as any).api_price ?? "",
       cost_price: (p as any).cost_price ?? "",
       manual_stock: p.delivery_type === "manual" && (p as any).manual_stock_limited ? Number((p as any).stock ?? 0) : "",
+      customer_input_fields: normalizeInputFields((p as any).customer_input_fields).fields,
       preorder_enabled: Boolean((p as any).preorder_enabled),
       preorder_percent: (p as any).preorder_percent ?? 5,
       supplier_id: p.supplier_id ?? "",
@@ -876,6 +880,10 @@ function ProductsPage() {
             )}
           </div>
         )}
+        <BuyerFieldsEditor
+          fields={form.customer_input_fields}
+          onChange={(customer_input_fields) => setForm({ ...form, customer_input_fields })}
+        />
         <div className="space-y-1 sm:col-span-2">
           <Label>Website image — upload or URL (website only, never sent to the bot)</Label>
           <ImageUploadField
@@ -1340,6 +1348,40 @@ function TopProductLists({ products }: { products: any[] }) {
       </div>
       {kind === "vault" && <p className="text-sm text-muted-foreground">Products picked here appear in the bot's secret "Reseller Vault" button, in this serial order. Sold-out picks stay listed and are marked.</p>}
       <TelegramTopProducts key={kind} kind={kind} products={products} />
+    </div>
+  );
+}
+
+function BuyerFieldsEditor({ fields, onChange }: { fields: CustomerInputField[]; onChange: (f: CustomerInputField[]) => void }) {
+  const set = (i: number, patch: Partial<CustomerInputField>) => onChange(fields.map((f, j) => (j === i ? { ...f, ...patch } : f)));
+  return (
+    <div className="space-y-3 rounded-md border border-border bg-muted/40 p-3 sm:col-span-2">
+      <div>
+        <div className="text-sm font-semibold">Reseller API — buyer info to collect</div>
+        <p className="text-xs text-muted-foreground">Resellers see these fields in the API and must send them with the order. Empty = nothing asked.</p>
+      </div>
+      {fields.map((f, i) => (
+        <div key={i} className="grid gap-2 rounded-md border border-border bg-background p-2 sm:grid-cols-[1fr_1fr_140px_auto_auto] sm:items-center">
+          <Input placeholder="Label (e.g. Canva account email)" value={f.label} maxLength={80} onChange={(e) => set(i, { label: e.target.value })} />
+          <Input placeholder="key (e.g. canva_email)" value={f.key} maxLength={40} onChange={(e) => set(i, { key: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "") })} />
+          <select className="h-9 rounded-md border border-input bg-background px-2 text-sm" value={f.type} onChange={(e) => set(i, { type: e.target.value as CustomerInputType })}>
+            <option value="email">Email</option>
+            <option value="username">Username</option>
+            <option value="phone">Phone</option>
+            <option value="text">Text</option>
+          </select>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={f.required} onChange={(e) => set(i, { required: e.target.checked })} />
+            Required
+          </label>
+          <Button type="button" variant="ghost" size="sm" onClick={() => onChange(fields.filter((_, j) => j !== i))}>Remove</Button>
+        </div>
+      ))}
+      {fields.length < 10 && (
+        <Button type="button" variant="outline" size="sm" onClick={() => onChange([...fields, { key: fields.length ? `field_${fields.length + 1}` : "email", label: "", type: "email", required: true }])}>
+          + Add buyer field
+        </Button>
+      )}
     </div>
   );
 }

@@ -12,13 +12,14 @@ export const Route = createFileRoute("/api/public/reseller/v1/orders")({
         if ("error" in auth) return auth.error;
         const url = new URL(request.url);
         const limit = resellerOrderLimit(url.searchParams.get("limit"));
+        const offset = Math.max(0, Math.floor(Number(url.searchParams.get("offset") ?? 0)) || 0);
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const { data, error } = await (supabaseAdmin as any)
           .from("orders")
           .select("*")
           .eq("reseller_id", auth.reseller.id)
           .order("created_at", { ascending: false })
-          .limit(limit);
+          .range(offset, offset + limit - 1);
         if (error) return core.fail("Order history is temporarily unavailable", 503);
         return core.json({ ok: true, orders: (data ?? []).map(core.orderPayload) });
       },
@@ -39,7 +40,12 @@ export const Route = createFileRoute("/api/public/reseller/v1/orders")({
         if ("error" in auth) return auth.error;
 
         if (!body["product_id"]) return core.fail("product_id is required");
-        const quantity = parseOrderQuantity(body["quantity"]);
+        const quantity = parseOrderQuantity(body["quantity"] ?? body["qty"]);
+        const headerKey = request.headers.get("idempotency-key")?.trim() || null;
+        const bodyKey = body["idempotency_key"] ?? body["external_ref"];
+        const bodyRef = typeof bodyKey === "string" && bodyKey.trim() ? bodyKey.trim() : null;
+        if (headerKey && bodyRef && headerKey !== bodyRef) return core.fail("Idempotency-Key header and idempotency_key/external_ref must match", 409, { code: "idempotency_mismatch" });
+        const ref = headerKey ?? bodyRef;
         if (quantity === null) return core.fail("quantity must be a whole number from 1 to 50");
         const inputs = isOrderRequestObject(body["customer_inputs"]) ? body["customer_inputs"] : {};
         const rawEmail = body["customer_email"] ?? body["email"] ?? inputs["email"];
@@ -52,9 +58,10 @@ export const Route = createFileRoute("/api/public/reseller/v1/orders")({
         const work = core.purchase(auth.reseller, {
           product_id: String(body["product_id"]),
           quantity,
-          external_ref: body["external_ref"] ? String(body["external_ref"]).slice(0, 120) : null,
+          external_ref: ref ? ref.slice(0, 120) : null,
           customer_name: body["customer_name"] ? String(body["customer_name"]).slice(0, 80) : null,
           customer_email: email,
+          customer_inputs: body["customer_inputs"],
           channel,
         });
         const { backgroundWaitUntil } = await import("@/lib/bg.server");
@@ -64,7 +71,7 @@ export const Route = createFileRoute("/api/public/reseller/v1/orders")({
           const { ok: _ok, status, ...rest } = result as any;
           return core.json({ ok: false, ...rest }, status ?? 400);
         }
-        return core.json(result, 201);
+        return core.json(result, (result as { duplicate?: boolean }).duplicate ? 200 : 201);
       },
     },
   },

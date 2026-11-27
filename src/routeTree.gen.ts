@@ -77,6 +77,7 @@ import { Route as ApiPublicSuppliersWebhookRouteImport } from './routes/api/publ
 import { Route as ApiPublicTelegramRegisterRouteImport } from './routes/api/public/telegram/register'
 import { Route as ApiPublicTelegramWebhookRouteImport } from './routes/api/public/telegram/webhook'
 import { Route as ApiPublicOrderFileTokenNameRouteImport } from './routes/api/public/order-file/$token/$name'
+import { Route as ApiPublicResellerV1IndexRouteImport } from './routes/api/public/reseller/v1/index'
 import { Route as ApiPublicResellerV1SplatRouteImport } from './routes/api/public/reseller/v1/$'
 import { Route as ApiPublicResellerV1MeRouteImport } from './routes/api/public/reseller/v1/me'
 import { Route as ApiPublicResellerV1OrdersRouteImport } from './routes/api/public/reseller/v1/orders'
@@ -84,6 +85,7 @@ import { Route as ApiPublicResellerV1ProductsRouteImport } from './routes/api/pu
 import { Route as ApiPublicResellerV1TransactionsRouteImport } from './routes/api/public/reseller/v1/transactions'
 import { Route as ApiPublicResellerV1OrdersIdRouteImport } from './routes/api/public/reseller/v1/orders.$id'
 import { Route as ApiPublicResellerV1ProductsIdRouteImport } from './routes/api/public/reseller/v1/products.$id'
+import { Route as ApiPublicResellerV1OrdersByIdempotencyKeyRouteImport } from './routes/api/public/reseller/v1/orders.by-idempotency.$key'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -436,6 +438,12 @@ const ApiPublicOrderFileTokenNameRoute =
     path: '/api/public/order-file/$token/$name',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicResellerV1IndexRoute =
+  ApiPublicResellerV1IndexRouteImport.update({
+    id: '/api/public/reseller/v1/',
+    path: '/api/public/reseller/v1/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicResellerV1SplatRoute =
   ApiPublicResellerV1SplatRouteImport.update({
     id: '/api/public/reseller/v1/$',
@@ -476,6 +484,12 @@ const ApiPublicResellerV1ProductsIdRoute =
     id: '/$id',
     path: '/$id',
     getParentRoute: () => ApiPublicResellerV1ProductsRoute,
+  } as any)
+const ApiPublicResellerV1OrdersByIdempotencyKeyRoute =
+  ApiPublicResellerV1OrdersByIdempotencyKeyRouteImport.update({
+    id: '/by-idempotency/$key',
+    path: '/by-idempotency/$key',
+    getParentRoute: () => ApiPublicResellerV1OrdersRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -551,8 +565,10 @@ export interface FileRoutesByFullPath {
   '/api/public/reseller/v1/orders': typeof ApiPublicResellerV1OrdersRouteWithChildren
   '/api/public/reseller/v1/products': typeof ApiPublicResellerV1ProductsRouteWithChildren
   '/api/public/reseller/v1/transactions': typeof ApiPublicResellerV1TransactionsRoute
+  '/api/public/reseller/v1/': typeof ApiPublicResellerV1IndexRoute
   '/api/public/reseller/v1/orders/$id': typeof ApiPublicResellerV1OrdersIdRoute
   '/api/public/reseller/v1/products/$id': typeof ApiPublicResellerV1ProductsIdRoute
+  '/api/public/reseller/v1/orders/by-idempotency/$key': typeof ApiPublicResellerV1OrdersByIdempotencyKeyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -626,8 +642,10 @@ export interface FileRoutesByTo {
   '/api/public/reseller/v1/orders': typeof ApiPublicResellerV1OrdersRouteWithChildren
   '/api/public/reseller/v1/products': typeof ApiPublicResellerV1ProductsRouteWithChildren
   '/api/public/reseller/v1/transactions': typeof ApiPublicResellerV1TransactionsRoute
+  '/api/public/reseller/v1': typeof ApiPublicResellerV1IndexRoute
   '/api/public/reseller/v1/orders/$id': typeof ApiPublicResellerV1OrdersIdRoute
   '/api/public/reseller/v1/products/$id': typeof ApiPublicResellerV1ProductsIdRoute
+  '/api/public/reseller/v1/orders/by-idempotency/$key': typeof ApiPublicResellerV1OrdersByIdempotencyKeyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -704,8 +722,10 @@ export interface FileRoutesById {
   '/api/public/reseller/v1/orders': typeof ApiPublicResellerV1OrdersRouteWithChildren
   '/api/public/reseller/v1/products': typeof ApiPublicResellerV1ProductsRouteWithChildren
   '/api/public/reseller/v1/transactions': typeof ApiPublicResellerV1TransactionsRoute
+  '/api/public/reseller/v1/': typeof ApiPublicResellerV1IndexRoute
   '/api/public/reseller/v1/orders/$id': typeof ApiPublicResellerV1OrdersIdRoute
   '/api/public/reseller/v1/products/$id': typeof ApiPublicResellerV1ProductsIdRoute
+  '/api/public/reseller/v1/orders/by-idempotency/$key': typeof ApiPublicResellerV1OrdersByIdempotencyKeyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -782,8 +802,10 @@ export interface FileRouteTypes {
     | '/api/public/reseller/v1/orders'
     | '/api/public/reseller/v1/products'
     | '/api/public/reseller/v1/transactions'
+    | '/api/public/reseller/v1/'
     | '/api/public/reseller/v1/orders/$id'
     | '/api/public/reseller/v1/products/$id'
+    | '/api/public/reseller/v1/orders/by-idempotency/$key'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -857,8 +879,10 @@ export interface FileRouteTypes {
     | '/api/public/reseller/v1/orders'
     | '/api/public/reseller/v1/products'
     | '/api/public/reseller/v1/transactions'
+    | '/api/public/reseller/v1'
     | '/api/public/reseller/v1/orders/$id'
     | '/api/public/reseller/v1/products/$id'
+    | '/api/public/reseller/v1/orders/by-idempotency/$key'
   id:
     | '__root__'
     | '/'
@@ -934,8 +958,10 @@ export interface FileRouteTypes {
     | '/api/public/reseller/v1/orders'
     | '/api/public/reseller/v1/products'
     | '/api/public/reseller/v1/transactions'
+    | '/api/public/reseller/v1/'
     | '/api/public/reseller/v1/orders/$id'
     | '/api/public/reseller/v1/products/$id'
+    | '/api/public/reseller/v1/orders/by-idempotency/$key'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -984,6 +1010,7 @@ export interface RootRouteChildren {
   ApiPublicResellerV1OrdersRoute: typeof ApiPublicResellerV1OrdersRouteWithChildren
   ApiPublicResellerV1ProductsRoute: typeof ApiPublicResellerV1ProductsRouteWithChildren
   ApiPublicResellerV1TransactionsRoute: typeof ApiPublicResellerV1TransactionsRoute
+  ApiPublicResellerV1IndexRoute: typeof ApiPublicResellerV1IndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1464,6 +1491,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicOrderFileTokenNameRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/reseller/v1/': {
+      id: '/api/public/reseller/v1/'
+      path: '/api/public/reseller/v1'
+      fullPath: '/api/public/reseller/v1/'
+      preLoaderRoute: typeof ApiPublicResellerV1IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/reseller/v1/$': {
       id: '/api/public/reseller/v1/$'
       path: '/api/public/reseller/v1/$'
@@ -1512,6 +1546,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/public/reseller/v1/products/$id'
       preLoaderRoute: typeof ApiPublicResellerV1ProductsIdRouteImport
       parentRoute: typeof ApiPublicResellerV1ProductsRoute
+    }
+    '/api/public/reseller/v1/orders/by-idempotency/$key': {
+      id: '/api/public/reseller/v1/orders/by-idempotency/$key'
+      path: '/by-idempotency/$key'
+      fullPath: '/api/public/reseller/v1/orders/by-idempotency/$key'
+      preLoaderRoute: typeof ApiPublicResellerV1OrdersByIdempotencyKeyRouteImport
+      parentRoute: typeof ApiPublicResellerV1OrdersRoute
     }
   }
 }
@@ -1593,11 +1634,14 @@ const AdminRouteRouteWithChildren = AdminRouteRoute._addFileChildren(
 
 interface ApiPublicResellerV1OrdersRouteChildren {
   ApiPublicResellerV1OrdersIdRoute: typeof ApiPublicResellerV1OrdersIdRoute
+  ApiPublicResellerV1OrdersByIdempotencyKeyRoute: typeof ApiPublicResellerV1OrdersByIdempotencyKeyRoute
 }
 
 const ApiPublicResellerV1OrdersRouteChildren: ApiPublicResellerV1OrdersRouteChildren =
   {
     ApiPublicResellerV1OrdersIdRoute: ApiPublicResellerV1OrdersIdRoute,
+    ApiPublicResellerV1OrdersByIdempotencyKeyRoute:
+      ApiPublicResellerV1OrdersByIdempotencyKeyRoute,
   }
 
 const ApiPublicResellerV1OrdersRouteWithChildren =
@@ -1666,6 +1710,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicResellerV1ProductsRoute:
     ApiPublicResellerV1ProductsRouteWithChildren,
   ApiPublicResellerV1TransactionsRoute: ApiPublicResellerV1TransactionsRoute,
+  ApiPublicResellerV1IndexRoute: ApiPublicResellerV1IndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
