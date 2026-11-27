@@ -8505,18 +8505,18 @@ async function apiPanelView(user: any) {
   const spent = (spentRows ?? []).reduce((sum: number, o: any) => sum + Number(o.total ?? 0), 0);
   const alert = Number(r.low_bal_alert ?? 0);
 
-  const text =
-    `${sectionHead(s, "api", `${apiIcon(s, "panel")} <b>R E S E L L E R   A P I</b>`)}\n` +
-    `──────────────\n` +
-    `${apiIcon(s, "account")} <i>Account</i>   <b>${escapeHtml(r.name)}</b> <code>#${r.account_no ?? "—"}</code>\n` +
-    `${apiIcon(s, "status")} <i>Status</i>   <b>${r.is_active ? "Active" : "Revoked"}</b>\n` +
-    `${apiIcon(s, "balance")} <i>Balance</i>   <b>${money(r.balance)}</b> <i>(same as bot wallet)</i>\n` +
-    `${apiIcon(s, "discount")} <i>Discount</i>   ${Number(r.discount_percent ?? 0) > 0 ? `<b>${Number(r.discount_percent)}%</b> off retail` : "custom pricing"}\n` +
-    `${apiIcon(s, "orders")} <i>API Orders</i>   <b>${orderCount ?? 0}</b> (${money(spent)} total)\n` +
-    `${apiIcon(s, "key")} <i>API Key</i>   <code>${escapeHtml(maskKey(r.api_key))}</code>\n` +
-    `${apiIcon(s, "alert")} <i>Low-Bal Alert</i>   ${alert > 0 ? `<b>${money(alert)}</b>` : "off"}\n` +
-    `──────────────\n` +
-    `<i>One balance for everything: bot orders and API orders use the same wallet. Top up from Wallet.</i>`;
+  const { buildApiPanelCard, apiBannerUrl } = await import("./api-panel-card");
+  const text = buildApiPanelCard({
+    banner: apiBannerUrl(s),
+    title: `${apiIcon(s, "panel")} <b>RESELLER API</b>`,
+    rows: [
+      [[`${apiIcon(s, "account")} Account`, `<b>${escapeHtml(r.name)}</b> <code>#${r.account_no ?? "—"}</code>`], [`${apiIcon(s, "status")} Status`, `<b>${r.is_active ? "Active" : "Revoked"}</b>`]],
+      [[`${apiIcon(s, "balance")} API Balance`, `<b>${money(r.balance)}</b>`], [`${apiIcon(s, "discount")} Discount`, Number(r.discount_percent ?? 0) > 0 ? `<b>${Number(r.discount_percent)}%</b> off retail` : "custom pricing"]],
+      [[`${apiIcon(s, "orders")} API Orders`, `<b>${orderCount ?? 0}</b> (${money(spent)} total)`]],
+      [[`${apiIcon(s, "key")} API Key`, `<code>${escapeHtml(maskKey(r.api_key))}</code>`], [`${apiIcon(s, "alert")} Low-Bal Alert`, alert > 0 ? `<b>${money(alert)}</b>` : "off"]],
+    ],
+    note: "One balance for everything: bot orders and API orders use the same wallet. Manage your API account below.",
+  });
 
   const apiStyle = btnColor(s, "api");
   const aBtn = (b: Button) => styled(b, apiStyle);
@@ -8788,7 +8788,7 @@ export async function handleApiState(
     }
     const after = await getUser(chatId);
     const view = await apiPanelView(after);
-    await say(chatId, `✅ ${money(amount)} moved to your API balance.\n\n${view.text}`, view.kb);
+    await say(chatId, `<p>✅ ${money(amount)} moved to your API balance.</p>${view.text}`, view.kb);
     return true;
   }
 
@@ -8802,7 +8802,7 @@ export async function handleApiState(
     const view = await apiPanelView(fresh);
     await say(
       chatId,
-      `${limit > 0 ? `✅ Alert set at ${money(limit)}.` : "✅ Low balance alert switched off."}\n\n${view.text}`,
+      `<p>${limit > 0 ? `✅ Alert set at ${money(limit)}.` : "✅ Low balance alert switched off."}</p>${view.text}`,
       view.kb,
     );
     return true;

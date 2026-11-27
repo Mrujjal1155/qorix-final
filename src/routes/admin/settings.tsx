@@ -492,6 +492,12 @@ function SettingsPage() {
           <ImageUploadField value={values["home_banner_url"] ?? ""} onChange={(url) => setValues({ ...values, home_banner_url: url })} placeholder="https://… banner image" />
           {values["home_banner_url"] && <img src={values["home_banner_url"]} alt="Start banner preview" className="mt-2 aspect-[1920/691] w-full rounded-md border border-border object-cover" />}
         </div>
+        <div className="space-y-1 sm:col-span-2">
+          <Label>Reseller API banner (bot API section)</Label>
+          <p className="text-xs text-muted-foreground">Recommended 1920×691 (wide banner). Shown above the Reseller API table in the bot; leave empty to hide.</p>
+          <ImageUploadField value={values["api_banner_url"] ?? ""} onChange={(url) => setValues({ ...values, api_banner_url: url })} placeholder="https://… banner image" />
+          {values["api_banner_url"] && <img src={values["api_banner_url"]} alt="Reseller API banner preview" className="mt-2 aspect-[1920/691] w-full rounded-md border border-border object-cover" />}
+        </div>
         {FIELDS.map((f) => (
           <div key={f.key} className={`space-y-1 ${f.long ? "sm:col-span-2" : ""}`}>
             <Label>{f.label}</Label>
