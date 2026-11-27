@@ -171,10 +171,6 @@ export function BotStorefront(props: {
     body = (
       <>
         <BotStartProfile signedIn={signedIn} accountKey={accountKey} onConnect={() => setView({ k: "tg" })} />
-        <Bubble>
-          <p className="flex items-center gap-2 font-bold"><ShoppingBag className="h-4 w-4 text-tg-quote-bar" /> QORIX STORE MENU</p>
-          <p className="text-sm">Shop · Wallet · Orders · Support</p>
-        </Bubble>
         <Keys cols={3}>
           <Key premium="menu_icon_shop" icon={Store} onClick={() => setView({ k: "cats" })}>SHOP</Key>
           <Key premium="ui_icon_prod_cart" icon={ShoppingCart} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>Cart</Key>
