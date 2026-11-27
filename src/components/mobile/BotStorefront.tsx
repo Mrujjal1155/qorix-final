@@ -21,6 +21,7 @@ import { ProductPremiumIcon } from "@/components/mobile/ProductPremiumIcon";
 import { ButtonPremiumIcon } from "@/components/mobile/ButtonPremiumIcon";
 import { Button } from "@/components/ui/button";
 import { BotStartProfile } from "@/components/mobile/BotStartProfile";
+import { BotApiPanel } from "@/components/mobile/BotApiPanel";
 import { BotProductMessage } from "@/components/mobile/BotProductMessage";
 
 type Cat = { id: string; name: string; image_url?: string | null };
@@ -30,7 +31,7 @@ type Prod = {
   slug?: string | null; delivery_time?: string | null; instant?: boolean | null;
 };
 type View =
-  | { k: "start" } | { k: "choose" } | { k: "tg" } | { k: "guest"; what: string } | { k: "support" } | { k: "refer" } | { k: "free" } | { k: "menu" } | { k: "cats" }
+  | { k: "start" } | { k: "choose" } | { k: "tg" } | { k: "guest"; what: string } | { k: "support" } | { k: "refer" } | { k: "api" } | { k: "free" } | { k: "menu" } | { k: "cats" }
   | { k: "prods"; cat: string | null; page: number }
   | { k: "prod"; id: string; from: View } | { k: "qty"; id: string; from: View };
 
@@ -147,6 +148,8 @@ export function BotStorefront(props: {
     );
   } else if (view.k === "support") {
     body = <BotSupportView signedIn={signedIn} go={go} />;
+  } else if (view.k === "api") {
+    body = <BotApiPanel signedIn={signedIn} onConnect={() => setView({ k: "tg" })} onHome={() => setView({ k: "menu" })} onWallet={() => { void navigate({ to: "/account", search: { deposit: true } }); }} />;
   } else if (view.k === "refer") {
     body = <BotReferralView signedIn={signedIn} go={go} />;
   } else if (view.k === "free") {
@@ -186,7 +189,7 @@ export function BotStorefront(props: {
         <Keys cols={2}>
           <Key premium="menu_icon_support" tone="green" icon={LifeBuoy} onClick={() => setView({ k: "support" })}>Support</Key>
           <a href={supportInfo?.emails ?? "https://mailreader.click/"} target="_blank" rel="noreferrer" className={keyCls("green")}><KeyInner premium="menu_icon_emails" icon={Mail}>Emails & Trials</KeyInner></a>
-          <KeyLink premium="menu_icon_api" tone="green" icon={Code2} to="/reseller/docs">Reseller API</KeyLink>
+          <Key premium="menu_icon_api" tone="green" icon={Code2} onClick={() => setView({ k: "api" })}>Reseller API</Key>
           <Key premium="menu_icon_clear" tone="green" icon={Trash2} onClick={() => { setView({ k: "cats" }); setTimeout(() => setView({ k: "menu" }), 0); }}>Clear Chat</Key>
         </Keys>
         {signedIn && (
