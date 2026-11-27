@@ -6663,9 +6663,10 @@ async function ordersView(chatId: number, page = 0) {
   const slice = rows.slice(current * ORDERS_PER_PAGE, current * ORDERS_PER_PAGE + ORDERS_PER_PAGE);
 
   const head = sectionHead(settings, "orders", `${pageIconHtml(settings, "orders")} <b>M Y   O R D E R S</b>`);
+  const banner = bannerImg(sectionBannerUrl(settings, "orders_banner_url"));
   if (!rows.length) {
     return {
-      text: `${head}\n\nYou have no orders yet.`,
+      text: `${banner}${head}\n\nYou have no orders yet.`,
       kb: [
         [uiBtn(settings, "ord_refresh", "orders")],
         [uiBtn(settings, "ord_shop", "shop:0"), uiBtn(settings, "ord_home", "home")],
@@ -6673,20 +6674,21 @@ async function ordersView(chatId: number, page = 0) {
     };
   }
 
-  const body = slice
+  const rowsHtml = slice
     .map((o: any) => {
       const status = uiIconHtml(
         settings,
         o.status === "completed" ? "ord_status_done" : o.status === "cancelled" ? "ord_status_cancelled" : "ord_status_pending",
       );
       return (
-        `<b>#${o.order_no ?? ""}</b> ${uiIconHtml(settings, "ord_id")} <code>${orderCode(o.id)}</code>\n` +
-        `${uiIconHtml(settings, "ord_item")} <b>${escapeHtml(String(o.product_name ?? "-"))}</b>\n` +
-        `${uiIconHtml(settings, "ord_time")} <i>${escapeHtml(orderTimeText(o.created_at, settings))}</i>\n` +
-        `${uiIconHtml(settings, "ord_price")} ${money(o.total)} • Qty ×${o.quantity ?? 1} ${status}`
+        `<tr><td><b>#${o.order_no ?? ""}</b> <code>${orderCode(o.id)}</code></td>` +
+        `<td>${uiIconHtml(settings, "ord_item")} <b>${escapeHtml(String(o.product_name ?? "-"))}</b> <i>${escapeHtml(orderTimeText(o.created_at, settings))}</i></td>` +
+        `<td align="right">${money(o.total)} ×${o.quantity ?? 1}</td>` +
+        `<td align="center">${status}</td></tr>`
       );
     })
-    .join("\n──────────────\n");
+    .join("");
+  const body = `<table bordered striped compact><tr><th>Order</th><th>Product</th><th>Total</th><th>Status</th></tr>${rowsHtml}</table>`;
 
   const ordStyle = btnColor(settings, "orders");
   const ordPage = btnColor(settings, "pagination");
@@ -6712,7 +6714,7 @@ async function ordersView(chatId: number, page = 0) {
 
   return {
     text:
-      `${head}\n──────────────\n${body}\n──────────────\n` +
+      banner + `${head}\n${body}` +
       `<i>${escapeHtml(uiText(settings, "ord_tap_hint"))}</i>`,
     kb,
   };

@@ -517,6 +517,12 @@ function SettingsPage() {
           {values["wallet_banner_url"] && <img src={values["wallet_banner_url"]} alt="Wallet banner preview" className="mt-2 aspect-[1920/691] w-full rounded-md border border-border object-cover" />}
         </div>
         <div className="space-y-1 sm:col-span-2">
+          <Label>My Orders banner (bot My Orders page)</Label>
+          <p className="text-xs text-muted-foreground">Recommended 1920×691 (wide banner). Shown above the orders table; leave empty to hide.</p>
+          <ImageUploadField value={values["orders_banner_url"] ?? ""} onChange={(url) => setValues({ ...values, orders_banner_url: url })} placeholder="https://… banner image" />
+          {values["orders_banner_url"] && <img src={values["orders_banner_url"]} alt="My Orders banner preview" className="mt-2 aspect-[1920/691] w-full rounded-md border border-border object-cover" />}
+        </div>
+        <div className="space-y-1 sm:col-span-2">
           <Label>Categories banner (bot Categories page)</Label>
           <p className="text-xs text-muted-foreground">Recommended 1920×691 (wide banner). Shown above the Categories table together with the category buttons; leave empty to hide.</p>
           <ImageUploadField value={values["categories_banner_url"] ?? ""} onChange={(url) => setValues({ ...values, categories_banner_url: url })} placeholder="https://… banner image" />
