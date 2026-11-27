@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertOctagon, AlertTriangle, ArrowLeft, Check, CheckCircle2, Code2, Compass, Copy, CreditCard, FileText, FolderOpen, Globe, HelpCircle, KeyRound, Lightbulb, Mail, MessageCircle, NotebookPen, Package, RefreshCw, Repeat, Rocket, Ruler, ScrollText, Search, Send, ShieldCheck, ShoppingCart, Sparkles, Trophy, User, Wallet, type LucideIcon } from "lucide-react";
+import { AlertOctagon, Bot, FlaskConical, AlertTriangle, ArrowLeft, Check, CheckCircle2, Code2, Compass, Copy, CreditCard, FileText, FolderOpen, Globe, HelpCircle, KeyRound, Lightbulb, Mail, MessageCircle, NotebookPen, Package, RefreshCw, Repeat, Rocket, Ruler, ScrollText, Search, Send, ShieldCheck, ShoppingCart, Sparkles, Trophy, User, Wallet, type LucideIcon } from "lucide-react";
 import { StoreShell } from "@/components/StoreShell";
 import { Button } from "@/components/ui/button";
 import { RESELLER_API_BASE_PRODUCTION, productionUrlFor } from "@/lib/site-url";
@@ -27,6 +27,8 @@ export const Route = createFileRoute("/reseller/docs")({
 
 const NAV: [string, string, LucideIcon][] = [
   ["quickstart", "Quick start", Rocket],
+  ["test", "Test your setup", FlaskConical],
+  ["ai", "Setup with AI", Bot],
   ["base-url", "Base URL", Globe],
   ["auth", "Authentication", KeyRound],
   ["conventions", "Conventions", Ruler],
@@ -294,6 +296,38 @@ function DocsPage() {
             </Callout>
           </Section>
 
+          <Section id="test" icon={FlaskConical} title="Test your setup (no charge)">
+            <p>Run these in order. None of them spends balance.</p>
+            <Table
+              head={["Request", "Expected result"]}
+              rows={[
+                [<C key="1">GET /me</C>, "200 with your name and balance — your key works"],
+                [<C key="2">GET /me without a key</C>, "401 Missing API key"],
+                [<C key="3">GET /products</C>, "200 with count and products"],
+                [<C key="4">POST /orders with body {"{}"}</C>, "400 product_id is required"],
+                [<C key="5">GET /orders/test-123</C>, "404 Order not found"],
+              ]}
+            />
+            <p>If all five match, your integration is wired correctly. Your first real order will spend balance.</p>
+          </Section>
+
+          <Section id="ai" icon={Bot} title="Setting up with an AI assistant">
+            <p>Paste this into ChatGPT, Claude, Cursor or any AI coding tool to build your integration:</p>
+            <Code label="prompt">{`Build a reseller integration for the QORIX Reseller API.
+Docs: https://qorixlab.com/reseller/docs
+Base URL: ${base}
+Auth header: Authorization: Bearer <API_KEY> (keep the key on the server only)
+Endpoints: GET /me, GET /products, GET /products/{id}, POST /orders, GET /orders/{id}, GET /orders, GET /transactions
+Rules:
+- Every response has "ok": true/false; on false show "error".
+- POST /orders body: product_id (string), quantity (1-50), external_ref (my unique order id), customer_email (only for products that need it).
+- Always send a unique external_ref; on timeout retry with the SAME external_ref, never a new one.
+- If order.status is "pending", poll GET /orders/{id} every 5-10s until "completed" or "failed".
+- Deliver every string in order.items to the buyer.
+- On 409 show the buyer "Product temporarily unavailable"; do not retry automatically.
+- Do not use redirect: "error" in fetch.`}</Code>
+          </Section>
+
           <Section id="base-url" icon={Globe} title="Base URL">
             <p>All endpoints live under this address. Copy it exactly:</p>
             <Code label="base url">{base}</Code>
@@ -302,7 +336,7 @@ function DocsPage() {
               rows={[
                 [<C key="1">https://www.qorixlab.com/api/public/reseller/v1</C>, "www causes a redirect"],
                 [<C key="2">https://qorixlab.com/api/public/reseller</C>, "missing /v1 → 404"],
-                [<C key="3">{base}/</C>, "trailing slash"],
+                [<C key="3">https://qorixlab.com/v1</C>, "wrong path → JSON 404 “Unknown endpoint”"],
               ]}
             />
             <Callout>
@@ -330,7 +364,7 @@ X-API-Key: YOUR_API_KEY`}</Code>
             </ul>
             <h3 className="pt-2 font-semibold text-foreground">Quantity and stock</h3>
             <ul className="list-disc space-y-1 pl-5">
-              <li><C>quantity</C> is a whole number from <b>1 to 50</b> per order.</li>
+              <li><C>quantity</C> is a whole number from <b>1 to 50</b> per order. Anything else (0, 51, 2.5, "abc") is rejected with <C>400</C> and nothing is charged.</li>
               <li><C>stock</C> is the sellable count right now; <C>in_stock</C> tells you if the product can be ordered.</li>
               <li><C>price</C> is <b>your</b> price after your reseller discount — that is what your balance pays.</li>
             </ul>
@@ -386,13 +420,28 @@ X-API-Key: YOUR_API_KEY`}</Code>
               <Code label="curl">{`curl "${base}/products?channel=bot" \\
   -H "Authorization: Bearer YOUR_API_KEY"`}</Code>
               <Code label="response 200">{productJson}</Code>
+              <Table
+                head={["Product field", "Meaning"]}
+                rows={[
+                  [<C key="a">price</C>, "your unit price (what your balance pays)"],
+                  [<C key="b">retail_price</C> , "normal shop price — a good reference for your own selling price"],
+                  [<C key="c">custom_price / custom_min_qty</C>, "special price for you that applies when quantity ≥ custom_min_qty (null if none)"],
+                  [<C key="d">stock / in_stock</C>, "sellable count now / can it be ordered"],
+                  [<C key="e">delivery_type / instant</C>, "auto = delivered in the response; manual = delivered later (poll)"],
+                  [<C key="f">quick_guide / important_note</C>, "instructions to show your buyer"],
+                  [<C key="g">delivery_time, badge, image_url, emoji</C>, "display helpers (may be null)"],
+                  [<C key="h">flash_sale_ends_at / old_price</C>, "flash sale end time and crossed-out price (may be null)"],
+                  [<C key="i">own</C>, "true for products you upload yourself (price 0)"],
+                ]}
+              />
               <Callout>Sync your catalogue by <C>id</C> (update existing rows, add new ones, hide missing ones). Names and prices can change.</Callout>
             </Endpoint>
 
             <Endpoint id="ep-product" method="GET" path="/products/{id}" title="One product">
-              <p>Same fields as one item from the list. Call it right before checkout to confirm the price and stock. Returns <C>404</C> if the product is unavailable.</p>
+              <p>Same fields as one item from the list, wrapped in <C>product</C>. Call it right before checkout to confirm the price and stock. Returns <C>404</C> if the product is unavailable or out of stock.</p>
               <Code label="curl">{`curl ${base}/products/PRODUCT_ID \\
   -H "Authorization: Bearer YOUR_API_KEY"`}</Code>
+              <Code label="response 200">{`{ "ok": true, "product": { "id": "8f2c1e4a-…", "name": "…", "price": 4.25, "stock": 37, "in_stock": true, … } }`}</Code>
             </Endpoint>
 
             <Endpoint id="ep-create-order" method="POST" path="/orders" title="Place an order">
@@ -414,7 +463,7 @@ X-API-Key: YOUR_API_KEY`}</Code>
   -d '{"product_id":"PRODUCT_ID","quantity":2,"external_ref":"mybot-20261127-0001"}'`}</Code>
               <Code label="response 201">{orderJson}</Code>
               <p>
-                <b>201</b> = new order. If the order is still being delivered you get <C>"status": "pending"</C> and <C>"submitted": true</C> — poll <C>GET /orders/{"{id}"}</C>.
+                <b>201</b> = order accepted. If the <C>external_ref</C> was already used, you get the existing order back with <C>"duplicate": true</C> and nothing is charged again. If the order is still being delivered you get <C>"status": "pending"</C> and <C>"submitted": true</C> — poll <C>GET /orders/{"{id}"}</C>.
               </p>
             </Endpoint>
 

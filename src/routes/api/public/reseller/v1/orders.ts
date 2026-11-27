@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { isOrderRequestObject, resellerOrderLimit } from "@/lib/reseller/request-rules";
+import { isOrderRequestObject, parseOrderQuantity, resellerOrderLimit } from "@/lib/reseller/request-rules";
 
 export const Route = createFileRoute("/api/public/reseller/v1/orders")({
   server: {
@@ -39,6 +39,8 @@ export const Route = createFileRoute("/api/public/reseller/v1/orders")({
         if ("error" in auth) return auth.error;
 
         if (!body["product_id"]) return core.fail("product_id is required");
+        const quantity = parseOrderQuantity(body["quantity"]);
+        if (quantity === null) return core.fail("quantity must be a whole number from 1 to 50");
         const inputs = isOrderRequestObject(body["customer_inputs"]) ? body["customer_inputs"] : {};
         const rawEmail = body["customer_email"] ?? body["email"] ?? inputs["email"];
         const email = typeof rawEmail === "string" && rawEmail.trim() ? rawEmail.trim().slice(0, 254) : null;
@@ -49,7 +51,7 @@ export const Route = createFileRoute("/api/public/reseller/v1/orders")({
         // recorded" and "wallet charged + delivered", leaving it stuck.
         const work = core.purchase(auth.reseller, {
           product_id: String(body["product_id"]),
-          quantity: Number(body["quantity"] ?? 1),
+          quantity,
           external_ref: body["external_ref"] ? String(body["external_ref"]).slice(0, 120) : null,
           customer_name: body["customer_name"] ? String(body["customer_name"]).slice(0, 80) : null,
           customer_email: email,
