@@ -53,4 +53,3 @@
 - Insight initial delivery permits one refund-verified replacement; admin Retry reuses a completed first purchase or buys with a fixed per-order idempotency key so repeats never double-charge.
 - Bot links use single-use private consent and bounded product/quantity/checkout/deposit paths; never trust usernames.
 
-- Reseller docs (/reseller/docs) always use the classic step-by-step layout and document only behaviour the live v1 handlers implement; reseller-facing delivery failures say "Product temporarily unavailable" and never expose supplier names or upstream errors.

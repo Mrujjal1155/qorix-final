@@ -1,0 +1,1 @@
+- /reseller/docs uses the classic step-by-step layout and documents only live v1 behaviour; reseller delivery failures read "Product temporarily unavailable", never supplier details.
