@@ -3,7 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft, Bell, BookOpen, Boxes, ChevronLeft, ChevronRight, CircleCheck, CircleX, Code2,
-  Gift, Home, LayoutGrid, LifeBuoy, LogIn, Mail, Megaphone, Minus, Package, Plus, RefreshCw, Send,
+  Copy, Gift, Globe, Home, LayoutGrid, LifeBuoy, LogIn, Mail, Megaphone, Minus, Package, Plus, RefreshCw, Send,
   ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, User, UserPlus, Users, Wallet, Zap, type LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +12,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { BotReferralView, BotSupportView } from "@/components/mobile/BotSupport";
-import { getWebSupport } from "@/lib/web-wallet.functions";
+import { getWebProfile, getWebSupport } from "@/lib/web-wallet.functions";
 import { mobileImageFor, stripEmoji } from "@/lib/mobile-template";
 import { BotFrame, BotLogo, bottomBarCls, bottomCls } from "@/components/mobile/BotFrame";
 import { CategoryPremiumIcon } from "@/components/mobile/CategoryPremiumIcon";
@@ -39,7 +39,7 @@ const money = (v: unknown) => usdPrice(v);
 
 export function BotStorefront(props: {
   name: string; logo: string; users: number | null; categories: Cat[]; products: Prod[];
-  images: Record<string, string>; catImages: Record<string, string>; loading: boolean;
+  images: Record<string, string>; catImages: Record<string, string>; loading: boolean; banner?: string | null;
   initialProducts?: boolean; initialCategory?: string | null;
 }) {
   const { categories, products, images } = props;
@@ -52,7 +52,7 @@ export function BotStorefront(props: {
   const go = (v: "menu" | "support" | "tg" | "profile") =>
     v === "profile" ? (signedIn ? void navigate({ to: "/account/profile" }) : setView({ k: "menu" })) : setView({ k: v });
   // Signed in = connected Telegram account; otherwise the visitor shops as a guest (no ID).
-  const [signedIn, setSignedIn] = useState(false);
+  const [signedIn, setSignedIn] = useState(false); const fetchProfile = useServerFn(getWebProfile); const { data: profileData } = useQuery({ queryKey: ["web-profile"], queryFn: () => fetchProfile(), enabled: signedIn, staleTime: 60_000 }); const profile = (profileData as any) ?? null; const copyText = (t: string) => { navigator.clipboard?.writeText(t).catch(() => {}); };
   useEffect(() => {
     // Once Guest or Telegram was chosen, open straight on the menu (no Start again), like the bot.
     // Products button on other pages lands here and opens the full product list, like the bot.
@@ -162,34 +162,20 @@ export function BotStorefront(props: {
     body = (
       <>
         <Bubble>
-          <WelcomePremiumHeading />
-          <p className="mt-2 flex items-center gap-2 text-base font-bold"><ButtonPremiumIcon setting="ui_icon_home_greet" fallback={Sparkles} /> Welcome to {props.name}</p>
-          <p className="mt-1 text-sm">100% authentic premium apps — delivered automatically.</p>
-          <Quote>
-            <MenuLine premium="menu_icon_shop" icon={Store} t="Shop" d="Browse all categories" />
-            <MenuLine premium="menu_icon_cart" icon={ShoppingCart} t="Cart" d="Review products to buy" />
-            <MenuLine premium="menu_icon_orders" icon={Package} t="Orders" d="View order status & delivery" />
-            <MenuLine premium="menu_icon_wallet" icon={Wallet} t="Wallet" d="Check balance & add funds" />
-            <MenuLine premium="menu_icon_freebies" icon={Gift} t="Freebies" d="View available free offers" />
-            <MenuLine premium="menu_icon_profile" icon={User} t="Profile" d="Account, wallet, orders & referral details" />
-            <MenuLine premium="menu_icon_referral" icon={Gift} t="Referral Store" d="Invite friends & view rewards" />
-            <MenuLine premium="menu_icon_support" icon={LifeBuoy} t="Support" d="Contact support for help" />
-            <MenuLine premium="menu_icon_emails" icon={Mail} t="Emails & Trials" d="Open the Emails & Trials page" />
-            <MenuLine premium="menu_icon_api" icon={Code2} t="Reseller API" d="Access the reseller API & guide" />
-            <MenuLine premium="menu_icon_clear" icon={Trash2} t="Clear Chat" d="Clear the current shop view" />
-          </Quote>
-          <p className="mt-3 flex items-center gap-2 font-semibold"><ButtonPremiumIcon setting="ui_icon_home_community" fallback={Users} /> Join Community</p>
+          {props.banner ? <img src={props.banner} alt="Premium AI & Software, Delivered in Seconds." className="w-full rounded-xl object-cover" /> : <div className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-violet-600 p-4 text-white"><p className="text-base font-bold">Premium AI & Software, Delivered in Seconds.</p><p className="mt-1 text-xs opacity-90">70+ Tools · Instant Delivery · Secure & Trusted</p><button type="button" className="mt-3 rounded-lg bg-white px-4 py-2 text-sm font-bold text-blue-700" onClick={() => setView({ k: "prods", cat: null, page: 0 })}>Buy Now</button></div>} <WelcomePremiumHeading />
+          {profile?.linked ? (<><p className="mt-2 flex items-center gap-2 text-base font-bold"><ButtonPremiumIcon setting="ui_icon_home_greet" fallback={Sparkles} /> Welcome back, {String((profile as any)?.username ?? "") && String((profile as any)?.username) !== "—" ? (String((profile as any)?.username).startsWith("@") ? String((profile as any)?.username) : "@" + String((profile as any)?.username)) : props.name}</p><div className="mt-2 overflow-hidden rounded-xl border border-black/10"><div className="flex cursor-pointer justify-between border-b border-black/10 px-3 py-2 text-sm" onClick={() => copyText(String((profile as any)?.username ?? ""))}><span className="font-semibold">Username</span><span className="flex items-center gap-1">{String((profile as any)?.username ?? "—")} <Copy className="h-3.5 w-3.5" /></span></div><div className="flex cursor-pointer justify-between border-b border-black/10 px-3 py-2 text-sm" onClick={() => copyText(String((profile as any)?.telegram_id ?? ""))}><span className="font-semibold">UserID</span><span className="flex items-center gap-1">{String((profile as any)?.telegram_id ?? "—")} <Copy className="h-3.5 w-3.5" /></span></div><div className="flex cursor-pointer justify-between border-b border-black/10 px-3 py-2 text-sm" onClick={() => copyText(String((profile as any)?.membership ?? ""))}><span className="font-semibold">Membership</span><span className="flex items-center gap-1">{String((profile as any)?.membership ?? "—")} <Copy className="h-3.5 w-3.5" /></span></div><div className="flex cursor-pointer justify-between border-b border-black/10 px-3 py-2 text-sm" onClick={() => copyText("$" + Number((profile as any)?.balance ?? 0).toFixed(2))}><span className="font-semibold">Balance</span><span className="flex items-center gap-1">${Number((profile as any)?.balance ?? 0).toFixed(2)} <Copy className="h-3.5 w-3.5" /></span></div><div className="flex cursor-pointer justify-between px-3 py-2 text-sm" onClick={() => copyText("$" + Number((profile as any)?.total_spent ?? 0).toFixed(2))}><span className="font-semibold">Total Spent</span><span className="flex items-center gap-1">${Number((profile as any)?.total_spent ?? 0).toFixed(2)} <Copy className="h-3.5 w-3.5" /></span></div></div><p className="mt-1 text-xs opacity-70">Tap any value to copy it.</p></>) : (<><p className="mt-2 flex items-center gap-2 text-base font-bold"><ButtonPremiumIcon setting="ui_icon_home_greet" fallback={Sparkles} /> Welcome to {props.name}</p><p className="mt-1 text-sm">100% authentic premium apps — delivered automatically.</p></>)} {(profile as any)?.referral_link ? <button type="button" className="mt-2 flex w-full items-center justify-center gap-2 rounded-xl bg-black/5 px-3 py-2 text-sm font-semibold" onClick={() => copyText(String((profile as any)?.referral_link))}><Copy className="h-4 w-4" /> Copy invite link</button> : null}
+          setting="ui_icon_home_community" fallback={Users} /> Join Community</p>
           <p className="text-sm">Join for stock alerts and updates.</p>
-          <a className="mt-1 flex items-center gap-2 text-sm text-tg-link" href="https://t.me/QORIXCHAT" target="_blank" rel="noreferrer"><ButtonPremiumIcon setting="ui_icon_home_group" fallback={Users} /> Community Group</a>
-          <a className="flex items-center gap-2 text-sm text-tg-link" href="https://t.me/qorixlab" target="_blank" rel="noreferrer"><ButtonPremiumIcon setting="ui_icon_home_channel" fallback={Megaphone} /> Official Channel</a>
-          <a className="flex items-center gap-2 text-sm text-tg-link" href="https://t.me/qorixstoreupdate" target="_blank" rel="noreferrer"><ButtonPremiumIcon setting="ui_icon_home_updates" fallback={Bell} /> Store Updates Channel</a>
+          <div className="mt-2 grid grid-cols-3 gap-1.5"><a href="https://t.me/QORIXCHAT" target="_blank" rel="noreferrer" className={keyCls("green")}>General Chat</a>
+          <a href="https://t.me/qorixlab" target="_blank" rel="noreferrer" className={keyCls("green")}>Official Channel</a>
+          <a href="https://t.me/qorixstoreupdate" target="_blank" rel="noreferrer" className={keyCls("green")}>Store Updates</a></div>
           <p className="mt-3 text-sm">Choose an option below to get started.</p>
         </Bubble>
         <Bubble>
           <p className="flex items-center gap-2 font-bold"><ShoppingBag className="h-4 w-4 text-tg-quote-bar" /> QORIX STORE MENU</p>
           <p className="text-sm">Shop · Wallet · Orders · Support</p>
         </Bubble>
-        <Keys cols={3}>
+        <Keys cols={1}><Key icon={Globe} onClick={() => setView({ k: "cats" })}>Buy on Website</Key></Keys> <Keys cols={3}>
           <Key premium="menu_icon_shop" icon={Store} onClick={() => setView({ k: "cats" })}>SHOP</Key>
           <Key premium="ui_icon_prod_cart" icon={ShoppingCart} onClick={() => setView({ k: "prods", cat: null, page: 0 })}>Cart</Key>
           {signedIn ? <KeyLink premium="menu_icon_orders" icon={Package} to="/account/orders">Orders</KeyLink> : <KeyLink premium="menu_icon_orders" icon={Package} to="/track">Orders</KeyLink>}
