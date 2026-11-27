@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check, Copy } from "lucide-react";
+import { AlertOctagon, AlertTriangle, ArrowLeft, Check, CheckCircle2, Code2, Compass, Copy, CreditCard, FileText, FolderOpen, Globe, HelpCircle, KeyRound, Lightbulb, Mail, MessageCircle, NotebookPen, Package, RefreshCw, Repeat, Rocket, Ruler, ScrollText, Search, Send, ShieldCheck, ShoppingCart, Sparkles, Trophy, User, Wallet, type LucideIcon } from "lucide-react";
 import { StoreShell } from "@/components/StoreShell";
 import { Button } from "@/components/ui/button";
 import { RESELLER_API_BASE_PRODUCTION, productionUrlFor } from "@/lib/site-url";
@@ -25,30 +25,30 @@ export const Route = createFileRoute("/reseller/docs")({
   component: DocsPage,
 });
 
-const NAV: [string, string][] = [
-  ["quickstart", "🚀 Quick start"],
-  ["base-url", "🌐 Base URL"],
-  ["auth", "🔐 Authentication"],
-  ["conventions", "📐 Conventions"],
-  ["endpoints", "🧭 All endpoints"],
-  ["ep-me", "👤 GET /me"],
-  ["ep-products", "📦 GET /products"],
-  ["ep-product", "🔎 GET /products/{id}"],
-  ["ep-create-order", "🛒 POST /orders"],
-  ["ep-order", "📄 GET /orders/{id}"],
-  ["ep-orders", "🗂️ GET /orders"],
-  ["ep-transactions", "💳 GET /transactions"],
-  ["statuses", "🔄 Order statuses"],
-  ["customer-info", "✉️ Products that need buyer info"],
-  ["duplicates", "🔁 No duplicate orders"],
-  ["delivering", "📬 Delivering to your buyer"],
-  ["errors", "🚨 Error reference"],
-  ["best", "🏆 Best practices"],
-  ["examples", "🧩 Code examples"],
-  ["instructions", "📜 Instructions & Terms"],
-  ["faq", "❓ FAQ"],
-  ["changelog", "🗒️ Changelog"],
-  ["support", "💬 Support"],
+const NAV: [string, string, LucideIcon][] = [
+  ["quickstart", "Quick start", Rocket],
+  ["base-url", "Base URL", Globe],
+  ["auth", "Authentication", KeyRound],
+  ["conventions", "Conventions", Ruler],
+  ["endpoints", "All endpoints", Compass],
+  ["ep-me", "GET /me", User],
+  ["ep-products", "GET /products", Package],
+  ["ep-product", "GET /products/{id}", Search],
+  ["ep-create-order", "POST /orders", ShoppingCart],
+  ["ep-order", "GET /orders/{id}", FileText],
+  ["ep-orders", "GET /orders", FolderOpen],
+  ["ep-transactions", "GET /transactions", CreditCard],
+  ["statuses", "Order statuses", RefreshCw],
+  ["customer-info", "Products that need buyer info", Mail],
+  ["duplicates", "No duplicate orders", Repeat],
+  ["delivering", "Delivering to your buyer", Send],
+  ["errors", "Error reference", AlertOctagon],
+  ["best", "Best practices", Trophy],
+  ["examples", "Code examples", Code2],
+  ["instructions", "Instructions & Terms", ScrollText],
+  ["faq", "FAQ", HelpCircle],
+  ["changelog", "Changelog", NotebookPen],
+  ["support", "Support", MessageCircle],
 ];
 
 function Code({ children, label }: { children: string; label?: string }) {
@@ -81,11 +81,11 @@ function C({ children }: { children: ReactNode }) {
   return <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-[0.8em] text-foreground break-words">{children}</code>;
 }
 
-function Section({ id, icon, title, children }: { id: string; icon?: string; title: string; children: ReactNode }) {
+function Section({ id, icon: Icon, title, children }: { id: string; icon?: LucideIcon; title: string; children: ReactNode }) {
   return (
     <section id={id} className="min-w-0 scroll-mt-24 border-t border-border/60 py-8 first:border-t-0 first:pt-0 sm:py-10">
       <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-        {icon && <span aria-hidden>{icon}</span>}
+        {Icon && <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary"><Icon className="h-4 w-4" /></span>}
         <span className="min-w-0">{title}</span>
       </h2>
       <div className="mt-4 min-w-0 space-y-3 text-sm leading-relaxed text-muted-foreground">{children}</div>
@@ -100,10 +100,10 @@ function Callout({ tone = "info", children }: { tone?: "info" | "warn" | "ok"; c
       : tone === "ok"
         ? "border-primary/40 bg-primary/10"
         : "border-border bg-secondary/40";
-  const icon = tone === "warn" ? "⚠️" : tone === "ok" ? "✅" : "💡";
+  const Icon = tone === "warn" ? AlertTriangle : tone === "ok" ? CheckCircle2 : Lightbulb;
   return (
     <div className={`grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-xl border p-4 text-sm ${cls}`}>
-      <span aria-hidden>{icon}</span>
+      <Icon className={`mt-0.5 h-4 w-4 ${tone === "warn" ? "text-destructive" : "text-primary"}`} />
       <div className="min-w-0 text-foreground/90">{children}</div>
     </div>
   );
@@ -227,7 +227,7 @@ function DocsPage() {
       {/* Hero */}
       <div className="border-b border-border/60 bg-linear-to-b from-primary/10 to-transparent">
         <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
-          <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">✦ Official documentation</span>
+          <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary"><Sparkles className="h-3.5 w-3.5" /> Official documentation</span>
           <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-foreground sm:text-5xl">QORIX Reseller API</h1>
           <p className="mt-2 text-lg font-medium text-foreground/80 sm:text-xl">Sell our catalogue from your own website or Telegram bot.</p>
           <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
@@ -235,19 +235,19 @@ function DocsPage() {
             example on this page matches the live API exactly.
           </p>
           <div className="mt-6 grid gap-2 sm:flex sm:flex-wrap">
-            <Button asChild><a href="#quickstart">🚀 Start in 5 minutes</a></Button>
-            <Button asChild variant="secondary"><a href="#ep-create-order">📦 Place an order</a></Button>
-            <Button asChild variant="outline"><a href="#instructions">📜 Instructions & Terms</a></Button>
-            <Button asChild variant="ghost"><Link to="/reseller">← Reseller portal</Link></Button>
+            <Button asChild><a href="#quickstart"><Rocket /> Start in 5 minutes</a></Button>
+            <Button asChild variant="secondary"><a href="#ep-create-order"><Package /> Place an order</a></Button>
+            <Button asChild variant="outline"><a href="#instructions"><ScrollText /> Instructions & Terms</a></Button>
+            <Button asChild variant="ghost"><Link to="/reseller"><ArrowLeft /> Reseller portal</Link></Button>
           </div>
           <div className="mt-8 grid gap-3 sm:grid-cols-3">
-            {[
-              ["💰 Prepaid", "Every order is paid from your reseller balance. No balance, no charge."],
-              ["🛡️ Safe", "If a product cannot be delivered, the full amount returns to your balance automatically."],
-              ["🔁 No duplicates", "Send the same external_ref again and you get the same order back — never a second charge."],
-            ].map(([t, d]) => (
+            {([
+              [Wallet, "Prepaid", "Every order is paid from your reseller balance. No balance, no charge."],
+              [ShieldCheck, "Safe", "If a product cannot be delivered, the full amount returns to your balance automatically."],
+              [Repeat, "No duplicates", "Send the same external_ref again and you get the same order back — never a second charge."],
+            ] as [LucideIcon, string, string][]).map(([I, t, d]) => (
               <div key={t} className="rounded-xl border border-border/70 bg-card/70 p-4">
-                <p className="font-semibold text-foreground">{t}</p>
+                <p className="flex items-center gap-2 font-semibold text-foreground"><I className="h-4 w-4 text-primary" />{t}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{d}</p>
               </div>
             ))}
@@ -258,24 +258,24 @@ function DocsPage() {
       <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-10 lg:py-10">
         <aside className="hidden lg:block">
           <nav className="sticky top-24 max-h-[calc(100vh-7rem)] space-y-0.5 overflow-y-auto pr-2 text-sm">
-            {NAV.map(([id, label]) => (
-              <a key={id} href={`#${id}`} className="block truncate rounded-lg px-3 py-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
-                {label}
+            {NAV.map(([id, label, I]) => (
+              <a key={id} href={`#${id}`} className="flex items-center gap-2 truncate rounded-lg px-3 py-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
+                <I className="h-4 w-4 shrink-0" />{label}
               </a>
             ))}
           </nav>
         </aside>
 
         <nav className="sticky top-14 z-10 -mx-4 flex gap-2 overflow-x-auto border-b border-border/60 bg-background/95 px-4 py-2 backdrop-blur lg:hidden">
-          {NAV.map(([id, label]) => (
-            <a key={id} href={`#${id}`} className="shrink-0 rounded-full border border-border/70 bg-secondary/40 px-3 py-1.5 text-xs text-muted-foreground">
-              {label}
+          {NAV.map(([id, label, I]) => (
+            <a key={id} href={`#${id}`} className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border/70 bg-secondary/40 px-3 py-1.5 text-xs text-muted-foreground">
+              <I className="h-3.5 w-3.5" />{label}
             </a>
           ))}
         </nav>
 
         <div className="min-w-0">
-          <Section id="quickstart" icon="🚀" title="Quick start">
+          <Section id="quickstart" icon={Rocket} title="Quick start">
             <p>Get an approved reseller account and API key from the reseller portal. Then follow these four steps. Every request is authenticated.</p>
             <Steps
               items={[
@@ -294,11 +294,11 @@ function DocsPage() {
             </Callout>
           </Section>
 
-          <Section id="base-url" icon="🌐" title="Base URL">
+          <Section id="base-url" icon={Globe} title="Base URL">
             <p>All endpoints live under this address. Copy it exactly:</p>
             <Code label="base url">{base}</Code>
             <Table
-              head={["❌ Wrong", "Why it fails"]}
+              head={["Wrong", "Why it fails"]}
               rows={[
                 [<C key="1">https://www.qorixlab.com/api/public/reseller/v1</C>, "www causes a redirect"],
                 [<C key="2">https://qorixlab.com/api/public/reseller</C>, "missing /v1 → 404"],
@@ -310,7 +310,7 @@ function DocsPage() {
             </Callout>
           </Section>
 
-          <Section id="auth" icon="🔐" title="Authentication">
+          <Section id="auth" icon={KeyRound} title="Authentication">
             <p>Send your key on every request using either header:</p>
             <Code label="headers">{`Authorization: Bearer YOUR_API_KEY
 X-API-Key: YOUR_API_KEY`}</Code>
@@ -321,7 +321,7 @@ X-API-Key: YOUR_API_KEY`}</Code>
             </ul>
           </Section>
 
-          <Section id="conventions" icon="📐" title="Conventions & data types">
+          <Section id="conventions" icon={Ruler} title="Conventions & data types">
             <h3 className="font-semibold text-foreground">JSON and money</h3>
             <ul className="list-disc space-y-1 pl-5">
               <li>Every response is JSON with <C>"ok": true</C> on success or <C>"ok": false, "error": "…"</C> on failure.</li>
@@ -340,7 +340,7 @@ X-API-Key: YOUR_API_KEY`}</Code>
             </p>
           </Section>
 
-          <Section id="endpoints" icon="🧭" title="All endpoints">
+          <Section id="endpoints" icon={Compass} title="All endpoints">
             <Table
               head={["Method", "Path", "What it does"]}
               rows={[
@@ -444,7 +444,7 @@ X-API-Key: YOUR_API_KEY`}</Code>
             </Endpoint>
           </div>
 
-          <Section id="statuses" icon="🔄" title="Order statuses">
+          <Section id="statuses" icon={RefreshCw} title="Order statuses">
             <Table
               head={["status", "Meaning", "What you do"]}
               rows={[
@@ -456,7 +456,7 @@ X-API-Key: YOUR_API_KEY`}</Code>
             <Callout>Only the entries in <C>items</C> are delivered. Pending means paid but not delivered yet.</Callout>
           </Section>
 
-          <Section id="customer-info" icon="✉️" title="Products that need buyer info (email)">
+          <Section id="customer-info" icon={Mail} title="Products that need buyer info (email)">
             <p>
               Some products are delivered by the shop to a buyer account, for example an invite sent to an email address. These products have{" "}
               <C>"delivery_type": "manual"</C> and the product description tells you what is needed.
@@ -481,7 +481,7 @@ X-API-Key: YOUR_API_KEY`}</Code>
             </p>
           </Section>
 
-          <Section id="duplicates" icon="🔁" title="No duplicate orders">
+          <Section id="duplicates" icon={Repeat} title="No duplicate orders">
             <p>
               Give every order your own unique <C>external_ref</C> (for example your order number). If you send the same <C>external_ref</C> again, the API returns the
               <b> existing</b> order and does not charge again.
@@ -493,7 +493,7 @@ X-API-Key: YOUR_API_KEY`}</Code>
             </ul>
           </Section>
 
-          <Section id="delivering" icon="📬" title="Delivering to your buyer">
+          <Section id="delivering" icon={Send} title="Delivering to your buyer">
             <ol className="list-decimal space-y-1 pl-5">
               <li>Refresh the product with <C>GET /products/{"{id}"}</C> and check <C>in_stock</C>.</li>
               <li>Call <C>POST /orders</C>; store <C>order.id</C> and each <C>items[]</C> entry.</li>
@@ -503,7 +503,7 @@ X-API-Key: YOUR_API_KEY`}</Code>
             <Callout>1–5 items: send each in its own message. More items: send them as one .txt file.</Callout>
           </Section>
 
-          <Section id="errors" icon="🚨" title="Error reference">
+          <Section id="errors" icon={AlertOctagon} title="Error reference">
             <p>Errors always look like <C>{`{"ok": false, "error": "…"}`}</C>, sometimes with a <C>code</C>.</p>
             <Table
               head={["HTTP", "error / code", "Meaning", "Charged?"]}
@@ -520,7 +520,7 @@ X-API-Key: YOUR_API_KEY`}</Code>
             />
           </Section>
 
-          <Section id="best" icon="🏆" title="Best practices">
+          <Section id="best" icon={Trophy} title="Best practices">
             <ul className="list-disc space-y-1 pl-5">
               <li>Keep the API key on your server only.</li>
               <li>Always send <C>external_ref</C>.</li>
@@ -531,7 +531,7 @@ X-API-Key: YOUR_API_KEY`}</Code>
             </ul>
           </Section>
 
-          <Section id="examples" icon="🧩" title="Code examples">
+          <Section id="examples" icon={Code2} title="Code examples">
             <Tabs
               tabs={[
                 [
@@ -591,7 +591,7 @@ echo $r["ok"] ? implode("\\n", $r["order"]["items"]) : $r["error"];`,
             />
           </Section>
 
-          <Section id="instructions" icon="📜" title="Instructions & Terms">
+          <Section id="instructions" icon={ScrollText} title="Instructions & Terms">
             <ul className="list-disc space-y-1 pl-5">
               <li>All products are sold as QORIX products. Resell them under your own brand at your own price.</li>
               <li>Balance is prepaid and used only for orders. Failed deliveries are refunded to balance automatically.</li>
@@ -600,7 +600,7 @@ echo $r["ok"] ? implode("\\n", $r["order"]["items"]) : $r["error"];`,
             </ul>
           </Section>
 
-          <Section id="faq" icon="❓" title="FAQ">
+          <Section id="faq" icon={HelpCircle} title="FAQ">
             {[
               ["Where do I get an API key?", "Apply in the reseller portal. After approval the key is in your Reseller Dashboard."],
               ["How do I add balance?", "Top up from the Reseller Dashboard or with a deposit in the Telegram bot — it is the same balance."],
@@ -615,7 +615,7 @@ echo $r["ok"] ? implode("\\n", $r["order"]["items"]) : $r["error"];`,
             ))}
           </Section>
 
-          <Section id="changelog" icon="🗒️" title="Changelog">
+          <Section id="changelog" icon={NotebookPen} title="Changelog">
             <ul className="space-y-2">
               <li><b className="text-foreground">v1.2</b> — Buyer email accepted as <C>customer_inputs.email</C>; unavailable deliveries now return “Product temporarily unavailable”. New step-by-step docs.</li>
               <li><b className="text-foreground">v1.1</b> — Unit prices with up to 4 decimals.</li>
@@ -623,7 +623,7 @@ echo $r["ok"] ? implode("\\n", $r["order"]["items"]) : $r["error"];`,
             </ul>
           </Section>
 
-          <Section id="support" icon="💬" title="Support">
+          <Section id="support" icon={MessageCircle} title="Support">
             <p>Questions or a stuck order? Contact QORIX support from the Telegram bot and include your <C>order.id</C> or <C>external_ref</C>.</p>
             <div className="grid gap-2 sm:flex">
               <Button asChild><Link to="/reseller/start">Open Reseller Dashboard</Link></Button>
