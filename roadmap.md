@@ -365,3 +365,5 @@
 - [ ] Verify a real EPS/OxaPay email-wallet deposit after approved deployment and real-payment permission; no live payment or publication attempted.
 - [x] Add selectable Classic/Simple Telegram Shop, direct single-product buttons, multi-plan tables and category banner uploads; preserve checkout and Classic default. Fresh switch reads allow immediate rollback; 25 focused/regression tests pass and build OK.
 - [ ] Verify Simple Shop in real Telegram and category banner upload in signed-in admin; blocked by unavailable external-managed login and no approved deployment. No real orders or Telegram sends performed.
+- [x] Put in-stock products and categories first in Classic and Simple Shop; keep sold-out/empty categories red at the bottom, preserve admin serial within each stock group, and apply the same partition to selected top/vault products. Twenty-eight focused tests and typecheck pass; checkout, prices, stock and payment rules unchanged.
+- [ ] Verify the stock-first ordering visually in the deployed Telegram bot; requires separately approved publication and real bot interaction. No live message or deployment performed.

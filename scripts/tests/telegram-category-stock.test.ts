@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { availableCatalogue, categoryCatalogue, stockRowStyle, telegramCategories } from "../../src/lib/bot/catalogue";
+import { availableCatalogue, availableFirst, categoryCatalogue, stockRowStyle, stockedCategoriesFirst, telegramCategories } from "../../src/lib/bot/catalogue";
 
 describe("Telegram category stock visibility", () => {
   const products = [
@@ -36,5 +36,12 @@ describe("Telegram category stock visibility", () => {
   test("sold-out automatic and limited manual rows are red; unlimited manual retains the chosen colour", () => {
     expect(products.map((p) => stockRowStyle(p, "primary"))).toEqual(["primary", "danger", "danger", "danger", "primary", "danger"]);
     expect(stockRowStyle({ stock: 2, delivery_type: "auto" }, "success")).toBe("success");
+  });
+  test("products keep their original serial inside available and sold-out groups", () => {
+    expect(availableFirst(products).map((p) => p.id)).toEqual(["ready", "unlimited", "sold-out", "preorder", "linked", "limited"]);
+  });
+  test("stocked categories come first and empty categories stay last in saved order", () => {
+    const categories = [{ id: "empty" }, { id: "other" }, { id: "canva" }];
+    expect(stockedCategoriesFirst(categories, products, { canva: new Set(["ready"]) }).map((c) => c.id)).toEqual(["canva", "empty", "other"]);
   });
 });

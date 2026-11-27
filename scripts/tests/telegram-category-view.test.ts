@@ -5,8 +5,8 @@ let design = "classic";
 let view: { text: string; kb: Array<Array<{ callback_data?: string; style?: string }>> } | undefined;
 const categories = Array.from({ length: 24 }, (_, i) => ({ id: `c${i}`, name: i === 1 ? "Gemini AI" : `Category ${i}`, is_active: true, channel: "both" }));
 const products = [
-  { id: "ready", name: "Gemini Pro", category_id: "c0", is_active: true, delivery_type: "auto", price: 2, old_price: 3, stock: 3 },
   { id: "out", name: "Canva Pro", category_id: "c0", is_active: true, delivery_type: "auto", price: 1, stock: 0 },
+  { id: "ready", name: "Gemini Pro", category_id: "c0", is_active: true, delivery_type: "auto", price: 2, old_price: 3, stock: 3 },
   { id: "off", name: "Disabled", category_id: "c0", is_active: false, delivery_type: "auto", price: 1, stock: 3 },
 ];
 const user = { telegram_id: 123, first_name: "Test", username: "test", last_name: null, state: {} };
@@ -66,11 +66,14 @@ test("shop → category → All Products respects stock visibility in actual bot
   const hidden = await click("cat:unavailable:0");
   expect(hidden.kb.flat().filter((b) => b.callback_data?.startsWith("p:"))).toEqual([]);
 });
-test("shop colors: Flash Deals red, top category green, grid categories keep their colour", async () => {
+test("shop colors and ordering: stocked categories first, empty categories red and last", async () => {
   const shop = await click("shop:0");
   expect(shop.kb.flat().find((b) => b.callback_data === "flash")?.style).toBe("danger");
-  expect(shop.kb.flat().find((b) => b.callback_data === "cat:c1:0")?.style).toBe("success");
-  expect(shop.kb.flat().find((b) => b.callback_data === "cat:c0:0")?.style).toBe("primary");
+  const categoryButtons = shop.kb.flat().filter((b) => b.callback_data?.startsWith("cat:c"));
+  expect(categoryButtons[0]?.callback_data).toBe("cat:c0:0");
+  expect(categoryButtons[0]?.style).toBe("primary");
+  expect(shop.kb.flat().find((b) => b.callback_data === "cat:c1:0")?.style).toBe("danger");
+  expect(categoryButtons.slice(1).every((b) => b.style === "danger")).toBe(true);
 });
 test("empty shop still renders all 24 categories", async () => {
   noProducts = true;
@@ -88,7 +91,10 @@ test("admin switch changes the real Shop callback and can return to Classic", as
   Date.now = () => originalNow() + 40_000;
   try {
   const simple = await click("shop:0");
-  expect(simple.kb.flat().find(b => b.callback_data === "cat:c0:0")?.style).toBe("primary");
+  const simpleCategories = simple.kb.flat().filter(b => b.callback_data?.startsWith("cat:c"));
+  expect(simpleCategories[0]?.callback_data).toBe("cat:c0:0");
+  expect(simpleCategories[0]?.style).toBe("primary");
+  expect(simpleCategories.slice(1).every(b => b.style === "danger")).toBe(true);
   const plans = await click("cat:c0:0");
   expect(plans.kb.flat().filter(b => b.callback_data?.startsWith("p:")).map(b => [b.callback_data, b.style])).toEqual([["p:ready", "success"], ["p:out", "danger"]]);
   expect(plans.kb.flat().some(b => b.callback_data === "shop:0")).toBe(true);

@@ -52,7 +52,7 @@ import { API_ICONS, type ApiIconKey } from "@/lib/bot/api-icons";
 import { renderRich, plainRich, messageToRich } from "@/lib/bot/richtext";
 import { telegramFavoritesPage, TELEGRAM_TOP_PRODUCTS_KEY, TELEGRAM_VAULT_PRODUCTS_KEY, parseTopProductIds, selectTopProducts } from "@/lib/telegram-top-products";
 import { TELEGRAM_TOP_CATEGORIES_KEY, chunk, paginateRows, pickTopCategories } from "@/lib/bot/shop-layout";
-import { availableCatalogue, categoryCatalogue, isOutOfStock, stockRowStyle, telegramCategories } from "@/lib/bot/catalogue";
+import { availableCatalogue, availableFirst, categoryCatalogue, categoryHasStock, isOutOfStock, stockRowStyle, stockedCategoriesFirst, telegramCategories } from "@/lib/bot/catalogue";
 import { SHOP_DESIGN_KEY, shopDesign, simpleShopEntries, simplePlanStock, categoryBannerKey, categoryDescriptionKey } from "@/lib/bot/simple-shop";
 import {
   credentialItems,
@@ -1631,12 +1631,14 @@ async function productsWithStock(includeOutOfStock = false) {
     .filter((p: any) => includeOutOfStock || !isOutOfStock(p) || p.preorder_enabled === true);
   // Admin-pinned products (featured_rank 1,2,3…) always come first, in that
   // exact serial; everything else keeps the normal sort_order.
-  return rows.sort((a: any, b: any) => {
+  const ordered = rows.sort((a: any, b: any) => {
     const ra = Number(a.featured_rank ?? 0) || Number.MAX_SAFE_INTEGER;
     const rb = Number(b.featured_rank ?? 0) || Number.MAX_SAFE_INTEGER;
     if (ra !== rb) return ra - rb;
     return Number(a.sort_order ?? 0) - Number(b.sort_order ?? 0);
   });
+  // Stock is the outer priority in every bot list; admin serial stays intact inside each group.
+  return availableFirst(ordered);
 }
 
 const PAGE = 30;
@@ -1741,10 +1743,11 @@ function categoryButton(settings: Record<string, string>, cat: any, text: string
 async function shopView(page: number, chatId?: number) {
   if (await simpleShopEnabled()) return simpleShopView(page, chatId);
   const settings = await getSettings();
-  const products = availableCatalogue(await productsWithStock());
+  const catalogue = await productsWithStock(true);
+  const products = availableCatalogue(catalogue);
   const inStock = products.length;
   const flash = products.filter(isFlash);
-  const { categories } = await categoryLinks();
+  const { categories, byCat } = await categoryLinks();
 
   if (categories.length || products.length) {
     const kb: Button[][] = [];
@@ -1763,26 +1766,33 @@ async function shopView(page: number, chatId?: number) {
       : [/gemini/i, /lovable/i, /muse/i]
           .map((re) => categories.find((c: any) => re.test(String(c.name ?? ""))))
           .filter((c: any, i: number, a: any[]) => c && a.indexOf(c) === i);
-    const rows: Button[][] = [];
-    for (const pair of chunk(featured, 2)) {
-      rows.push(pair.map((c: any) => {
-        const ic = catIcon(settings, c);
-        return styled(categoryButton(settings, c, ic.customId ? c.name : `${ic.glyph} ${c.name}`, `cat:${c.id}:0`), btnColor(settings, "top_category"));
-      }));
-    }
     const gridCats = categories.filter((c: any) => !featured.includes(c));
-    for (const trio of chunk(gridCats, 3)) {
-      rows.push(trio.map((c: any) => {
+    // One global stock partition: a sold-out featured category cannot sit above an in-stock grid category.
+    const orderedCategories = stockedCategoriesFirst([...featured, ...gridCats], catalogue, byCat);
+    const featuredIds = new Set(featured.map((c: any) => String(c.id)));
+    const rows: Button[][] = [];
+    for (let index = 0; index < orderedCategories.length;) {
+      const first = orderedCategories[index]!;
+      const isFeatured = featuredIds.has(String(first.id));
+      const size = isFeatured ? 2 : 3;
+      const group = [first];
+      index += 1;
+      while (index < orderedCategories.length && group.length < size && featuredIds.has(String(orderedCategories[index]!.id)) === isFeatured) {
+        group.push(orderedCategories[index]!);
+        index += 1;
+      }
+      rows.push(group.map((c: any) => {
         const ic = catIcon(settings, c);
-        return styled(categoryButton(settings, c, ic.customId ? c.name : `${ic.glyph} ${c.name}`, `cat:${c.id}:0`), catStyle);
+        const base = featuredIds.has(String(c.id)) ? btnColor(settings, "top_category") : catStyle;
+        return styled(categoryButton(settings, c, ic.customId ? c.name : `${ic.glyph} ${c.name}`, `cat:${c.id}:0`), categoryHasStock(catalogue, c.id, byCat) ? base : "danger");
       }));
     }
-    // Admin-chosen top products (in stock only) below the categories.
+    // Admin-chosen top products below the categories, also partitioned by stock.
     const prodStyle = btnColor(settings, "product");
-    const topProducts = selectTopProducts(
-      (await applyUserPrices(chatId, products)) as any[],
+    const topProducts = availableFirst(selectTopProducts(
+      (await applyUserPrices(chatId, catalogue)) as any[],
       parseTopProductIds(settings[TELEGRAM_TOP_PRODUCTS_KEY]),
-    );
+    ));
     for (const p of topProducts) {
       rows.push([styled(productIconButton(p,
         `${p.name} | ${money(p.price)} | ${(p.delivery_type === "manual" && !p.manual_stock_limited) ? "manual" : `📦 ${p.stock}`}`,
@@ -1849,20 +1859,21 @@ async function simpleShopView(page: number, chatId?: number) {
   const { categories, byCat } = await categoryLinks();
   const products = await applyUserPrices(chatId, await productsWithStock(true));
   const entries = simpleShopEntries(categories, products, byCat);
-  const rows: Button[][] = entries.map(entry => {
+  const rowEntries: { inStock: boolean; row: Button[] }[] = entries.map(entry => {
     const single = entry.plans.length === 1 ? entry.plans[0] : undefined;
-    if (single) return [styled(productIconButton(single, `${String(single.name).slice(0, 72)} · ${money(single.price)} · ${simplePlanStock(single)}`, `p:${single.id}`), entry.style)];
+    if (single) return { inStock: entry.inStock, row: [styled(productIconButton(single, `${String(single.name).slice(0, 72)} · ${money(single.price)} · ${simplePlanStock(single)}`, `p:${single.id}`), entry.style)] };
     const ic = catIcon(settings, entry.category);
     const price = entry.minPrice === entry.maxPrice ? money(entry.minPrice) : `${money(entry.minPrice)}–${money(entry.maxPrice)}`;
     const stock = entry.unlimited ? "Unlimited" : `${entry.stock} left`;
     const label = `${ic.customId ? "" : `${ic.glyph} `}${String(entry.category.name).slice(0, 64)} ▸ ${entry.plans.length} Plans · ${price} · ${stock}`;
-    return [styled(categoryButton(settings, entry.category, label, `cat:${entry.category.id}:0`), "primary")];
+    return { inStock: entry.inStock, row: [styled(categoryButton(settings, entry.category, label, `cat:${entry.category.id}:0`), entry.style)] };
   });
-  // Products without any category remain reachable, without exposing hidden categories.
+  // Uncategorized products follow the same stock rule, without exposing hidden categories.
   const linked = new Set(Object.values(byCat).flatMap(ids => [...ids]));
-  for (const p of availableCatalogue(products).filter((p: any) => !p.category_id && !linked.has(p.id))) {
-    rows.push([styled(productIconButton(p, `${String(p.name).slice(0, 72)} · ${money(p.price)} · ${simplePlanStock(p)}`, `p:${p.id}`), "success")]);
+  for (const p of products.filter((p: any) => !p.category_id && !linked.has(p.id))) {
+    rowEntries.push({ inStock: !isOutOfStock(p), row: [styled(productIconButton(p, `${String(p.name).slice(0, 72)} · ${money(p.price)} · ${simplePlanStock(p)}`, `p:${p.id}`), prodRowStyle(p, "success"))] });
   }
+  const rows = [...rowEntries.filter(entry => entry.inStock), ...rowEntries.filter(entry => !entry.inStock)].map(entry => entry.row);
   const paged = paginateRows(rows, 8, page);
   const kb: Button[][] = [...paged.rows];
   if (products.some(isFlash)) kb.push([styled(uiBtn(settings, "shop_flash", "flash"), btnColor(settings, "flash"))]);
@@ -2055,7 +2066,7 @@ async function freebiesView() {
 /** Reseller Vault — admin-picked products in serial order; sold-out picks stay, marked. */
 async function vaultView(chatId?: number) {
   const settings = await getSettings();
-  const picked = selectTopProducts(await productsWithStock(true), parseTopProductIds(settings[TELEGRAM_VAULT_PRODUCTS_KEY]));
+  const picked = availableFirst(selectTopProducts(await productsWithStock(true), parseTopProductIds(settings[TELEGRAM_VAULT_PRODUCTS_KEY])));
   const products = (await applyUserPrices(chatId, picked)) as any[];
   const head = `${uiTag(settings, "shop_vault")}\n──────────────\n`;
   const prodStyle = btnColor(settings, "product");
