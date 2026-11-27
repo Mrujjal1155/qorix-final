@@ -18,6 +18,7 @@ import {
   saveManualInput,
   reorderCategories,
   saveCategory,
+  saveBotSettings,
   saveCategoryProducts,
   saveProduct,
   setProductActive,
@@ -42,6 +43,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { brandFallbackOnError } from "@/components/SmartImage";
 import { Switch } from "@/components/ui/switch";
+import { categoryBannerKey, categoryDescriptionKey } from "@/lib/bot/simple-shop";
 
 export const Route = createFileRoute("/admin/products")({
   head: () => ({
@@ -227,6 +229,16 @@ function ProductsPage() {
 
   const fetchSettings = useServerFn(getBotSettings);
   const settingsQ = useQuery({ queryKey: ["bot-settings-icons"], queryFn: () => fetchSettings() });
+  const saveSettings = useServerFn(saveBotSettings);
+  const [bannerEdit, setBannerEdit] = useState<{ id: string; url: string; description: string } | null>(null);
+  const bannerMut = useMutation({
+    mutationFn: async () => {
+      if (!bannerEdit) return;
+      await saveSettings({ data: { values: { [categoryBannerKey(bannerEdit.id)]: bannerEdit.url.trim(), [categoryDescriptionKey(bannerEdit.id)]: bannerEdit.description.trim() } } });
+    },
+    onSuccess: () => { setBannerEdit(null); qc.invalidateQueries({ queryKey: ["bot-settings-icons"] }); toast.success("Category bot banner saved"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const storedIcon = String((settingsQ.data as any)?.ui_icon_prod_icon_default ?? "");
   const [icon, setIcon] = useState<{ emoji: string; id: string; scope: string } | null>(null);
   const iconState = icon ?? {
@@ -586,6 +598,7 @@ function ProductsPage() {
                 </span>
                 <div className="flex flex-wrap gap-1">
                   <Button size="sm" variant="outline" title="Edit category name" onClick={() => setCategoryEdit({ id: c.id, name: c.name })}><Pencil className="mr-1 h-3.5 w-3.5" />Edit</Button>
+                  <Button size="sm" variant="outline" disabled={settingsQ.isPending || settingsQ.isError} onClick={() => setBannerEdit(bannerEdit?.id === c.id ? null : { id: c.id, url: settingsQ.data?.[categoryBannerKey(c.id)] ?? "", description: settingsQ.data?.[categoryDescriptionKey(c.id)] ?? "" })}>Bot banner</Button>
                   <Button
                     size="sm"
                     variant="outline"
@@ -629,6 +642,18 @@ function ProductsPage() {
                     <Button size="sm" variant="ghost" onClick={() => setLogoUrl("")}>
                       Remove logo
                     </Button>
+                  </div>
+                </div>
+              )}
+              {bannerEdit && bannerEdit.id === c.id && (
+                <div className="mt-3 space-y-2">
+                  <Label>Simple Shop category banner · 1920×691</Label>
+                  <ImageUploadField value={bannerEdit.url} onChange={url => setBannerEdit({ ...bannerEdit, url })} placeholder="https://… banner image" />
+                  <Label>Category description</Label>
+                  <Textarea maxLength={500} value={bannerEdit.description} onChange={e => setBannerEdit({ ...bannerEdit, description: e.target.value })} />
+                  <div className="flex gap-2">
+                    <Button size="sm" disabled={bannerMut.isPending} onClick={() => bannerMut.mutate()}>Save bot banner</Button>
+                    <Button size="sm" variant="outline" disabled={bannerMut.isPending} onClick={() => setBannerEdit({ ...bannerEdit, url: "" })}>Remove banner</Button>
                   </div>
                 </div>
               )}

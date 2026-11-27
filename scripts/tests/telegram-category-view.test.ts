@@ -1,6 +1,7 @@
 import { expect, mock, test } from "bun:test";
 
 let noProducts = false;
+let design = "classic";
 let view: { text: string; kb: Array<Array<{ callback_data?: string; style?: string }>> } | undefined;
 const categories = Array.from({ length: 24 }, (_, i) => ({ id: `c${i}`, name: i === 1 ? "Gemini AI" : `Category ${i}`, is_active: true, channel: "both" }));
 const products = [
@@ -12,12 +13,13 @@ const user = { telegram_id: 123, first_name: "Test", username: "test", last_name
 mock.module("@/integrations/supabase/client.server", () => ({ supabaseAdmin: {
   from: (table: string) => {
     let activeOnly = false;
-    const result = () => ({ data: table === "categories" ? categories : table === "products" ? (noProducts ? [] : products.filter((p) => !activeOnly || p.is_active)) : table === "bot_users" ? user : [], error: null });
+    const settings = [{ key: "telegram_shop_design", value: design }, { key: "category_banner_c0", value: "https://example.com/plans.png" }, { key: "btn_color_flash", value: "danger" }];
+    const result = () => ({ data: table === "bot_settings" ? settings : table === "categories" ? categories : table === "products" ? (noProducts ? [] : products.filter((p) => !activeOnly || p.is_active)) : table === "bot_users" ? user : [], error: null });
     const chain: any = {
       select: () => chain, order: () => chain, range: () => chain, is: () => chain,
-      neq: () => chain, gte: () => chain, lt: () => chain, lte: () => chain, limit: () => chain, in: () => chain, or: () => chain,
+      neq: () => chain, gt: () => chain, gte: () => chain, lt: () => chain, lte: () => chain, limit: () => chain, in: () => chain, or: () => chain,
       eq: (key: string, value: unknown) => { if (key === "is_active" && value === true) activeOnly = true; return chain; },
-      update: () => chain, maybeSingle: async () => result(),
+      update: () => chain, maybeSingle: async () => table === "bot_settings" ? { data: { value: design }, error: null } : result(),
       then: (resolve: (value: unknown) => unknown) => Promise.resolve(result()).then(resolve),
     };
     return chain;
@@ -79,4 +81,34 @@ test("empty shop still renders all 24 categories", async () => {
     expect(shop.kb.flat().filter((b) => b.callback_data?.startsWith("cat:c"))).toHaveLength(24);
     expect(shop.kb.flat().filter((b) => b.callback_data?.startsWith("p:"))).toEqual([]);
   } finally { Date.now = originalNow; noProducts = false; }
+});
+test("admin switch changes the real Shop callback and can return to Classic", async () => {
+  design = "simple";
+  const originalNow = Date.now;
+  Date.now = () => originalNow() + 40_000;
+  try {
+  const simple = await click("shop:0");
+  expect(simple.kb.flat().find(b => b.callback_data === "cat:c0:0")?.style).toBe("primary");
+  const plans = await click("cat:c0:0");
+  expect(plans.kb.flat().filter(b => b.callback_data?.startsWith("p:")).map(b => [b.callback_data, b.style])).toEqual([["p:ready", "success"], ["p:out", "danger"]]);
+  expect(plans.kb.flat().some(b => b.callback_data === "shop:0")).toBe(true);
+  expect(plans.kb.flat().length).toBeLessThanOrEqual(100);
+  expect(plans.kb.flat().every(b => !b.callback_data || new TextEncoder().encode(b.callback_data).length <= 64)).toBe(true);
+  design = "classic";
+  const classic = await click("shop:0");
+  expect(classic.kb.flat().filter(b => b.callback_data?.startsWith("cat:c"))).toHaveLength(24);
+  const oldPlans = await click("cat:c0:0");
+  expect(oldPlans.kb.flat().find(b => b.callback_data === "p:ready")?.style).toBe("primary");
+  } finally { design = "classic"; Date.now = originalNow; }
+});
+test("a single-plan category goes directly to its product in Simple Shop", async () => {
+  design = "simple";
+  products.push({ id: "single", name: "Single plan", category_id: "c2", is_active: true, delivery_type: "auto", price: 4, stock: 7 });
+  const originalNow = Date.now;
+  Date.now = () => originalNow() + 60_000;
+  try {
+    const shop = await click("shop:0");
+    expect(shop.kb.flat().find(b => b.callback_data === "p:single")?.style).toBe("success");
+    expect(shop.kb.flat().some(b => b.callback_data === "cat:c2:0")).toBe(false);
+  } finally { design = "classic"; Date.now = originalNow; products.pop(); }
 });

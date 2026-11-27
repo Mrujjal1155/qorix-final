@@ -1630,6 +1630,11 @@ export const saveBotSettings = createServerFn({ method: "POST" })
     const sb = (context as any).supabase;
     await assertAdmin(context);
     if (data.values["bot_full_gateways_enabled"] !== undefined && !["0", "1"].includes(data.values["bot_full_gateways_enabled"])) throw new Error("Invalid bot gateway switch");
+    if (data.values["telegram_shop_design"] !== undefined && !["classic", "simple"].includes(data.values["telegram_shop_design"])) throw new Error("Invalid shop design");
+    for (const [key, value] of Object.entries(data.values)) {
+      if (key.startsWith("category_banner_") && value && !/^https:\/\/\S+$/.test(value)) throw new Error("Category banner must use HTTPS");
+      if (key.startsWith("category_description_") && value.length > 500) throw new Error("Category description must be 500 characters or fewer");
+    }
     // Verification flags are written only after a trusted Bybit account/API check.
     if (data.values['referral_mode'] && !['off', 'points', 'commission'].includes(data.values['referral_mode'])) throw new Error('Invalid referral mode');
     const rows = Object.entries(data.values).filter(([key]) => !["bybit_api_verified", "bybit_api_key", "bybit_api_secret", "referral_mode", "referral_enabled", "web_referral_enabled"].includes(key)).map(([key, value]) => ({ key, value }));

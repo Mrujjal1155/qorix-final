@@ -53,6 +53,7 @@ import { renderRich, plainRich, messageToRich } from "@/lib/bot/richtext";
 import { telegramFavoritesPage, TELEGRAM_TOP_PRODUCTS_KEY, TELEGRAM_VAULT_PRODUCTS_KEY, parseTopProductIds, selectTopProducts } from "@/lib/telegram-top-products";
 import { TELEGRAM_TOP_CATEGORIES_KEY, chunk, paginateRows, pickTopCategories } from "@/lib/bot/shop-layout";
 import { availableCatalogue, categoryCatalogue, isOutOfStock, stockRowStyle, telegramCategories } from "@/lib/bot/catalogue";
+import { SHOP_DESIGN_KEY, shopDesign, simpleShopEntries, simplePlanStock, categoryBannerKey, categoryDescriptionKey } from "@/lib/bot/simple-shop";
 import {
   credentialItems,
   orderCode,
@@ -1738,6 +1739,7 @@ function categoryButton(settings: Record<string, string>, cat: any, text: string
 
 /** Category picker — blue category buttons, green navigation buttons. */
 async function shopView(page: number, chatId?: number) {
+  if (await simpleShopEnabled()) return simpleShopView(page, chatId);
   const settings = await getSettings();
   const products = availableCatalogue(await productsWithStock());
   const inStock = products.length;
@@ -1836,6 +1838,75 @@ async function shopView(page: number, chatId?: number) {
   return allProductsView(page, "all", chatId);
 }
 
+/** Read this switch fresh on each navigation so Classic rollback is immediate. */
+async function simpleShopEnabled() {
+  const { data, error } = await db.from("bot_settings").select("value").eq("key", SHOP_DESIGN_KEY).maybeSingle();
+  return !error && shopDesign(data?.value) === "simple";
+}
+
+async function simpleShopView(page: number, chatId?: number) {
+  const settings = await getSettings();
+  const { categories, byCat } = await categoryLinks();
+  const products = await applyUserPrices(chatId, await productsWithStock(true));
+  const entries = simpleShopEntries(categories, products, byCat);
+  const rows: Button[][] = entries.map(entry => {
+    const single = entry.plans.length === 1 ? entry.plans[0] : undefined;
+    if (single) return [styled(productIconButton(single, `${String(single.name).slice(0, 72)} · ${money(single.price)} · ${simplePlanStock(single)}`, `p:${single.id}`), entry.style)];
+    const ic = catIcon(settings, entry.category);
+    const price = entry.minPrice === entry.maxPrice ? money(entry.minPrice) : `${money(entry.minPrice)}–${money(entry.maxPrice)}`;
+    const stock = entry.unlimited ? "Unlimited" : `${entry.stock} left`;
+    const label = `${ic.customId ? "" : `${ic.glyph} `}${String(entry.category.name).slice(0, 64)} ▸ ${entry.plans.length} Plans · ${price} · ${stock}`;
+    return [styled(categoryButton(settings, entry.category, label, `cat:${entry.category.id}:0`), "primary")];
+  });
+  // Products without any category remain reachable, without exposing hidden categories.
+  const linked = new Set(Object.values(byCat).flatMap(ids => [...ids]));
+  for (const p of availableCatalogue(products).filter((p: any) => !p.category_id && !linked.has(p.id))) {
+    rows.push([styled(productIconButton(p, `${String(p.name).slice(0, 72)} · ${money(p.price)} · ${simplePlanStock(p)}`, `p:${p.id}`), "success")]);
+  }
+  const paged = paginateRows(rows, 8, page);
+  const kb: Button[][] = [...paged.rows];
+  if (products.some(isFlash)) kb.push([styled(uiBtn(settings, "shop_flash", "flash"), btnColor(settings, "flash"))]);
+  if (selectTopProducts(products, parseTopProductIds(settings[TELEGRAM_VAULT_PRODUCTS_KEY])).length) kb.push([styled(uiBtn(settings, "shop_vault", "vault"), btnColor(settings, "flash"))]);
+  if (paged.page > 0) kb.push([pageNavButton(settings, "prev", "Previous", `shop:${paged.page - 1}`)]);
+  if (paged.page + 1 < paged.pages) kb.push([pageNavButton(settings, "next", "Next", `shop:${paged.page + 1}`)]);
+  const allIc = allProductsIcon(settings);
+  kb.push([{ text: allIc.customId ? "All products" : `${allIc.glyph} All products`, callback_data: "cat:all:0", ...(allIc.customId ? { icon_custom_emoji_id: allIc.customId } : {}) }]);
+  kb.push([iconButton(settings, "refresh", `shop:${paged.page}`)]);
+  kb.push([iconButton(settings, "cart", "cart"), iconButton(settings, "back", "home")]);
+  const text = bannerImg(categoriesBannerUrl(settings)) +
+    `<table bordered compact><tr><th colspan="2">${pageIconHtml(settings, "shop")} S H O P</th></tr>` +
+    `<tr><td>In stock</td><td>${availableCatalogue(products).length}</td></tr></table>`;
+  return { text, kb };
+}
+
+async function simpleCategoryView(page: number, catId: string, chatId?: number) {
+  const settings = await getSettings();
+  const { categories, byCat } = await categoryLinks();
+  const cat = categories.find((c: any) => c.id === catId);
+  const catalogue = await applyUserPrices(chatId, await productsWithStock(true));
+  const plans = cat ? productsOfCategory(catalogue, catId, byCat) : [];
+  const pages = Math.max(1, Math.ceil(plans.length / 8));
+  const current = Math.max(0, Math.min(Number.isFinite(page) ? Math.floor(page) : 0, pages - 1));
+  const slice = plans.slice(current * 8, current * 8 + 8);
+  const kb: Button[][] = slice.map((p: any) => [styled(productIconButton(p, `${String(p.name).slice(0, 72)} · ${money(p.price)} · ${simplePlanStock(p)}`, `p:${p.id}`), prodRowStyle(p, "success"))]);
+  const nav: Button[] = [];
+  if (current > 0) nav.push(pageNavButton(settings, "prev", "Previous", `cat:${catId}:${current - 1}`));
+  if (current + 1 < pages) nav.push(pageNavButton(settings, "next", "Next", `cat:${catId}:${current + 1}`));
+  if (nav.length) kb.push(nav);
+  kb.push([iconButton(settings, "refresh", `cat:${catId}:${current}`)]);
+  kb.push([{ text: "« Back to Shop", callback_data: "shop:0" }, iconButton(settings, "cart", "cart")]);
+  const ic = cat ? catIcon(settings, cat) : null;
+  const heading = ic ? (ic.customId ? `<tg-emoji emoji-id="${ic.customId}">${escapeHtml(ic.glyph)}</tg-emoji>` : escapeHtml(ic.glyph)) : "";
+  const banner = cat ? sectionBannerUrl(settings, categoryBannerKey(catId)) : null;
+  const description = cat ? String(settings[categoryDescriptionKey(catId)] ?? "").slice(0, 500) : "";
+  const text = bannerImg(banner) + `<b>${heading} ${escapeHtml(String(cat?.name ?? "Category unavailable").slice(0, 150))}</b>` +
+    (description ? `<p>${escapeHtml(description)}</p>` : "") +
+    `<table bordered compact><tr><th>Plan</th><th>Price</th><th>Stock</th></tr>` +
+    slice.map((p: any) => `<tr><td>${productIconHtml(p)} ${escapeHtml(String(p.name).slice(0, 72))}</td><td>${money(p.price)}</td><td>${simplePlanStock(p)}</td></tr>`).join("") +
+    (slice.length ? "" : `<tr><td colspan="3">No plans available</td></tr>`) + `</table>`;
+  return { text, kb };
+}
+
 /** Flat product list — original shop page, optionally scoped to one category. */
 /** Show a bot user's admin-set custom price from the very first screen (single-unit prices only). */
 async function applyUserPrices<T extends any>(chatId: number | undefined, products: T[]): Promise<T[]> {
@@ -1850,6 +1921,7 @@ async function applyUserPrices<T extends any>(chatId: number | undefined, produc
 }
 
 async function allProductsView(page: number, catId: "all" | string = "all", chatId?: number) {
+  if (catId !== "all" && await simpleShopEnabled()) return simpleCategoryView(page, catId, chatId);
   const settings = await getSettings();
   const catalogue = await productsWithStock(catId !== "all");
   const all = await applyUserPrices(chatId, catId === "all" ? availableCatalogue(catalogue) : catalogue);

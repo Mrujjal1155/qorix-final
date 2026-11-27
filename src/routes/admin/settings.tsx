@@ -35,6 +35,7 @@ import { TelegramNotificationsCard } from "@/components/admin/TelegramNotificati
 import { PRODUCTION_SITE_URL } from "@/lib/site-url";
 import { WebsitePremiumIconsCard } from "@/components/admin/WebsitePremiumIconsCard";
 import { BOT_FULL_GATEWAYS_KEY, botFullGatewaysEnabled } from "@/lib/bot/full-gateways";
+import { SHOP_DESIGN_KEY, shopDesign } from "@/lib/bot/simple-shop";
 
 
 export const Route = createFileRoute("/admin/settings")({
@@ -486,6 +487,12 @@ function SettingsPage() {
         <CardTitle>Bot configuration</CardTitle>
       </CardHeader>
       <CardContent className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2 sm:col-span-2">
+          <Label>Telegram Shop design</Label>
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Telegram Shop design">
+            {(["classic", "simple"] as const).map(mode => <Button key={mode} type="button" variant={shopDesign(values[SHOP_DESIGN_KEY]) === mode ? "default" : "outline"} aria-pressed={shopDesign(values[SHOP_DESIGN_KEY]) === mode} onClick={() => setValues({ ...values, [SHOP_DESIGN_KEY]: mode })}>{mode === "classic" ? "Classic (Category)" : "Simple Shop"}</Button>)}
+          </div>
+        </div>
         <div className="space-y-1 sm:col-span-2">
           <Label>Start banner (bot /start)</Label>
           <p className="text-xs text-muted-foreground">Recommended 1920×691 (wide banner). Shown above the welcome card; leave empty to hide.</p>
