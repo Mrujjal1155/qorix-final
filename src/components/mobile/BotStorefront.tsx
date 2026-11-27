@@ -3,8 +3,8 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft, Bell, BookOpen, Boxes, ChevronLeft, ChevronRight, CircleCheck, CircleX, Code2,
-  Gift, Home, LayoutGrid, LifeBuoy, LogIn, Mail, Megaphone, Minus, Package, Plus, RefreshCw, Send,
-  ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, User, UserPlus, Users, Wallet, Zap, type LucideIcon,
+  Gift, Home, LayoutGrid, LifeBuoy, LogIn, Mail, Minus, Package, Plus, RefreshCw, Send,
+  ShoppingBag, ShoppingCart, Sparkles, Store, Trash2, User, UserPlus, Wallet, Zap, type LucideIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { startTelegramLogin, claimTelegramLogin } from "@/lib/telegram-login.functions";
@@ -20,7 +20,7 @@ import { categoryPremiumMedia } from "@/lib/category-premium-media";
 import { ProductPremiumIcon } from "@/components/mobile/ProductPremiumIcon";
 import { ButtonPremiumIcon } from "@/components/mobile/ButtonPremiumIcon";
 import { Button } from "@/components/ui/button";
-import { WelcomePremiumHeading } from "@/components/mobile/WelcomePremiumHeading";
+import { BotStartProfile } from "@/components/mobile/BotStartProfile";
 import { BotProductMessage } from "@/components/mobile/BotProductMessage";
 
 type Cat = { id: string; name: string; image_url?: string | null };
@@ -53,6 +53,7 @@ export function BotStorefront(props: {
     v === "profile" ? (signedIn ? void navigate({ to: "/account/profile" }) : setView({ k: "menu" })) : setView({ k: v });
   // Signed in = connected Telegram account; otherwise the visitor shops as a guest (no ID).
   const [signedIn, setSignedIn] = useState(false);
+  const [accountKey, setAccountKey] = useState<string | null>(null);
   useEffect(() => {
     // Once Guest or Telegram was chosen, open straight on the menu (no Start again), like the bot.
     // Products button on other pages lands here and opens the full product list, like the bot.
@@ -66,16 +67,24 @@ export function BotStorefront(props: {
     if (localStorage.getItem("qorix_guest")) setView((v) => (v.k === "start" ? { k: "menu" } : v));
     supabase.auth.getSession().then(({ data }) => {
       setSignedIn(Boolean(data.session));
+      setAccountKey(data.session?.user.id ?? null);
       if (data.session) setView((v) => (v.k === "start" ? { k: "menu" } : v));
     });
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, sess) => setSignedIn(Boolean(sess)));
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, sess) => {
+      setSignedIn(Boolean(sess));
+      setAccountKey(sess?.user.id ?? null);
+    });
     return () => sub.subscription.unsubscribe();
   }, []);
   const begin = () => setView(signedIn || localStorage.getItem("qorix_guest") ? { k: "menu" } : { k: "choose" });
   const acct = (to: string, what: string, icon: LucideIcon, label: string, tone: "blue" | "green" = "blue") =>
     signedIn ? <KeyLink premium={`menu_icon_${what}`} tone={tone} icon={icon} to={to}>{label}</KeyLink>
       : <Key premium={`menu_icon_${what}`} tone={tone} icon={icon} onClick={() => setView({ k: "guest", what })}>{label}</Key>;
-  useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" }); }, [view]);
+  useEffect(() => {
+    const target = scroller.current;
+    if (!target) return;
+    target.scrollTo({ top: view.k === "menu" ? 0 : target.scrollHeight, behavior: "smooth" });
+  }, [view]);
 
   const inStockCount = products.filter((p) => p.in_stock !== false).length;
   const imgOf = (p: Prod) => mobileImageFor(images, p.id, p.image_url);
@@ -161,30 +170,7 @@ export function BotStorefront(props: {
   } else if (view.k === "menu") {
     body = (
       <>
-        <Bubble>
-          <WelcomePremiumHeading />
-          <p className="mt-2 flex items-center gap-2 text-base font-bold"><ButtonPremiumIcon setting="ui_icon_home_greet" fallback={Sparkles} /> Welcome to {props.name}</p>
-          <p className="mt-1 text-sm">100% authentic premium apps — delivered automatically.</p>
-          <Quote>
-            <MenuLine premium="menu_icon_shop" icon={Store} t="Shop" d="Browse all categories" />
-            <MenuLine premium="menu_icon_cart" icon={ShoppingCart} t="Cart" d="Review products to buy" />
-            <MenuLine premium="menu_icon_orders" icon={Package} t="Orders" d="View order status & delivery" />
-            <MenuLine premium="menu_icon_wallet" icon={Wallet} t="Wallet" d="Check balance & add funds" />
-            <MenuLine premium="menu_icon_freebies" icon={Gift} t="Freebies" d="View available free offers" />
-            <MenuLine premium="menu_icon_profile" icon={User} t="Profile" d="Account, wallet, orders & referral details" />
-            <MenuLine premium="menu_icon_referral" icon={Gift} t="Referral Store" d="Invite friends & view rewards" />
-            <MenuLine premium="menu_icon_support" icon={LifeBuoy} t="Support" d="Contact support for help" />
-            <MenuLine premium="menu_icon_emails" icon={Mail} t="Emails & Trials" d="Open the Emails & Trials page" />
-            <MenuLine premium="menu_icon_api" icon={Code2} t="Reseller API" d="Access the reseller API & guide" />
-            <MenuLine premium="menu_icon_clear" icon={Trash2} t="Clear Chat" d="Clear the current shop view" />
-          </Quote>
-          <p className="mt-3 flex items-center gap-2 font-semibold"><ButtonPremiumIcon setting="ui_icon_home_community" fallback={Users} /> Join Community</p>
-          <p className="text-sm">Join for stock alerts and updates.</p>
-          <a className="mt-1 flex items-center gap-2 text-sm text-tg-link" href="https://t.me/QORIXCHAT" target="_blank" rel="noreferrer"><ButtonPremiumIcon setting="ui_icon_home_group" fallback={Users} /> Community Group</a>
-          <a className="flex items-center gap-2 text-sm text-tg-link" href="https://t.me/qorixlab" target="_blank" rel="noreferrer"><ButtonPremiumIcon setting="ui_icon_home_channel" fallback={Megaphone} /> Official Channel</a>
-          <a className="flex items-center gap-2 text-sm text-tg-link" href="https://t.me/qorixstoreupdate" target="_blank" rel="noreferrer"><ButtonPremiumIcon setting="ui_icon_home_updates" fallback={Bell} /> Store Updates Channel</a>
-          <p className="mt-3 text-sm">Choose an option below to get started.</p>
-        </Bubble>
+        <BotStartProfile signedIn={signedIn} accountKey={accountKey} onConnect={() => setView({ k: "tg" })} />
         <Bubble>
           <p className="flex items-center gap-2 font-bold"><ShoppingBag className="h-4 w-4 text-tg-quote-bar" /> QORIX STORE MENU</p>
           <p className="text-sm">Shop · Wallet · Orders · Support</p>

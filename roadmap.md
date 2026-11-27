@@ -357,3 +357,5 @@
 - [x] Hide the Supplier API wallets card and its balance polling from the admin Orders page; dashboard wallet cards unchanged. Build OK; signed-in Orders view not checked because the project uses external unmanaged authentication.
 
 - [x] Telegram Stars payment (bot only): default 77 stars/USD, min 1 star, checkout + deposit
+- [x] Match Mobile View's post-Start card to the Telegram bot: configured banner, real connected-account profile rows, copyable values/invite link, configured community buttons; preserve menu, checkout and payment behavior. Guest view invents no balances or IDs. Eight focused tests pass; mobile/desktop banner, complete card, community links, Connect and Shop flows verified with no overflow/runtime errors. No deployment.
+- [ ] Verify the post-Start card with a real connected Telegram account; blocked by external unmanaged authentication, which cannot mint an authorized sandbox session. The authenticated data path is code-reviewed but not browser-verified.

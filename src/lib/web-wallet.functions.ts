@@ -150,6 +150,7 @@ export const getWebProfile = createServerFn({ method: "GET" })
     return {
       linked: true as const,
       telegram_id: tid,
+      first_name: r.first_name ?? null,
       username: r.username ? `@${r.username}` : (r.first_name ?? "—"),
       membership: String(r.membership ?? "—"),
       orders: count ?? 0,

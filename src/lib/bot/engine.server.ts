@@ -9245,6 +9245,8 @@ export async function webSupportInfo() {
     rules: (s["support_rules"] || "").trim() ? plainText(s["support_rules"]!).split("\n").map((l) => l.replace(/^•\s*/, "")).filter(Boolean) : null,
     link, handle: supportHandle(link),
     emails: (s["emails_trials_link"] || "").trim() || DEFAULT_EMAILS_LINK,
+    startBanner: startBannerUrl(s),
+    startCommunity: communityJoinRow(s),
   };
 }
 
