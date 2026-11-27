@@ -54,4 +54,4 @@
 - Bot links use single-use private consent and bounded product/quantity/checkout/deposit paths; never trust usernames.
 
 
-- Unified bot/reseller balance mirror triggers use a transaction-local `app.unified_balance_sync` flag, not pg_trigger_depth, so balance changes made inside other triggers still mirror without recursion.
+- Balance mirror triggers guard with tx-local `app.unified_balance_sync`, not trigger depth, so nested changes still mirror.
