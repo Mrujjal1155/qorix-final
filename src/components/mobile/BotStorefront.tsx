@@ -189,11 +189,11 @@ export function BotStorefront(props: {
           <KeyLink premium="menu_icon_api" tone="green" icon={Code2} to="/reseller/docs">Reseller API</KeyLink>
           <Key premium="menu_icon_clear" tone="green" icon={Trash2} onClick={() => { setView({ k: "cats" }); setTimeout(() => setView({ k: "menu" }), 0); }}>Clear Chat</Key>
         </Keys>
-        <Keys cols={1}>
-          {signedIn
-            ? <Key tone="red" icon={CircleX} onClick={async () => { await supabase.auth.signOut(); localStorage.removeItem("qorix_guest"); setView({ k: "start" }); }}>Disconnect Telegram</Key>
-            : <Key premium="site_web_icon_connect_button" tone="green" icon={Send} onClick={() => setView({ k: "tg" })}>Connect Telegram</Key>}
-        </Keys>
+        {signedIn && (
+          <Keys cols={1}>
+            <Key tone="red" icon={CircleX} onClick={async () => { await supabase.auth.signOut(); localStorage.removeItem("qorix_guest"); setView({ k: "start" }); }}>Disconnect Telegram</Key>
+          </Keys>
+        )}
       </>
     );
   } else if (view.k === "cats") {
