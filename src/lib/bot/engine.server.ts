@@ -6,7 +6,7 @@ import { cardToTable, saleTable } from "@/lib/bot/alert-table";
 import { bulkDiscountCard } from "@/lib/bot/bulk-discount-card";
 import { productBulkTable } from "@/lib/bot/product-bulk-table";
 import { productDetailsMessage } from "@/lib/bot/product-details-message";
-import { productsBannerUrl, buildProductsBannerCard, flashBannerUrl, buildFlashDealsCard } from "@/lib/bot/products-banner";
+import { productsBannerUrl, buildProductsBannerCard, flashBannerUrl, buildFlashDealsCard, categoriesBannerUrl } from "@/lib/bot/products-banner";
 // Server-only Telegram shop bot engine.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { membershipContact } from "@/lib/bot/contact";
@@ -1818,6 +1818,17 @@ async function shopView(page: number, chatId?: number) {
       `${sectionHead(settings, "shop", `${pageIconHtml(settings, "shop")} <b>C A T E G O R I E S</b>`)}\n\n` +
       `${uiIconHtml(settings, "shop_instock")} <b>${inStock}</b> ${uiText(settings, "shop_instock")}\n` +
       `<i>Every product is neatly organised by category — just tap a category below to browse and buy instantly.</i>\n\n🛍 <b>Happy shopping with QORIX!</b>`;
+    // Admin banner rides in the same rich message as the category buttons, with a bordered table.
+    const catBanner = categoriesBannerUrl(settings);
+    if (catBanner) {
+      const rich = buildProductsBannerCard({
+        banner: catBanner,
+        title: `${pageIconHtml(settings, "shop")} <b>C A T E G O R I E S</b>`,
+        rows: [[`${uiIconHtml(settings, "shop_instock")} ${uiText(settings, "shop_instock")}`, `<b>${inStock}</b>`]],
+        note: "Every product is neatly organised by category — just tap a category below to browse and buy instantly. 🛍 Happy shopping with QORIX!",
+      });
+      return { text: rich, kb };
+    }
     return { text, kb };
   }
 

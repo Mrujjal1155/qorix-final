@@ -505,6 +505,12 @@ function SettingsPage() {
           {values["flash_banner_url"] && <img src={values["flash_banner_url"]} alt="Flash Deals banner preview" className="mt-2 aspect-[1920/691] w-full rounded-md border border-border object-cover" />}
         </div>
         <div className="space-y-1 sm:col-span-2">
+          <Label>Categories banner (bot Categories page)</Label>
+          <p className="text-xs text-muted-foreground">Recommended 1920×691 (wide banner). Shown above the Categories table together with the category buttons; leave empty to hide.</p>
+          <ImageUploadField value={values["categories_banner_url"] ?? ""} onChange={(url) => setValues({ ...values, categories_banner_url: url })} placeholder="https://… banner image" />
+          {values["categories_banner_url"] && <img src={values["categories_banner_url"]} alt="Categories banner preview" className="mt-2 aspect-[1920/691] w-full rounded-md border border-border object-cover" />}
+        </div>
+        <div className="space-y-1 sm:col-span-2">
           <Label>All Products banner (bot All Products page)</Label>
           <p className="text-xs text-muted-foreground">Recommended 1920×691 (wide banner). Shown above the product list together with the cart buttons; leave empty to hide.</p>
           <ImageUploadField value={values["products_banner_url"] ?? ""} onChange={(url) => setValues({ ...values, products_banner_url: url })} placeholder="https://… banner image" />

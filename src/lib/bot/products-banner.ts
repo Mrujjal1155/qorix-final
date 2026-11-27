@@ -38,3 +38,9 @@ export function buildFlashDealsCard(opts: {
     `<tr><th>Product</th><th>Was</th><th>Now</th><th>Off</th></tr>${rows}</table>` +
     `<p>${opts.footer}</p>`;
 }
+
+/** Only an https image URL may be used as the Categories banner. */
+export function categoriesBannerUrl(settings: Record<string, string>): string | null {
+  const v = (settings["categories_banner_url"] || "").trim();
+  return /^https:\/\/\S+$/.test(v) ? v : null;
+}
