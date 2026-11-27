@@ -39,7 +39,9 @@ export const Route = createFileRoute("/api/public/reseller/v1/orders")({
         if ("error" in auth) return auth.error;
 
         if (!body["product_id"]) return core.fail("product_id is required");
-        const email = body["customer_email"] ? String(body["customer_email"]).trim() : null;
+        const inputs = isOrderRequestObject(body["customer_inputs"]) ? body["customer_inputs"] : {};
+        const rawEmail = body["customer_email"] ?? body["email"] ?? inputs["email"];
+        const email = typeof rawEmail === "string" && rawEmail.trim() ? rawEmail.trim().slice(0, 254) : null;
         if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return core.fail("customer_email is invalid");
 
         // Keep the purchase alive even if the reseller's HTTP client times out

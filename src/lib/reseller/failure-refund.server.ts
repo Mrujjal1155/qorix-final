@@ -9,5 +9,5 @@ export async function refundResellerDeliveryFailure(orderId: string, code: "out_
     console.error("reseller refund requires reconciliation", orderId, error ?? data?.status);
     return { ok: false as const, status: 503, error: "Delivery status could not be confirmed — please contact support." };
   }
-  return { ok: false as const, status: 409, code: "delivery_failed", refunded: true, error: "Delivery failed — please try again later." };
+  return { ok: false as const, status: 409, code: "delivery_failed", refunded: true, error: "Product temporarily unavailable" };
 }

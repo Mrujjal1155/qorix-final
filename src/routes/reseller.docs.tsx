@@ -1,27 +1,21 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Check, Copy } from "lucide-react";
 import { StoreShell } from "@/components/StoreShell";
-import { toast } from "sonner";
-import { useMobileTemplate } from "@/components/mobile/BotFrame";
-import { BotApiDocs } from "@/components/mobile/BotApiDocs";
 import { Button } from "@/components/ui/button";
 import { RESELLER_API_BASE_PRODUCTION, productionUrlFor } from "@/lib/site-url";
 
 export const Route = createFileRoute("/reseller/docs")({
   head: () => ({
     meta: [
-      { title: "Reseller API Documentation — QORIX" },
+      { title: "QORIX Reseller API — Official documentation" },
       {
         name: "description",
         content:
-          "Complete A-to-Z QORIX reseller API guide: authentication, products, orders, balance, plus copy-paste code to build your own website store or Telegram bot.",
+          "Sell the QORIX catalogue from your own website or Telegram bot: step-by-step setup, every endpoint, order statuses, errors and copy-paste code.",
       },
-      { property: "og:title", content: "QORIX Reseller API Documentation" },
-      {
-        property: "og:description",
-        content: "Every endpoint explained with examples, plus a full website and Telegram bot starter.",
-      },
+      { property: "og:title", content: "QORIX Reseller API — Official documentation" },
+      { property: "og:description", content: "Connect in 5 minutes: read products, place an order, deliver items to your buyer." },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary_large_image" },
       { property: "og:url", content: productionUrlFor("/reseller/docs") },
@@ -31,808 +25,610 @@ export const Route = createFileRoute("/reseller/docs")({
   component: DocsPage,
 });
 
-function Code({ children }: { children: string }) {
+const NAV: [string, string][] = [
+  ["quickstart", "🚀 Quick start"],
+  ["base-url", "🌐 Base URL"],
+  ["auth", "🔐 Authentication"],
+  ["conventions", "📐 Conventions"],
+  ["endpoints", "🧭 All endpoints"],
+  ["ep-me", "👤 GET /me"],
+  ["ep-products", "📦 GET /products"],
+  ["ep-product", "🔎 GET /products/{id}"],
+  ["ep-create-order", "🛒 POST /orders"],
+  ["ep-order", "📄 GET /orders/{id}"],
+  ["ep-orders", "🗂️ GET /orders"],
+  ["ep-transactions", "💳 GET /transactions"],
+  ["statuses", "🔄 Order statuses"],
+  ["customer-info", "✉️ Products that need buyer info"],
+  ["duplicates", "🔁 No duplicate orders"],
+  ["delivering", "📬 Delivering to your buyer"],
+  ["errors", "🚨 Error reference"],
+  ["best", "🏆 Best practices"],
+  ["examples", "🧩 Code examples"],
+  ["instructions", "📜 Instructions & Terms"],
+  ["faq", "❓ FAQ"],
+  ["changelog", "🗒️ Changelog"],
+  ["support", "💬 Support"],
+];
+
+function Code({ children, label }: { children: string; label?: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="relative mt-3">
-      <button
-        type="button"
-        onClick={() => {
-          navigator.clipboard.writeText(children);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        }}
-        className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-md border border-border/70 bg-background/80 px-2 py-1 text-xs text-muted-foreground hover:text-foreground"
-      >
-        {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-        {copied ? "Copied" : "Copy"}
-      </button>
-      <pre className="max-w-full overflow-x-auto rounded-xl border border-border/70 bg-secondary/40 p-4 pt-10 text-[0.7rem] leading-relaxed sm:pt-4 sm:text-xs">
+    <div className="mt-3 min-w-0 overflow-hidden rounded-xl border border-border/70 bg-secondary/40">
+      <div className="flex items-center justify-between gap-2 border-b border-border/60 px-3 py-1.5">
+        <span className="truncate text-[0.7rem] font-medium uppercase tracking-wide text-muted-foreground">{label ?? "code"}</span>
+        <button
+          type="button"
+          onClick={() => {
+            void navigator.clipboard.writeText(children);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          }}
+          className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-background hover:text-foreground"
+        >
+          {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <pre className="max-w-full overflow-x-auto p-3 text-[0.72rem] leading-relaxed sm:p-4 sm:text-xs">
         <code className="font-mono">{children}</code>
       </pre>
     </div>
   );
 }
 
-function Section({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+function C({ children }: { children: ReactNode }) {
+  return <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-[0.8em] text-foreground break-words">{children}</code>;
+}
+
+function Section({ id, icon, title, children }: { id: string; icon?: string; title: string; children: ReactNode }) {
   return (
-    <section id={id} className="min-w-0 scroll-mt-24 break-words border-t border-border/60 py-8 first:border-t-0 sm:py-10">
-      <h2 className="text-lg font-bold tracking-tight sm:text-2xl">{title}</h2>
+    <section id={id} className="min-w-0 scroll-mt-24 border-t border-border/60 py-8 first:border-t-0 first:pt-0 sm:py-10">
+      <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+        {icon && <span aria-hidden>{icon}</span>}
+        <span className="min-w-0">{title}</span>
+      </h2>
+      <div className="mt-4 min-w-0 space-y-3 text-sm leading-relaxed text-muted-foreground">{children}</div>
+    </section>
+  );
+}
+
+function Callout({ tone = "info", children }: { tone?: "info" | "warn" | "ok"; children: ReactNode }) {
+  const cls =
+    tone === "warn"
+      ? "border-destructive/40 bg-destructive/10"
+      : tone === "ok"
+        ? "border-primary/40 bg-primary/10"
+        : "border-border bg-secondary/40";
+  const icon = tone === "warn" ? "⚠️" : tone === "ok" ? "✅" : "💡";
+  return (
+    <div className={`grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-xl border p-4 text-sm ${cls}`}>
+      <span aria-hidden>{icon}</span>
+      <div className="min-w-0 text-foreground/90">{children}</div>
+    </div>
+  );
+}
+
+function Steps({ items }: { items: [string, ReactNode][] }) {
+  return (
+    <ol className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {items.map(([t, d], i) => (
+        <li key={t} className="min-w-0 rounded-xl border border-border/70 bg-card p-4">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{i + 1}</div>
+          <p className="mt-3 font-semibold text-foreground">{t}</p>
+          <div className="mt-1 text-xs text-muted-foreground">{d}</div>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
+  return (
+    <div className="mt-3 overflow-x-auto rounded-xl border border-border/70">
+      <table className="w-full min-w-[520px] text-left text-xs sm:text-sm">
+        <thead className="bg-secondary/50 text-foreground">
+          <tr>{head.map((h) => <th key={h} className="px-3 py-2 font-semibold">{h}</th>)}</tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} className="border-t border-border/60 align-top">
+              {r.map((c, j) => <td key={j} className="px-3 py-2">{c}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function Endpoint({ id, method, path, title, children }: { id: string; method: "GET" | "POST"; path: string; title: string; children: ReactNode }) {
+  return (
+    <section id={id} className="min-w-0 scroll-mt-24 rounded-2xl border border-border/70 bg-card p-4 sm:p-6">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={`rounded-md px-2 py-0.5 font-mono text-xs font-bold ${method === "GET" ? "bg-primary/15 text-primary" : "bg-accent text-accent-foreground"}`}>{method}</span>
+        <code className="min-w-0 break-all font-mono text-sm font-semibold text-foreground">{path}</code>
+      </div>
+      <h3 className="mt-2 text-base font-bold text-foreground">{title}</h3>
       <div className="mt-3 min-w-0 space-y-3 text-sm leading-relaxed text-muted-foreground">{children}</div>
     </section>
   );
 }
 
-
-const NAV = [
-  ["quick", "⚡ Connect in 3 steps"],
-  ["fix", "🛠 Connection problems"],
-  ["start", "1. Getting started"],
-  ["auth", "2. Authentication"],
-  ["endpoints", "3. Endpoints"],
-  ["products", "4. List products"],
-  ["order", "5. Place an order"],
-  ["status", "6. Order status & history"],
-  ["balance", "7. Balance & transactions"],
-  ["errors", "8. Errors"],
-  ["website", "9. Build a website (A→Z)"],
-  ["bot", "10. Build a Telegram bot (A→Z)"],
-  ["checklist", "11. Go-live checklist"],
-  ["faq", "12. FAQ"],
-  ["changelog", "13. API changelog"],
-];
+function Tabs({ tabs }: { tabs: [string, string][] }) {
+  const [active, setActive] = useState(0);
+  const cur = tabs[active] ?? tabs[0];
+  return (
+    <div>
+      <div className="flex gap-1 overflow-x-auto">
+        {tabs.map(([name], i) => (
+          <button
+            key={name}
+            type="button"
+            onClick={() => setActive(i)}
+            className={`shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium ${i === active ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground hover:text-foreground"}`}
+          >
+            {name}
+          </button>
+        ))}
+      </div>
+      {cur && <Code label={cur[0]}>{cur[1]}</Code>}
+    </div>
+  );
+}
 
 function DocsPage() {
   const base = RESELLER_API_BASE_PRODUCTION;
-  const mobile = useMobileTemplate();
-  const [view, setView] = useState<"home" | "steps" | "endpoints" | "help">("home");
-  const copy = (v: string) => { void navigator.clipboard.writeText(v); toast.success("Copied"); };
 
-  if (mobile) return <BotApiDocs base={base} />;
+  const productJson = `{
+  "ok": true,
+  "channel": "website",
+  "count": 1,
+  "categories": [{ "id": "c1a2…", "name": "AI Tools" }],
+  "products": [{
+    "id": "8f2c1e4a-…",
+    "name": "ChatGPT Plus 1 Month",
+    "description": "…",
+    "category_id": "c1a2…",
+    "category_name": "AI Tools",
+    "price": 4.25,
+    "retail_price": 6.5,
+    "currency": "USD",
+    "delivery_type": "auto",
+    "instant": true,
+    "stock": 37,
+    "in_stock": true
+  }]
+}`;
+
+  const orderJson = `{
+  "ok": true,
+  "order": {
+    "id": "5b0e…",
+    "order_no": 10432,
+    "external_ref": "mybot-20261127-0001",
+    "product_id": "8f2c1e4a-…",
+    "product_name": "ChatGPT Plus 1 Month",
+    "quantity": 2,
+    "unit_price": 4.25,
+    "total": 8.5,
+    "status": "completed",
+    "delivery_type": "auto",
+    "items": ["email1@x.com:pass1", "email2@x.com:pass2"],
+    "customer_name": null,
+    "customer_email": null,
+    "created_at": "2026-11-27T07:52:10.123Z"
+  },
+  "balance": 91.5
+}`;
 
   return (
     <StoreShell>
-      <div className="border-b border-border/60 bg-secondary/30">
-        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
-          <h1 className="text-2xl font-extrabold tracking-tight sm:text-4xl">Reseller API documentation</h1>
+      {/* Hero */}
+      <div className="border-b border-border/60 bg-linear-to-b from-primary/10 to-transparent">
+        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
+          <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-medium text-primary">✦ Official documentation</span>
+          <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-foreground sm:text-5xl">QORIX Reseller API</h1>
+          <p className="mt-2 text-lg font-medium text-foreground/80 sm:text-xl">Sell our catalogue from your own website or Telegram bot.</p>
           <p className="mt-3 max-w-2xl text-sm text-muted-foreground">
-            Everything you need to resell our catalogue from your own website or Telegram bot. Most panels connect in 3 steps: paste URL, paste key, add balance.
+            One simple API: read products and your prices, place an order, and deliver the returned items to your buyer. Every
+            example on this page matches the live API exactly.
           </p>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <Button asChild variant="outline" className="w-full sm:w-auto">
-              <Link to="/reseller">← Back to reseller portal</Link>
-            </Button>
-            <Button asChild className="w-full sm:w-auto">
-              <Link to="/reseller" hash="apply">
-                Get an API key
-              </Link>
-            </Button>
+          <div className="mt-6 grid gap-2 sm:flex sm:flex-wrap">
+            <Button asChild><a href="#quickstart">🚀 Start in 5 minutes</a></Button>
+            <Button asChild variant="secondary"><a href="#ep-create-order">📦 Place an order</a></Button>
+            <Button asChild variant="outline"><a href="#instructions">📜 Instructions & Terms</a></Button>
+            <Button asChild variant="ghost"><Link to="/reseller">← Reseller portal</Link></Button>
+          </div>
+          <div className="mt-8 grid gap-3 sm:grid-cols-3">
+            {[
+              ["💰 Prepaid", "Every order is paid from your reseller balance. No balance, no charge."],
+              ["🛡️ Safe", "If a product cannot be delivered, the full amount returns to your balance automatically."],
+              ["🔁 No duplicates", "Send the same external_ref again and you get the same order back — never a second charge."],
+            ].map(([t, d]) => (
+              <div key={t} className="rounded-xl border border-border/70 bg-card/70 p-4">
+                <p className="font-semibold text-foreground">{t}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{d}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10 lg:py-10">
+      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[230px_minmax(0,1fr)] lg:gap-10 lg:py-10">
         <aside className="hidden lg:block">
-          <nav className="sticky top-24 space-y-1 text-sm">
+          <nav className="sticky top-24 max-h-[calc(100vh-7rem)] space-y-0.5 overflow-y-auto pr-2 text-sm">
             {NAV.map(([id, label]) => (
-              <a
-                key={id}
-                href={`#${id}`}
-                className="block rounded-lg px-3 py-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-              >
+              <a key={id} href={`#${id}`} className="block truncate rounded-lg px-3 py-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground">
                 {label}
               </a>
             ))}
           </nav>
         </aside>
 
-        <nav className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 lg:hidden">
+        <nav className="sticky top-14 z-10 -mx-4 flex gap-2 overflow-x-auto border-b border-border/60 bg-background/95 px-4 py-2 backdrop-blur lg:hidden">
           {NAV.map(([id, label]) => (
-            <a
-              key={id}
-              href={`#${id}`}
-              className="shrink-0 rounded-full border border-border/70 bg-secondary/40 px-3 py-1.5 text-xs text-muted-foreground"
-            >
+            <a key={id} href={`#${id}`} className="shrink-0 rounded-full border border-border/70 bg-secondary/40 px-3 py-1.5 text-xs text-muted-foreground">
               {label}
             </a>
           ))}
         </nav>
 
         <div className="min-w-0">
-
-          <div className="mb-6 rounded-xl border border-destructive/40 bg-destructive/10 p-4 text-sm">
-            <p className="font-semibold text-foreground">⚠️ Notice — “Invalid redirect value … use "manual"” / “fetch failed”</p>
-            <p className="mt-2 text-muted-foreground">
-              Some reseller panels send requests with <code className="font-mono">redirect: "error"</code>. Edge hosting
-              (Cloudflare Workers, Supabase Edge, Lovable) refuses that option, so the request fails before it ever
-              reaches QORIX. Fix: replace it with <code className="font-mono">redirect: "manual"</code> (or remove it), use
-              the exact URL below <b>without www</b> and <b>without a trailing slash</b>, then test again. We fixed the same
-              issue on our side on 2026-11-15.
-            </p>
-          </div>
-
-          <Section id="quick" title="⚡ Connect in 3 steps">
-            <p>No coding knowledge needed. If your panel has a “Supplier / API” settings page, this is all you do:</p>
-            <ol className="list-decimal space-y-2 pl-5">
-              <li><b>Get your API key</b> — after approval it is in your reseller panel.</li>
-              <li>
-                <b>Paste the address and key</b> into your panel:
-                <ul className="mt-1 list-disc pl-5">
-                  <li>API base URL: <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs break-all">{base}</code></li>
-                  <li>API key: the key from step 1 (sent as <code className="font-mono">Authorization: Bearer KEY</code> or <code className="font-mono">x-api-key</code>).</li>
-                </ul>
-              </li>
-              <li><b>Add wallet balance</b> (Telegram bot deposit or reseller panel top-up). Products appear, and every sale is paid from this balance automatically.</li>
-            </ol>
-            <div className="rounded-xl border-2 border-primary/50 bg-primary/5 p-4">
-              <p className="font-semibold text-foreground">✅ Correct API base URL (copy exactly)</p>
-              <Code>{base}</Code>
-              <ul className="mt-3 list-disc space-y-1 pl-5 text-xs">
-                <li>Must start with <code className="font-mono">https://qorixlab.com</code> — no <code className="font-mono">www</code>.</li>
-                <li>Must end with <code className="font-mono">/api/public/reseller/v1</code> — keep the <code className="font-mono">/v1</code>.</li>
-                <li>No slash <code className="font-mono">/</code> at the end. Do not add <code className="font-mono">/products</code> here — your panel adds it.</li>
-              </ul>
-              <div className="mt-3 overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead><tr className="text-muted-foreground"><th className="py-1 pr-3">❌ Wrong</th><th className="py-1">Why</th></tr></thead>
-                  <tbody className="font-mono">
-                    <tr><td className="py-1 pr-3 break-all">https://www.qorixlab.com/api/public/reseller/v1</td><td className="font-sans">www causes a redirect</td></tr>
-                    <tr><td className="py-1 pr-3 break-all">https://qorixlab.com/api/public/reseller</td><td className="font-sans">missing /v1 → 404</td></tr>
-                    <tr><td className="py-1 pr-3 break-all">https://qorixlab.com/api/public/reseller/v1/</td><td className="font-sans">trailing slash</td></tr>
-                    <tr><td className="py-1 pr-3 break-all">https://qorixlab.com/v1</td><td className="font-sans">wrong path</td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <p className="mt-3 font-semibold text-foreground">Full endpoint addresses</p>
-              <div className="mt-1 overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <tbody className="font-mono">
-                    {([
-                      ["GET", "/me", "Account & balance"],
-                      ["GET", "/products", "Product list"],
-                      ["GET", "/products/{id}", "One product"],
-                      ["POST", "/orders", "Place an order"],
-                      ["GET", "/orders", "Order history"],
-                      ["GET", "/orders/{id}", "One order"],
-                      ["GET", "/transactions", "Wallet history"],
-                    ] as const).map(([m, path, d]) => (
-                      <tr key={m + path} className="border-t border-border/50">
-                        <td className="py-1 pr-2 font-semibold">{m}</td>
-                        <td className="py-1 pr-3 break-all">{base}{path}</td>
-                        <td className="py-1 font-sans text-muted-foreground">{d}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            <p>That’s it — our shop shows on your site/bot, you set your own selling price, and orders deliver instantly.</p>
-            <p>Test it from any terminal (should answer <code className="font-mono">"ok": true</code>):</p>
-            <Code>{`curl -H "x-api-key: YOUR_API_KEY" ${base}/me`}</Code>
+          <Section id="quickstart" icon="🚀" title="Quick start">
+            <p>Get an approved reseller account and API key from the reseller portal. Then follow these four steps. Every request is authenticated.</p>
+            <Steps
+              items={[
+                ["Authenticate", <C key="a">Authorization: Bearer …</C>],
+                ["Read products", <C key="b">GET /products</C>],
+                ["Create order", <C key="c">POST /orders</C>],
+                ["Deliver", <span key="d">send <C>items</C> to your buyer</span>],
+              ]}
+            />
+            <Callout tone="warn">
+              A response can be lost on the network after we have already created the order. <b>Never place a second order to recover it.</b>{" "}
+              Send the same request again with the same <C>external_ref</C>, or check <C>GET /orders</C>.
+            </Callout>
+            <Callout tone="ok">
+              Using a ready-made panel (SMM / shop script) with a “Supplier API” page? You only need to paste the <b>Base URL</b> and <b>API key</b> below, then add balance.
+            </Callout>
           </Section>
 
-          <Section id="fix" title="🛠 Connection problems — quick fixes">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <tbody className="text-xs">
-                  {[
-                    ["Invalid redirect value / fetch failed", "Your panel’s code uses redirect: \"error\". Change it to redirect: \"manual\" (or remove it)."],
-                    ["Works in browser, fails in panel", "Remove www and any trailing “/” from the URL. Redirects are not followed by edge servers."],
-                    ["401 Invalid API key", "Key copied wrong or with spaces. Paste it again; check the header name."],
-                    ["403", "Your account or the website/bot channel is disabled — contact support."],
-                    ["402 Insufficient balance", "Top up your wallet; sales resume immediately."],
-                    ["404 on every path", "Wrong base URL — copy it exactly from step 2 above."],
-                    ["Product missing", "It is out of stock or switched off; it reappears automatically."],
-                  ].map((r) => (
-                    <tr key={r[0]} className="border-b border-border/40">
-                      <td className="py-2 pr-4 font-semibold text-foreground">{r[0]}</td>
-                      <td className="py-2">{r[1]}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p>Correct fetch for any server or edge runtime:</p>
-            <Code>{`const res = await fetch("${base}/products", {
-  headers: { "x-api-key": process.env.QORIX_KEY },
-  redirect: "manual",   // never "error"
-});
-const data = await res.json();`}</Code>
-            <p>The detailed reference below is only needed if you build your own site or bot from scratch.</p>
+          <Section id="base-url" icon="🌐" title="Base URL">
+            <p>All endpoints live under this address. Copy it exactly:</p>
+            <Code label="base url">{base}</Code>
+            <Table
+              head={["❌ Wrong", "Why it fails"]}
+              rows={[
+                [<C key="1">https://www.qorixlab.com/api/public/reseller/v1</C>, "www causes a redirect"],
+                [<C key="2">https://qorixlab.com/api/public/reseller</C>, "missing /v1 → 404"],
+                [<C key="3">{base}/</C>, "trailing slash"],
+              ]}
+            />
+            <Callout>
+              Some panels send requests with <C>redirect: "error"</C>, which our hosting refuses. Use <C>redirect: "manual"</C> or remove the option.
+            </Callout>
           </Section>
 
-          <Section id="start" title="1. Getting started">
-            <p>
-              Three things are needed before your first call: an <strong>approved reseller account</strong>, your{" "}
-              <strong>API key</strong>, and some <strong>wallet balance</strong>. Apply on the{" "}
-              <Link to="/reseller" className="text-primary underline">
-                reseller portal
-              </Link>
-              ; we email the key after approval.
-            </p>
+          <Section id="auth" icon="🔐" title="Authentication">
+            <p>Send your key on every request using either header:</p>
+            <Code label="headers">{`Authorization: Bearer YOUR_API_KEY
+X-API-Key: YOUR_API_KEY`}</Code>
             <ul className="list-disc space-y-1 pl-5">
-              <li>Base URL: <code className="rounded bg-secondary px-1.5 py-0.5 font-mono text-xs break-all">{base}</code></li>
-              <li>All responses are JSON and always contain an <code className="font-mono">ok</code> field.</li>
-              <li>Prices are in USD and already include your reseller discount.</li>
-              <li>Products, available stock and your balance are checked before any debit. Refunds apply only when money was debited and QORIX failed to deliver; cancellation or expiry never refunds.</li>
-              <li>CORS is open, but never expose your API key in browser code — always call from your server.</li>
+              <li>Your key is linked to your reseller account and balance. The shop can disable it at any time.</li>
+              <li>Keep it secret: use it only on your server or bot backend, never in browser JavaScript or a public repo.</li>
+              <li>A missing or wrong key returns <C>401</C>. A disabled account returns <C>403</C>.</li>
             </ul>
-            <p>Quick smoke test from your terminal:</p>
-            <Code>{`curl -H "Authorization: Bearer YOUR_API_KEY" \\
-  ${base}/me`}</Code>
           </Section>
 
-          <Section id="auth" title="2. Authentication">
-            <p>Send your key on every request, in either header:</p>
-            <Code>{`Authorization: Bearer YOUR_API_KEY
-# or
-x-api-key: YOUR_API_KEY`}</Code>
+          <Section id="conventions" icon="📐" title="Conventions & data types">
+            <h3 className="font-semibold text-foreground">JSON and money</h3>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Every response is JSON with <C>"ok": true</C> on success or <C>"ok": false, "error": "…"</C> on failure.</li>
+              <li>Money is a number in <b>USD</b>, e.g. <C>4.25</C>. Unit prices can have up to 4 decimals (e.g. <C>0.025</C>); totals are rounded to cents.</li>
+              <li>IDs are UUID strings. Timestamps are ISO-8601 in UTC, e.g. <C>2026-11-27T07:52:10Z</C>.</li>
+            </ul>
+            <h3 className="pt-2 font-semibold text-foreground">Quantity and stock</h3>
+            <ul className="list-disc space-y-1 pl-5">
+              <li><C>quantity</C> is a whole number from <b>1 to 50</b> per order.</li>
+              <li><C>stock</C> is the sellable count right now; <C>in_stock</C> tells you if the product can be ordered.</li>
+              <li><C>price</C> is <b>your</b> price after your reseller discount — that is what your balance pays.</li>
+            </ul>
+            <h3 className="pt-2 font-semibold text-foreground">Channels</h3>
             <p>
-              Sample response of <code className="font-mono">GET /me</code>:
+              Add <C>?channel=website</C> (default) or <C>?channel=bot</C> to say where you sell. The shop enables each channel per account; a disabled channel returns <C>403</C>.
             </p>
-            <Code>{`{
+          </Section>
+
+          <Section id="endpoints" icon="🧭" title="All endpoints">
+            <Table
+              head={["Method", "Path", "What it does"]}
+              rows={[
+                ["GET", <C key="1">/me</C>, "Your account and balance"],
+                ["GET", <C key="2">/products</C>, "Product list with your prices and stock"],
+                ["GET", <C key="3">/products/{"{id}"}</C>, "One product (refresh before checkout)"],
+                ["POST", <C key="4">/orders</C>, "Place an order and receive items"],
+                ["GET", <C key="5">/orders/{"{id}"}</C>, "One order — poll pending orders here"],
+                ["GET", <C key="6">/orders</C>, "Your order history, newest first"],
+                ["GET", <C key="7">/transactions</C>, "Balance history (top-ups, orders, refunds)"],
+              ]}
+            />
+          </Section>
+
+          <div className="space-y-5 pb-8">
+            <Endpoint id="ep-me" method="GET" path="/me" title="Account and balance">
+              <p>Use this to test your key and show your current balance.</p>
+              <Code label="curl">{`curl ${base}/me \\
+  -H "Authorization: Bearer YOUR_API_KEY"`}</Code>
+              <Code label="response 200">{`{
   "ok": true,
   "reseller": {
-    "id": "6f0c…",
-    "name": "Your Store",
-    "balance": 128.40,
+    "id": "…",
+    "name": "My Shop",
+    "balance": 100.0,
     "currency": "USD",
-    "discount_percent": 15,
+    "discount_percent": 5,
     "channels": { "website": true, "bot": true }
   }
 }`}</Code>
-          </Section>
+            </Endpoint>
 
-          <Section id="endpoints" title="3. Endpoints at a glance">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="text-foreground">
-                  <tr className="border-b border-border/70">
-                    <th className="py-2 pr-4 font-semibold">Method</th>
-                    <th className="py-2 pr-4 font-semibold">Path</th>
-                    <th className="py-2 font-semibold">Purpose</th>
-                  </tr>
-                </thead>
-                <tbody className="font-mono text-xs">
-                  {[
-                    ["GET", "/me", "Account info, discount and balance"],
-                    ["GET", "/products?channel=website", "Full catalogue with your prices and stock"],
-                    ["GET", "/products/{id}", "One product"],
-                    ["POST", "/orders", "Buy a product (debits your wallet)"],
-                    ["GET", "/orders?limit=50", "Your recent orders"],
-                    ["GET", "/orders/{id}", "One order + delivered items"],
-                    ["GET", "/transactions", "Wallet ledger"],
-                  ].map((r) => (
-                    <tr key={r[1]} className="border-b border-border/40">
-                      <td className="py-2 pr-4 text-primary">{r[0]}</td>
-                      <td className="py-2 pr-4">{r[1]}</td>
-                      <td className="py-2 font-sans text-muted-foreground">{r[2]}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p>
-              For <code className="font-mono">GET /products</code>, the <code className="font-mono">channel</code> parameter accepts <code className="font-mono">website</code>,{" "}
-              <code className="font-mono">bot</code> or <code className="font-mono">all</code> and filters the catalogue
-              to the categories allowed for that channel.
-            </p>
-            <p>
-              Only products that are <b>switched on</b> in our store are returned or purchasable. A product that is off
-              (or removed) is invisible to the API — it appears the moment we turn it on, in real time.
-            </p>
-            <p>
-              <b>Live stock webhook.</b> Add a notification URL in your reseller panel and we POST every stock event to
-              it at the same moment it goes out on Telegram:{" "}
-              <code className="font-mono">restock</code>, <code className="font-mono">new</code>,{" "}
-              <code className="font-mono">low</code>, <code className="font-mono">out</code>,{" "}
-              <code className="font-mono">price</code>, <code className="font-mono">removed</code>. Each request carries{" "}
-              <code className="font-mono">x-qorix-event</code>, <code className="font-mono">x-qorix-timestamp</code> and{" "}
-              <code className="font-mono">x-qorix-signature</code> (HMAC-SHA256 of the raw body with your signing
-              secret). Verify the signature, then update your own catalogue.
-            </p>
-            <Code>{`{
-  "event": "restock",
-  "at": "2026-01-01T12:00:00.000Z",
-  "added": 5,
-  "product": { "id": "…", "name": "…", "price": 4.5, "stock": 12, "in_stock": true }
-}`}</Code>
-          </Section>
+            <Endpoint id="ep-products" method="GET" path="/products" title="Product list">
+              <p>Returns every product you can sell right now, with your price and live stock.</p>
+              <Table
+                head={["Query parameter", "Required", "Meaning"]}
+                rows={[
+                  [<C key="1">channel</C>, "no", "website (default) or bot"],
+                  [<C key="2">search</C>, "no", "filter by product name"],
+                  [<C key="3">category_id</C>, "no", "only one category"],
+                ]}
+              />
+              <Code label="curl">{`curl "${base}/products?channel=bot" \\
+  -H "Authorization: Bearer YOUR_API_KEY"`}</Code>
+              <Code label="response 200">{productJson}</Code>
+              <Callout>Sync your catalogue by <C>id</C> (update existing rows, add new ones, hide missing ones). Names and prices can change.</Callout>
+            </Endpoint>
 
-          <Section id="products" title="4. List products">
-            <Code>{`curl -H "Authorization: Bearer YOUR_API_KEY" \\
-  "${base}/products?channel=website&search=netflix"`}</Code>
-            <p>Response (shortened):</p>
-            <Code>{`{
-  "ok": true,
-  "channel": "website",
-  "count": 42,
-  "categories": [{ "id": "…", "name": "Streaming", "emoji": "🎬" }],
-  "products": [
-    {
-      "id": "b2c1…",
-      "name": "Netflix 1 Month",
-      "category_id": "…",
-      "category_name": "Streaming",
-      "description": "Private profile, 30 days warranty",
-      "image_url": "https://…",
-      "retail_price": 4.99,
-      "price": 4.24,            // your buying price
-      "currency": "USD",
-      "delivery_type": "auto",
-      "instant": true,
-      "stock": 37,
-      "in_stock": true,
-      "featured_rank": 1,
-      "sort_order": 10
-    }
-  ]
-}`}</Code>
-            <p>
-              Sell at any price you like: take <code className="font-mono">price</code> as your cost and add your own
-              margin. Show <code className="font-mono">stock</code> and hide items where{" "}
-              <code className="font-mono">in_stock</code> is false. Query filters:{" "}
-              <code className="font-mono">search</code>, <code className="font-mono">category_id</code>.
-            </p>
-            <p>
-              Catalogue and single-product responses may also include <code className="font-mono">own, emoji, important_note, quick_guide, delivery_time, badge, flash_sale_ends_at, old_price, custom_price, custom_min_qty</code>.
-              Clients should tolerate additional fields. A temporarily unavailable catalogue returns HTTP 503 with <code className="font-mono">error: "Product catalogue is temporarily unavailable"</code>.
-            </p>
-          </Section>
+            <Endpoint id="ep-product" method="GET" path="/products/{id}" title="One product">
+              <p>Same fields as one item from the list. Call it right before checkout to confirm the price and stock. Returns <C>404</C> if the product is unavailable.</p>
+              <Code label="curl">{`curl ${base}/products/PRODUCT_ID \\
+  -H "Authorization: Bearer YOUR_API_KEY"`}</Code>
+            </Endpoint>
 
-          <Section id="order" title="5. Place an order">
-            <Code>{`curl -X POST "${base}/orders" \\
+            <Endpoint id="ep-create-order" method="POST" path="/orders" title="Place an order">
+              <p>Charges your balance and returns the delivered items in the same response for instant products.</p>
+              <Table
+                head={["Body field", "Required", "Meaning"]}
+                rows={[
+                  [<C key="1">product_id</C>, "yes", "product id from /products"],
+                  [<C key="2">quantity</C>, "no", "1–50, default 1"],
+                  [<C key="3">external_ref</C>, "recommended", "your own unique order id (max 120 chars) — prevents duplicates"],
+                  [<C key="4">customer_email</C>, "only if needed", "buyer email for products that need it (see below)"],
+                  [<C key="5">customer_name</C>, "no", "buyer name for your records (max 80 chars)"],
+                  [<C key="6">channel</C>, "no", "website (default) or bot"],
+                ]}
+              />
+              <Code label="curl">{`curl -X POST ${base}/orders \\
   -H "Authorization: Bearer YOUR_API_KEY" \\
   -H "Content-Type: application/json" \\
-  -d '{
-    "product_id": "b2c1…",
-    "quantity": 1,
-    "channel": "website",
-    "external_ref": "my-shop-order-1042",
-    "customer_name": "Rahim",
-    "customer_email": "rahim@example.com"
-  }'`}</Code>
-            <p>Successful response (HTTP 201):</p>
-            <Code>{`{
+  -d '{"product_id":"PRODUCT_ID","quantity":2,"external_ref":"mybot-20261127-0001"}'`}</Code>
+              <Code label="response 201">{orderJson}</Code>
+              <p>
+                <b>201</b> = new order. If the order is still being delivered you get <C>"status": "pending"</C> and <C>"submitted": true</C> — poll <C>GET /orders/{"{id}"}</C>.
+              </p>
+            </Endpoint>
+
+            <Endpoint id="ep-order" method="GET" path="/orders/{id}" title="One order">
+              <p>The id can be the order <C>id</C>, the <C>order_no</C> or your own <C>external_ref</C> — handy to recover a lost response. Returns the same <C>order</C> object. Poll every 5–10 seconds while <C>status</C> is <C>pending</C>.</p>
+              <Code label="curl">{`curl ${base}/orders/ORDER_ID \\
+  -H "Authorization: Bearer YOUR_API_KEY"`}</Code>
+            </Endpoint>
+
+            <Endpoint id="ep-orders" method="GET" path="/orders" title="Order history">
+              <p>Newest first. <C>?limit=</C> 1–100 (default 50).</p>
+              <Code label="curl">{`curl "${base}/orders?limit=20" \\
+  -H "Authorization: Bearer YOUR_API_KEY"`}</Code>
+              <Code label="response 200">{`{ "ok": true, "orders": [ { "id": "…", "status": "completed", … } ] }`}</Code>
+            </Endpoint>
+
+            <Endpoint id="ep-transactions" method="GET" path="/transactions" title="Balance history">
+              <p>Your latest 100 balance movements.</p>
+              <Code label="response 200">{`{
   "ok": true,
-  "order": {
-    "id": "9d…",
-    "order_no": 10423,
-    "external_ref": "my-shop-order-1042",
-    "product_name": "Netflix 1 Month",
-    "quantity": 1,
-    "unit_price": 4.24,
-    "total": 4.24,
-    "status": "completed",
-    "delivery_type": "auto",
-    "items": ["email:pass — profile 2"]
-  },
-  "balance": 124.16
+  "balance": 91.5,
+  "transactions": [
+    { "id": "…", "type": "order", "amount": -8.5, "balance_after": 91.5,
+      "reference": "…", "note": "Order #10432", "created_at": "…" }
+  ]
 }`}</Code>
+            </Endpoint>
+          </div>
+
+          <Section id="statuses" icon="🔄" title="Order statuses">
+            <Table
+              head={["status", "Meaning", "What you do"]}
+              rows={[
+                [<C key="1">completed</C>, "Delivered. items holds everything.", "Send items to your buyer."],
+                [<C key="2">pending</C>, "Paid, delivery in progress (manual products or a short delay).", "Poll GET /orders/{id}. Do not order again."],
+                [<C key="3">failed</C>, "Could not deliver. With refunded: true the full amount is back in your balance.", "Refund or offer another product to your buyer."],
+              ]}
+            />
+            <Callout>Only the entries in <C>items</C> are delivered. Pending means paid but not delivered yet.</Callout>
+          </Section>
+
+          <Section id="customer-info" icon="✉️" title="Products that need buyer info (email)">
+            <p>
+              Some products are delivered by the shop to a buyer account, for example an invite sent to an email address. These products have{" "}
+              <C>"delivery_type": "manual"</C> and the product description tells you what is needed.
+            </p>
+            <Steps
+              items={[
+                ["Find the product", <span key="a"><C>delivery_type: "manual"</C></span>],
+                ["Ask your buyer", "collect their email"],
+                ["Submit order", <span key="c"><C>customer_email</C> in the body</span>],
+                ["Poll result", <C key="d">GET /orders/{"{id}"}</C>],
+              ]}
+            />
+            <Code label="curl">{`curl -X POST ${base}/orders \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{"product_id":"PRODUCT_ID","quantity":1,
+       "external_ref":"invite-0001",
+       "customer_email":"buyer@example.com"}'`}</Code>
+            <p>
+              You can also send <C>{`"customer_inputs": {"email": "buyer@example.com"}`}</C> — it is treated the same way. The order returns <C>pending</C>, then becomes{" "}
+              <C>completed</C> with a confirmation in <C>items</C>, or <C>failed</C> with an automatic refund.
+            </p>
+          </Section>
+
+          <Section id="duplicates" icon="🔁" title="No duplicate orders">
+            <p>
+              Give every order your own unique <C>external_ref</C> (for example your order number). If you send the same <C>external_ref</C> again, the API returns the
+              <b> existing</b> order and does not charge again.
+            </p>
             <ul className="list-disc space-y-1 pl-5">
-              <li>Quantity is rounded down and clamped to 1–50 (missing, zero or invalid values default to 1).</li>
-              <li>POST /orders accepts website or bot as channel; any other value, including all, is treated as website.</li>
-              <li>Send an object JSON body, not null or an array. external_ref is truncated to 120 characters and customer_name to 80; keep unique references within that limit. customer_email is trimmed and format-checked.</li>
-              <li>Duplicate submissions retain HTTP 201 with duplicate: true and the original order, normally without a fresh balance. The same reference with different input still returns the original order; it does not create another purchase.</li>
-              <li>Different references can still be treated as a double submit for the same reseller, customer, product and quantity: 60 seconds with a matching email, or 5 seconds without an email match (customer name is matched instead).</li>
-              <li>
-                <strong>Always send <code className="font-mono">external_ref</code></strong> — your own order id. If the
-                same ref is sent twice you get the original order back with{" "}
-                <code className="font-mono">"duplicate": true</code> instead of being charged again.
-              </li>
-              <li>
-                <code className="font-mono">status: "completed"</code> → credentials are inside{" "}
-                <code className="font-mono">items</code>. <code className="font-mono">"pending"</code> → delivery is
-                still in progress (manual product, processing, or <code className="font-mono">"submitted": true</code>);
-                poll the order until it completes.
-              </li>
-              <li>
-                <strong>Never mark an order completed on your side unless our response says{" "}
-                <code className="font-mono">"completed"</code> and <code className="font-mono">items</code> is not empty.</strong>{" "}
-                An empty <code className="font-mono">items</code> list means "not delivered yet".
-              </li>
-              <li>
-                Wait up to <strong>60 seconds</strong> for the response. If your request times out or the connection
-                drops, processing may continue, but interruptions can leave an uncertain result — fetch it with <code className="font-mono">GET /orders</code>{" "}
-                (or resend the same <code className="font-mono">external_ref</code>) instead of creating a new one.
-              </li>
-              <li>Insufficient balance returns HTTP 402 with balance and required, without a debit or refund. Missing stock returns HTTP 409 out_of_stock, "Product temporarily unavailable", refunded: false, without a debit.</li>
+              <li>Network timeout? Retry with the <b>same</b> <C>external_ref</C>.</li>
+              <li>New buyer purchase? Use a <b>new</b> <C>external_ref</C>.</li>
+              <li>Never retry in a loop with new references — that creates new paid orders.</li>
             </ul>
-            <p>
-              After a debit, confirmed QORIX delivery failure (automatic delivery rejection or limited manual stock disappearing) returns HTTP 409 with <code className="font-mono">code: "delivery_failed"</code> and <code className="font-mono">refunded: true</code>, using the neutral message "Delivery failed — please try again later.".
-              The original debited amount is refunded exactly once: the order and wallet ledger are saved together. The retained order has status failed, empty items, refunded: true and a stored refund amount. It is terminal: it cannot be refunded again or reopened for delivery. Completed delivery never refunds.
-              If payment, delivery or refund cannot be confirmed, HTTP 503 asks you to check the existing order/contact support; never assume a refund or create a replacement order.
-            </p>
-            <p>
-              Safety exception: an unknown delivery outcome (connection interruption or an accepted order without delivery confirmation) remains pending for reconciliation, not an assumed failure or a new purchase. Genuine manual processing remains pending. These rules are implemented in the preview, not yet published; older orders and legacy recovery retain their previous rules.
-            </p>
-            <p>
-              Cancellation is panel-only: there is no cancellation API endpoint. New reseller orders cancelled or expired are retained with empty items and refunded: false; the debit stays and no refund entry is created. There is no automatic paid-manual/reseller expiry timer. Existing unpaid checkout expiry does not refund. Legacy bot preorder/admin cancellation still refunds; changing that separate system was stopped to preserve existing bot behaviour.
-            </p>
           </Section>
 
-          <Section id="status" title="6. Order status & history">
-            <Code>{`# one order
-curl -H "Authorization: Bearer YOUR_API_KEY" ${base}/orders/9d…
-
-# last 50 orders
-curl -H "Authorization: Bearer YOUR_API_KEY" "${base}/orders?limit=50"`}</Code>
-            <p>
-              For pending orders, poll every 30–60 seconds until{" "}
-              <code className="font-mono">status</code> becomes <code className="font-mono">completed</code>, then show{" "}
-              <code className="font-mono">items</code> to your customer.
-            </p>
-            <p>
-              GET /orders/&#123;id&#125; accepts the UUID, numeric order_no, or external_ref and only returns your orders.
-              UUID-shaped identifiers are interpreted as order IDs and digits as order_no before other text is treated as external_ref. Use the returned order UUID as the canonical lookup, especially for numeric or UUID-shaped references.
-              GET /orders defaults to the latest 50 orders; limit is clamped to 1–100. Failed/refunded and cancelled/expired orders remain fetchable. Stop polling terminal orders for delivery; failed refunded orders expose refunded: true, while new cancelled/expired orders expose refunded: false.
-              Invalid/nonfinite limits default to 50 and fractional limits round down. Order history and transactions have no pagination; transactions returns at most 100 entries. Balance and transactions are separate reads, not one atomic snapshot.
-            </p>
-            <p>
-              <strong>Recommended:</strong> set an order webhook URL in your reseller panel. When a pending order is
-              delivered later (retry or automatic recovery) we POST the completed order with its{" "}
-              <code className="font-mono">items</code> to that URL, so your site updates without polling. Keep polling as a
-              fallback in case your server was down.
-            </p>
+          <Section id="delivering" icon="📬" title="Delivering to your buyer">
+            <ol className="list-decimal space-y-1 pl-5">
+              <li>Refresh the product with <C>GET /products/{"{id}"}</C> and check <C>in_stock</C>.</li>
+              <li>Call <C>POST /orders</C>; store <C>order.id</C> and each <C>items[]</C> entry.</li>
+              <li>If <C>status</C> is <C>pending</C>, poll until it is <C>completed</C> or <C>failed</C>.</li>
+              <li>Send every entry of <C>items</C> to your buyer. Show them the product's instructions (<C>quick_guide</C> / <C>important_note</C>).</li>
+            </ol>
+            <Callout>1–5 items: send each in its own message. More items: send them as one .txt file.</Callout>
           </Section>
 
-          <Section id="balance" title="7. Balance & transactions">
-            <Code>{`curl -H "Authorization: Bearer YOUR_API_KEY" ${base}/transactions`}</Code>
-            <p>
-              Returns your current balance plus the last 100 ledger entries (top-ups, order debits, refunds). Deposits
-              made in our Telegram bot are added to your API balance instantly — the bot and the API share one single
-              balance. Note: single orders placed in the bot are also deducted from this same balance, so a lower
-              balance may come from bot purchases. Tip: block checkout on your site when the balance is below your
-              average order value.
-            </p>
+          <Section id="errors" icon="🚨" title="Error reference">
+            <p>Errors always look like <C>{`{"ok": false, "error": "…"}`}</C>, sometimes with a <C>code</C>.</p>
+            <Table
+              head={["HTTP", "error / code", "Meaning", "Charged?"]}
+              rows={[
+                ["400", "product_id is required / Invalid JSON body", "Request is malformed", "No"],
+                ["401", "Missing API key / Invalid API key", "Check your key and header", "No"],
+                ["402", "Insufficient balance", "Top up; response includes balance and required", "No"],
+                ["403", "…access is disabled", "Account or channel disabled", "No"],
+                ["404", "Product not found", "Inactive or unknown product", "No"],
+                ["409", <span key="o"><C>out_of_stock</C> — Product temporarily unavailable</span>, "No stock right now", "No"],
+                ["409", <span key="d"><C>delivery_failed</C> — Product temporarily unavailable</span>, "Could not deliver", "Refunded automatically"],
+                ["503", "… temporarily unavailable", "Try again shortly; check /orders before re-ordering", "Check order"],
+              ]}
+            />
           </Section>
 
-          <Section id="errors" title="8. Errors">
-            <Code>{`{ "ok": false, "error": "Insufficient balance", "balance": 1.20, "required": 4.24 }`}</Code>
-            <p>Both initial insufficient balance and a rejected atomic debit return HTTP 402 with balance and required.</p>
-            <Code>{`{ "ok": false, "code": "delivery_failed", "refunded": true, "error": "Delivery failed — please try again later." }`}</Code>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <tbody className="text-xs">
-                  {[
-                    ["401", "Missing or invalid API key"],
-                    ["403", "Account disabled, or that channel is not enabled for you"],
-                    ["402", "Not enough wallet balance"],
-                    ["404", "Product or order not found"],
-                    ["409", "Missing stock before debit: out_of_stock, refunded: false; confirmed delivery failure after debit: delivery_failed, refunded: true"],
-                    ["500", "Order could not be recorded; check the same reference before retrying"],
-                    ["503", "Catalogue/history unavailable, or payment/delivery/refund uncertain; a debit may already exist — check the existing order"],
-                    ["400", "Bad request — check the JSON body and product_id"],
-                  ].map((r) => (
-                    <tr key={r[0]} className="border-b border-border/40">
-                      <td className="py-2 pr-4 font-mono text-primary">{r[0]}</td>
-                      <td className="py-2">{r[1]}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <Section id="best" icon="🏆" title="Best practices">
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Keep the API key on your server only.</li>
+              <li>Always send <C>external_ref</C>.</li>
+              <li>Cache the product list for 30–60 seconds; refresh one product before checkout.</li>
+              <li>Poll pending orders every 5–10 seconds, not faster.</li>
+              <li>Show <b>“temporarily unavailable”</b> to buyers when you get 409 — never retry automatically.</li>
+              <li>Watch your balance with <C>GET /me</C> and top up before it runs out.</li>
+            </ul>
           </Section>
 
-          <Section id="website" title="9. Build your own website — step by step">
-            <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
-              <strong>Shortcut — ready-made starter kit.</strong> A complete, zero-dependency storefront and Telegram bot
-              live in the <code className="font-mono">examples/reseller-site/</code> folder of the starter repo:{" "}
-              <code className="font-mono">server.mjs</code> (product list, Buy now, instant delivery),{" "}
-              <code className="font-mono">telegram-bot.mjs</code>, and a ready{" "}
-              <code className="font-mono">.env.example</code>. Copy the folder, paste your key, run{" "}
-              <code className="font-mono">npm start</code> — your shop is live. The steps below explain the same code if
-              you prefer to build it yourself.
-            </div>
-            <Code>{`cp .env.example .env     # QORIX_KEY = your key
-npm start                # http://localhost:3000
-npm run bot              # optional Telegram bot`}</Code>
-            <p>
-              <strong>Step A — create the project.</strong> Any stack works; here is Next.js because it has a server side
-              where the key stays safe.
-            </p>
-            <Code>{`npx create-next-app@latest my-shop
-cd my-shop`}</Code>
+          <Section id="examples" icon="🧩" title="Code examples">
+            <Tabs
+              tabs={[
+                [
+                  "JavaScript",
+                  `const BASE = "${base}";
+const KEY = process.env.QORIX_API_KEY;
 
-            <p>
-              <strong>Step B — store the key.</strong> Create <code className="font-mono">.env.local</code> (never commit
-              it):
-            </p>
-            <Code>{`QORIX_API=${base}
-QORIX_KEY=YOUR_API_KEY`}</Code>
-
-            <p>
-              <strong>Step C — one tiny helper</strong> (<code className="font-mono">lib/qorix.js</code>):
-            </p>
-            <Code>{`export async function qorix(path, options = {}) {
-  const res = await fetch(process.env.QORIX_API + path, {
-    ...options,
-    headers: {
-      "Authorization": "Bearer " + process.env.QORIX_KEY,
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-    cache: "no-store",
+async function api(path, init = {}) {
+  const res = await fetch(BASE + path, {
+    ...init,
+    redirect: "manual",
+    headers: { Authorization: \`Bearer \${KEY}\`, "Content-Type": "application/json" },
   });
-  return res.json();
-}`}</Code>
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error);
+  return data;
+}
 
-            <p>
-              <strong>Step D — show the products</strong> (<code className="font-mono">app/page.jsx</code>). Add your own
-              margin, e.g. 20%:
-            </p>
-            <Code>{`import { qorix } from "@/lib/qorix";
-
-export default async function Home() {
-  const data = await qorix("/products?channel=website");
-  return (
-    <main>
-      <h1>My Digital Store</h1>
-      <div className="grid">
-        {data.products.filter(p => p.in_stock).map(p => (
-          <article key={p.id}>
-            <img src={p.image_url} alt={p.name} />
-            <h2>{p.name}</h2>
-            <p>{p.description}</p>
-            <strong>\${(p.price * 1.2).toFixed(2)}</strong>
-            <form action="/api/buy" method="POST">
-              <input type="hidden" name="product_id" value={p.id} />
-              <button>Buy now</button>
-            </form>
-          </article>
-        ))}
-      </div>
-    </main>
-  );
-}`}</Code>
-
-            <p>
-              <strong>Step E — the checkout endpoint</strong> (<code className="font-mono">app/api/buy/route.js</code>).
-              Take money from your customer first (Stripe, bKash, crypto…), then call the API:
-            </p>
-            <Code>{`import { qorix } from "@/lib/qorix";
-
-export async function POST(req) {
-  const form = await req.formData();
-  // 1) verify your own payment here before continuing
-
-  // 2) buy from QORIX
-  const out = await qorix("/orders", {
-    method: "POST",
-    body: JSON.stringify({
-      product_id: form.get("product_id"),
-      quantity: 1,
-      channel: "website",
-      external_ref: "shop-" + Date.now(),      // your own order id
-      customer_email: form.get("email") || null,
-    }),
-  });
-
-  if (!out.ok) return Response.json(out, { status: 400 });
-
-  // 3) deliver to the customer (email / on-screen)
-  return Response.json({ items: out.order.items, status: out.order.status });
-}`}</Code>
-
-            <p>
-              <strong>Step F — deliver & support.</strong> Save every order in your own database (your ref, our{" "}
-              <code className="font-mono">order.id</code>, the items). If{" "}
-              <code className="font-mono">status</code> is <code className="font-mono">pending</code>, poll{" "}
-              <code className="font-mono">/orders/&#123;id&#125;</code> and email the customer when it completes.
-            </p>
-            <p>
-              <strong>Step G — deploy.</strong> Push to GitHub and deploy on Vercel/Netlify. Add{" "}
-              <code className="font-mono">QORIX_API</code> and <code className="font-mono">QORIX_KEY</code> as
-              environment variables in the hosting dashboard — done, your store is live.
-            </p>
-            <p className="rounded-xl border border-border/70 bg-secondary/40 p-4">
-              No coding at all? A plain HTML page plus a tiny serverless function (Cloudflare Worker / Vercel function)
-              with exactly the code in Step E is enough. The only hard rule: the API key lives on the server, never in
-              the browser.
-            </p>
-          </Section>
-
-          <Section id="bot" title="10. Build a Telegram bot — step by step">
-            <p>
-              <strong>Step A — create the bot.</strong> Open <code className="font-mono">@BotFather</code> in Telegram →{" "}
-              <code className="font-mono">/newbot</code> → copy the token.
-            </p>
-            <p>
-              <strong>Step B — project setup</strong> (Node.js):
-            </p>
-            <Code>{`mkdir my-bot && cd my-bot
-npm init -y
-npm i node-telegram-bot-api dotenv`}</Code>
-            <p>
-              <strong>Step C — .env</strong>
-            </p>
-            <Code>{`BOT_TOKEN=123456:ABC…
-QORIX_API=${base}
-QORIX_KEY=YOUR_API_KEY`}</Code>
-            <p>
-              <strong>Step D — the whole bot</strong> (<code className="font-mono">index.js</code>): a product menu, a
-              buy button and instant delivery.
-            </p>
-            <Code>{`require("dotenv").config();
-const TelegramBot = require("node-telegram-bot-api");
-const bot = new TelegramBot(process.env.BOT_TOKEN, { polling: true });
-
-const api = (path, options = {}) =>
-  fetch(process.env.QORIX_API + path, {
-    ...options,
-    headers: {
-      "Authorization": "Bearer " + process.env.QORIX_KEY,
-      "Content-Type": "application/json",
-    },
-  }).then(r => r.json());
-
-const PRICE = p => (p.price * 1.25).toFixed(2);   // your 25% margin
-
-bot.onText(/\\/start/, async (msg) => {
-  const data = await api("/products?channel=bot");
-  const rows = data.products
-    .filter(p => p.in_stock)
-    .slice(0, 20)
-    .map(p => [{ text: \`\${p.emoji || "🛒"} \${p.name} — $\${PRICE(p)}\`, callback_data: "buy:" + p.id }]);
-  bot.sendMessage(msg.chat.id, "Welcome! Choose a product:", {
-    reply_markup: { inline_keyboard: rows },
-  });
+const { products } = await api("/products");
+const { order } = await api("/orders", {
+  method: "POST",
+  body: JSON.stringify({ product_id: products[0].id, quantity: 1, external_ref: "my-order-1" }),
 });
+console.log(order.status, order.items);`,
+                ],
+                [
+                  "Python",
+                  `import os, requests
 
-bot.on("callback_query", async (q) => {
-  const [action, id] = q.data.split(":");
-  if (action !== "buy") return;
-  bot.answerCallbackQuery(q.id, { text: "Processing…" });
+BASE = "${base}"
+H = {"Authorization": f"Bearer {os.environ['QORIX_API_KEY']}"}
 
-  // charge your own customer here (balance, payment, etc.) before buying
-
-  const out = await api("/orders", {
-    method: "POST",
-    body: JSON.stringify({
-      product_id: id,
-      quantity: 1,
-      channel: "bot",
-      external_ref: "tg-" + q.from.id + "-" + Date.now(),
-      customer_name: q.from.first_name,
-    }),
-  });
-
-  if (!out.ok) return bot.sendMessage(q.message.chat.id, "❌ " + out.error);
-
-  if (out.order.status === "completed") {
-    bot.sendMessage(q.message.chat.id,
-      "✅ " + out.order.product_name + "\\n\\n<code>" + out.order.items.join("\\n") + "</code>",
-      { parse_mode: "HTML" });
-  } else {
-    bot.sendMessage(q.message.chat.id, "⏳ Order placed, delivery is being prepared. Order #" + out.order.order_no);
-  }
-});`}</Code>
-            <p>
-              <strong>Step E — run it.</strong> <code className="font-mono">node index.js</code> locally, then host it
-              free/cheap on Railway, Render or a small VPS with{" "}
-              <code className="font-mono">pm2 start index.js</code> so it never sleeps.
-            </p>
-            <p>
-              <strong>Step F — improve.</strong> Add categories (group by{" "}
-              <code className="font-mono">category_name</code>), a search command, a customer wallet, and an admin alert
-              for pending orders. Always store the delivered items on your side too.
-            </p>
+products = requests.get(f"{BASE}/products", headers=H).json()["products"]
+r = requests.post(f"{BASE}/orders", headers=H, json={
+    "product_id": products[0]["id"], "quantity": 1, "external_ref": "my-order-1",
+}).json()
+if r["ok"]:
+    print(r["order"]["status"], r["order"]["items"])
+else:
+    print("Error:", r["error"])`,
+                ],
+                [
+                  "PHP",
+                  `<?php
+$base = "${base}";
+$ch = curl_init("$base/orders");
+curl_setopt_array($ch, [
+  CURLOPT_RETURNTRANSFER => true,
+  CURLOPT_POST => true,
+  CURLOPT_HTTPHEADER => ["Authorization: Bearer " . getenv("QORIX_API_KEY"), "Content-Type: application/json"],
+  CURLOPT_POSTFIELDS => json_encode(["product_id" => "PRODUCT_ID", "quantity" => 1, "external_ref" => "my-order-1"]),
+]);
+$r = json_decode(curl_exec($ch), true);
+echo $r["ok"] ? implode("\\n", $r["order"]["items"]) : $r["error"];`,
+                ],
+              ]}
+            />
           </Section>
 
-          <Section id="checklist" title="11. Go-live checklist">
+          <Section id="instructions" icon="📜" title="Instructions & Terms">
             <ul className="list-disc space-y-1 pl-5">
-              <li>API key stored in server environment variables only.</li>
-              <li>Unique <code className="font-mono">external_ref</code> on every order.</li>
-              <li>Your own database keeps a copy of each order and its delivered items.</li>
-              <li>Customer payment is confirmed before calling <code className="font-mono">/orders</code>.</li>
-              <li>Catalogue refreshed every few minutes (cache 1–5 min, not longer — stock changes).</li>
-              <li>Low-balance alert so sales never fail with HTTP 402.</li>
-              <li>Refund/warranty text on your site matching our policy.</li>
+              <li>All products are sold as QORIX products. Resell them under your own brand at your own price.</li>
+              <li>Balance is prepaid and used only for orders. Failed deliveries are refunded to balance automatically.</li>
+              <li>Pass the product instructions to your buyer; warranty follows the product description.</li>
+              <li>Do not share your API key. Abuse or chargebacks can disable the account.</li>
             </ul>
           </Section>
 
-          <Section id="faq" title="12. FAQ">
-            <p>
-              <strong>Do I choose my selling price?</strong> Yes. You pay the discounted{" "}
-              <code className="font-mono">price</code>; whatever you charge your customer is your profit.
-            </p>
-            <p>
-              <strong>What if delivery fails?</strong> After a debit, a confirmed QORIX delivery failure returns HTTP 409 delivery_failed with one refund and a retained terminal failed order. No debit occurs on failed balance/stock pre-checks. Cancellation/expiry never refunds new reseller orders. Unknown delivery outcomes require reconciliation; manual processing remains pending.
-            </p>
-            <p>
-              <strong>Can I use one key for a website and a bot?</strong> Yes, if both channels are enabled on your
-              account — just send the right <code className="font-mono">channel</code> value.
-            </p>
-            <p>
-              <strong>Rate limits?</strong> Be reasonable: cache the catalogue and avoid polling orders more than once
-              per 30 seconds.
-            </p>
-            <p>
-              <strong>Need help?</strong> Contact us from the{" "}
-              <Link to="/contact" className="text-primary underline">
-                support page
-              </Link>{" "}
-              — we help with integration for free.
-            </p>
+          <Section id="faq" icon="❓" title="FAQ">
+            {[
+              ["Where do I get an API key?", "Apply in the reseller portal. After approval the key is in your Reseller Dashboard."],
+              ["How do I add balance?", "Top up from the Reseller Dashboard or with a deposit in the Telegram bot — it is the same balance."],
+              ["The order said pending. Was I charged?", "Yes, the order is paid. Poll GET /orders/{id}; if it fails you are refunded automatically."],
+              ["I got “Product temporarily unavailable”.", "That product cannot be sold right now. You were not charged (or were refunded). Try later or choose another product."],
+              ["Why do I get 404 on every request?", "Check the base URL: no www, keep /v1, no trailing slash."],
+            ].map(([q, a]) => (
+              <details key={q} className="group rounded-xl border border-border/70 bg-card p-4">
+                <summary className="cursor-pointer list-none font-semibold text-foreground">{q}</summary>
+                <p className="mt-2">{a}</p>
+              </details>
+            ))}
           </Section>
 
-          <Section id="changelog" title="13. API changelog">
-            <p>Every change to the API is listed here, newest first. Check it when something behaves differently.</p>
-            <p><strong>2026-11-15 — Connection fix</strong></p>
-            <ul className="list-disc space-y-1 pl-5">
-              <li>Fixed an internal request that used redirect: "error", which edge servers reject. Reseller panels must use redirect: "manual" (or omit it), the URL without www and without a trailing slash.</li>
-              <li>Added “Connect in 3 steps” and a quick-fix table to these docs.</li>
+          <Section id="changelog" icon="🗒️" title="Changelog">
+            <ul className="space-y-2">
+              <li><b className="text-foreground">v1.2</b> — Buyer email accepted as <C>customer_inputs.email</C>; unavailable deliveries now return “Product temporarily unavailable”. New step-by-step docs.</li>
+              <li><b className="text-foreground">v1.1</b> — Unit prices with up to 4 decimals.</li>
+              <li><b className="text-foreground">v1.0</b> — Products, orders, balance and transactions.</li>
             </ul>
-            <p><strong>Preview-only Phase 1 — not yet published</strong></p>
-            <ul className="list-disc space-y-1 pl-5">
-              <li>Owner-rule preview: stock and balance pre-checks before reservation/debit; atomic original-debit refund with terminal failed order and ledger; debit-race 402 includes balance and required; duplicate reservations are retained cancelled, never deleted.</li>
-              <li>Confirmed delivery rejections share neutral delivery_failed responses. Unknown delivery outcomes, legacy recovery and bot cancellation conflicts remain explicitly outside the changed path.</li>
-              <li>Safety hardening: non-object JSON is rejected, read errors return neutral 503, unknown write outcomes do not trigger transport fallback, and saved completion is confirmed rather than fabricated from memory. New completed/terminal orders preserve delivery and financial identity.</li>
-            </ul>
-            <p><strong>2026-10-18 — Charged stock-order recovery</strong></p>
-            <ul className="list-disc space-y-1 pl-5">
-              <li>Instant stock allocation and completion are saved together. Interrupted, already-charged stock orders are retried automatically without another wallet debit or duplicate stock allocation.</li>
-              <li>If an interrupted request returns pending, retain the same order ID/reference; read GET /orders/:id or receive order.completed. Only show completed when status is completed and items is non-empty. Do not place a replacement order.</li>
-            </ul>
-            <p><strong>2026-10-16 — Product data privacy</strong></p>
-            <ul className="list-disc space-y-1 pl-5">
-              <li>Use the documented QORIX product endpoints rather than querying underlying database tables. Internal connection settings and diagnostics are private. Product IDs, selling prices, stock, descriptions, images and order endpoints are unchanged.</li>
-              <li>Webhook addresses must use public HTTPS on the default port, without embedded credentials. Private network destinations are rejected and redirects are not followed; use your final webhook URL.</li>
-              <li>Historical behaviour; the preview owner-rule changes above supersede delivery-failure handling for new reseller purchases.</li>
-            </ul>
-            <p>
-              <strong>2026-10-29</strong>
-            </p>
-            <ul className="list-disc space-y-1 pl-5">
-              <li>
-                Out-of-stock products are now hidden: <code className="font-mono">GET /products</code> only lists
-                products you can buy right now, and <code className="font-mono">GET /products/:id</code> returns 404
-                while a product is out of stock. They reappear automatically when restocked. Remove products from
-                your site when they disappear from the list.
-              </li>
-              <li>
-                Per-reseller custom prices: we can set a fixed price for your account on specific products. Products
-                then include <code className="font-mono">custom_price</code> and{" "}
-                <code className="font-mono">custom_min_qty</code>. When your order quantity reaches{" "}
-                <code className="font-mono">custom_min_qty</code>, the custom price is charged instead of your normal
-                discounted price — no discount percent or bulk discount applies on top. When{" "}
-                <code className="font-mono">custom_min_qty</code> is 1, the list <code className="font-mono">price</code>{" "}
-                already shows the custom price.
-              </li>
-            </ul>
-            <p>
-              <strong>2026-10-15</strong>
-            </p>
-            <ul className="list-disc space-y-1 pl-5">
-              <li>
-                Background execution supports continued processing, but does not guarantee completion after every interruption. Do not create a new order —
-                fetch the existing one or resend the same <code className="font-mono">external_ref</code>.
-              </li>
-              <li>
-                Automatic recovery: an order interrupted before charging is charged and delivered within about 1–2
-                minutes. If balance or stock is missing it becomes{" "}
-                <code className="font-mono">cancelled</code> under legacy recovery rules. New preview purchases are excluded from that legacy debit/recovery path.
-              </li>
-              <li>
-                Orders delivered later are pushed to your order webhook with <code className="font-mono">items</code>.
-                Set a webhook URL in your panel to receive them automatically.
-              </li>
-              <li>
-                Only treat an order as delivered when <code className="font-mono">status</code> is{" "}
-                <code className="font-mono">completed</code> and <code className="font-mono">items</code> is not empty.
-              </li>
-            </ul>
-            <p>
-              <strong>Earlier</strong>
-            </p>
-            <ul className="list-disc space-y-1 pl-5">
-              <li>
-                Orders that cannot be delivered instantly return HTTP 201 with{" "}
-                <code className="font-mono">"submitted": true</code> and <code className="font-mono">status: "pending"</code>;
-                your balance is kept and items arrive once we deliver.
-              </li>
-              <li>Historical paid-pending handling is superseded for new preview purchases only; see the exact pre-check/refund/cancellation rules above.</li>
-            </ul>
+          </Section>
+
+          <Section id="support" icon="💬" title="Support">
+            <p>Questions or a stuck order? Contact QORIX support from the Telegram bot and include your <C>order.id</C> or <C>external_ref</C>.</p>
+            <div className="grid gap-2 sm:flex">
+              <Button asChild><Link to="/reseller/start">Open Reseller Dashboard</Link></Button>
+              <Button asChild variant="outline"><Link to="/reseller">Reseller portal</Link></Button>
+            </div>
           </Section>
         </div>
       </div>

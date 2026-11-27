@@ -10,7 +10,7 @@ import { activeTemplate, MOBILE_LOGO_KEY, MOBILE_NAME_KEY, TEMPLATE_KEY } from "
 /** True when admin picked the Mobile View template. */
 // Reseller login, recovery and dashboard always keep the classic design; the portal and docs follow the template.
 export function isClassicOnlyPath(pathname: string) {
-  return pathname.startsWith("/reseller/start") || pathname.startsWith("/reseller/panel") || pathname.startsWith("/reset-password");
+  return pathname.startsWith("/reseller/start") || pathname.startsWith("/reseller/panel") || pathname.startsWith("/reseller/docs") || pathname.startsWith("/reset-password");
 }
 
 export function useMobileTemplate() {
