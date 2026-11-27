@@ -58,7 +58,8 @@ import { siteContacts, type SiteLink } from "@/lib/site-content";
 
 import { Clock } from "lucide-react";
 import { hideOnError } from "@/components/SmartImage";
-import { BotPage, useMobileTemplate } from "@/components/mobile/BotFrame";
+import { BotPage, isClassicOnlyPath, useMobileTemplate } from "@/components/mobile/BotFrame";
+import { activeTemplate, TEMPLATE_KEY } from "@/lib/mobile-template";
 
 function useSignedIn() {
   const [signedIn, setSignedIn] = useState(false);
@@ -204,7 +205,14 @@ function FooterColumn({ title, links }: { title: string; links: SiteLink[] }) {
 
 export function StoreShell({ children }: { children: ReactNode }) {
   // Mobile View template: every customer page opens inside the Telegram-bot window.
-  if (useMobileTemplate()) return <BotPage>{children}</BotPage>;
+  const mobile = useMobileTemplate();
+  const { v } = useSiteContent();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  if (mobile) return <BotPage>{children}</BotPage>;
+  // Mobile View on: classic reseller login/docs pages open without the old site's header and footer.
+  if (isClassicOnlyPath(pathname) && activeTemplate(v(TEMPLATE_KEY)) === "mobile") {
+    return <div className="flex min-h-screen flex-col bg-background text-foreground"><main className="flex-1">{children}</main></div>;
+  }
   return <WebsiteShell>{children}</WebsiteShell>;
 }
 
