@@ -498,6 +498,12 @@ function SettingsPage() {
           <ImageUploadField value={values["api_banner_url"] ?? ""} onChange={(url) => setValues({ ...values, api_banner_url: url })} placeholder="https://… banner image" />
           {values["api_banner_url"] && <img src={values["api_banner_url"]} alt="Reseller API banner preview" className="mt-2 aspect-[1920/691] w-full rounded-md border border-border object-cover" />}
         </div>
+        <div className="space-y-1 sm:col-span-2">
+          <Label>All Products banner (bot All Products page)</Label>
+          <p className="text-xs text-muted-foreground">Recommended 1920×691 (wide banner). Shown above the product list together with the cart buttons; leave empty to hide.</p>
+          <ImageUploadField value={values["products_banner_url"] ?? ""} onChange={(url) => setValues({ ...values, products_banner_url: url })} placeholder="https://… banner image" />
+          {values["products_banner_url"] && <img src={values["products_banner_url"]} alt="All Products banner preview" className="mt-2 aspect-[1920/691] w-full rounded-md border border-border object-cover" />}
+        </div>
         {FIELDS.map((f) => (
           <div key={f.key} className={`space-y-1 ${f.long ? "sm:col-span-2" : ""}`}>
             <Label>{f.label}</Label>

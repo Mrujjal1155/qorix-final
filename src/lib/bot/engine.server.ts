@@ -6,6 +6,7 @@ import { cardToTable, saleTable } from "@/lib/bot/alert-table";
 import { bulkDiscountCard } from "@/lib/bot/bulk-discount-card";
 import { productBulkTable } from "@/lib/bot/product-bulk-table";
 import { productDetailsMessage } from "@/lib/bot/product-details-message";
+import { productsBannerUrl, buildProductsBannerCard } from "@/lib/bot/products-banner";
 // Server-only Telegram shop bot engine.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { membershipContact } from "@/lib/bot/contact";
@@ -1913,6 +1914,20 @@ async function allProductsView(page: number, catId: "all" | string = "all", chat
       ? `${uiTag(settings, "shop_flash")} — <b>${flash.length}</b> discounted item(s) live now\n`
       : "") +
     `<i>Tap a product below to view details.</i>`;
+  // Admin banner (All Products only) rides in the same rich message as the cart/buttons.
+  const banner = catId === "all" ? productsBannerUrl(settings) : null;
+  if (banner) {
+    const rich = buildProductsBannerCard({
+      banner,
+      title: `${pageIconHtml(settings, "shop")} <b>${title}</b>`,
+      rows: [
+        [`${uiIconHtml(settings, "shop_instock")} ${uiText(settings, "shop_instock")}`, `<b>${inStock}</b>`],
+        ...(flash.length ? [[uiTag(settings, "shop_flash"), `<b>${flash.length}</b> discounted item(s) live now`] as [string, string]] : []),
+      ],
+      note: "Tap a product below to view details.",
+    });
+    return { text: rich, kb };
+  }
   return { text, kb };
 }
 
